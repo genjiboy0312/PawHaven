@@ -1,4 +1,4 @@
-﻿# Paw Haven — Project Master Document
+# Paw Haven — Project Master Document
 
 **Version:** 0.1.0  
 **Status:** Pre-production  
@@ -61,13 +61,13 @@ Paw Haven은 사용자가 언제든 돌아와 편안하게 쉴 수 있는 작은
 | 프로젝트 이름 | Paw Haven (가칭) |
 | 초기 캐릭터 구성 | 정의됨 |
 | 아트 스타일 | 사용자 제공 참고 이미지 존재 |
-| 기술 스택 | 제안됨, 검증 필요 |
-| 프로젝트 초기화 | 미진행 |
+| 기술 스택 | PixiJS + TypeScript + Vite로 확정 (2026-10-16) |
+| 프로젝트 초기화 | 패키지 설치 및 기본 캔버스 구성; 검증 결과는 SETUP.md 참조 |
 | 플레이 가능한 프로토타입 | 미구현 |
 | 멀티플레이 | 향후 검토 |
 | Android/iOS 앱 | 향후 검토 |
 
-**현재 실제 코드 구현 진행률: 0%**
+**현재 구현 범위: 개발 환경과 기본 캔버스. 동물·AI·환영·상호작용 기능은 미구현.**
 
 기획 문서가 작성되었다는 사실은 게임 기능이 구현되었다는 의미가 아니다.
 
@@ -116,24 +116,27 @@ Prototype v0.1의 목적은 다음 경험을 검증하는 것이다.
 | 영역 | 기술 |
 |---|---|
 | Language | TypeScript |
-| Game Framework | Phaser 3 |
+| 2D Rendering Engine | PixiJS 8 |
 | Build Tool | Vite |
-| Rendering | Phaser WebGL / Canvas fallback |
-| Animation | Sprite-based frame animation |
+| Rendering | PixiJS WebGL 우선 / WebGPU는 추후 검증; Canvas fallback은 현재 구성하지 않음 |
+| Animation | PixiJS AnimatedSprite 기반 프레임 애니메이션 |
 | Behavior AI | Finite State Machine |
 | Persistence | LocalStorage |
-| Input | Mouse / Touch |
+| Input | PixiJS 이벤트 시스템 (Mouse / Touch) |
+| Audio | @pixi/sound |
 | Package Manager | npm |
 
 ## 4.2 기술 선택 이유
 
-### Phaser
+### PixiJS
 
-- 2D 게임 개발에 적합
+- 사용자가 웹게임 렌더링 엔진으로 선택 (2026-10-16)
+- 2D 렌더링에 적합
 - 브라우저 실행 지원
 - 스프라이트 애니메이션 기능 제공
 - 터치 및 마우스 입력 지원
-- 향후 모바일 앱 패키징 가능
+- 향후 모바일 앱 패키징 검토 가능
+- PixiJS는 렌더링 엔진이므로 씬 생명주기와 행동 AI는 프로젝트에서 별도로 구성
 
 ### TypeScript
 
@@ -153,7 +156,7 @@ Prototype v0.1에서는 복잡한 물리 엔진을 도입하지 않는다.
 
 로비의 동물 이동은 단순한 좌표 이동과 애니메이션으로 구현한다.
 
-추후 플랫포머를 개발할 때 Phaser Arcade Physics 또는 Matter.js를 요구사항에 따라 평가한다.
+추후 플랫포머를 개발할 때 PixiJS와 결합할 물리 라이브러리를 요구사항에 따라 별도로 평가한다.
 
 ---
 
@@ -183,9 +186,9 @@ Prototype v0.1에서는 복잡한 물리 엔진을 도입하지 않는다.
 - 환영 애니메이션
 - 쓰다듬기 반응
 
-### FR-004 — 갈색 점박이 고양이
+### FR-004 — 검정·흰색 턱시도 고양이
 
-- 갈색 태비 또는 점박이 무늬
+- 검은 귀·등·꼬리, 흰 코·입 주변·가슴·배·발
 - 웰시코기와 동일한 아트 스타일
 - 기본 대기 애니메이션
 - 이동 애니메이션
@@ -310,8 +313,8 @@ Prototype v0.1에서는 복잡한 물리 엔진을 도입하지 않는다.
 
 외형:
 
-- 갈색 털
-- 점박이 또는 태비 무늬
+- 검정과 흰색 털
+- 턱시도 무늬 (흰 코·입 주변·가슴·배·발)
 - 통통하고 귀여운 체형
 - 긴 꼬리
 - 상대적으로 느긋한 성격
@@ -495,6 +498,8 @@ AnimalState
 
 ## 10.1 기본 구조
 
+아래 씬 구조는 향후 프로젝트에서 구현할 설계이며 PixiJS 내장 Scene API가 아니다. 현재는 Application 기반 최소 실행 코드만 존재한다.
+
 ```text
 Game
 ├── BootScene
@@ -568,7 +573,8 @@ Game
 
 ```text
 paw-haven/
-├── PAW_HAVEN_PROJECT.md
+├── MyAIAgent/
+│   └── PAW_HAVEN_PROJECT.md
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
@@ -624,11 +630,13 @@ paw-haven/
 
 ## M0 — 프로젝트 초기화
 
+현재 상태: 패키지 설치·기본 캔버스·타입 검사·빌드·데스크톱 실행 확인 완료. Boot/Preload/Lobby 씬 구조와 모바일 검증은 남아 있다. 상세: [SETUP.md](SETUP.md).
+
 목표:
 
 - Vite 프로젝트 생성
 - TypeScript 설정
-- Phaser 초기화
+- PixiJS Application 초기화
 - 기본 게임 캔버스
 - 빈 LobbyScene
 
@@ -786,7 +794,7 @@ AI 에이전트는 Paw Haven 프로젝트의 개발 보조자다.
 
 모든 작업 시작 전에:
 
-1. `PAW_HAVEN_PROJECT.md`를 읽는다.
+1. `MyAIAgent/PAW_HAVEN_PROJECT.md`를 읽는다.
 2. 현재 프로젝트 구조를 확인한다.
 3. 기존 코드와 구현 상태를 확인한다.
 4. 현재 마일스톤을 파악한다.
@@ -954,7 +962,7 @@ Paw Haven의 개발 환경을 초기화한다.
 ### Requirements
 
 1. Vite + TypeScript 프로젝트 생성
-2. Phaser 3 설치
+2. PixiJS 8 설치
 3. TypeScript strict 모드 적용
 4. 게임 엔트리포인트 구성
 5. BootScene 생성
@@ -995,11 +1003,11 @@ Paw Haven의 개발 환경을 초기화한다.
 
 > Paw Haven 프로젝트 개발을 시작합니다.
 >
-> 먼저 프로젝트 루트의 `PAW_HAVEN_PROJECT.md`를 처음부터 끝까지 읽고 프로젝트의 목표, 기능 범위, 아트 스타일, 기술 구조 및 개발 규칙을 이해하세요.
+> 먼저 `MyAIAgent/PAW_HAVEN_PROJECT.md`를 처음부터 끝까지 읽고 프로젝트의 목표, 기능 범위, 아트 스타일, 기술 구조 및 개발 규칙을 이해하세요.
 >
-> 현재 프로젝트는 Prototype v0.1이며, 아직 실제 코드 구현은 시작되지 않았습니다.
+> 현재 프로젝트는 Prototype v0.1이며, 개발 환경 및 기본 캔버스만 구성되었으며 게임 기능은 미구현입니다.
 >
-> 현재 목표는 멀티플레이 게임이 아니라, 웰시코기와 갈색 점박이 고양이가 사용자를 반겨주는 2D 픽셀 아트 힐링 로비입니다.
+> 현재 목표는 멀티플레이 게임이 아니라, 웰시코기와 검정·흰색 턱시도 고양이가 사용자를 반겨주는 2D 픽셀 아트 힐링 로비입니다.
 >
 > 사용자 제공 웰시코기 이미지는 아트 스타일 기준이며, 실제 게임용 완성 스프라이트 시트라고 가정하지 마세요.
 >
