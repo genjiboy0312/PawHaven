@@ -1,0 +1,87 @@
+{
+  "character": "corgi",
+  "reference": "Resources/Corgi_Action_Art_Sheet.png",
+  "note": "All 16 families are present in the reference. Reference panel labels do not certify frame counts. Only idle/walk have validated transparent runtime rectangles.",
+  "actions": {
+    "idle": {
+      "referenceArt": true,
+      "runtimeReady": true,
+      "frames": 8
+    },
+    "walk": {
+      "referenceArt": true,
+      "runtimeReady": true,
+      "frames": 8
+    },
+    "run": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "jump": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "fall": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "land": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "doubleJump": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "attack": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "hit": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "die": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "skill": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "emote": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "direction": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "climb": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "push": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    },
+    "hurtLoop": {
+      "referenceArt": true,
+      "runtimeReady": false,
+      "frames": null
+    }
+  }
+}

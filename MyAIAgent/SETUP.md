@@ -37,7 +37,11 @@ npm run preview
 - 모바일 화면 크기 및 실제 기기: 미검증
 - npm 10.8.2의 설치 중 edgesOut 오류는 해당 설치에 한해 npx npm@11로 해결. 전역 npm 버전은 변경하지 않음
 
-## M0 진행 상태 및 다음 작업
+## 최신 진행 상태
+
+M0·M1 완료. 최신 검증과 남은 작업은 [M0_M1_PROGRESS.md](M0_M1_PROGRESS.md)를 참조한다.
+
+## 초기 패키지 설치 당시 기록 (완료 전)
 
 이번 작업은 의존성 설치와 실행 환경 준비 범위다. M0 전체 완료는 아니다.
 
@@ -54,4 +58,3 @@ npm run preview
 - [PixiJS Quick Start](https://pixijs.com/8.x/guides/getting-started/quick-start)
 - [PixiJS Application](https://pixijs.com/8.x/guides/components/application)
 - [PixiJS Sound](https://github.com/pixijs/sound)
-

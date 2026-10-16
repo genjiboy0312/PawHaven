@@ -1,11 +1,35 @@
 :root {
   font-family: system-ui, sans-serif;
   color: #344b38;
-  background: #dce8ce;
+  background: #edf0db;
 }
 * { box-sizing: border-box; }
 html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-#app { position: relative; }
-#status { position: absolute; inset: 45% 16px auto; text-align: center; }
+#app { position: relative; min-height: 280px; }
+#status { position: absolute; inset: 45% 16px auto; text-align: center; z-index: 3; }
 canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-
+.game-heading {
+  position: absolute; z-index: 1; top: max(24px, env(safe-area-inset-top));
+  left: 24px; right: 24px; text-align: center; pointer-events: none;
+}
+.game-heading h1 { margin: 0; font: 36px Georgia, serif; letter-spacing: 1px; }
+.game-heading p { margin: 8px 0; font: 15px Georgia, serif; color: #6b7b5c; }
+.animal-controls {
+  position: absolute; z-index: 2; left: 16px; right: 16px;
+  bottom: max(20px, env(safe-area-inset-bottom)); text-align: center;
+}
+.animal-controls p { font-size: 13px; margin: 0 0 12px; color: #526744; }
+button {
+  min-width: 88px; min-height: 44px; margin: 0 4px; padding: 10px 20px;
+  border: 1px solid #98ac80; border-radius: 24px; color: #3c5639;
+  font: inherit; font-size: 14px; background: #f8f7e9; cursor: pointer;
+}
+button[aria-pressed="true"] { background: #526e46; color: #fffdf0; border-color: #526e46; }
+button:focus-visible { outline: 3px solid #ba7f35; outline-offset: 3px; }
+@media (max-height: 420px) {
+  .game-heading { top: 12px; }
+  .game-heading h1 { font-size: 25px; }
+  .game-heading p { display: none; }
+  .animal-controls { bottom: 8px; }
+  .animal-controls p { display: none; }
+}

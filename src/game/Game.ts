@@ -1,3 +1,5 @@
+import type { AnimalConfig } from '../animals/AnimalConfig';
+import { loadCorgi } from '../animals/loadCorgi';
 import { Application, type Ticker } from 'pixi.js';
 import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
@@ -8,6 +10,13 @@ export class Game {
   private readonly app = new Application();
   private scenes: SceneManager | undefined;
   private disposed = false;
+  private corgi: AnimalConfig | undefined;
+  private releaseFrames(): void {
+    if (!this.corgi) return;
+    const textures = new Set(Object.values(this.corgi.animations).flatMap((animation) => animation.frames));
+    for (const texture of textures) texture.destroy(false);
+    this.corgi = undefined;
+  }
   private initialized = false;
   private readonly resize = (): void => this.scenes?.resize();
   private readonly tick = (ticker: Ticker): void => {
@@ -37,10 +46,12 @@ export class Game {
     if (this.disposed) return;
     const preload = new PreloadScene();
     this.scenes.show(preload);
-    preload.setProgress(1);
+    const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress); });
+    this.corgi = corgi;
+    if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
-    this.scenes.show(new LobbyScene());
+    this.scenes.show(new LobbyScene(corgi));
     document.querySelector('#status')?.remove();
     this.visibility();
   }
@@ -53,7 +64,7 @@ export class Game {
     this.app.renderer.off('resize', this.resize);
     this.app.ticker.remove(this.tick);
     this.scenes?.destroy();
+    this.releaseFrames();
     this.app.destroy(true, { children: true });
   }
 }
-
