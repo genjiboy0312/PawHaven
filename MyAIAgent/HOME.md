@@ -11,3 +11,5 @@
 - 구현: src/home/HomeState.ts, LobbyMap.ts, src/game/scenes/HomeScene.ts.
 - 테스트 39개 및 타입 검사/빌드 통과. Home 버튼 위치·진입·캐릭터 없는 구조·탭 선택·로비 반영·재진입·None 해제·씬 정리, 저장 검증·손상 데이터/저장소 차단을 확인했다.
 - 브라우저/모바일 실기기의 최종 시각·터치 확인은 별도 필요하다.
+- 큰 타원형 바닥 패치를 제거했다. Background는 배경, Floor는 전체 바닥 색상만 변경하며 아이템 목록 아래의 작은 그림자는 유지한다.
+- 후속 개발 순서: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).

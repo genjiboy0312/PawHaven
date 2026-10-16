@@ -8,8 +8,7 @@ export class LobbyMap extends Container {
   draw(width: number, height: number, look: HomeLook): void {
     const ground = height * 0.72, g = this.paint;
     g.clear().rect(0, 0, width, height).fill(SKY_COLORS[look.Background])
-      .rect(0, height * 0.44, width, height * 0.56).fill(FLOOR_COLORS[look.Floor])
-      .ellipse(width * 0.5, ground + 24, width * 0.44, height * 0.13).fill({ color: look.Floor === 0 ? '#b7ce98' : '#7b896c', alpha: look.Floor === 0 ? 1 : 0.14 });
+      .rect(0, height * 0.44, width, height * 0.56).fill(FLOOR_COLORS[look.Floor]);
     if (look.Background) {
       g.circle(width * 0.22, height * 0.2, 32).fill({ color: '#fff8df', alpha: 0.8 });
       g.ellipse(width * 0.45, height * 0.44, width * 0.3, height * 0.12).fill({ color: '#95ac89', alpha: 0.18 });

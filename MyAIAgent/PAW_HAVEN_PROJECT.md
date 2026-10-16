@@ -1,11 +1,13 @@
 # Paw Haven — Project Master Document
 
 **Version:** 0.1.0  
-**Status:** Pre-production  
+**Status:** Prototype  
 **Project Name:** Paw Haven (가칭)  
 **Genre:** Cozy 2D Pixel Art Animal Game  
 **Development:** Web First / Cross-platform Ready  
 **Last Updated:** 2026-10-16
+
+최신 구현 범위와 후속 개발 순서: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md). 초기 마일스톤 외에 추가된 기능의 현재 상태는 이 문서와 개별 기능 문서를 우선 확인한다.
 
 픽셀 아트·새 동물 추가 작업 지침: [PIXEL_ART_AGENT.md](PIXEL_ART_AGENT.md)
 
@@ -1034,7 +1036,7 @@ Paw Haven의 개발 환경을 초기화한다.
 >
 > 먼저 `MyAIAgent/PAW_HAVEN_PROJECT.md`를 처음부터 끝까지 읽고 프로젝트의 목표, 기능 범위, 아트 스타일, 기술 구조 및 개발 규칙을 이해하세요.
 >
-> 현재 프로젝트는 Prototype v0.1이며, M0·M1이 완료되었으며 M3는 코기 한 마리 기준 자율 행동 구현 및 테스트를 마쳤습니다. M2는 보류되었고 M4 타이틀·코기 환영은 구현·테스트 완료, M5 이후 기능은 미구현입니다.
+> 현재 프로젝트는 Prototype v0.1이며, M0·M1이 완료되었으며 M3는 코기 한 마리 기준 자율 행동 구현 및 테스트를 마쳤습니다. M2는 보류되었고 M4 타이틀·코기 환영은 구현·테스트 완료, M5 교감은 미구현이며 M6 일부와 Character·Home·Shop·Quest·Settings 프로토타입이 추가되었습니다. 최신 상태와 후속 순서는 `MyAIAgent/DEVELOPMENT_PLAN.md`를 확인하세요.
 >
 > 현재 목표는 멀티플레이 게임이 아니라, 웰시코기와 검정·흰색 턱시도 고양이가 사용자를 반겨주는 2D 픽셀 아트 힐링 로비입니다.
 >
