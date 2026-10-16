@@ -160,3 +160,12 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .home-inventory { left: 66%; right: 3%; top: 29%; height: 54cqh; grid-auto-rows: calc((54cqh - 6cqh) / 4); gap: 2cqh 0.5cqw; }
 .home-inventory .outfit-object { width: 4.7cqw; height: 6.5cqh; }
 .home-hint { position: absolute; left: 66%; right: 3%; bottom: 5%; margin: 0; font-size: 1.1cqw; color: #7e8877; }.outfit-object.santa-hat-icon { width: 12cqw; height: 18cqh; bottom: -0.5cqh; image-rendering: pixelated; }
+.home-placements { position: absolute; inset: 0; pointer-events: none; }
+.home-placement { position: absolute; width: 16.6667%; height: 25.9259%; padding: 0; border: 1px solid transparent; border-radius: 1cqw; background: transparent; pointer-events: auto; touch-action: none; cursor: grab; }
+.home-placement[aria-pressed="true"] { border: 1px dashed #63785580; background: #eaf2d10a; }
+.home-placement:active { cursor: grabbing; }
+.home-remove { position: absolute; left: 4%; bottom: 3%; pointer-events: auto; z-index: 3; }
+.home-remove[hidden] { display: none; }
+.home-tabs, .home-inventory, .home-hint, .home-drawer, .home-screen > .character-close { z-index: 4; }
+.home-drawer { pointer-events: auto; }
+.home-pixel-icon { image-rendering: pixelated; }

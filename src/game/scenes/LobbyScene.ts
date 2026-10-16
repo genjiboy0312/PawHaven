@@ -1,5 +1,5 @@
 import { HomeState } from '../../home/HomeState';
-import { LobbyMap } from '../../home/LobbyMap';
+import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
 import { Graphics, Rectangle, type DestroyOptions } from 'pixi.js';
 import { Animal } from '../../animals/Animal';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
@@ -7,7 +7,7 @@ import { LobbyHud } from '../../ui/LobbyHud';
 import { Scene } from './Scene';
 
 export class LobbyScene extends Scene {
-  private readonly garden = new LobbyMap();
+  private readonly garden: LobbyMap;
   private readonly shadow = new Graphics();
   private readonly animal: Animal;
   private readonly hud: LobbyHud;
@@ -16,8 +16,8 @@ export class LobbyScene extends Scene {
 
   override setPaused(paused: boolean): void { this.paused = paused; }
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }, private readonly home?: { state: HomeState; open: () => void }) {
-    super();
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }) {
+    super(); this.garden = new LobbyMap(home?.textures);
     this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open);
     this.welcomeStarted = returning;
     this.animal = new Animal(config);
@@ -32,7 +32,7 @@ export class LobbyScene extends Scene {
   }
   resize(width: number, height: number): void {
     const ground = height * 0.72;
-    this.garden.draw(width, height, this.home?.state.current ?? { Background: 0, Floor: 0, Furniture: 0, Etc: 0 });
+    this.garden.draw(width, height, this.home?.state.current ?? { Background: 0, Floor: 0, Furniture: 0, Etc: 0 }, this.home?.state.placements);
     this.animal.setBounds(width, ground);
     if (!this.welcomeStarted) {
       this.welcomeStarted = true;

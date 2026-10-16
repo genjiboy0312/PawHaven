@@ -1128,11 +1128,11 @@ test('Home beside Character opens a pet-free map editor and returns the same edi
     click(tabs.children[2]); assert.equal(inventory.children[0].textContent, 'None'); click(inventory.children[1]);
     assert.equal(home.current.Furniture, 1);
     click(tabs.children[3]); click(inventory.children[1]); assert.equal(home.current.Etc, 1);
-    const previewCommands = scene.children[0].children[0].context.instructions.length;
-    assert.ok(previewCommands > 5);
+    const previewPosition = { x: scene.children[0].furniture.x, y: scene.children[0].furniture.y };
+    assert.equal(scene.children[0].furniture.visible, true); assert.equal(scene.children[0].etc.visible, true);
     click(panel.children[1]); assert.equal(scene.destroyed, true); assert.equal(host.children.length, 1);
     const map = app.stage.children[0].children[0], pet = app.stage.children[0].children.find(item => item.label === 'corgi');
-    assert.equal(map.children[0].context.instructions.length, previewCommands);
+    assert.deepEqual({ x: map.furniture.x, y: map.furniture.y }, previewPosition);
     assert.equal(pet.welcoming, false);
     click(host.children[0].children[0].children[1]);
     click(host.children[0].children[3].children[3]);
@@ -1329,5 +1329,93 @@ test('Santa hat follows every animation frame and body transform, shared selecti
     assert.equal(Texture.WHITE.destroyed, false);
   } finally {
     views.forEach(view => { if (!view.sprite.destroyed) view.sprite.destroy({ children: true }); view.sleepMark.destroy(); view.welcomeMark.destroy(); });
+  }
+});
+test('Home placement storage migrates old looks, clamps coordinates, rejects invalid input and keeps detached snapshots', () => {
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  values.set(HOME_STORAGE_KEY, '{"Furniture":4,"Etc":1,"Floor":2}');
+  const home = new HomeState(storage);
+  assert.equal(home.move('Furniture', 0.4, 0.8), true);
+  assert.equal(home.move('Etc', 8, -9), true);
+  assert.deepEqual(new HomeState(storage).placements, { Furniture: { x: 0.4, y: 0.8 }, Etc: { x: 0.56, y: 0.62 } });
+  assert.equal(new HomeState(storage).current.Floor, 2);
+  const copy = home.placements; copy.Furniture.x = 0; assert.equal(home.placements.Furniture.x, 0.4);
+  assert.equal(home.move('Floor', 0.3, 0.7), false); assert.equal(home.move('Etc', NaN, 0.7), false);
+  home.select('Etc', 0); assert.equal(home.move('Etc', 0.3, 0.7), false);
+  home.select('Etc', 1); assert.equal(home.placements.Etc.x, 0.56);
+  values.set(HOME_STORAGE_KEY, '{"Furniture":4,"placements":{"Furniture":{"x":"bad","y":0.7},"Etc":{"x":8,"y":-3}}}');
+  const repaired = new HomeState(storage);
+  assert.equal(repaired.placements.Furniture.x, 0.21); assert.deepEqual(repaired.placements.Etc, { x: 0.56, y: 0.62 });
+  const blocked = new HomeState({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  blocked.select('Furniture', 4); assert.equal(blocked.move('Furniture', 0.5, 0.8), true);
+  assert.equal(blocked.placements.Furniture.x, 0.5);
+});
+
+test('Home drag/drop saves only on release, handles rotation/cancel, removal and shared lobby positions', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; classList = { add() {} }; captured = new Set();
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    replaceChildren(...items) { this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+    focus() {}
+    setPointerCapture(id) { this.captured.add(id); }
+    hasPointerCapture(id) { return this.captured.has(id); }
+    releasePointerCapture(id) { this.captured.delete(id); this.dispatchEvent(Object.assign(new Event('lostpointercapture'), { pointerId: id })); }
+    getBoundingClientRect() { return { left: 10, top: 20, width: rotated ? 540 : 960, height: rotated ? 960 : 540 }; }
+  }
+  let rotated = false, writes = 0;
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => { writes++; values.set(key, value); } };
+  const home = new HomeState(storage); home.select('Furniture', 4); home.select('Etc', 1);
+  const oldDocument = globalThis.document, oldWindow = globalThis.window, host = new Element('main');
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
+  globalThis.window = Object.assign(new EventTarget(), { matchMedia: () => ({ matches: rotated }) });
+  const { HomeScene } = await importTs('../src/game/scenes/HomeScene.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const textures = { background: Texture.WHITE, floor: Texture.WHITE, cushion: Texture.WHITE };
+  const scene = new HomeScene(home, () => {}, textures); scene.resize(960, 540);
+  const pointer = (element, type, id, x, y) => element.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), {
+    pointerId: id, button: 0, clientX: rotated ? 10 + (1 - y) * 540 : 10 + x * 960, clientY: rotated ? 20 + x * 960 : 20 + y * 540,
+  }));
+  try {
+    const panel = host.children[0], layer = panel.children[6], remove = panel.children[7], map = scene.children[0];
+    assert.equal(map.children[1].visible, true); assert.equal(map.children[2].visible, true);
+    panel.children[4].children[1].dispatchEvent(new Event('click'));
+    assert.equal(map.children[1].visible, false); assert.equal(map.children[2].visible, true);
+    panel.children[4].children[0].dispatchEvent(new Event('click'));
+    const furniture = layer.children[0], etc = layer.children[1];
+    const before = writes;
+    pointer(furniture, 'pointerdown', 1, 0.21, 0.7); pointer(furniture, 'pointermove', 2, 0.1, 0.62);
+    assert.equal(map.furniture.x, 0.21 * 960);
+    pointer(furniture, 'pointermove', 1, 0.4, 0.8);
+    assert.ok(Math.abs(map.furniture.x - 384) < 0.001); assert.equal(writes, before);
+    assert.equal(home.placements.Furniture.x, 0.21); assert.equal(remove.hidden, false);
+    pointer(furniture, 'pointerup', 1, 0.4, 0.8);
+    assert.equal(writes, before + 1); assert.equal(furniture.captured.size, 0);
+    assert.ok(Math.abs(new HomeState(storage).placements.Furniture.x - 0.4) < 0.000001);
+    pointer(furniture, 'pointerdown', 3, 0.4, 0.8); pointer(furniture, 'pointermove', 3, 8, -4);
+    assert.equal(map.furniture.x, 0.56 * 960); pointer(furniture, 'pointercancel', 3, 8, -4);
+    assert.ok(Math.abs(map.furniture.x - 384) < 0.001); assert.equal(writes, before + 1);
+    rotated = true;
+    pointer(etc, 'pointerdown', 4, 0.47, 0.7); pointer(etc, 'pointermove', 4, 0.3, 0.85); pointer(etc, 'pointerup', 4, 0.3, 0.85);
+    assert.ok(Math.abs(home.placements.Etc.y - 0.85) < 0.000001); assert.ok(Math.abs(map.etc.x - 288) < 0.001);
+    pointer(etc, 'pointerdown', 5, 0.3, 0.85); pointer(etc, 'pointermove', 5, 0.5, 0.7);
+    window.dispatchEvent(new Event('resize')); assert.ok(Math.abs(map.etc.x - 288) < 0.001); assert.equal(etc.captured.size, 0);
+    const key = Object.assign(new Event('keydown', { cancelable: true }), { key: 'ArrowLeft' }); etc.dispatchEvent(key);
+    assert.ok(map.etc.x < 288);
+    remove.dispatchEvent(new Event('click')); assert.equal(home.current.Etc, 0); assert.equal(map.etc.visible, false);
+    assert.equal(home.current.Furniture, 4);
+    scene.destroy({ children: true }); assert.equal(Texture.WHITE.destroyed, false);
+    const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } };
+    const lobby = new LobbyScene(config, undefined, true, undefined, undefined, undefined, { state: new HomeState(storage), textures, open() {} });
+    lobby.resize(960, 540);
+    assert.ok(Math.abs(lobby.children[0].furniture.x - 384) < 0.001); assert.equal(lobby.children[0].etc.visible, false);
+    lobby.destroy({ children: true }); assert.equal(host.children.length, 0);
+  } finally {
+    if (!scene.destroyed) scene.destroy({ children: true });
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });

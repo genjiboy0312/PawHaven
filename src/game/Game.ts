@@ -1,3 +1,5 @@
+import { loadHome } from '../home/loadHome';
+import type { HomeTextures } from '../home/LobbyMap';
 import { HomeState } from '../home/HomeState';
 import { HomeScene } from './scenes/HomeScene';
 import { ShopState } from '../shop/ShopState';
@@ -22,6 +24,7 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 export class Game {
+  private homeTextures?: HomeTextures;
   private settings?: SettingsPopup;
   private quests?: QuestPopup;
   private audio?: AudioSystem;
@@ -31,6 +34,7 @@ export class Game {
   private disposed = false;
   private corgi: AnimalConfig | undefined;
   private releaseFrames(): void {
+    if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => texture.destroy(false)); this.homeTextures = undefined; }
     if (!this.corgi) return;
     const textures = new Set([...Object.values(this.corgi.animations).flatMap((animation) => animation.frames),
       ...Object.values(this.corgi.effects ?? {}).flat()]);
@@ -86,6 +90,7 @@ export class Game {
     document.querySelector('#status')?.remove();
     const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress); }, this.outfit);
     this.corgi = corgi;
+    if (!this.disposed) this.homeTextures = await loadHome();
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
@@ -101,7 +106,7 @@ export class Game {
         if (!this.disposed) this.scenes?.show(new PlayScene(activePet, () => { commerce.completeRun(); lobby(true); }, { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
       }, returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index) }));
-      }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open() }, { state: home, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true))); } }));
+      }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open() }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } }));
     };
     this.scenes.show(new TitleScene(() => lobby()));
 
