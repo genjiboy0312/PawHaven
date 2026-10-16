@@ -391,7 +391,7 @@ Prototype v0.1에서 우선 필요한 애니메이션:
 
 복잡한 공간 꾸미기 기능은 추후 추가한다.
 
-사용자 요청으로 로비에 비동작 메뉴 UI를 배치했다. 좌측 상단 캐릭터, 우측 상단 Shop/Settings/Friends, 우측 하단 Play. 각 원형 이미지 아래 이름을 표시한다. 실제 기능은 후속 구현한다. 상세: [LOBBY_LAYOUT.md](LOBBY_LAYOUT.md).
+사용자 요청으로 로비에 비동작 메뉴 UI를 배치했다. 좌측 상단 Character, 우측 상단 Friends/Shop/Settings, 우측 하단 Play. 각 원형 이미지 아래 이름을 표시한다. 실제 기능은 후속 구현한다. 상세: [LOBBY_LAYOUT.md](LOBBY_LAYOUT.md).
 
 ## 8.3 카메라
 

@@ -321,9 +321,9 @@ test('title has no corgi, opens one autonomous lobby, and all five menu placehol
       ...hud.children[0].children, ...hud.children[1].children, ...hud.children[2].children,
     ];
     assert.deepEqual(menus.map((item) => item.attributes.get('data-menu')),
-      ['character', 'shop', 'settings', 'friends', 'play']);
+      ['character', 'friends', 'shop', 'settings', 'play']);
     assert.deepEqual(menus.map((item) => item.children[1].textContent),
-      ['캐릭터', 'Shop', 'Settings', 'Friends', 'Play']);
+      ['Character', 'Friends', 'Shop', 'Settings', 'Play']);
     assert.equal(hud.children[0].className, 'hud-character');
     assert.equal(hud.children[1].className, 'hud-utilities');
     assert.equal(hud.children[2].className, 'hud-play');

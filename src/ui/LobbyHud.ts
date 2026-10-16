@@ -22,14 +22,14 @@ export class LobbyHud {
 
   constructor() {
     this.element.className = 'lobby-hud';
-    this.element.setAttribute('aria-label', '로비 메뉴 배치');
+    this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
     character.className = 'hud-character';
-    character.append(this.menu('character', '캐릭터'));
+    character.append(this.menu('character', 'Character'));
     const utilities = document.createElement('nav');
     utilities.className = 'hud-utilities';
-    utilities.setAttribute('aria-label', '로비 메뉴');
-    utilities.append(this.menu('shop', 'Shop'), this.menu('settings', 'Settings'), this.menu('friends', 'Friends'));
+    utilities.setAttribute('aria-label', 'Lobby menu');
+    utilities.append(this.menu('friends', 'Friends'), this.menu('shop', 'Shop'), this.menu('settings', 'Settings'));
     const play = document.createElement('div');
     play.className = 'hud-play';
     play.append(this.menu('play', 'Play'));
@@ -45,7 +45,7 @@ export class LobbyHud {
     button.className = 'hud-menu hud-menu-' + id;
     button.disabled = true;
     button.setAttribute('data-menu', id);
-    button.setAttribute('aria-label', label + ' (준비 중)');
+    button.setAttribute('aria-label', label + ' (coming soon)');
     const image = document.createElement('img');
     image.className = 'hud-icon';
     image.alt = '';
