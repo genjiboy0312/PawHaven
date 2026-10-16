@@ -12,7 +12,7 @@ export const HOME_STOCK = 3;
 const validItem = (tab: unknown, option: unknown): tab is PlaceableTab =>
   (tab === 'Furniture' || tab === 'Etc') && Number.isInteger(option) && Number(option) > 0 && Number(option) < homeOptions[tab];
 export function clampPlacement(x: number, y: number): Placement {
-  return { x: Math.max(0.10, Math.min(0.56, x)), y: Math.max(0.62, Math.min(0.87, y)) };
+  return { x: Math.max(0.10, Math.min(0.90, x)), y: Math.max(0.62, Math.min(0.87, y)) };
 }
 /** Convert the CSS-rotated game surface back to normalized map coordinates. */
 export function placementPoint(clientX: number, clientY: number, rect: { left: number; top: number; width: number; height: number }, rotated: boolean): Placement {

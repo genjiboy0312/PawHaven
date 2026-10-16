@@ -45,7 +45,7 @@ export class HomeScene extends Scene {
     const look = this.state.current;
     this.drawMap(); this.renderPlacements();
     Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(HOME_TABS[index] === this.tab)));
-    this.inventory.replaceChildren(); this.inventory.scrollTop = 0;
+    this.inventory.replaceChildren(); this.inventory.scrollTop = 0; this.inventory.scrollLeft = 0;
     for (let index = this.tab === 'Furniture' || this.tab === 'Etc' ? 1 : 0; index < homeOptions[this.tab]; index++) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot';
       const placeable = this.tab === 'Furniture' || this.tab === 'Etc';

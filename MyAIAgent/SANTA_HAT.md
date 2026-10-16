@@ -15,3 +15,6 @@
 ## 최종 생성 프롬프트
 
 Use case: stylized-concept. Project game equipment asset: ONE small Santa hat, isolated on a genuinely transparent background. Reference image is STYLE ONLY: match its cozy detailed pixel-art corgi sprites, warm soft pixel clusters and restrained shading. Generate ONLY the hat, NO dog, head, mannequin, text, ground, shadow, effects, panels, grid or other objects. Classic warm red floppy Santa cap with ivory fluffy brim and small ivory pompom. Three-quarter side view suitable for a corgi facing RIGHT; tip droops LEFT, brim almost horizontal. Compact squat proportions so ears can remain visible outside hat. Clean readable silhouette, deliberately visible square pixels, no blur, no vector outlines, no photoreal fur. Hat fully contained within central 65% of image, broad transparent margin, brim bottom centered, even neutral lighting. A single item for compositing on animated sprites and inventory icon. Save generated image as a PNG asset.
+
+## 2026-10-17 위치 조정
+공유 애니메이션 컨트롤러에서 모든 동물/동작의 모자를 논리 5px 아래로 내렸다. 각 클립의 배율을 역보정하므로 원본 머리 기준점과 몸체 크기를 수정하지 않는다.

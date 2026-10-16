@@ -2,7 +2,7 @@ import type { AnimalAction } from '../animals/AnimalConfig';
 import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
 /** About ten seconds of running distance, plus jumps and any retries. */
 export class DummyRun {
-  readonly speed = 240;
+  get speed(): number { return 240 * this.movementScale; }
   readonly start = 120;
   readonly finish = 2520;
   readonly halfWidth = 24;
@@ -20,7 +20,7 @@ export class DummyRun {
   readonly attackDuration = 0.48;
   readonly dashDuration = 0.32;
   victoryTime = -1;
-  constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE) {}
+  constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1) {}
   private overlaps(solid: CourseSolid, x = this.x): boolean {
     return x + this.halfWidth > solid.x + 0.000001 && x - this.halfWidth < solid.x + solid.width - 0.000001;
   }
@@ -32,7 +32,7 @@ export class DummyRun {
   get fade(): number { return Math.max(0, Math.min(1, (this.victoryTime - 1.5) / 0.4)); }
   jump(): void { if (!this.won && this.grounded && this.dash === 0) this.velocity = 440; }
   startDash(): void {
-    if (!this.won && this.grounded && this.attack === 0 && this.dashCooldown <= 0) { this.horizontalVelocity = this.direction * 1100; this.dash = this.dashDuration; this.dashCooldown = 0.8; }
+    if (!this.won && this.grounded && this.attack === 0 && this.dashCooldown <= 0) { this.horizontalVelocity = this.direction * 1100 * this.movementScale; this.dash = this.dashDuration; this.dashCooldown = 0.8; }
   }
   startAttack(): void { if (!this.won && this.dash === 0 && this.attack === 0) this.attack = this.attackDuration; }
   action(axis: number): AnimalAction {

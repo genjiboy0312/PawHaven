@@ -552,7 +552,9 @@ test('Play enters a run, victory returns once without another greeting, and scen
     const down = new Event('keydown', { cancelable: true });
     Object.defineProperty(down, 'code', { value: 'ArrowRight' });
     window.dispatchEvent(down);
-    const player = app.stage.children[0].children[1].children.at(-1);
+    const world = app.stage.children[0].children[1], player = world.children.at(-1);
+    assert.equal(world.scale.x, 0.78); assert.equal(world.scale.y, 0.78);
+    assert.ok(Math.abs(world.y + 390 * world.scale.y - 365) < 0.001);
     // First attempt deliberately misses the gap; failure must not award Victory or keep held input.
     const warmup = [400, 710]; let warmupJump = 0, reset = false;
     for (let i = 0; i < 720; i++) {
@@ -575,6 +577,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
       if (!runHud.children[3].hidden) break;
     }
     assert.equal(runHud.children[3].hidden, false);
+    assert.equal(world.scale.x, 0.78); assert.equal(world.scale.y, 0.78);
     for (let i = 0; i < 120; i++) manager.update(1 / 60);
     assert.equal(returns, 1);
     assert.equal(host.children.length, 1);
@@ -1311,7 +1314,7 @@ test('Santa hat follows every animation frame and body transform, shared selecti
         for (const direction of [-1, 1]) {
           view.update('IDLE', 0, direction, 0, 0, 0, action, (frame + 0.1) / head.length);
           assert.equal(view.hat.visible, true); assert.equal(view.hat.parent, view.sprite);
-          assert.equal(view.hat.x, head[frame].x); assert.equal(view.hat.y, head[frame].y);
+          assert.equal(view.hat.x, head[frame].x); assert.equal(view.hat.y, head[frame].y + 5 / (config.scale * (animations[action].scale ?? 1)));
           assert.ok(Number.isFinite(view.hat.y) && view.hat.y < 0);
           assert.equal(Math.sign(view.sprite.scale.x), direction);
           assert.equal(view.hat.texture, Texture.WHITE);
@@ -1340,7 +1343,7 @@ test('Home stock persists, recovers on removal, validates saves and migrates old
   const second = home.place('Furniture', 4), third = home.place('Furniture', 4);
   assert.ok(second !== original && third !== second); assert.equal(home.remaining('Furniture', 4), 0);
   assert.equal(home.place('Furniture', 4), undefined); assert.equal(home.items.length, 4);
-  assert.equal(home.move(second, 8, -9), true); assert.equal(home.items.find(item => item.id === second).x, 0.56);
+  assert.equal(home.move(second, 8, -9), true); assert.equal(home.items.find(item => item.id === second).x, 0.90);
   assert.equal(home.items[0].x, 0.4);
   assert.deepEqual(new HomeState(storage).items, home.items); assert.equal(new HomeState(storage).current.Floor, 2);
   const copy = home.items; copy[0].x = 0; assert.equal(home.items[0].x, 0.4);
@@ -1402,11 +1405,16 @@ test('Home drag/drop saves only on release, handles rotation/cancel, removal and
     assert.ok(Math.abs(map.objects.children.find(child => child.label === '1').x - 384) < 0.001); assert.equal(writes, before);
     assert.equal(home.items.find(item => item.id === 1).x, 0.21); assert.equal(remove.hidden, false);
     pointer(furniture, 'pointerup', 1, 0.4, 0.8);
-    assert.equal(writes, before + 1); assert.equal(furniture.captured.size, 0);
+    pointer(furniture, 'pointerdown', 8, 0.4, 0.8);
+    pointer(furniture, 'pointermove', 8, 0.86, 0.8); pointer(furniture, 'pointerup', 8, 0.86, 0.8);
+    assert.ok(Math.abs(new HomeState(storage).items.find(item => item.id === 1).x - 0.86) < 0.000001);
+    pointer(furniture, 'pointerdown', 9, 0.86, 0.8);
+    pointer(furniture, 'pointermove', 9, 0.4, 0.8); pointer(furniture, 'pointerup', 9, 0.4, 0.8);
+    assert.equal(writes, before + 3); assert.equal(furniture.captured.size, 0);
     assert.ok(Math.abs(new HomeState(storage).items.find(item => item.id === 1).x - 0.4) < 0.000001);
     pointer(furniture, 'pointerdown', 3, 0.4, 0.8); pointer(furniture, 'pointermove', 3, 8, -4);
-    assert.equal(map.objects.children.find(child => child.label === '1').x, 0.56 * 960); pointer(furniture, 'pointercancel', 3, 8, -4);
-    assert.ok(Math.abs(map.objects.children.find(child => child.label === '1').x - 384) < 0.001); assert.equal(writes, before + 1);
+    assert.equal(map.objects.children.find(child => child.label === '1').x, 0.90 * 960); pointer(furniture, 'pointercancel', 3, 8, -4);
+    assert.ok(Math.abs(map.objects.children.find(child => child.label === '1').x - 384) < 0.001); assert.equal(writes, before + 3);
     rotated = true;
     pointer(etc, 'pointerdown', 4, 0.47, 0.7); pointer(etc, 'pointermove', 4, 0.3, 0.85); pointer(etc, 'pointerup', 4, 0.3, 0.85);
     assert.ok(Math.abs(home.items.find(item => item.id === 2).y - 0.85) < 0.000001); assert.ok(Math.abs(map.objects.children.find(child => child.label === '2').x - 288) < 0.001);
@@ -1582,5 +1590,49 @@ test('Myeongrang preserves approved Idle size and matches motion body coverage t
   } finally {
     controller.sprite.destroy({ children: true }); controller.sleepMark.destroy(); controller.welcomeMark.destroy();
     Object.values(animations).flatMap(clip => clip.frames).forEach(texture => texture.destroy(false));
+  }
+});
+test('speech bubbles pop, fade, reset on symbol changes and keep greetings visible', async () => {
+  const { SpeechBubble } = await importTs('../src/animals/SpeechBubble.ts', import.meta.url);
+  const bubble = new SpeechBubble();
+  const children = [...bubble.children];
+  try {
+    bubble.present('?', 0);
+    assert.equal(bubble.text, '?'); assert.equal(bubble.visible, true);
+    assert.equal(bubble.alpha, 1); assert.equal(bubble.scale.x, 0.9);
+    bubble.present('?', 0.15); assert.equal(bubble.scale.x, 1);
+    bubble.present('?', 0.85); assert.ok(bubble.alpha > 0 && bubble.alpha < 1);
+    bubble.present('?', 0.2); assert.equal(bubble.visible, false);
+    bubble.present('♪', 0.1); assert.equal(bubble.visible, true); assert.equal(bubble.alpha, 1);
+    bubble.present('Welcome!', 0, true); bubble.present('Welcome!', 10, true);
+    assert.equal(bubble.visible, true); assert.equal(bubble.alpha, 1);
+    bubble.present('', 0); assert.equal(bubble.visible, false);
+  } finally { bubble.destroy(); }
+  assert.ok(children.every(child => child.destroyed));
+  assert.equal(Texture.WHITE.destroyed, false);
+});
+
+test('fixed play zoom shows more course and retains screen running/dash speed without accelerating action timers', async () => {
+  const { PLAY_ZOOM, cameraTarget } = await importTs('../src/game/PlayCamera.ts', import.meta.url);
+  assert.equal(PLAY_ZOOM, 0.78);
+  assert.ok(960 / PLAY_ZOOM > 1200);
+  assert.equal(cameraTarget(120, 2850), 0);
+  assert.ok(Math.abs((900 - cameraTarget(900, 2850)) * PLAY_ZOOM - 288) < 0.001);
+  assert.ok(Math.abs((2850 - cameraTarget(2520, 2850)) * PLAY_ZOOM - 960) < 0.001);
+  for (const direction of [-1, 1]) {
+    const baseline = new DummyRun(flatCourse), zoomed = new DummyRun(flatCourse, 1 / PLAY_ZOOM);
+    baseline.x = zoomed.x = 600;
+    baseline.direction = zoomed.direction = direction;
+    baseline.update(0.2, direction); zoomed.update(0.2, direction);
+    assert.ok(Math.abs((zoomed.x - 600) * PLAY_ZOOM - (baseline.x - 600)) < 0.001);
+    const baseStart = baseline.x, zoomStart = zoomed.x;
+    baseline.startDash(); zoomed.startDash();
+    baseline.update(0.15, direction); zoomed.update(0.15, direction);
+    assert.ok(Math.abs((zoomed.x - zoomStart) * PLAY_ZOOM - (baseline.x - baseStart)) < 0.001);
+    assert.equal(zoomed.dash, baseline.dash);
+    baseline.update(0.3, 0); zoomed.update(0.3, 0);
+    baseline.jump(); zoomed.jump(); baseline.startAttack(); zoomed.startAttack();
+    baseline.update(0.2, 0); zoomed.update(0.2, 0);
+    assert.equal(zoomed.height, baseline.height); assert.equal(zoomed.attack, baseline.attack);
   }
 });

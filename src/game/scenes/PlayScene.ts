@@ -5,11 +5,13 @@ import { AnimalEffects } from '../../animals/AnimalEffects';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
-import { COURSE_GROUND } from '../TrainingCourse';
+import { COURSE_GROUND, TRAINING_COURSE } from '../TrainingCourse';
+import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
 import { Scene } from './Scene';
 
 export class PlayScene extends Scene {
-  private readonly run = new DummyRun();
+  private readonly run = new DummyRun(TRAINING_COURSE, 1 / PLAY_ZOOM);
+  private readonly courseEnd = Math.max(...this.run.course.map(solid => solid.x + solid.width));
   private readonly labels: { text: Text; key: 'start' | 'finish' }[] = [];
   private readonly localeOff: () => void;
   private readonly world = new Container();
@@ -43,6 +45,8 @@ export class PlayScene extends Scene {
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
+    this.world.scale.set(PLAY_ZOOM);
+    this.world.y = PLAY_GROUND_Y - COURSE_GROUND * PLAY_ZOOM;
     const terrain = new Graphics();
     for (const solid of this.run.course) {
       const y = COURSE_GROUND - solid.top;
@@ -143,11 +147,11 @@ export class PlayScene extends Scene {
   }
   private render(seconds: number, axis: number): void {
     const run = this.run;
-    const target = Math.max(0, Math.min(run.finish - 740, run.x - 280));
+    const target = cameraTarget(run.x, this.courseEnd);
     const preferences = this.settings?.preferences?.();
     if (preferences?.smoothCamera === false) this.cameraX = target;
-    else this.cameraX += (target - this.cameraX) * (1 - Math.exp(-7 * seconds));
-    this.world.x = -this.cameraX;
+    else this.cameraX += (target - this.cameraX) * (1 - Math.exp(-9 * seconds));
+    this.world.x = -this.cameraX * PLAY_ZOOM;
     this.pet.position.set(run.x, COURSE_GROUND - run.height);
     const action = run.action(axis);
     const progress = action === 'attack' ? 1 - run.attack / run.attackDuration

@@ -1,5 +1,6 @@
 import { t } from '../settings/i18n';
 import { AnimatedSprite, Sprite, Text } from 'pixi.js';
+import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
 
@@ -10,10 +11,7 @@ export class AnimalAnimationController {
     text: 'z z',
     style: { fontFamily: 'Georgia, serif', fontSize: 20, fill: '#687b58' },
   });
-  readonly welcomeMark = new Text({
-    text: '',
-    style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fontWeight: '600', fill: '#765536' },
-  });
+  readonly welcomeMark = new SpeechBubble();
   private lastAnimation = 'idle';
   private framePosition = 0;
 
@@ -34,7 +32,6 @@ export class AnimalAnimationController {
     }
     this.sleepMark.anchor.set(0.5);
     this.sleepMark.visible = false;
-    this.welcomeMark.anchor.set(0.5);
     this.welcomeMark.visible = false;
   }
 
@@ -66,7 +63,7 @@ export class AnimalAnimationController {
     if (this.hat) {
       this.hat.visible = this.config.wardrobe?.outfit.Hat === 1 && !!head;
       if (head) {
-        this.hat.position.set(head.x, head.y);
+        this.hat.position.set(head.x, head.y + 5 / (this.config.scale * (animation.scale ?? 1)));
         this.hat.scale.set(head.width / 550);
         this.hat.rotation = head.rotation ?? 0;
       }
@@ -82,8 +79,9 @@ export class AnimalAnimationController {
     this.sleepMark.visible = state === 'SLEEP';
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;
-    this.welcomeMark.visible = state === 'NOTICE' || state === 'GREET' || state === 'EMOTE';
-    this.welcomeMark.text = state === 'NOTICE' ? '!' : state === 'GREET' ? t('greet') : state === 'EMOTE' ? ['♡', '♪', '?'][Math.floor(elapsed * 0.9) % 3] : '';
-    this.welcomeMark.position.set(0, -155 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
+    const message = state === 'NOTICE' ? '!' : state === 'GREET' ? t('greet') : state === 'EMOTE' ? ['♡', '♪', '?'][Math.floor(elapsed * 0.9) % 3] : '';
+    this.welcomeMark.present(message, seconds, state === 'GREET');
+    const headTop = head ? (head.y - head.width * 0.8) * nativeScale : -125;
+    this.welcomeMark.position.set(0, this.sprite.y + headTop - 36 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
   }
 }
