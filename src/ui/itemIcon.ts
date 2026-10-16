@@ -9,6 +9,11 @@ const ITEM_ICONS: Record<OutfitTab, string> = {
 
 export function itemIcon(category: OutfitTab, index: number): HTMLImageElement {
   const image = document.createElement('img'); image.className = 'outfit-object'; image.alt = '';
+  if (category === 'Hat' && index === 1) {
+    image.src = './assets/items/santa-hat.png';
+    image.classList.add('santa-hat-icon');
+    return image;
+  }
   const color = '#' + outfitColor(index).toString(16).padStart(6, '0');
   image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="${color}" color="${color}" stroke="#727970" stroke-width="1.5" stroke-linejoin="round">${ITEM_ICONS[category]}</svg>`);

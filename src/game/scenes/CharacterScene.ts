@@ -123,7 +123,7 @@ export class CharacterScene extends Scene {
   }
   private selectPet(pet: PetChoice): void {
     if (pet.config.id !== this.pet.config.id) {
-      this.preview.removeChildren().forEach(child => child.destroy()); this.animation.sleepMark.destroy();
+      this.preview.removeChildren().forEach(child => child.destroy({ children: true })); this.animation.sleepMark.destroy();
       this.animation = new AnimalAnimationController(pet.config);
       this.preview.addChild(this.animation.sprite, this.animation.welcomeMark);
     }

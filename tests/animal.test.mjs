@@ -752,6 +752,8 @@ test('Character opens a stationary preview, keeps category selection without equ
   const { CharacterPresets } = await importTs('../src/animals/CharacterPresets.ts', import.meta.url);
   const presets = new CharacterPresets();
   const outfit = createOutfit(); let returns = 0;
+  config.wardrobe = { outfit, santaHat: Texture.WHITE };
+  for (const animation of Object.values(config.animations)) animation.head = animation.frames.map(() => ({ x: 18, y: -170, width: 88 }));
   const lobby = () => manager.show(new LobbyScene(config, undefined, true, () => {
     manager.show(new CharacterScene(config, outfit, () => { returns++; lobby(); }, { presets }));
   }));
@@ -769,8 +771,12 @@ test('Character opens a stationary preview, keeps category selection without equ
     tabs.children[1].dispatchEvent(new Event('click'));
     assert.equal(inventory.children.length, 21);
     assert.equal(inventory.children[1].children[0].className, 'outfit-object');
-    assert.ok(inventory.children[1].children[0].src.startsWith('data:image/svg+xml'));
+    assert.equal(inventory.children[1].children[0].src, './assets/items/santa-hat.png');
     assert.equal(scene.children[1].children.length, 2);
+    inventory.children[1].dispatchEvent(new Event('click')); manager.update(0.01);
+    assert.equal(scene.children[1].children[0].children[0].visible, true);
+    inventory.children[0].dispatchEvent(new Event('click')); manager.update(0.01);
+    assert.equal(scene.children[1].children[0].children[0].visible, false);
     inventory.children[3].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
     const presetRow = panel.children[3];
     assert.equal(presetRow.children.length, 4);
@@ -1281,5 +1287,47 @@ test('training route completes with four jumps across frame rates and returns on
     assert.equal(run.respawns, 0, `no retry at ${fps} FPS`); assert.equal(run.won, true, `complete at ${fps} FPS`);
     assert.equal(run.x, run.finish); assert.equal(run.height, 0);
     run.update(2, -1); assert.equal(run.returnReady, true); assert.equal(run.x, run.finish);
+  }
+});
+test('Santa hat follows every animation frame and body transform, shared selection and saved presets', async () => {
+  const heads = JSON.parse(await readFile(new URL('../public/assets/characters/corgi/head-anchors.json', import.meta.url), 'utf8'));
+  const { createOutfit } = await importTs('../src/animals/OutfitState.ts', import.meta.url);
+  const { CharacterPresets } = await importTs('../src/animals/CharacterPresets.ts', import.meta.url);
+  const outfit = createOutfit();
+  const animations = Object.fromEntries(Object.entries(heads).map(([key, head]) => [key, {
+    frames: Array(head.length).fill(Texture.WHITE), fps: 4, head,
+    ...(head.length === 4 || key === 'fall' || key === 'land' ? { scale: 212 / 164, anchorY: 400 / 512 } : {}),
+  }]));
+  const config = { id: 'corgi', speed: 90, scale: 0.62, animations, wardrobe: { santaHat: Texture.WHITE, outfit } };
+  const views = Array.from({ length: 3 }, () => new AnimalAnimationController(config));
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  try {
+    views.forEach(view => { view.update('IDLE', 0, 1); assert.equal(view.hat.visible, false); });
+    outfit.Hat = 1;
+    new CharacterPresets(storage).save(1, { petId: 'corgi', outfit });
+    for (const view of views) for (const [action, head] of Object.entries(heads)) {
+      assert.equal(head.length, ['idle', 'walk', 'emote'].includes(action) ? 8 : ['fall', 'land'].includes(action) ? 1 : 4);
+      for (let frame = 0; frame < head.length; frame++) {
+        for (const direction of [-1, 1]) {
+          view.update('IDLE', 0, direction, 0, 0, 0, action, (frame + 0.1) / head.length);
+          assert.equal(view.hat.visible, true); assert.equal(view.hat.parent, view.sprite);
+          assert.equal(view.hat.x, head[frame].x); assert.equal(view.hat.y, head[frame].y);
+          assert.ok(Number.isFinite(view.hat.y) && view.hat.y < 0);
+          assert.equal(Math.sign(view.sprite.scale.x), direction);
+          assert.equal(view.hat.texture, Texture.WHITE);
+        }
+      }
+    }
+    views[0].update('JUMP', 0.5, 1, 0.5, 48);
+    assert.equal(views[0].hat.parent.y, -48);
+    outfit.Hat = 0;
+    views.forEach(view => { view.update('IDLE', 0, 1); assert.equal(view.hat.visible, false); });
+    Object.assign(outfit, new CharacterPresets(storage).load(1).outfit);
+    views.forEach(view => { view.update('IDLE', 0, 1); assert.equal(view.hat.visible, true); });
+    outfit.Hat = 2; views[0].update('IDLE', 0, 1); assert.equal(views[0].hat.visible, false);
+    views[0].sprite.destroy({ children: true }); assert.equal(views[0].hat.destroyed, true);
+    assert.equal(Texture.WHITE.destroyed, false);
+  } finally {
+    views.forEach(view => { if (!view.sprite.destroyed) view.sprite.destroy({ children: true }); view.sleepMark.destroy(); view.welcomeMark.destroy(); });
   }
 });

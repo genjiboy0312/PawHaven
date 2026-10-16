@@ -1,5 +1,6 @@
 import { Assets, Rectangle, Texture } from 'pixi.js';
-import type { AnimalConfig } from './AnimalConfig';
+import type { AnimalConfig, AnimalAction, HeadAnchor } from './AnimalConfig';
+import { createOutfit, type OutfitState } from './OutfitState';
 
 interface FrameRect { x: number; y: number; width: number; height: number }
 interface CleanFrame extends FrameRect { center: number; baseline: number }
@@ -33,7 +34,7 @@ function paddedTextures(atlas: Texture, frames: CleanFrame[]): Texture[] {
     });
   });
 }
-export async function loadCorgi(onProgress: (progress: number) => void): Promise<AnimalConfig> {
+export async function loadCorgi(onProgress: (progress: number) => void, outfit: OutfitState = createOutfit()): Promise<AnimalConfig> {
   const atlas = await Assets.load<Texture>(base + 'corgi-idle-walk.png');
   onProgress(0.35);
   const map = await Assets.load<FrameMap>(base + 'frames.json');
@@ -53,7 +54,10 @@ export async function loadCorgi(onProgress: (progress: number) => void): Promise
     }
     return new Texture({ source: effectAtlas.source, frame: new Rectangle(x, y, width, height) });
   });
+  const santaHat = await Assets.load<Texture>(import.meta.env.BASE_URL + 'assets/items/santa-hat.png');
+  santaHat.source.scaleMode = 'nearest';
   const config: AnimalConfig = {
+    wardrobe: { santaHat, outfit },
     id: 'corgi', speed: 90, scale: 0.62,
     effects: { attack: effectFrames(effectMap.attack), skill: effectFrames(effectMap.skill) },
     animations: {
@@ -68,6 +72,12 @@ export async function loadCorgi(onProgress: (progress: number) => void): Promise
       emote: { frames: textures(playfulAtlas, playful.emote, 256), fps: 4, scale: 212 / 223 },
     },
   };
+  const heads = await Assets.load<Partial<Record<AnimalAction, HeadAnchor[]>>>(base + 'head-anchors.json');
+  for (const [action, anchors] of Object.entries(heads)) {
+    const animation = config.animations[action as AnimalAction];
+    if (!animation || anchors.length !== animation.frames.length) throw new Error('Head attachment frames do not match the animation.');
+    animation.head = anchors;
+  }
   onProgress(1);
   return config;
 }

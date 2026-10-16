@@ -1,10 +1,11 @@
 import { t } from '../settings/i18n';
-import { AnimatedSprite, Text } from 'pixi.js';
+import { AnimatedSprite, Sprite, Text } from 'pixi.js';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
 
 export class AnimalAnimationController {
   readonly sprite: AnimatedSprite;
+  readonly hat: Sprite | undefined;
   readonly sleepMark = new Text({
     text: 'z z',
     style: { fontFamily: 'Georgia, serif', fontSize: 20, fill: '#687b58' },
@@ -23,6 +24,14 @@ export class AnimalAnimationController {
     this.sprite.autoUpdate = false;
     this.sprite.anchor.set(0.5, 1);
     this.sprite.scale.set(config.scale);
+    if (config.wardrobe) {
+      this.hat = new Sprite(config.wardrobe.santaHat);
+      // The full generated canvas is preserved; anchor is the centre of the brim.
+      this.hat.anchor.set(865 / 1536, 730 / 1024);
+      this.hat.visible = false;
+      this.hat.label = 'santa-hat';
+      this.sprite.addChild(this.hat);
+    }
     this.sleepMark.anchor.set(0.5);
     this.sleepMark.visible = false;
     this.welcomeMark.anchor.set(0.5);
@@ -53,6 +62,15 @@ export class AnimalAnimationController {
       : state === 'LAND' ? Math.min(airborneFrames + Math.floor(progress * (animation.frames.length - airborneFrames)), animation.frames.length - 1)
       : Math.floor(this.framePosition);
     this.sprite.gotoAndStop(frame);
+    const head = animation.head?.[frame];
+    if (this.hat) {
+      this.hat.visible = this.config.wardrobe?.outfit.Hat === 1 && !!head;
+      if (head) {
+        this.hat.position.set(head.x, head.y);
+        this.hat.scale.set(head.width / 550);
+        this.hat.rotation = head.rotation ?? 0;
+      }
+    }
     this.sprite.anchor.set(0.5, animation.anchorY ?? 1);
     const breath = state === 'SLEEP' || state === 'REST' ? 1 + Math.sin(elapsed * 2) * 0.012 : 1;
     const nativeScale = this.config.scale * (animation.scale ?? 1);

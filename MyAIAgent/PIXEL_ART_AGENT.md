@@ -53,3 +53,6 @@ Edit the approved [ANIMAL] reference into a transparent runtime atlas. Preserve 
 ## VFX 프롬프트 템플릿
 
 Create a transparent pixel-art VFX atlas matching the approved animal sheet, with NO characters. Exact [COLUMNS] columns x [ROWS] rows. Ordered effects [ACTIONS], chronological emergence, peak, breakup and dispersal. Clustered irregular pixels, cream/peach dust and spark fragments, NOT thin vector lines or UI symbols. Entire effects fit inside the central 65% of each cell, wide transparent gutters, no overlapping or clipped cells, no background wash, text or borders. Actual dimensions must be measured after generation.
+## 착용 아이템 추가
+
+- 첫 실제 아이템은 Hat:1 산타모자. [SANTA_HAT.md](SANTA_HAT.md) 참고. AnimationSet.head에 프레임별 부착점·폭을 두고 몸체 Sprite 자식으로 연결한다. 코기는 head-anchors.json을 사용한다. 새 동물에 좌표를 그대로 재사용하지 않는다. 모자 원본과 몸체/VFX는 분리한다.

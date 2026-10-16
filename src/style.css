@@ -159,4 +159,4 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .home-tabs button { font-size: 1.15cqw; white-space: nowrap; }
 .home-inventory { left: 66%; right: 3%; top: 29%; height: 54cqh; grid-auto-rows: calc((54cqh - 6cqh) / 4); gap: 2cqh 0.5cqw; }
 .home-inventory .outfit-object { width: 4.7cqw; height: 6.5cqh; }
-.home-hint { position: absolute; left: 66%; right: 3%; bottom: 5%; margin: 0; font-size: 1.1cqw; color: #7e8877; }
+.home-hint { position: absolute; left: 66%; right: 3%; bottom: 5%; margin: 0; font-size: 1.1cqw; color: #7e8877; }.outfit-object.santa-hat-icon { width: 12cqw; height: 18cqh; bottom: -0.5cqh; image-rendering: pixelated; }

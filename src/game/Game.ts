@@ -34,6 +34,7 @@ export class Game {
     if (!this.corgi) return;
     const textures = new Set([...Object.values(this.corgi.animations).flatMap((animation) => animation.frames),
       ...Object.values(this.corgi.effects ?? {}).flat()]);
+    if (this.corgi.wardrobe) textures.add(this.corgi.wardrobe.santaHat);
     for (const texture of textures) texture.destroy(false);
     this.corgi = undefined;
   }
@@ -83,7 +84,7 @@ export class Game {
     const preload = new PreloadScene();
     this.scenes.show(preload);
     document.querySelector('#status')?.remove();
-    const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress); });
+    const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress); }, this.outfit);
     this.corgi = corgi;
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
