@@ -705,7 +705,7 @@ test('pixel VFX map uses four complete isolated cells per action and an RGBA sou
     }
   }
 });
-test('Character opens a stationary preview, keeps category equipment and returns to the shared lobby', async () => {
+test('Character opens a stationary preview, keeps category selection without equipping dummy shapes and returns to the shared lobby', async () => {
   class Element extends EventTarget {
     children = []; attributes = new Map(); style = { setProperty() {} };
     classList = { add() {} }; scrollTop = 0;
@@ -728,7 +728,7 @@ test('Character opens a stationary preview, keeps category equipment and returns
   const outfit = createOutfit(); let returns = 0;
   const lobby = () => manager.show(new LobbyScene(config, undefined, true, () => {
     manager.show(new CharacterScene(config, outfit, () => { returns++; lobby(); }));
-  }, outfit));
+  }));
   try {
     lobby();
     const character = host.children[0].children[0].children[0];
@@ -737,6 +737,9 @@ test('Character opens a stationary preview, keeps category equipment and returns
     const scene = app.stage.children[0], panel = host.children[0], tabs = panel.children[1], inventory = panel.children[2];
     assert.deepEqual(tabs.children.map(button => button.textContent), ['Hat', 'Body', 'Acc', 'Etc']);
     assert.equal(inventory.children.length, 21);
+    assert.equal(inventory.children[1].children[0].className, 'outfit-object');
+    assert.ok(inventory.children[1].children[0].src.startsWith('data:image/svg+xml'));
+    assert.equal(scene.children[1].children.length, 2);
     inventory.children[3].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
     tabs.children[1].dispatchEvent(new Event('click'));
     inventory.children[2].dispatchEvent(new Event('click')); assert.equal(outfit.Body, 2);
@@ -750,7 +753,7 @@ test('Character opens a stationary preview, keeps category equipment and returns
     panel.children[0].dispatchEvent(new Event('click'));
     assert.equal(returns, 1); assert.equal(scene.destroyed, true); assert.equal(host.children.length, 1);
     const pet = app.stage.children[0].children.find(child => child.label === 'corgi');
-    assert.equal(pet.welcoming, false); assert.ok(pet.children.at(-1).context.instructions.length > 0);
+    assert.equal(pet.welcoming, false); assert.equal(pet.children.length, 3);
     host.children[0].children[0].children[0].dispatchEvent(new Event('click'));
     host.children[0].children[1].children[1].dispatchEvent(new Event('click'));
     assert.equal(host.children[0].children[2].children[2].attributes.get('aria-pressed'), 'true');

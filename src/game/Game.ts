@@ -60,10 +60,10 @@ export class Game {
     const lobby = (returning = false): void => {
       if (this.disposed) return;
       this.scenes?.show(new LobbyScene(corgi, () => {
-        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true), this.outfit));
+        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true)));
       }, returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(corgi, this.outfit, () => lobby(true)));
-      }, this.outfit));
+      }));
     };
     this.scenes.show(new TitleScene(() => lobby()));
     document.querySelector('#status')?.remove();

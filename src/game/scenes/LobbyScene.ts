@@ -1,4 +1,3 @@
-import type { OutfitState } from '../../animals/OutfitState';
 import { Graphics, type DestroyOptions } from 'pixi.js';
 import { Animal } from '../../animals/Animal';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
@@ -12,12 +11,11 @@ export class LobbyScene extends Scene {
   private readonly hud: LobbyHud;
   private welcomeStarted = false;
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, outfit?: OutfitState) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void) {
     super();
     this.hud = new LobbyHud(onPlay, returning, onCharacter);
     this.welcomeStarted = returning;
     this.animal = new Animal(config);
-    if (outfit) this.animal.setOutfit(outfit);
     this.addChild(this.garden, this.shadow, this.animal);
   }
   resize(width: number, height: number): void {

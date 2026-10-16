@@ -1,14 +1,19 @@
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
-import { AnimalOutfit } from '../../animals/AnimalOutfit';
 import { OUTFIT_TABS, outfitColor, type OutfitState, type OutfitTab } from '../../animals/OutfitState';
 import { Scene } from './Scene';
+
+const ITEM_ICONS: Record<OutfitTab, string> = {
+  Hat: '<path d="M16 37h32L43 25H23z"/><path d="M9 39q23-9 46 0v5H9z"/>',
+  Body: '<path d="m20 16-11 12 9 8 4-5v22h20V31l4 5 9-8-11-12-7 6H27z"/>',
+  Acc: '<path d="M19 16q-7 22 13 35 20-13 13-35" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 35 8 8-8 9-8-9z"/>',
+  Etc: '<path d="m32 32-22-13v26zm0 0 22-13v26z"/><circle cx="32" cy="32" r="6"/>',
+};
 
 export class CharacterScene extends Scene {
   private readonly preview = new Container();
   private readonly animation: AnimalAnimationController;
-  private readonly outfitView = new AnimalOutfit();
   private readonly panel = document.createElement('section');
   private readonly tabs = document.createElement('nav');
   private readonly inventory = document.createElement('div');
@@ -24,8 +29,7 @@ export class CharacterScene extends Scene {
       .ellipse(235, 395, 150, 28).fill('#d5ddc8'), this.preview);
     this.preview.position.set(235, 385);
     this.preview.scale.set(1.45);
-    this.preview.addChild(this.animation.sprite, this.outfitView, this.animation.welcomeMark);
-    this.outfitView.apply(outfit);
+    this.preview.addChild(this.animation.sprite, this.animation.welcomeMark);
     this.panel.className = 'character-screen';
     this.panel.setAttribute('aria-label', 'Character customization');
     const close = document.createElement('button');
@@ -52,13 +56,20 @@ export class CharacterScene extends Scene {
     for (let index = 0; index <= 20; index++) {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'outfit-slot';
-      button.textContent = index === 0 ? 'None' : String(index).padStart(2, '0');
-      button.setAttribute('aria-label', index === 0 ? `Remove ${this.tab}` : `${this.tab} ${index}`);
+      if (index === 0) button.textContent = 'None';
+      else {
+        const image = document.createElement('img');
+        image.className = 'outfit-object'; image.alt = '';
+        const color = '#' + outfitColor(index).toString(16).padStart(6, '0');
+        image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="${color}" color="${color}" stroke="#727970" stroke-width="1.5" stroke-linejoin="round">${ITEM_ICONS[this.tab]}</svg>`);
+        button.append(image);
+      }
+      button.setAttribute('aria-label', index === 0 ? `Clear ${this.tab} selection` : `${this.tab} ${index}`);
       button.setAttribute('aria-pressed', String(this.outfit[this.tab] === index));
-      if (index) button.style.setProperty('--item-color', '#' + outfitColor(index).toString(16).padStart(6, '0'));
       // The handler lives on its short-lived slot; discarding the slot releases it.
       button.addEventListener('click', () => {
-        this.outfit[this.tab] = index; this.outfitView.apply(this.outfit); this.reaction = 1.5;
+        this.outfit[this.tab] = index; this.reaction = 1.5;
         for (const [item, slot] of Array.from(this.inventory.children).entries()) {
           slot.setAttribute('aria-pressed', String(item === index));
         }
