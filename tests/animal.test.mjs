@@ -180,7 +180,8 @@ test('sleep expression follows automatic state and clears immediately on manual 
   assert.equal(animal.children[1].visible, true);
   const sleepFrame = animal.children[0].currentFrame;
   const sleepingX = animal.x;
-  animal.update(0.2);
+  animal.update(1.1);
+  assert.notEqual(animal.children[0].currentFrame, sleepFrame);
   assert.equal(animal.x, sleepingX);
   animal.play('walk');
   assert.equal(animal.state, 'WANDER');
@@ -385,7 +386,7 @@ test('jump follows an airborne arc, lands, and restores ground alignment', () =>
   assert.equal(animal.y, 390);
   assert.equal(animal.children[0].y, -48);
   assert.equal(animal.children[0].currentFrame, 3);
-  animal.update(3.01);
+  animal.update(0.51);
   assert.equal(animal.state, 'LAND');
   assert.equal(animal.children[0].y, 0);
   assert.equal(animal.children[0].currentFrame, 6);
