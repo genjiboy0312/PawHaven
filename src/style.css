@@ -176,3 +176,9 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 
 .settings-feedback { display: inline-block; padding: 1.5cqh 1.5cqw; border-radius: 2cqw; background: #dde3d6; color: #53604f; text-decoration: none; }
 .feedback-email { overflow-wrap: anywhere; }
+
+.daily-quest { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; padding: 2cqh 2cqw; margin-bottom: 2cqh; border-radius: 1cqw; background: #e4e8dc; }
+.daily-quest h3 { margin: 0 0 1cqh; font-size: 1.7cqw; }
+.daily-quest p { margin: 0.7cqh 0; }
+.daily-quest button { flex: 0 0 auto; }
+.daily-hint { font-size: 1.2cqw; color: #77816f; }

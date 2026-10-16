@@ -21,7 +21,7 @@ export class LobbyScene extends Scene {
 
   override setPaused(paused: boolean): void { this.paused = paused; }
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }) {
     super(); this.garden = new LobbyMap(home?.textures);
     this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open);
     this.welcomeStarted = returning;
@@ -30,7 +30,7 @@ export class LobbyScene extends Scene {
     this.animal.eventMode = 'static';
     this.animal.cursor = 'pointer';
     this.animal.on('pointerdown', event => {
-      if (!this.paused && event.button === 0) this.animal.pet();
+      if (!this.paused && event.button === 0 && this.animal.pet()) commerce?.pet?.();
     });
     this.addChild(this.garden, this.shadow, this.animal, this.depthLayer, this.expressionLayer);
     this.depthLayer.attach(this.shadow, this.animal);

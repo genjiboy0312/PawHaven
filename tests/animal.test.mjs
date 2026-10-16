@@ -538,10 +538,10 @@ test('Play enters a run, victory returns once without another greeting, and scen
   const config = { id: 'corgi', speed: 90, scale: 0.62, animations: {
     idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
     jump: { frames: Array(8).fill(Texture.WHITE), fps: 8 } } };
-  let returns = 0;
+  let returns = 0; const daily = new ShopState();
   try {
     manager.show(new LobbyScene(config, () => manager.show(new PlayScene(config, () => {
-      returns++; manager.show(new LobbyScene(config, undefined, true));
+      returns++; daily.completeRun(); manager.show(new LobbyScene(config, undefined, true));
     }))));
     const playButton = host.children[0].children[2].children[0];
     assert.equal(playButton.disabled, false);
@@ -565,6 +565,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
       if (warmupJump === 2 && player.x === 120) { reset = true; break; }
     }
     assert.equal(reset, true); assert.equal(returns, 0); assert.equal(runHud.children[3].hidden, true);
+    assert.equal(daily.dailyQuests[1].progress, 0);
     manager.update(0.2); assert.equal(player.x, 120); assert.equal(player.y, 390);
     window.dispatchEvent(down);
     const takeoffs = [400, 710, 1120, 1740]; let nextJump = 0;
@@ -580,6 +581,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
     assert.equal(world.scale.x, 0.78); assert.equal(world.scale.y, 0.78);
     for (let i = 0; i < 120; i++) manager.update(1 / 60);
     assert.equal(returns, 1);
+    assert.equal(daily.dailyQuests[1].progress, 1);
     assert.equal(host.children.length, 1);
     assert.equal(app.stage.children.length, 1);
     const pet = app.stage.children[0].children.find(item => item.label === 'corgi');
@@ -1921,4 +1923,120 @@ test('last applied character restores locally independently of presets and valid
   const blocked = new CharacterSelection({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
   assert.equal(blocked.save({ petId: 'myeongrang', outfit: { Hat: 1, Body: 0, Acc: 0, Etc: 0 } }), true);
   assert.equal(blocked.current.petId, 'myeongrang');
+});
+test('daily quests persist cooldown/progress, grant coins once and feed existing Shop purchases', () => {
+  let now = new Date(2026, 9, 17, 12).getTime();
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  let state = new ShopState(storage, () => now);
+  assert.equal(state.claimDaily('pet'), false);
+  assert.equal(state.claimDaily('missing'), false);
+  assert.equal(state.recordPet(), true); assert.equal(state.recordPet(), false);
+  now += 9999; state = new ShopState(storage, () => now); assert.equal(state.recordPet(), false);
+  now++; assert.equal(state.recordPet(), true);
+  now += 10000; assert.equal(state.recordPet(), true); assert.equal(state.recordPet(), false);
+  assert.equal(state.dailyQuests[0].progress, 3); assert.equal(state.dailyQuests[0].canClaim, true);
+  assert.equal(state.coins, 1000); assert.equal(state.claimDaily('pet'), true); assert.equal(state.coins, 1050);
+  assert.equal(state.claimDaily('pet'), false);
+  state = new ShopState(storage, () => now); assert.equal(state.claimDaily('pet'), false); assert.equal(state.coins, 1050);
+  for (let i = 0; i < 8; i++) state.completeRun();
+  assert.equal(state.xp, 400); assert.equal(state.dailyQuests[1].progress, 1);
+  assert.equal(state.claimDaily('run'), true); assert.equal(state.coins, 1150);
+  assert.equal(state.buy('Hat', 2), 'purchased'); assert.equal(state.coins, 1075);
+  const restored = new ShopState(storage, () => now);
+  assert.equal(restored.owns('Hat', 2), true); assert.equal(restored.coins, 1075);
+  assert.equal(restored.dailyQuests.every(quest => quest.claimed), true);
+});
+
+test('daily local midnight resets both quests while preserving purchases/pass and protects a claimed day on clock rollback', () => {
+  let now = new Date(2026, 9, 17, 23, 59, 59).getTime();
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const state = new ShopState(storage, () => now);
+  state.buy('Body', 2); state.completeRun(); state.claimDaily('run'); state.recordPet();
+  const coins = state.coins, xp = state.xp;
+  now += 1000; state.refreshDaily();
+  assert.deepEqual(state.dailyQuests.map(quest => [quest.progress, quest.claimed]), [[0, false], [0, false]]);
+  assert.equal(state.coins, coins); assert.equal(state.xp, xp); assert.equal(state.owns('Body', 2), true);
+  assert.equal(state.recordPet(), true); // new day's cooldown is independent
+  state.completeRun(); assert.equal(state.claimDaily('run'), true);
+  now -= 86400000;
+  const restored = new ShopState(storage, () => now); restored.refreshDaily();
+  assert.equal(restored.dailyQuests[1].claimed, true); assert.equal(restored.claimDaily('run'), false);
+  now += 86400000 * 3;
+  const later = new ShopState(storage, () => now); assert.equal(later.dailyQuests[1].progress, 0);
+  later.completeRun(); assert.equal(later.dailyQuests[1].canClaim, true); // works with pass XP already earned
+});
+
+test('daily migration rejects malformed progress/claims and storage failure preserves session rewards', () => {
+  const now = new Date(2026, 9, 17, 12).getTime();
+  const old = { coins: 900, xp: 400, premium: true, items: ['Hat:2'], claimed: ['free-1'] };
+  const values = new Map([[SHOP_STORAGE_KEY, JSON.stringify(old)]]), storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) };
+  const legacy = new ShopState(storage, () => now);
+  assert.equal(legacy.coins, 900); assert.equal(legacy.owns('Hat', 2), true);
+  legacy.completeRun(); assert.equal(legacy.dailyQuests[1].canClaim, true); assert.equal(legacy.xp, 400);
+  values.set(SHOP_STORAGE_KEY, JSON.stringify({ ...old, daily: { day: '2026-10-17', pet: -2, run: '1', claimed: ['pet', 'run'], lastPet: 'bad' } }));
+  const repaired = new ShopState(storage, () => now);
+  assert.deepEqual(repaired.dailyQuests.map(q => [q.progress, q.claimed]), [[0, false], [0, false]]);
+  assert.equal(repaired.recordPet(), true);
+  values.set(SHOP_STORAGE_KEY, JSON.stringify({ ...old, daily: { day: '2026-02-30', pet: 3, run: 1, claimed: ['pet', 'run'] } }));
+  assert.equal(new ShopState(storage, () => now).dailyQuests[0].progress, 0);
+  const blocked = new ShopState({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } }, () => now);
+  blocked.completeRun(); assert.equal(blocked.claimDaily('run'), true); assert.equal(blocked.claimDaily('run'), false);
+  assert.equal(blocked.coins, 1100);
+});
+
+test('lobby valid touches count Daily, Quest claims update coins, translate and stop timers on close', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); inert = false; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
+    replaceChildren(...items) { this.children.forEach(item => { item.parent = undefined; }); this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); this.parent = undefined; }
+    focus() { document.activeElement = this; }
+    get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
+    querySelectorAll() { const result = []; const walk = node => node.children.forEach(item => { if (item.tag === 'button' && !item.disabled) result.push(item); walk(item); }); walk(this); return result; }
+  }
+  const oldDocument = globalThis.document, oldHTMLElement = globalThis.HTMLElement, host = new Element('main');
+  globalThis.HTMLElement = Element;
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host, activeElement: undefined };
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const { QuestPopup } = await importTs('../src/ui/QuestPopup.ts', import.meta.url);
+  let now = new Date(2026, 9, 17, 12).getTime();
+  const state = new ShopState(undefined, () => now);
+  const scene = new LobbyScene({ id: 'myeongrang', speed: 90, scale: 0.62,
+    animations: { idle: { frames: [Texture.WHITE], fps: 3 }, emote: { frames: [Texture.WHITE], fps: 4 } } },
+    undefined, true, undefined, undefined, { shop() {}, quest() {}, pet: () => state.recordPet() });
+  const popup = new QuestPopup(state, value => scene.setPaused(value), () => {});
+  try {
+    scene.resize(960, 540);
+    const pet = scene.children.find(child => child.label === 'myeongrang');
+    const touch = () => pet.emit('pointerdown', { button: 0 });
+    pet.emit('pointerdown', { button: 2 }); assert.equal(state.dailyQuests[0].progress, 0);
+    touch(); touch(); assert.equal(state.dailyQuests[0].progress, 1);
+    scene.update(0.2); touch(); assert.equal(state.dailyQuests[0].progress, 1);
+    for (let i = 0; i < 2; i++) { now += 10000; scene.update(0.2); touch(); }
+    assert.equal(state.dailyQuests[0].progress, 3);
+    popup.open(); popup.open(); assert.equal(host.children.length, 2);
+    const panel = host.children[1].children[0], content = panel.children[3];
+    assert.equal(content.children.length, 4);
+    assert.equal(content.children[2].children[1].disabled, false);
+    assert.equal(content.children[3].children[1].disabled, true);
+    content.children[2].children[1].dispatchEvent(new Event('click'));
+    assert.equal(state.coins, 1050); assert.equal(content.children[2].children[1].disabled, true);
+    assert.equal(document.activeElement, content);
+    setLanguage('ko'); assert.equal(content.children[2].children[0].children[0].textContent, '오늘의 교감');
+    assert.equal(content.children[2].children[1].textContent, '수령 완료');
+    now += 86400000; state.refreshDaily();
+    assert.equal(content.children[2].children[0].children[2].textContent.startsWith('0/3'), true);
+    touch(); assert.equal(state.dailyQuests[0].progress, 0); // paused popup blocks input
+    panel.children[2].children[1].dispatchEvent(new Event('click'));
+    assert.equal(content.children[0].textContent, '주간 퀘스트는 준비 중이에요.');
+    popup.close(); assert.equal(host.children.length, 1);
+    popup.destroy(); scene.destroy({ children: true });
+  } finally {
+    popup.destroy(); if (!scene.destroyed) scene.destroy({ children: true }); setLanguage('en');
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
+  }
 });
