@@ -40,3 +40,12 @@ npm test, npm run build 및 dist 에셋 경로를 확인한다.
 ## 16:9 로비 개편
 
 코기 없는 타이틀, 로비 제목/수동 조작 제거, 원형 메뉴 UI와 자율 점프·이모션을 반영한다. 상세: [LOBBY_LAYOUT.md](LOBBY_LAYOUT.md).
+
+## 모바일 브라우저 자동 다크모드 대응
+
+- HTML에 color-scheme: only light 메타 선언을 추가해 첫 렌더링부터 라이트 전용임을 알린다.
+- CSS :root에도 color-scheme: light 및 only light 선언을 적용한다. only 미지원 브라우저에는 light가 남는다.
+- 게임의 배경, 캐릭터 텍스처와 원래 색상은 변경하지 않는다.
+- 삼성 인터넷은 사용자 설정/버전에 따라 강제 다크모드가 이 선언을 무시할 수 있으므로 모든 환경에서 차단을 보장하지 않는다.
+- 확인: 삼성 인터넷의 다크모드를 켠 상태에서 새로고침하고 크롬과 같은 장면의 색상을 비교한다. 실기기 확인은 별도로 필요하다.
+- 근거: https://developer.chrome.com/blog/auto-dark-theme 및 https://developer.samsung.com/browser/blog/en/2020/12/15/dark-mode-in-samsung-internet
