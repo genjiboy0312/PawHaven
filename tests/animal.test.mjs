@@ -926,8 +926,8 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     tabs.children[5].dispatchEvent(new Event('click')); assert.ok(content.children[1].textContent.includes('0.1.0'));
     const feedback = content.children.at(-1);
     assert.equal(feedback.tag, 'a'); assert.equal(feedback.textContent, 'Send Feedback');
-    assert.equal(feedback.getAttribute('href'), 'mailto:genjimain0312@gmail.com?subject=%5BPawHaven%20Feedback%5D');
-    assert.equal(content.children.at(-2).textContent, 'genjimain0312@gmail.com');
+    assert.equal(feedback.getAttribute('href'), 'mailto:genjiman0312@gmail.com?subject=%5BPawHaven%20Feedback%5D');
+    assert.equal(content.children.at(-2).textContent, 'genjiman0312@gmail.com');
     assert.ok(content.children[3].textContent.includes('bugs'));
     const aboutControls = panel.querySelectorAll(); assert.equal(aboutControls.at(-1), feedback);
     feedback.focus();
