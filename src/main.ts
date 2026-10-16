@@ -1,6 +1,7 @@
 import { bindText } from './settings/i18n';
 import { Game } from './game/Game';
 import './style.css';
+import './ui/cozy-theme.css';
 
 const host = document.querySelector<HTMLElement>('#app');
 if (!host) throw new Error('게임 컨테이너를 찾을 수 없습니다.');

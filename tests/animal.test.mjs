@@ -2107,3 +2107,32 @@ test('Friends opens as an accessible paused lobby overlay and Quest badge clears
     if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
   }
 });
+test('loading typography keeps one caption and cleans DOM when boot/preload scenes end', async () => {
+  class Element {
+    children = []; attributes = new Map();
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, host = new Element();
+  globalThis.document = { createElement: () => new Element(), querySelector: () => host };
+  const { BootScene } = await importTs('../src/game/scenes/BootScene.ts', import.meta.url);
+  const { PreloadScene } = await importTs('../src/game/scenes/PreloadScene.ts', import.meta.url);
+  const boot = new BootScene();
+  try {
+    assert.equal(host.children.length, 1); assert.equal(host.children[0].textContent, 'Paw Haven');
+    boot.resize(960, 540); boot.destroy({ children: true }); assert.equal(host.children.length, 0);
+    const preload = new PreloadScene();
+    try {
+      const caption = host.children[0]; assert.equal(caption.attributes.get('role'), 'status');
+      assert.equal(caption.textContent, t('loading'));
+      preload.setProgress(0.5); preload.resize(960, 540); preload.setProgress(1);
+      assert.equal(host.children.length, 1); assert.equal(host.children[0], caption);
+      assert.equal(preload.children.length, 1); // only the progress graphic is rendered in Pixi
+    } finally { preload.destroy({ children: true }); }
+    assert.equal(host.children.length, 0);
+  } finally {
+    if (!boot.destroyed) boot.destroy({ children: true });
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});

@@ -1,0 +1,22 @@
+# Cozy UI 1차 (2026-10-17)
+
+## 디자인
+- 사용자가 제공한 Party Animals UI의 둥근 형태·넉넉한 여백·부드러운 입체감을 참고했다. 게임 원본 로고/이미지를 복사하지 않고 CSS로 구성한다.
+- 로딩/타이틀 글자와 Settings·Quest·Friends 팝업을 먼저 적용했다. Character/Home/Shop의 인벤토리 구조와 아이템 아래 타원 그림자는 유지한다. 공용 DOM 글꼴은 새 폰트를 사용한다.
+- 크림색 패널, 버터색 제목줄, 살구색 선택 탭, 연두색 보상/주요 버튼. 얇은 테두리·안쪽 하이라이트·낮은 그림자로 도톰한 버튼을 표현한다.
+- 제목과 버튼: Jua. 설명/긴 문장: Gowun Dodum. 타이틀은 대문자 둥근 글자에 크림색·얕은 돌출 그림자를 적용한다.
+- 팝업은 기존 닫기/포커스/일시정지/한영 전환·보상 준비/수령·비활성 상태를 유지한다. 탭은 가로 스크롤, 본문은 세로 스크롤이 가능하다.
+- reduced-motion 설정에서는 버튼 전환과 기존 타이틀 안내 애니메이션을 줄인다. 픽셀 동물의 몸체 크기/동작/히트 영역과 플레이 조작은 변경하지 않는다.
+
+## 폰트와 배포
+- 공식 배포본: https://github.com/google/fonts/tree/main/ofl/jua 및 https://github.com/google/fonts/tree/main/ofl/gowundodum.
+- 원본 TTF의 글리프를 삭제하지 않고 fontTools + Brotli로 WOFF2 형식만 변환했다.
+- public/assets/fonts/Jua-Regular.woff2 368,836 bytes, GowunDodum-Regular.woff2 445,388 bytes. 대응 OFL 원문을 함께 배포한다. 다운로드/로컬 변환은 제작 단계 작업이며 npm/CI 추가 의존성은 없다.
+- index.html에서 선로딩한다. CSS @font-face의 font-display:swap으로 지연/실패 시 대체 글꼴도 표시한다. 외부 폰트 서비스에 런타임 요청하지 않는다.
+- Boot/Preload 문구를 DOM으로 표시해 웹폰트가 늦게 로드돼도 바뀌게 했다. 씬 종료 시 캡션을 제거하고, 기존 중복 로딩 문구 방지도 유지한다. 진행 막대는 Pixi Graphics를 사용한다.
+- 스타일은 src/ui/cozy-theme.css에 모았으며 src/main.ts에서 기존 style.css 다음에 불러온다.
+
+## 검증
+- 테스트 69개·타입 검사·빌드. 새 Boot/Preload 문구의 1개 유지와 씬 종료 정리, 기존 타이틀 시작/팝업/번역/보상/터치/저장 회귀를 확인했다.
+- 변환 폰트의 woff2 재열기와 주요 한영 글리프 존재를 확인했다. 로컬 HTTP 응답 200, 빌드 결과의 상대 폰트/선로딩 경로도 확인했다.
+- 브라우저 도구가 Windows sandbox helper 오류로 시작하지 못했다. 최종 시각·작은 모바일에서의 글자/탭 여백은 실기기 확인이 필요하다.

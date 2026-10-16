@@ -1,19 +1,15 @@
-import { Text } from 'pixi.js';
+import { type DestroyOptions } from 'pixi.js';
 import { Scene } from './Scene';
 
+/** DOM lettering responds to webfont loading without caching a fallback canvas font. */
 export class BootScene extends Scene {
-  private readonly caption = new Text({
-    text: 'Paw Haven',
-    style: { fontFamily: 'Georgia, serif', fontSize: 36, fill: '#344b38' },
-  });
+  private readonly caption = document.createElement('p');
   constructor() {
     super();
-    this.caption.anchor.set(0.5);
-    this.addChild(this.caption);
+    this.caption.className = 'boot-brand';
+    this.caption.textContent = 'Paw Haven';
+    document.querySelector('#app')?.append(this.caption);
   }
-  resize(width: number, height: number): void {
-    this.caption.position.set(width / 2, height / 2);
-  }
+  resize(_width: number, _height: number): void {}
+  override destroy(options?: DestroyOptions): void { this.caption.remove(); super.destroy(options); }
 }
-
-

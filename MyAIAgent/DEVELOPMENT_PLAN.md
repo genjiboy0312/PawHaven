@@ -61,3 +61,6 @@
 
 ## 2026-10-17 Quest 알림·코인 표기·Friends 더미
 미수령 보상에 Quest 배지/금색 아이콘·탭 알림/수령 버튼 강조를 추가했다. Shop 잔액은 Coins/코인으로 표시한다. Friends는 로비 위 중앙 3탭 더미 팝업으로 열고 일시정지/포커스/닫기를 연결했다. 자동 테스트 68개·타입 검사·빌드. 상세: [SHOP_QUEST.md](SHOP_QUEST.md), [FRIENDS.md](FRIENDS.md).
+
+## 2026-10-17 둥근 Cozy UI 1차
+로딩·타이틀 글자를 Jua로 꾸미고 Settings/Quest/Friends를 크림·버터·살구색의 둥근 입체 UI로 통일했다. 본문은 고운돋움, 공용 버튼은 Jua를 사용한다. 폰트 WOFF2와 OFL은 자체 배포하며 게임 조작·저장·인벤토리 구조는 유지한다. 테스트 69개·타입 검사·빌드. 상세: [UI_STYLE.md](UI_STYLE.md).
