@@ -151,3 +151,12 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .pass-reward:disabled { opacity: 0.6; cursor: default; }
 .quest-panel { width: 80%; height: 84%; }
 .quest-content { flex: 1; }
+.hud-character { display: flex; gap: 1.7cqw; }
+.hud-menu-home:enabled { pointer-events: auto; cursor: pointer; }
+.home-screen { position: absolute; inset: 0; z-index: 3; pointer-events: none; color: #53604f; }
+.home-drawer { position: absolute; right: 2%; top: 16%; width: 33%; height: 79%; border-radius: 2cqw; background: #f3f3e6d9; }
+.home-tabs { left: 66%; right: 3%; top: 18%; gap: 0.3cqw; }
+.home-tabs button { font-size: 1.15cqw; white-space: nowrap; }
+.home-inventory { left: 66%; right: 3%; top: 29%; height: 54cqh; grid-auto-rows: calc((54cqh - 6cqh) / 4); gap: 2cqh 0.5cqw; }
+.home-inventory .outfit-object { width: 4.7cqw; height: 6.5cqh; }
+.home-hint { position: absolute; left: 66%; right: 3%; bottom: 5%; margin: 0; font-size: 1.1cqw; color: #7e8877; }

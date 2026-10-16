@@ -1,3 +1,5 @@
+import { HomeState } from '../../home/HomeState';
+import { LobbyMap } from '../../home/LobbyMap';
 import { Graphics, type DestroyOptions } from 'pixi.js';
 import { Animal } from '../../animals/Animal';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
@@ -5,24 +7,22 @@ import { LobbyHud } from '../../ui/LobbyHud';
 import { Scene } from './Scene';
 
 export class LobbyScene extends Scene {
-  private readonly garden = new Graphics();
+  private readonly garden = new LobbyMap();
   private readonly shadow = new Graphics();
   private readonly animal: Animal;
   private readonly hud: LobbyHud;
   private welcomeStarted = false;
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }, private readonly home?: { state: HomeState; open: () => void }) {
     super();
-    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce);
+    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open);
     this.welcomeStarted = returning;
     this.animal = new Animal(config);
     this.addChild(this.garden, this.shadow, this.animal);
   }
   resize(width: number, height: number): void {
     const ground = height * 0.72;
-    this.garden.clear()
-      .rect(0, height * 0.44, width, height * 0.56).fill('#c4d6a7')
-      .ellipse(width * 0.5, ground + 24, width * 0.44, height * 0.13).fill('#b7ce98');
+    this.garden.draw(width, height, this.home?.state.current ?? { Background: 0, Floor: 0, Furniture: 0, Etc: 0 });
     this.animal.setBounds(width, ground);
     if (!this.welcomeStarted) {
       this.welcomeStarted = true;

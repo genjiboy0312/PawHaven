@@ -20,7 +20,7 @@
 
 | 위치 | 메뉴 |
 |---|---|
-| 좌측 상단 | Character |
+| 좌측 상단 | Character · Home |
 | 우측 상단 | Quest · Friends · Shop · Settings |
 | 우측 하단 | Play |
 
@@ -100,3 +100,8 @@ Friends 왼쪽에 기존 스타일의 원형 Quest 버튼을 배치한다. 한�
 ## Shop / Quest 연결
 
 Quest와 Shop 버튼은 프로토타입 화면에 연결했다. 기존 Quest 비활성 더미 기록은 초기 배치 단계이며, 현재 구현은 [SHOP_QUEST.md](SHOP_QUEST.md)를 따른다.
+
+
+## Home 연결
+
+Character 오른쪽의 Home은 캐릭터 없는 별도 로비 맵 꾸미기 씬으로 연결한다. 상세: [HOME.md](HOME.md).

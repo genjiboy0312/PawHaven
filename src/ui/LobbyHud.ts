@@ -2,6 +2,7 @@ import { bindAria, bindText } from '../settings/i18n';
 import type { AnimalVisualState } from '../animals/AnimalState';
 
 const ICONS = {
+  home: '<path d="m9 30 23-19 23 19M16 27v27h32V27M27 54V37h11v17"/>',
   quest: '<path d="M20 14h24v40H16V14h4m3-4h18v9H23z"/><path d="m23 31 3 3 5-6m3 4h6M23 43h17"/>',
   character: '<path d="m21 20-9 8 7 10 5-4v19h24V34l5 4 7-10-9-8-8 5h-6z"/><path d="M27 39c0-6 10-6 10 0s-10 6-10 0z"/><path d="M26 32v1m6-2v1m6 0v1"/>',
   shop: '<path d="M17 27h30v27H17zM13 27l5-13h28l5 13"/><path d="M13 27c0 8 10 8 10 0 0 8 9 8 9 0 0 8 9 8 9 0 0 8 10 8 10 0M27 54V41h11v13"/>',
@@ -16,7 +17,7 @@ export class LobbyHud {
   private readonly status = document.createElement('p');
   private previousState: AnimalVisualState | undefined;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }, onHome?: () => void) {
     this.element.className = 'lobby-hud';
     this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
@@ -26,7 +27,9 @@ export class LobbyHud {
       characterButton.disabled = false; bindAria(characterButton, 'character');
       characterButton.addEventListener('click', onCharacter, { once: true });
     }
-    character.append(characterButton);
+    const home = this.menu('home', 'Home');
+    if (onHome) { home.disabled = false; home.addEventListener('click', onHome, { once: true }); }
+    character.append(characterButton, home);
     const utilities = document.createElement('nav');
     utilities.className = 'hud-utilities';
     utilities.setAttribute('aria-label', 'Lobby menu');

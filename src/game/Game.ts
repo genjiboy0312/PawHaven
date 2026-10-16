@@ -1,3 +1,5 @@
+import { HomeState } from '../home/HomeState';
+import { HomeScene } from './scenes/HomeScene';
 import { ShopState } from '../shop/ShopState';
 import { ShopScene } from './scenes/ShopScene';
 import { QuestPopup } from '../ui/QuestPopup';
@@ -63,6 +65,7 @@ export class Game {
     const gameSettings = new GameSettings(storage);
     const presets = new CharacterPresets(storage);
     const commerce = new ShopState(storage);
+    const home = new HomeState(storage);
     const applyGame = (value: GamePreferences): void => {
       host.style.setProperty('--control-scale', String(value.controlSize));
       host.classList.toggle('left-handed', value.leftHanded);
@@ -97,7 +100,7 @@ export class Game {
         if (!this.disposed) this.scenes?.show(new PlayScene(activePet, () => { commerce.completeRun(); lobby(true); }, { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
       }, returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index) }));
-      }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open() }));
+      }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open() }, { state: home, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true))); } }));
     };
     this.scenes.show(new TitleScene(() => lobby()));
 

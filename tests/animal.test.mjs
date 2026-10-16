@@ -269,7 +269,7 @@ test('animal pauses daily behavior during welcome, then resumes autonomous life'
   animal.destroy({ children: true });
 });
 
-test('title has no corgi, opens one autonomous lobby, and all six menu placeholders are inert', async () => {
+test('title has no corgi, opens one autonomous lobby, and all seven menu placeholders are inert', async () => {
   class Element extends EventTarget {
     children = [];
     parent = undefined;
@@ -322,9 +322,9 @@ test('title has no corgi, opens one autonomous lobby, and all six menu placehold
       ...hud.children[0].children, ...hud.children[1].children, ...hud.children[2].children,
     ];
     assert.deepEqual(menus.map((item) => item.attributes.get('data-menu')),
-      ['character', 'quest', 'friends', 'shop', 'settings', 'play']);
+      ['character', 'home', 'quest', 'friends', 'shop', 'settings', 'play']);
     assert.deepEqual(menus.map((item) => item.children[1].textContent),
-      ['Character', 'Quest', 'Friends', 'Shop', 'Settings', 'Play']);
+      ['Character', 'Home', 'Quest', 'Friends', 'Shop', 'Settings', 'Play']);
     assert.equal(hud.children[0].className, 'hud-character');
     assert.equal(hud.children[1].className, 'hud-utilities');
     assert.equal(hud.children[2].className, 'hud-play');
@@ -1049,5 +1049,70 @@ test('Shop and Quest link pass purchase and rewards, and bought items appear in 
     quest.destroy(); manager.destroy(); app.stage.destroy();
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
     if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
+  }
+});
+const { HomeState, HOME_STORAGE_KEY } = await importTs('../src/home/HomeState.ts', import.meta.url);
+test('Home prototype selections persist with validation and storage failure fallback', () => {
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const home = new HomeState(storage);
+  home.select('Background', 2); home.select('Floor', 3); home.select('Furniture', 1); home.select('Etc', 4);
+  assert.deepEqual(new HomeState(storage).current, { Background: 2, Floor: 3, Furniture: 1, Etc: 4 });
+  const copy = home.current; copy.Floor = 0; assert.equal(home.current.Floor, 3);
+  assert.equal(home.select('Floor', 99), false); assert.equal(home.select('bad', 1), false);
+  assert.equal(home.select('Furniture', -1), false); assert.equal(home.select('Etc', 1.2), false);
+  values.set(HOME_STORAGE_KEY, '{"Background":100,"Floor":2,"Furniture":"1"}');
+  assert.deepEqual(new HomeState(storage).current, { Background: 0, Floor: 2, Furniture: 0, Etc: 0 });
+  values.set(HOME_STORAGE_KEY, 'broken'); assert.equal(new HomeState(storage).current.Background, 0);
+  const blocked = new HomeState({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  assert.equal(blocked.select('Etc', 2), true); assert.equal(blocked.current.Etc, 2);
+});
+
+test('Home beside Character opens a pet-free map editor and returns the same edited map to lobby', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    replaceChildren(...items) { this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, host = new Element('main');
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
+  const { Container } = await import('pixi.js');
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const { HomeScene } = await importTs('../src/game/scenes/HomeScene.ts', import.meta.url);
+  const home = new HomeState(), app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
+  const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 } } };
+  const lobby = () => manager.show(new LobbyScene(config, undefined, true, undefined, undefined, undefined,
+    { state: home, open: () => manager.show(new HomeScene(home, lobby)) }));
+  const click = node => node.dispatchEvent(new Event('click'));
+  try {
+    lobby(); const left = host.children[0].children[0];
+    assert.deepEqual(left.children.map(button => button.attributes.get('data-menu')), ['character', 'home']);
+    assert.equal(left.children[1].disabled, false); click(left.children[1]);
+    const scene = app.stage.children[0], panel = host.children[0], tabs = panel.children[3], inventory = panel.children[4];
+    assert.equal(scene.children.length, 1); assert.equal(scene.children[0].label, 'lobby-map');
+    assert.deepEqual(tabs.children.map(button => button.textContent), ['Background', 'Floor', 'Furniture', 'Etc']);
+    assert.equal(inventory.children.length, 4); click(inventory.children[2]); assert.equal(home.current.Background, 2);
+    click(tabs.children[1]); click(inventory.children[3]); assert.equal(home.current.Floor, 3);
+    click(tabs.children[2]); assert.equal(inventory.children[0].textContent, 'None'); click(inventory.children[1]);
+    assert.equal(home.current.Furniture, 1);
+    click(tabs.children[3]); click(inventory.children[1]); assert.equal(home.current.Etc, 1);
+    const previewCommands = scene.children[0].children[0].context.instructions.length;
+    assert.ok(previewCommands > 5);
+    click(panel.children[1]); assert.equal(scene.destroyed, true); assert.equal(host.children.length, 1);
+    const map = app.stage.children[0].children[0], pet = app.stage.children[0].children.find(item => item.label === 'corgi');
+    assert.equal(map.children[0].context.instructions.length, previewCommands);
+    assert.equal(pet.welcoming, false);
+    click(host.children[0].children[0].children[1]);
+    click(host.children[0].children[3].children[3]);
+    assert.equal(host.children[0].children[4].children[1].attributes.get('aria-pressed'), 'true');
+    click(host.children[0].children[4].children[0]); assert.equal(home.current.Etc, 0);
+    manager.destroy(); assert.equal(host.children.length, 0);
+  } finally {
+    manager.destroy(); app.stage.destroy();
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
 });
