@@ -48,7 +48,7 @@
 - src/animals/AnimalAnimationController.ts, Animal.ts, AnimalConfig.ts, loadCorgi.ts: 신규 프레임·동작 연결
 - public/assets/characters/corgi/corgi-jump-emote.png, playful-frames.json: 투명 에셋과 실제 프레임 좌표
 - tests/animal.test.mjs: 회귀 및 신규 행동 검증
-- Resources/corgi-actions.json: 행동별 런타임 준비 상태 갱신
+- Resources/Actions/corgi-actions.json: 행동별 런타임 준비 상태 갱신
 
 ## Verification
 

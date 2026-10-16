@@ -20,7 +20,7 @@
 - src/main.ts, src/style.css, index.html: 게임 진입점과 반응형 조작 UI
 - public/assets/characters/corgi/corgi-idle-walk.png, frames.json: 게임용 프로토타입 텍스처 및 실제 좌표
 - Resources/Corgi_Action_Art_Sheet.png: 전체 행동 참고용 마스터
-- Resources/corgi-actions.json: 행동별 준비 상태
+- Resources/Actions/corgi-actions.json: 행동별 준비 상태
 - tests/animal.test.mjs, package.json: 검증 및 테스트 명령
 - MyAIAgent/*: 관련 요구사항 및 진행 기록
 
