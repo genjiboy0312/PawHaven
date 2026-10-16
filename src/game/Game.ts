@@ -1,3 +1,4 @@
+import { CharacterPresets } from '../animals/CharacterPresets';
 import { GameSettings, type GamePreferences } from '../settings/GameSettings';
 import { setLanguage } from '../settings/i18n';
 import { SoundSettings } from '../settings/SoundSettings';
@@ -56,6 +57,7 @@ export class Game {
     try { storage = window.localStorage; } catch { /* Session-only settings. */ }
     const preferences = new SoundSettings(storage);
     const gameSettings = new GameSettings(storage);
+    const presets = new CharacterPresets(storage);
     const applyGame = (value: GamePreferences): void => {
       host.style.setProperty('--control-scale', String(value.controlSize));
       host.classList.toggle('left-handed', value.leftHanded);
@@ -77,12 +79,14 @@ export class Game {
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
+    let activePet = corgi;
+    const pets = [{ config: corgi, name: 'Corgi', thumbnail: './assets/characters/corgi/corgi-idle-walk.png' }];
     const lobby = (returning = false): void => {
       if (this.disposed) return;
-      this.scenes?.show(new LobbyScene(corgi, () => {
-        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true), { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
+      this.scenes?.show(new LobbyScene(activePet, () => {
+        if (!this.disposed) this.scenes?.show(new PlayScene(activePet, () => lobby(true), { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
       }, returning, () => {
-        if (!this.disposed) this.scenes?.show(new CharacterScene(corgi, this.outfit, () => lobby(true)));
+        if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onPetChanged: config => { activePet = config; } }));
       }, openSettings));
     };
     this.scenes.show(new TitleScene(() => lobby()));

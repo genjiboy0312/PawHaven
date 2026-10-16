@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  Pets: 'Pets', preset: 'Preset', save: 'Save', corgi: 'Corgi', presetUnsaved: 'Unsaved changes', presetSaved: 'Saved', presetLoaded: 'Loaded', presetEmpty: 'Empty slot — press Save to store this look.', petUnavailable: 'This pet is not available yet.',
   settings: 'Settings', Sound: 'Sound', Controls: 'Controls', Display: 'Display', Language: 'Language', Account: 'Account', About: 'About',
   master: 'Master', bgm: 'BGM', sfx: 'SFX', mute: 'Mute all', previewBgm: 'Preview BGM', previewSfx: 'Preview SFX',
   closeSettings: 'Close settings', settingsCategories: 'Settings categories', guest: 'Playing as Guest', accountSoon: 'Account login and cloud saves are coming soon.', login: 'Login',
@@ -16,6 +17,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  Pets: '동물', preset: '프리셋', save: '저장', corgi: '코기', presetUnsaved: '저장하지 않은 변경사항', presetSaved: '저장했어요', presetLoaded: '불러왔어요', presetEmpty: '빈 슬롯이에요. 저장을 눌러 조합을 보관하세요.', petUnavailable: '아직 사용할 수 없는 동물이에요.',
   settings: '설정', Sound: '사운드', Controls: '조작', Display: '화면', Language: '언어', Account: '계정', About: '정보',
   master: '전체', bgm: '배경음', sfx: '효과음', mute: '전체 음소거', previewBgm: '배경음 미리듣기', previewSfx: '효과음 미리듣기',
   closeSettings: '설정 닫기', settingsCategories: '설정 항목', guest: '게스트로 플레이 중', accountSoon: '로그인과 클라우드 저장은 추후 지원됩니다.', login: '로그인',
