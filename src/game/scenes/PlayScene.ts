@@ -20,6 +20,7 @@ export class PlayScene extends Scene {
   private axis = 0;
   private pointer: number | undefined;
   private elapsed = 0;
+  private cameraX = 0;
   private returned = false;
   private readonly blur = (): void => { this.keys.clear(); this.axis = 0; this.pointer = undefined; this.knob.style.transform = ''; };
 
@@ -109,7 +110,9 @@ export class PlayScene extends Scene {
   }
   private render(seconds: number, axis: number): void {
     const run = this.run;
-    this.world.x = -Math.max(0, Math.min(run.finish - 740, run.x - 280));
+    const target = Math.max(0, Math.min(run.finish - 740, run.x - 280));
+    this.cameraX += (target - this.cameraX) * (1 - Math.exp(-7 * seconds));
+    this.world.x = -this.cameraX;
     this.pet.position.set(run.x, 390 - run.height);
     const action = run.action(axis);
     const progress = action === 'attack' ? 1 - run.attack / run.attackDuration
@@ -118,6 +121,16 @@ export class PlayScene extends Scene {
       : action === 'jump' ? Math.min(0.49, Math.max(0, (440 - run.velocity) / 880)) : undefined;
     this.animation.update('IDLE', this.elapsed, run.direction, 0, 0, seconds, action, progress);
     this.effect.clear();
+    if (!run.won && run.attack > 0) {
+      this.effect.arc(run.direction * 65, -65, 48, -1.1, 1.1).stroke({ color: '#fff9e5', width: 7, alpha: 0.85 });
+    }
+    if (!run.won && run.dash > 0) {
+      for (let i = 0; i < 3; i++) {
+        this.effect.moveTo(-run.direction * 65, -32 - i * 18)
+          .lineTo(-run.direction * (110 + i * 15), -32 - i * 18)
+          .stroke({ color: '#fff9e5', width: 4, alpha: 0.7 });
+      }
+    }
     this.victory.hidden = !run.won;
     this.fade.style.opacity = String(run.fade);
     if (run.won) this.blur();

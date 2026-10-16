@@ -45,12 +45,14 @@ export class AnimalAnimationController {
     if (Number.isFinite(seconds) && seconds > 0) {
       this.framePosition = (this.framePosition + seconds * animation.fps * pace) % animation.frames.length;
     }
+    const airborneFrames = animation.frames.length >= 8 ? 6 : Math.max(1, animation.frames.length - 1);
     const frame = actionProgress !== undefined ? Math.min(animation.frames.length - 1, Math.floor(Math.max(0, actionProgress) * animation.frames.length))
       : action ? Math.floor(this.framePosition)
-      : state === 'JUMP' ? Math.min(Math.floor(progress * 6), Math.min(5, animation.frames.length - 1))
-      : state === 'LAND' ? Math.min(6 + Math.floor(progress * 2), animation.frames.length - 1)
+      : state === 'JUMP' ? Math.min(Math.floor(progress * airborneFrames), airborneFrames - 1)
+      : state === 'LAND' ? Math.min(airborneFrames + Math.floor(progress * (animation.frames.length - airborneFrames)), animation.frames.length - 1)
       : Math.floor(this.framePosition);
     this.sprite.gotoAndStop(frame);
+    this.sprite.anchor.set(0.5, animation.anchorY ?? 1);
     const breath = state === 'SLEEP' || state === 'REST' ? 1 + Math.sin(elapsed * 2) * 0.012 : 1;
     const nativeScale = this.config.scale * (animation.scale ?? 1);
     const landing = state === 'LAND' ? 1 - Math.sin(progress * Math.PI) * 0.08 : 1;

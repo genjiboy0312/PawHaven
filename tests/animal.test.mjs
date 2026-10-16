@@ -616,3 +616,52 @@ test('run, attack and skill atlas contains eight valid frames per row and true a
     }
   }
 });
+test('dash has a forward impulse, decays, locks direction and is consistent across frame rates', () => {
+  const run = new DummyRun();
+  run.startDash();
+  assert.equal(run.horizontalVelocity, 1100);
+  const start = run.x;
+  run.update(0.05, -1);
+  assert.equal(run.direction, 1);
+  assert.ok(run.x - start > run.speed * 0.05 * 3);
+  const fast = run.horizontalVelocity;
+  run.update(0.05, 0);
+  assert.ok(run.horizontalVelocity < fast && run.horizontalVelocity > run.speed);
+  const other = new DummyRun(); other.startDash();
+  for (let i = 0; i < 6; i++) other.update(1 / 60, 0);
+  assert.ok(Math.abs(run.x - other.x) < 1e-8);
+  const left = new DummyRun(); left.x = 500; left.direction = -1; left.startDash(); left.update(0.1, 1);
+  assert.ok(left.x < 500); assert.equal(left.direction, -1);
+});
+
+test('clean action cells retain padding and their aligned trim fits the logical canvas', async () => {
+  const map = JSON.parse(await readFile(new URL('../public/assets/characters/corgi/clean-frames.json', import.meta.url), 'utf8'));
+  const png = await readFile(new URL('../public/assets/characters/corgi/corgi-actions-clean.png', import.meta.url));
+  assert.equal(png.readUInt32BE(16), map.width); assert.equal(png.readUInt32BE(20), map.height);
+  for (const frames of Object.values(map.actions)) {
+    assert.equal(frames.length, 4);
+    for (const frame of frames) {
+      assert.equal(frame.width, map.cellWidth); assert.equal(frame.height, map.cellHeight);
+      assert.ok(frame.opaqueBounds.left >= 8 && frame.opaqueBounds.top >= 8);
+      assert.ok(frame.opaqueBounds.right <= frame.width - 8 && frame.opaqueBounds.bottom <= frame.height - 8);
+      const trimX = 256 - frame.center, trimY = 400 - frame.baseline;
+      assert.ok(trimX >= 0 && trimX + frame.width <= 512);
+      assert.ok(trimY >= 0 && trimY + frame.height <= 512);
+      assert.equal(trimY + frame.baseline, 400); // paws keep their ground anchor
+    }
+  }
+});
+
+test('padded clips change their foot anchor and lobby idle restores the old anchor', () => {
+  const frames = Array(4).fill(Texture.WHITE);
+  const controller = new AnimalAnimationController({ id: 'padded', speed: 90, scale: 1,
+    animations: { idle: { frames, fps: 3 }, jump: { frames, fps: 8, anchorY: 400 / 512 } } });
+  controller.update('JUMP', 0.5, 1, 0.5);
+  assert.equal(controller.sprite.currentFrame, 1);
+  assert.equal(controller.sprite.anchor.y, 400 / 512);
+  controller.update('LAND', 0.1, 1, 0.5);
+  assert.equal(controller.sprite.currentFrame, 3);
+  controller.update('IDLE', 0, 1);
+  assert.equal(controller.sprite.anchor.y, 1);
+  destroyAnimationController(controller);
+});

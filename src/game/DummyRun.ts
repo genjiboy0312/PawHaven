@@ -8,6 +8,7 @@ export class DummyRun {
   height = 0;
   direction = 1;
   velocity = 0;
+  horizontalVelocity = 0;
   dash = 0;
   dashCooldown = 0;
   attack = 0;
@@ -20,7 +21,7 @@ export class DummyRun {
   get fade(): number { return Math.max(0, Math.min(1, (this.victoryTime - 1.5) / 0.4)); }
   jump(): void { if (!this.won && this.height === 0 && this.velocity === 0 && this.dash === 0) this.velocity = 440; }
   startDash(): void {
-    if (!this.won && this.height === 0 && this.velocity === 0 && this.attack === 0 && this.dashCooldown <= 0) { this.dash = this.dashDuration; this.dashCooldown = 0.8; }
+    if (!this.won && this.height === 0 && this.velocity === 0 && this.attack === 0 && this.dashCooldown <= 0) { this.horizontalVelocity = this.direction * 1100; this.dash = this.dashDuration; this.dashCooldown = 0.8; }
   }
   startAttack(): void { if (!this.won && this.dash === 0 && this.attack === 0) this.attack = this.attackDuration; }
   action(axis: number): AnimalAction {
@@ -36,8 +37,17 @@ export class DummyRun {
     if (this.won) { this.victoryTime += seconds; return; }
     const input = Math.max(-1, Math.min(1, axis));
     if (input && this.dash === 0 && this.attack === 0) this.direction = Math.sign(input);
-    this.x = Math.max(this.start, Math.min(this.finish,
-      this.x + (this.dash > 0 ? this.direction * 2.5 : input) * this.speed * seconds));
+    let distance: number;
+    if (this.dash > 0) {
+      const burstTime = Math.min(seconds, this.dash);
+      const decay = Math.exp(-3.8 * burstTime);
+      distance = this.horizontalVelocity * (1 - decay) / 3.8 + input * this.speed * (seconds - burstTime);
+      this.horizontalVelocity *= decay;
+    } else {
+      this.horizontalVelocity = input * this.speed;
+      distance = this.horizontalVelocity * seconds;
+    }
+    this.x = Math.max(this.start, Math.min(this.finish, this.x + distance));
     this.dash = Math.max(0, this.dash - seconds);
     this.dashCooldown = Math.max(0, this.dashCooldown - seconds);
     this.attack = Math.max(0, this.attack - seconds);
@@ -47,6 +57,6 @@ export class DummyRun {
       this.velocity -= 980 * seconds;
       if (this.height === 0) { this.velocity = 0; this.land = 0.16; }
     }
-    if (this.x >= this.finish) { this.victoryTime = 0; this.height = 0; this.velocity = 0; }
+    if (this.x >= this.finish) { this.victoryTime = 0; this.height = 0; this.velocity = 0; this.horizontalVelocity = 0; }
   }
 }

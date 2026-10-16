@@ -26,3 +26,23 @@
 ### 생성 프롬프트 (built-in image_gen)
 
 Prepare a runtime sprite atlas from this exact corgi reference. Preserve orange-and-white corgi identity, proportions, detailed soft pixel illustration, side-facing RIGHT. Extract/adapt RUN, ATTACK, SKILL action panels into exactly THREE horizontal rows of EIGHT equally spaced frames each. Row1 RUN: a coherent looping bounding run cycle, clearly running not walking. Row2 ATTACK: anticipation, playful paw swipe with small white crescent, followthrough, recovery, eight chronological poses. Row3 SKILL: low forward dash, launch stretch with tiny dust trail then recovery, eight chronological poses. Same character scale, isolated full-body silhouettes, paws on same baseline in each cell, ample padding. Uniform 8 columns x3 rows, landscape canvas. True transparent background. Remove dark background, labels, dividers, ground shadows. No other actions, no text. Must keep complete ears paws and all effects within each cell. All frames same body size and facing right.
+## 프레임 잘림 및 대시 돌진 보정
+
+- 최신 런타임은 corgi-actions-clean.png / clean-frames.json 사용. 이전 아틀라스는 참고용으로 보존.
+- 캐릭터와 효과를 분리. Run/Attack/Skill 각각 4포즈, Jump 상승·정점·하강·착지 4포즈를 가진 4열×4행 시트다.
+- alpha > 64 경계를 프레임 크기로 자르지 않고, 384×256 셀 전체의 투명 여백을 유지한다. 알파 경계는 몸 중앙·발 기준 정렬용으로만 사용한다.
+- 각 셀의 캐릭터 외곽은 경계에서 8px 이상 떨어져 있으며, 실제 PNG 셀 경계의 최대 알파값은 1/255다.
+- 512×512 논리 캔버스 안에 발 기준선 400을 공통 적용. 애니메이션별 anchorY로 기존 idle/walk/emote와 정렬한다.
+- 공격 궤적과 대시 속도선은 Graphics로 별도 렌더링해 텍스처 경계에 잘리지 않는다.
+- 대시는 방향 고정 초기 수평 속도 1100px/s에서 exp(-3.8t)로 감속. 프레임 시간별 이동량을 적분해 프레임레이트 차이를 줄인다.
+- 카메라가 지수 보간으로 뒤따라가며 캐릭터가 실제 화면에서도 앞으로 튀어나오도록 한다.
+- 공중 대시 차단, 공중 공격 궤적 유지 및 대시 중 행동 취소 제한은 유지.
+- 테스트 27개와 타입 검사/빌드로 확인. 브라우저 및 모바일 실기기의 최종 시각 확인은 별도 필요.
+
+### 채택한 정리 프롬프트 / built-in image_gen
+
+원본 참고: Resources/Corgi_Art_Sheet.png. 저장: public/assets/characters/corgi/corgi-actions-clean.png.
+
+Create a clean game sprite atlas editing the provided corgi reference. Exact 4 COLUMNS x 4 ROWS = SIXTEEN isolated corgis, on transparent alpha. Each cell is square. CRITICAL: absolutely NO visual effects, NO dust, NO smoke, NO trails, NO crescents, NO glows, NO shadows, NO colored halo, NO background. Body ONLY. Wide EMPTY gutters between all dogs: corgi fits into middle 60% of each cell, never touches cell edges. All dogs face RIGHT with identical size, orange-white corgi, giant ears, soft detailed pixel style. Row1 four RUN cycle key poses (extended, gathered, opposite extended, gathered). Row2 four ATTACK paw-swipe poses (prepare, raise front paw, extend paw forward, recover). Row3 four DASH poses (lean forward, low stretched launch, low stretched burst, recover). Row4 four JUMP poses (rising paws tucked, airborne apex paws tucked, descending legs out, landing squash). Keep body paws at consistent baseline near 80% height of each cell; no jumping height baked into atlas. Dogs small within cells, centered, with generous transparent space in all directions. Preserve entire ears/tail/paws. No text or panels. Runtime draws effects separately so only clean animal bodies are needed.
+
+생성 결과는 1536×1024이므로 실제 384×256 셀 크기에 맞춰 좌표와 기준점을 설정했다.

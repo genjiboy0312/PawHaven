@@ -1,0 +1,240 @@
+{
+  "width": 1536,
+  "height": 1024,
+  "cellWidth": 384,
+  "cellHeight": 256,
+  "actions": {
+    "run": [
+      {
+        "x": 0,
+        "y": 0,
+        "width": 384,
+        "height": 256,
+        "center": 227,
+        "baseline": 240,
+        "opaqueBounds": {
+          "left": 113,
+          "top": 80,
+          "right": 341,
+          "bottom": 240
+        }
+      },
+      {
+        "x": 384,
+        "y": 0,
+        "width": 384,
+        "height": 256,
+        "center": 193,
+        "baseline": 240,
+        "opaqueBounds": {
+          "left": 101,
+          "top": 80,
+          "right": 285,
+          "bottom": 240
+        }
+      },
+      {
+        "x": 768,
+        "y": 0,
+        "width": 384,
+        "height": 256,
+        "center": 199,
+        "baseline": 242,
+        "opaqueBounds": {
+          "left": 85,
+          "top": 74,
+          "right": 313,
+          "bottom": 242
+        }
+      },
+      {
+        "x": 1152,
+        "y": 0,
+        "width": 384,
+        "height": 256,
+        "center": 188,
+        "baseline": 240,
+        "opaqueBounds": {
+          "left": 96,
+          "top": 81,
+          "right": 280,
+          "bottom": 240
+        }
+      }
+    ],
+    "attack": [
+      {
+        "x": 0,
+        "y": 256,
+        "width": 384,
+        "height": 256,
+        "center": 213.5,
+        "baseline": 234,
+        "opaqueBounds": {
+          "left": 113,
+          "top": 75,
+          "right": 314,
+          "bottom": 234
+        }
+      },
+      {
+        "x": 384,
+        "y": 256,
+        "width": 384,
+        "height": 256,
+        "center": 205.5,
+        "baseline": 233,
+        "opaqueBounds": {
+          "left": 113,
+          "top": 66,
+          "right": 298,
+          "bottom": 233
+        }
+      },
+      {
+        "x": 768,
+        "y": 256,
+        "width": 384,
+        "height": 256,
+        "center": 207.5,
+        "baseline": 235,
+        "opaqueBounds": {
+          "left": 101,
+          "top": 66,
+          "right": 314,
+          "bottom": 235
+        }
+      },
+      {
+        "x": 1152,
+        "y": 256,
+        "width": 384,
+        "height": 256,
+        "center": 186,
+        "baseline": 234,
+        "opaqueBounds": {
+          "left": 90,
+          "top": 66,
+          "right": 282,
+          "bottom": 234
+        }
+      }
+    ],
+    "skill": [
+      {
+        "x": 0,
+        "y": 512,
+        "width": 384,
+        "height": 256,
+        "center": 217,
+        "baseline": 206,
+        "opaqueBounds": {
+          "left": 108,
+          "top": 61,
+          "right": 326,
+          "bottom": 206
+        }
+      },
+      {
+        "x": 384,
+        "y": 512,
+        "width": 384,
+        "height": 256,
+        "center": 209,
+        "baseline": 198,
+        "opaqueBounds": {
+          "left": 76,
+          "top": 68,
+          "right": 342,
+          "bottom": 198
+        }
+      },
+      {
+        "x": 768,
+        "y": 512,
+        "width": 384,
+        "height": 256,
+        "center": 198.5,
+        "baseline": 203,
+        "opaqueBounds": {
+          "left": 63,
+          "top": 73,
+          "right": 334,
+          "bottom": 203
+        }
+      },
+      {
+        "x": 1152,
+        "y": 512,
+        "width": 384,
+        "height": 256,
+        "center": 181.5,
+        "baseline": 214,
+        "opaqueBounds": {
+          "left": 81,
+          "top": 57,
+          "right": 282,
+          "bottom": 214
+        }
+      }
+    ],
+    "jump": [
+      {
+        "x": 0,
+        "y": 768,
+        "width": 384,
+        "height": 256,
+        "center": 223,
+        "baseline": 203,
+        "opaqueBounds": {
+          "left": 132,
+          "top": 14,
+          "right": 314,
+          "bottom": 203
+        }
+      },
+      {
+        "x": 384,
+        "y": 768,
+        "width": 384,
+        "height": 256,
+        "center": 221,
+        "baseline": 168,
+        "opaqueBounds": {
+          "left": 123,
+          "top": 11,
+          "right": 319,
+          "bottom": 168
+        }
+      },
+      {
+        "x": 768,
+        "y": 768,
+        "width": 384,
+        "height": 256,
+        "center": 202,
+        "baseline": 193,
+        "opaqueBounds": {
+          "left": 101,
+          "top": 29,
+          "right": 303,
+          "bottom": 193
+        }
+      },
+      {
+        "x": 1152,
+        "y": 768,
+        "width": 384,
+        "height": 256,
+        "center": 185,
+        "baseline": 202,
+        "opaqueBounds": {
+          "left": 83,
+          "top": 62,
+          "right": 287,
+          "bottom": 202
+        }
+      }
+    ]
+  }
+}
