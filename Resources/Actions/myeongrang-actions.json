@@ -1,0 +1,140 @@
+{
+  "rows": 2,
+  "actions": {
+    "idle": {
+      "runtimeReady": false,
+      "referenceArt": true,
+      "rects": [
+        {
+          "opaqueBounds": {
+            "bottom": 423,
+            "top": 20,
+            "left": 66,
+            "right": 407
+          },
+          "baseline": 423,
+          "x": 0,
+          "center": 236.5,
+          "borderAlphaMax": 1,
+          "width": 443,
+          "y": 0,
+          "height": 443
+        },
+        {
+          "opaqueBounds": {
+            "bottom": 423,
+            "top": 19,
+            "left": 38,
+            "right": 381
+          },
+          "baseline": 423,
+          "x": 443,
+          "center": 209.5,
+          "borderAlphaMax": 1,
+          "width": 444,
+          "y": 0,
+          "height": 443
+        },
+        {
+          "opaqueBounds": {
+            "bottom": 424,
+            "top": 10,
+            "left": 26,
+            "right": 376
+          },
+          "baseline": 424,
+          "x": 887,
+          "center": 201,
+          "borderAlphaMax": 2,
+          "width": 443,
+          "y": 0,
+          "height": 443
+        },
+        {
+          "opaqueBounds": {
+            "bottom": 423,
+            "top": 20,
+            "left": 31,
+            "right": 377
+          },
+          "baseline": 423,
+          "x": 1330,
+          "center": 204,
+          "borderAlphaMax": 1,
+          "width": 444,
+          "y": 0,
+          "height": 443
+        },
+        {
+          "opaqueBounds": {
+            "bottom": 418,
+            "top": 12,
+            "left": 65,
+            "right": 409
+          },
+          "baseline": 418,
+          "x": 0,
+          "center": 237,
+          "borderAlphaMax": 1,
+          "width": 443,
+          "y": 443,
+          "height": 444
+        },
+        {
+          "opaqueBounds": {
+            "bottom": 418,
+            "top": 10,
+            "left": 38,
+            "right": 385
+          },
+          "baseline": 418,
+          "x": 443,
+          "center": 211.5,
+          "borderAlphaMax": 1,
+          "width": 444,
+          "y": 443,
+          "height": 444
+        },
+        {
+          "opaqueBounds": {
+            "bottom": 418,
+            "top": 7,
+            "left": 34,
+            "right": 379
+          },
+          "baseline": 418,
+          "x": 887,
+          "center": 206.5,
+          "borderAlphaMax": 2,
+          "width": 443,
+          "y": 443,
+          "height": 444
+        },
+        {
+          "opaqueBounds": {
+            "bottom": 418,
+            "top": 7,
+            "left": 31,
+            "right": 377
+          },
+          "baseline": 418,
+          "x": 1330,
+          "center": 204,
+          "borderAlphaMax": 1,
+          "width": 444,
+          "y": 443,
+          "height": 444
+        }
+      ],
+      "fps": 4,
+      "frames": 8
+    }
+  },
+  "character": "myeongrang",
+  "reference": "Resources/Myeongrang_Idle_Prototype.png",
+  "columns": 4,
+  "height": 887,
+  "width": 1774,
+  "note": "Idle-only prototype. Identity from user photos; Corgi_Art_Sheet is style reference only. Full 4x2 cells preserved. Center and baseline normalize preview placement; game integration and user art approval are pending.",
+  "displayName": "명랑이"
+}
