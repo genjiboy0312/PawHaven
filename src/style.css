@@ -33,3 +33,11 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: 3px; }
   .animal-controls { bottom: 8px; }
   .animal-controls p { display: none; }
 }
+.behavior-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 320px);
+  margin: 0 auto;
+}
+.behavior-buttons button { min-width: 0; margin: 0; padding: 10px 12px; }

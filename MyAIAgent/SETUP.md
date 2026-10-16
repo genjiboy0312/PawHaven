@@ -39,7 +39,7 @@ npm run preview
 
 ## 최신 진행 상태
 
-M0·M1 완료. 최신 검증과 남은 작업은 [M0_M1_PROGRESS.md](M0_M1_PROGRESS.md)를 참조한다.
+M0·M1 완료. M2는 사용자 요청으로 보류. 코기 M3 자율 행동 구현·테스트 완료, 브라우저 시각 검증은 남아 있다. 최신: [M3_PROGRESS.md](M3_PROGRESS.md). 이전: [M0_M1_PROGRESS.md](M0_M1_PROGRESS.md).
 
 ## 초기 패키지 설치 당시 기록 (완료 전)
 

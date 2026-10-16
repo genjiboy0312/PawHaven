@@ -1,3 +1,4 @@
+import type { BehaviorProfile } from './AnimalState';
 import type { Texture } from 'pixi.js';
 
 export const ACTIONS = [
@@ -11,4 +12,5 @@ export interface AnimalConfig {
   speed: number;
   scale: number;
   animations: AnimationSet;
+  behavior?: BehaviorProfile;
 }
