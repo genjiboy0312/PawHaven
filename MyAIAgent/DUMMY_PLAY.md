@@ -60,3 +60,14 @@ Create a clean game sprite atlas editing the provided corgi reference. Exact 4 C
 ### VFX 최종 프롬프트
 
 Create a transparent PIXEL-ART game VFX atlas matching the ATTACK and SKILL effects in this corgi reference, but with NO DOGS, no characters. Exactly FOUR columns x TWO rows (eight isolated effects), landscape. Top row: four chronological frames of a small playful white-cream crescent paw-swipe with clustered pixel spark fragments, emerging small arc, full thick crescent, breaking crescent, dispersing tiny flecks. Arc opens toward LEFT, thick outer curve on RIGHT; effect strikes to the right. Bottom row: four chronological frames of a horizontal dash wake trailing LEFT: pale cream pixel dust puffs, peach-white staggered motion streaks, scattered square spark flecks, fading dispersed dust. Detailed sprite art with irregular clustered pixels, NOT thin vector lines, NOT UI symbols. Pixel-crisp texture, subtle pale peach inner shading, off-white silhouette, no neon. Each effect entirely within central 65% of its own equal grid cell with wide truly empty transparent gutters ALL around; no overlapping cells, no clipped effects. No labels, no frame borders, no grid, no backgrounds or shadows. Pure transparent alpha outside each compact effect. Reference is style only; DO NOT include the corgi.
+## 장애물·발판 코스 검증 (계획 3번)
+
+- 코스 길이는 시작 x=120 → 도착 x=2520, 기본 속도 240으로 약 10초 이동 거리다. 점프 타이밍과 재시도에 따라 실제 시간은 늘어난다.
+- 낮은 장애물 2개(높이 36/44), 넓은 발판 1개(높이 58), 120 너비의 낙하 구간 1개. 새 아트 생성 없이 단순한 지형 도형으로 표시한다.
+- TrainingCourse.ts의 지형 데이터를 충돌과 렌더링이 함께 사용한다. 코스는 Home 꾸미기 상태와 별개다.
+- 몸통 충돌 영역은 반너비 24·높이 90. 1/120초 이하 물리 단계에서 좌우 벽·착지·머리 충돌을 계산한다. 대시로 벽을 통과하지 않으며 발판 위에서 다시 점프할 수 있다.
+- 공중 대시는 계속 금지, 공중 공격은 낙하/점프 궤적을 바꾸지 않는다. 달리기·대시 감속·몸체 시트·픽셀 VFX·잔상 및 버튼 배치는 유지한다. 대시로 절벽을 벗어나면 낙하로 전환한다.
+- 기준선 아래 190 이상 떨어지면 출발점으로 즉시 재시작한다. 행동·속도·쿨다운·조이스틱/키보드 입력·카메라를 초기화하며 퀘스트 클리어 경험치를 지급하지 않는다.
+- 피니시 지면에 도착하면 기존 Victory → 1.5초 대기 → 0.4초 페이드 → 로비 복귀를 사용한다. 복귀 콜백은 한 번만 호출한다.
+- 자동 테스트 45개: 좌우 충돌/대시 관통 차단, 발판 착지/재점프, 낙하 중 점프·대시 차단 및 공중 공격, 낙하 후 상태 초기화, 30/60/120 FPS에서 네 번 점프로 완주, 실제 PlayScene 입력으로 실패→재시도→Victory→로비 한 번 복귀. 기존 평지 물리 검증은 별도 평지 fixture로 유지한다.
+- 타입 검사·빌드 통과. 실제 브라우저·모바일의 시각/조작감 확인은 여전히 별도 필요하다.

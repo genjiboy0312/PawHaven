@@ -476,8 +476,9 @@ test('shared idle playback survives behavior timer resets and independent clips 
   destroyAnimationController(controller);
 });
 const { DummyRun } = await importTs('../src/game/DummyRun.ts', import.meta.url);
+const flatCourse = [{ x: 0, width: 2850, top: 0, bottom: -300 }];
 test('dummy course takes ten seconds and returns only after victory and fade', () => {
-  const run = new DummyRun();
+  const run = new DummyRun(flatCourse);
   for (let i = 0; i < 599; i++) run.update(1 / 60, 1);
   assert.equal(run.won, false);
   run.update(1 / 60, 1);
@@ -496,7 +497,7 @@ test('dummy course takes ten seconds and returns only after victory and fade', (
   assert.equal(run.fade, 1);
 });
 test('dummy controls jump, land, dash with cooldown and expire attack', () => {
-  const run = new DummyRun();
+  const run = new DummyRun(flatCourse);
   run.update(1, -1);
   assert.equal(run.x, run.start);
   run.jump(); run.update(0.1, 0);
@@ -551,7 +552,28 @@ test('Play enters a run, victory returns once without another greeting, and scen
     const down = new Event('keydown', { cancelable: true });
     Object.defineProperty(down, 'code', { value: 'ArrowRight' });
     window.dispatchEvent(down);
-    for (let i = 0; i < 600; i++) manager.update(1 / 60);
+    const player = app.stage.children[0].children[1].children.at(-1);
+    // First attempt deliberately misses the gap; failure must not award Victory or keep held input.
+    const warmup = [400, 710]; let warmupJump = 0, reset = false;
+    for (let i = 0; i < 720; i++) {
+      if (warmupJump < warmup.length && player.x >= warmup[warmupJump]) {
+        window.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code: 'Space' })); warmupJump++;
+      }
+      manager.update(1 / 60);
+      if (warmupJump === 2 && player.x === 120) { reset = true; break; }
+    }
+    assert.equal(reset, true); assert.equal(returns, 0); assert.equal(runHud.children[3].hidden, true);
+    manager.update(0.2); assert.equal(player.x, 120); assert.equal(player.y, 390);
+    window.dispatchEvent(down);
+    const takeoffs = [400, 710, 1120, 1740]; let nextJump = 0;
+    for (let i = 0; i < 720; i++) {
+      if (nextJump < takeoffs.length && player.x >= takeoffs[nextJump]) {
+        const jump = Object.assign(new Event('keydown', { cancelable: true }), { code: 'Space' });
+        window.dispatchEvent(jump); nextJump++;
+      }
+      manager.update(1 / 60);
+      if (!runHud.children[3].hidden) break;
+    }
     assert.equal(runHud.children[3].hidden, false);
     for (let i = 0; i < 120; i++) manager.update(1 / 60);
     assert.equal(returns, 1);
@@ -570,7 +592,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
   }
 });
 test('air attack preserves jump physics, air dash is blocked and ground dash cannot be cancelled', () => {
-  const run = new DummyRun(), baseline = new DummyRun();
+  const run = new DummyRun(flatCourse), baseline = new DummyRun(flatCourse);
   run.jump(); baseline.jump();
   run.startDash(); assert.equal(run.dash, 0); // also blocked before first airborne tick
   for (let i = 0; i < 20; i++) { run.update(1 / 60, 1); baseline.update(1 / 60, 1); }
@@ -618,7 +640,7 @@ test('run, attack and skill atlas contains eight valid frames per row and true a
   }
 });
 test('dash has a forward impulse, decays, locks direction and is consistent across frame rates', () => {
-  const run = new DummyRun();
+  const run = new DummyRun(flatCourse);
   run.startDash();
   assert.equal(run.horizontalVelocity, 1100);
   const start = run.x;
@@ -628,10 +650,10 @@ test('dash has a forward impulse, decays, locks direction and is consistent acro
   const fast = run.horizontalVelocity;
   run.update(0.05, 0);
   assert.ok(run.horizontalVelocity < fast && run.horizontalVelocity > run.speed);
-  const other = new DummyRun(); other.startDash();
+  const other = new DummyRun(flatCourse); other.startDash();
   for (let i = 0; i < 6; i++) other.update(1 / 60, 0);
   assert.ok(Math.abs(run.x - other.x) < 1e-8);
-  const left = new DummyRun(); left.x = 500; left.direction = -1; left.startDash(); left.update(0.1, 1);
+  const left = new DummyRun(flatCourse); left.x = 500; left.direction = -1; left.startDash(); left.update(0.1, 1);
   assert.ok(left.x < 500); assert.equal(left.direction, -1);
 });
 
@@ -1219,5 +1241,45 @@ test('joystick supports rotated multitouch and does not clear held keyboard move
     if (!scene.destroyed) scene.destroy({ children: true });
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});
+test('training terrain blocks running and dash from either side and permits jumping onto a platform', () => {
+  const run = new DummyRun();
+  run.update(2, 1); assert.equal(run.x, 480 - run.halfWidth); assert.equal(run.height, 0);
+  run.startDash(); run.update(0.4, 1); assert.equal(run.x, 480 - run.halfWidth);
+  run.jump();
+  let landed = false;
+  for (let i = 0; i < 120; i++) {
+    run.update(1 / 120, i < 30 ? 1 : 0);
+    if (run.grounded && run.height === 36) landed = true;
+  }
+  assert.equal(landed, true); assert.equal(run.height, 36);
+  run.jump(); run.update(0.2, 0); assert.ok(run.height > 36);
+  const back = new DummyRun(); back.x = 620; back.direction = -1;
+  back.startDash(); back.update(0.4, -1); assert.equal(back.x, 550 + back.halfWidth);
+});
+
+test('gap prevents midair jumps/dashes, preserves aerial attack and resets a failed run', () => {
+  const run = new DummyRun(); run.x = 1170;
+  run.update(0.35, 1); assert.ok(run.height < 0); assert.equal(run.grounded, false);
+  const velocity = run.velocity; run.jump(); run.startDash();
+  assert.equal(run.velocity, velocity); assert.equal(run.dash, 0);
+  run.startAttack(); assert.equal(run.action(1), 'attack');
+  run.update(1, 0);
+  assert.equal(run.respawns, 1); assert.equal(run.x, run.start); assert.equal(run.height, 0);
+  assert.equal(run.attack, 0); assert.equal(run.dashCooldown, 0); assert.equal(run.velocity, 0); assert.equal(run.won, false);
+  run.jump(); assert.equal(run.velocity, 440);
+});
+
+test('training route completes with four jumps across frame rates and returns once after victory', () => {
+  for (const fps of [30, 60, 120]) {
+    const run = new DummyRun(), launches = [400, 710, 1120, 1740]; let next = 0;
+    for (let i = 0; i < 13 * fps && !run.won; i++) {
+      if (next < launches.length && run.x >= launches[next]) { run.jump(); next++; }
+      run.update(1 / fps, 1);
+    }
+    assert.equal(run.respawns, 0, `no retry at ${fps} FPS`); assert.equal(run.won, true, `complete at ${fps} FPS`);
+    assert.equal(run.x, run.finish); assert.equal(run.height, 0);
+    run.update(2, -1); assert.equal(run.returnReady, true); assert.equal(run.x, run.finish);
   }
 });

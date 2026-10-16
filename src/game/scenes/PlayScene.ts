@@ -5,6 +5,7 @@ import { AnimalEffects } from '../../animals/AnimalEffects';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
+import { COURSE_GROUND } from '../TrainingCourse';
 import { Scene } from './Scene';
 
 export class PlayScene extends Scene {
@@ -42,11 +43,13 @@ export class PlayScene extends Scene {
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
-    this.world.addChild(new Graphics().rect(0, 390, 2850, 150).fill('#b5cd99')
-      .rect(0, 390, 2850, 6).fill('#78905c'));
-    for (let x = 120; x <= 2520; x += 240) {
-      this.world.addChild(new Graphics().rect(x, 410, 90, 3).fill('#90aa73'));
+    const terrain = new Graphics();
+    for (const solid of this.run.course) {
+      const y = COURSE_GROUND - solid.top;
+      terrain.rect(solid.x, y, solid.width, solid.top - solid.bottom).fill(solid.top ? '#c8b38a' : '#b5cd99')
+        .rect(solid.x, y, solid.width, 6).fill(solid.top ? '#a48d65' : '#78905c');
     }
+    this.world.addChild(terrain);
     for (const [x, label] of [[120, 'start'], [2520, 'finish']] as const) {
       const flag = new Text({ text: t(label), style: { fontFamily: 'system-ui', fontSize: 23, fontWeight: 'bold', fill: '#455b3b' } });
       this.labels.push({ text: flag, key: label });
@@ -131,9 +134,11 @@ export class PlayScene extends Scene {
     if (this.paused) return;
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
+    const respawns = this.run.respawns;
     this.run.update(seconds, axis);
+    if (this.run.respawns !== respawns) { this.blur(); this.cameraX = 0; }
     this.elapsed += seconds;
-    this.render(seconds, axis);
+    this.render(seconds, this.run.respawns === respawns ? axis : 0);
     if (this.run.returnReady && !this.returned) { this.returned = true; this.onReturn(); }
   }
   private render(seconds: number, axis: number): void {
@@ -143,7 +148,7 @@ export class PlayScene extends Scene {
     if (preferences?.smoothCamera === false) this.cameraX = target;
     else this.cameraX += (target - this.cameraX) * (1 - Math.exp(-7 * seconds));
     this.world.x = -this.cameraX;
-    this.pet.position.set(run.x, 390 - run.height);
+    this.pet.position.set(run.x, COURSE_GROUND - run.height);
     const action = run.action(axis);
     const progress = action === 'attack' ? 1 - run.attack / run.attackDuration
       : action === 'skill' ? 1 - run.dash / run.dashDuration
