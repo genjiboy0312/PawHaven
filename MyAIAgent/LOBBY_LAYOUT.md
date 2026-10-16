@@ -82,3 +82,12 @@ Character/Friends/Shop/Settings/Play는 이미지와 이름 배치만 있으며 
 ### 최종 생성 프롬프트
 
 Create a clean prototype sprite atlas matching the exact approved orange-and-white corgi in the supplied reference. Preserve the big head, upright ears, tiny tail, short legs, chubby body, richly shaded cozy pixel game illustration. ONLY 2 horizontal rows with 8 corgis per row, total sixteen separate full-body characters in a regular eight-column grid, landscape canvas. Row 1: 8 distinct chronological JUMP AND LAND poses: crouch, push-off, rising legs tucked, airborne ascent, airborne apex smiling, descending, feet contacting, settling. Keep the character centered in its cell; the game applies the vertical jump trajectory, so keep the bottom of the feet consistently near each cell's baseline rather than drawing a giant parabolic jump path across the row. Row 2: 8 EMOTE poses: friendly sitting, happy mouth open, delighted eyes closed, happy tilted head, curious face, cute cheerful front paws lifted, contented face, friendly sitting. SAME animal dimensions and same orientation predominantly three-quarter facing right throughout, consistent markings and lighting. Keep all ears/paws/tails fully inside their own cells. Leave generous transparent gaps between every pose. True transparent alpha background, no shadows, no ground, no checkerboard painted into the image, no text, no labels, no symbols or floating hearts (the game renders those separately), no panels. Actual orange/white corgi fur only; no colored edge debris. This will be sampled as a two-row eight-column PNG in PixiJS.
+
+## 로비 애니메이션 정지처럼 보이는 현상 수정
+
+- REST/SLEEP/OBSERVE 상태가 각각 고정 프레임을 사용하던 부분을 제거하고 느린 반복 재생으로 변경했다.
+- 애니메이션 프레임 시간과 행동 경과 시간을 분리했다. 같은 idle 시트를 사용하는 행동 전환에서는 프레임 위치를 유지하고, 다른 시트로 전환할 때만 처음부터 재생한다.
+- 점프/착지는 기존처럼 행동 진행률에 따라 프레임을 선택한다. 휴식의 호흡과 수면 표시도 유지한다.
+- 별도 휴식/수면/관찰 시트가 없어 현재 idle 시트를 재사용한다.
+- 회귀 검증: 각 정지 행동의 프레임 진행, 같은 시트 전환의 연속성, 다른 시트의 재시작, Animal을 통한 수면 프레임 진행 및 이동 전환을 확인한다.
+- 실기기에서 사용자가 겪은 증상을 직접 재현하지는 못했으며, 코드의 고정 프레임 경로를 확인해 수정했다.

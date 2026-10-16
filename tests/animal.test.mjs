@@ -169,7 +169,7 @@ test('sleep expression follows automatic state and clears immediately on manual 
       walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
     },
     behavior: {
-      durations: { IDLE: [0.1, 0.1], REST: [1, 1], SLEEP: [0.5, 0.5], OBSERVE: [1, 1] },
+      durations: { IDLE: [0.1, 0.1], REST: [1, 1], SLEEP: [3, 3], OBSERVE: [1, 1] },
       weights: { WANDER: 0, REST: 0, SLEEP: 1, OBSERVE: 0 },
       wanderDistance: [80, 80],
     },
@@ -178,7 +178,7 @@ test('sleep expression follows automatic state and clears immediately on manual 
   animal.update(0.11);
   assert.equal(animal.state, 'SLEEP');
   assert.equal(animal.children[1].visible, true);
-  assert.equal(animal.children[0].currentFrame, 5);
+  const sleepFrame = animal.children[0].currentFrame;
   const sleepingX = animal.x;
   animal.update(0.2);
   assert.equal(animal.x, sleepingX);
@@ -189,7 +189,7 @@ test('sleep expression follows automatic state and clears immediately on manual 
   assert.equal(animal.state, 'IDLE');
   assert.equal(animal.children[1].visible, false);
   animal.update(0.11);
-  animal.update(0.51);
+  animal.update(3.01);
   assert.equal(animal.state, 'IDLE');
   assert.equal(animal.children[1].visible, false);
   animal.destroy({ children: true });
@@ -385,7 +385,7 @@ test('jump follows an airborne arc, lands, and restores ground alignment', () =>
   assert.equal(animal.y, 390);
   assert.equal(animal.children[0].y, -48);
   assert.equal(animal.children[0].currentFrame, 3);
-  animal.update(0.51);
+  animal.update(3.01);
   assert.equal(animal.state, 'LAND');
   assert.equal(animal.children[0].y, 0);
   assert.equal(animal.children[0].currentFrame, 6);
@@ -431,4 +431,46 @@ test('jump/emote atlas has eight separated frames each within the actual PNG dim
       if (i > 0) assert.ok(map[action][i - 1].x + map[action][i - 1].width < frame.x);
     }
   }
+});
+
+const { AnimalAnimationController } = await importTs('../src/animals/AnimalAnimationController.ts', import.meta.url);
+function createAnimationController() {
+  const frames = Array.from({ length: 8 }, () => Texture.WHITE);
+  return new AnimalAnimationController({ id: 'test', speed: 90, scale: 1,
+    animations: { idle: { frames, fps: 3 }, walk: { frames, fps: 8 }, emote: { frames, fps: 4 } } });
+}
+function destroyAnimationController(controller) {
+  controller.sprite.destroy(); controller.sleepMark.destroy(); controller.welcomeMark.destroy();
+}
+
+test('rest, sleep and observe keep animating instead of holding a single frame', () => {
+  for (const [state, duration] of [['REST', 3], ['SLEEP', 7], ['OBSERVE', 2]]) {
+    const controller = createAnimationController();
+    const seen = new Set();
+    for (let i = 0; i < duration * 60; i++) {
+      controller.update(state, i / 60, 1, 0, 0, 1 / 60);
+      seen.add(controller.sprite.currentFrame);
+    }
+    assert.ok(seen.size >= 4, `${state} must keep advancing frames: ${[...seen]}`);
+    destroyAnimationController(controller);
+  }
+});
+
+test('shared idle playback survives behavior timer resets and independent clips restart', () => {
+  const controller = createAnimationController();
+  controller.update('IDLE', 1.1, 1, 0, 0, 1.1);
+  assert.equal(controller.sprite.currentFrame, 3);
+  for (const state of ['OBSERVE', 'REST', 'SLEEP', 'IDLE', 'NOTICE', 'GREET']) {
+    controller.update(state, 0, 1);
+    assert.equal(controller.sprite.currentFrame, 3, `${state} must preserve clip progress`);
+  }
+  controller.update('WANDER', 0, 1);
+  assert.equal(controller.sprite.currentFrame, 0);
+  controller.update('WANDER', 0.5, 1, 0, 0, 0.5);
+  assert.equal(controller.sprite.currentFrame, 4);
+  controller.update('EMOTE', 0, 1);
+  assert.equal(controller.sprite.currentFrame, 0);
+  controller.update('EMOTE', 1, 1, 0, 0, 1);
+  assert.equal(controller.sprite.currentFrame, 4);
+  destroyAnimationController(controller);
 });

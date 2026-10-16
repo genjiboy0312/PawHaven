@@ -12,7 +12,8 @@ export class AnimalAnimationController {
     text: '',
     style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fontWeight: '600', fill: '#765536' },
   });
-  private lastState: AnimalVisualState = 'IDLE';
+  private lastAnimation = 'idle';
+  private framePosition = 0;
 
   constructor(private readonly config: AnimalConfig) {
     const idle = config.animations.idle;
@@ -27,23 +28,26 @@ export class AnimalAnimationController {
     this.welcomeMark.visible = false;
   }
 
-  update(state: AnimalVisualState, elapsed: number, direction: number, progress = 0, jumpHeight = 0): void {
+  update(state: AnimalVisualState, elapsed: number, direction: number, progress = 0, jumpHeight = 0, seconds = 0): void {
     const moving = state === 'WANDER' || state === 'APPROACH';
     const key = state === 'JUMP' || state === 'LAND' ? 'jump' : state === 'EMOTE' ? 'emote' : moving ? 'walk' : 'idle';
     const animation = this.config.animations[key] ?? this.config.animations.idle;
     if (!animation) return;
-    if (state !== this.lastState) {
+    if (key !== this.lastAnimation) {
       this.sprite.textures = animation.frames;
-      this.lastState = state;
+      this.lastAnimation = key;
+      this.framePosition = 0;
     }
     // Dedicated rest, sleep and greeting art can replace these prototype expressions.
-    const fps = animation.fps * (state === 'APPROACH' ? 1.25 : state === 'GREET' ? 1.6 : 1);
+    const pace = state === 'SLEEP' ? 0.35 : state === 'REST' ? 0.6
+      : state === 'OBSERVE' ? 0.8 : state === 'APPROACH' ? 1.25 : state === 'GREET' ? 1.6 : 1;
+    // Behavior timers reset on every state change; clip playback owns a separate clock.
+    if (Number.isFinite(seconds) && seconds > 0) {
+      this.framePosition = (this.framePosition + seconds * animation.fps * pace) % animation.frames.length;
+    }
     const frame = state === 'JUMP' ? Math.min(Math.floor(progress * 6), Math.min(5, animation.frames.length - 1))
       : state === 'LAND' ? Math.min(6 + Math.floor(progress * 2), animation.frames.length - 1)
-      : state === 'SLEEP' ? Math.min(5, animation.frames.length - 1)
-      : state === 'REST' ? Math.min(3, animation.frames.length - 1)
-      : state === 'OBSERVE' ? 0
-      : Math.floor(elapsed * fps) % animation.frames.length;
+      : Math.floor(this.framePosition);
     this.sprite.gotoAndStop(frame);
     const breath = state === 'SLEEP' || state === 'REST' ? 1 + Math.sin(elapsed * 2) * 0.012 : 1;
     const nativeScale = this.config.scale * (animation.scale ?? 1);
