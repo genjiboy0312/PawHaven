@@ -111,12 +111,13 @@ export class PlayScene extends Scene {
     const run = this.run;
     this.world.x = -Math.max(0, Math.min(run.finish - 740, run.x - 280));
     this.pet.position.set(run.x, 390 - run.height);
-    const moving = !run.won && (Math.abs(axis) > 0 || run.dash > 0);
-    this.animation.update(run.won ? 'IDLE' : run.height > 0 ? 'JUMP' : moving ? 'WANDER' : 'IDLE', this.elapsed, run.direction,
-      run.height > 0 ? Math.min(0.99, Math.max(0, (440 - run.velocity) / 880)) : 0, 0, seconds);
+    const action = run.action(axis);
+    const progress = action === 'attack' ? 1 - run.attack / run.attackDuration
+      : action === 'skill' ? 1 - run.dash / run.dashDuration
+      : action === 'land' ? 1 - run.land / 0.16
+      : action === 'jump' ? Math.min(0.49, Math.max(0, (440 - run.velocity) / 880)) : undefined;
+    this.animation.update('IDLE', this.elapsed, run.direction, 0, 0, seconds, action, progress);
     this.effect.clear();
-    if (!run.won && run.attack > 0) this.effect.ellipse(run.direction * 80, -65, 30, 45).stroke({ color: '#fff8dd', width: 8, alpha: 0.8 });
-    if (!run.won && run.dash > 0) this.effect.moveTo(-run.direction * 70, -45).lineTo(-run.direction * 130, -45).stroke({ color: '#fff8dd', width: 7 });
     this.victory.hidden = !run.won;
     this.fade.style.opacity = String(run.fade);
     if (run.won) this.blur();

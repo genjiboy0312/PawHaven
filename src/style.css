@@ -69,8 +69,11 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .play-circle:enabled { cursor: pointer; }
 .play-circle:active { background: #e9dcab; }
 .play-circle:disabled { opacity: 0.7; }
-.play-actions { position: absolute; right: 3cqw; bottom: 5cqh; display: flex; align-items: flex-end; gap: 1.5cqw; }
-.play-actions .play-circle:last-child { width: 11cqw; height: 11cqw; }
+.play-actions { position: absolute; right: 3cqw; bottom: 4cqh; width: 23cqw; height: 21cqw; }
+.play-actions .play-circle { position: absolute; top: 0; }
+.play-actions .play-circle:first-child { left: 0; }
+.play-actions .play-circle:nth-child(2) { right: 0; }
+.play-actions .play-circle:last-child { top: auto; bottom: 0; left: 6cqw; width: 11cqw; height: 11cqw; }
 .play-settings { position: absolute; top: 3cqh; right: 3cqw; width: 7cqw; height: 7cqw; font-size: clamp(8px, 1.25cqw, 15px); }
 .play-stick { position: absolute; bottom: 5cqh; left: 4cqw; width: 13cqw; height: 13cqw; display: grid; place-items: center; padding: 0; }
 .stick-knob { display: block; width: 45%; height: 45%; border-radius: 50%; background: #8fa575; pointer-events: none; }

@@ -1,7 +1,7 @@
 {
   "character": "corgi",
   "reference": "Resources/Corgi_Action_Art_Sheet.png",
-  "note": "Reference art includes all 16 families. Runtime idle/walk, jump/land and emote are available; other families still require frame preparation.",
+  "note": "Runtime idle/walk, run, jump/fall/land, attack, skill and emote are ready. Fall/land reuse jump atlas poses. Combat atlas is a transparent adaptation of the original Corgi_Art_Sheet reference.",
   "actions": {
     "idle": {
       "referenceArt": true,
@@ -15,8 +15,8 @@
     },
     "run": {
       "referenceArt": true,
-      "runtimeReady": false,
-      "frames": null
+      "runtimeReady": true,
+      "frames": 8
     },
     "jump": {
       "referenceArt": true,
@@ -25,8 +25,8 @@
     },
     "fall": {
       "referenceArt": true,
-      "runtimeReady": false,
-      "frames": null
+      "runtimeReady": true,
+      "frames": 2
     },
     "land": {
       "referenceArt": true,
@@ -40,8 +40,8 @@
     },
     "attack": {
       "referenceArt": true,
-      "runtimeReady": false,
-      "frames": null
+      "runtimeReady": true,
+      "frames": 8
     },
     "hit": {
       "referenceArt": true,
@@ -55,8 +55,8 @@
     },
     "skill": {
       "referenceArt": true,
-      "runtimeReady": false,
-      "frames": null
+      "runtimeReady": true,
+      "frames": 8
     },
     "emote": {
       "referenceArt": true,

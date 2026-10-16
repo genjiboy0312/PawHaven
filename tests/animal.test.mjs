@@ -568,3 +568,51 @@ test('Play enters a run, victory returns once without another greeting, and scen
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+test('air attack preserves jump physics, air dash is blocked and ground dash cannot be cancelled', () => {
+  const run = new DummyRun(), baseline = new DummyRun();
+  run.jump(); baseline.jump();
+  run.startDash(); assert.equal(run.dash, 0); // also blocked before first airborne tick
+  for (let i = 0; i < 20; i++) { run.update(1 / 60, 1); baseline.update(1 / 60, 1); }
+  run.startDash(); assert.equal(run.dash, 0);
+  run.startAttack(); assert.equal(run.action(1), 'attack');
+  const duration = run.attack;
+  run.startAttack(); assert.equal(run.attack, duration);
+  for (let i = 0; i < 60; i++) {
+    run.update(1 / 60, 1); baseline.update(1 / 60, 1);
+    assert.equal(run.height, baseline.height); assert.equal(run.velocity, baseline.velocity);
+  }
+  assert.equal(run.velocity, 0); assert.equal(run.action(1), 'run');
+  run.startDash(); assert.equal(run.action(1), 'skill');
+  run.jump(); run.startAttack();
+  assert.equal(run.velocity, 0); assert.equal(run.attack, 0);
+  run.update(0.4, 0); assert.equal(run.action(0), 'idle');
+});
+
+test('game selects Run/Attack/Skill textures while lobby WANDER still uses Walk', () => {
+  const animations = Object.fromEntries(['idle', 'walk', 'run', 'attack', 'skill'].map(key =>
+    [key, { frames: Array(8).fill(Texture.WHITE), fps: 8 }]));
+  const controller = new AnimalAnimationController({ id: 'test', speed: 90, scale: 1, animations });
+  controller.update('WANDER', 0, 1, 0, 0, 0.1);
+  assert.equal(controller.sprite.textures, animations.walk.frames);
+  for (const action of ['run', 'attack', 'skill']) {
+    controller.update('IDLE', 0, 1, 0, 0, 0, action, action === 'run' ? undefined : 0.5);
+    assert.equal(controller.sprite.textures, animations[action].frames);
+    if (action !== 'run') assert.equal(controller.sprite.currentFrame, 4);
+  }
+  destroyAnimationController(controller);
+});
+
+test('run, attack and skill atlas contains eight valid frames per row and true alpha', async () => {
+  const map = JSON.parse(await readFile(new URL('../public/assets/characters/corgi/combat-frames.json', import.meta.url), 'utf8'));
+  const png = await readFile(new URL('../public/assets/characters/corgi/corgi-run-attack-skill.png', import.meta.url));
+  assert.equal(png.readUInt32BE(16), map.width); assert.equal(png.readUInt32BE(20), map.height);
+  assert.equal(png[25], 6); // RGBA
+  for (const [row, key] of ['run', 'attack', 'skill'].entries()) {
+    assert.equal(map[key].length, 8);
+    for (const [col, rect] of map[key].entries()) {
+      assert.ok(rect.width > 0 && rect.width <= 256 && rect.height > 0 && rect.height <= 256);
+      assert.ok(rect.x >= col * 256 && rect.x + rect.width <= (col + 1) * 256);
+      assert.ok(rect.y >= row * 256 && rect.y + rect.height <= (row + 1) * 256);
+    }
+  }
+});

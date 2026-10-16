@@ -1,5 +1,5 @@
 import { AnimatedSprite, Text } from 'pixi.js';
-import type { AnimalConfig } from './AnimalConfig';
+import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
 
 export class AnimalAnimationController {
@@ -28,9 +28,9 @@ export class AnimalAnimationController {
     this.welcomeMark.visible = false;
   }
 
-  update(state: AnimalVisualState, elapsed: number, direction: number, progress = 0, jumpHeight = 0, seconds = 0): void {
+  update(state: AnimalVisualState, elapsed: number, direction: number, progress = 0, jumpHeight = 0, seconds = 0, action?: AnimalAction, actionProgress?: number): void {
     const moving = state === 'WANDER' || state === 'APPROACH';
-    const key = state === 'JUMP' || state === 'LAND' ? 'jump' : state === 'EMOTE' ? 'emote' : moving ? 'walk' : 'idle';
+    const key = action ?? (state === 'JUMP' || state === 'LAND' ? 'jump' : state === 'EMOTE' ? 'emote' : moving ? 'walk' : 'idle');
     const animation = this.config.animations[key] ?? this.config.animations.idle;
     if (!animation) return;
     if (key !== this.lastAnimation) {
@@ -45,7 +45,9 @@ export class AnimalAnimationController {
     if (Number.isFinite(seconds) && seconds > 0) {
       this.framePosition = (this.framePosition + seconds * animation.fps * pace) % animation.frames.length;
     }
-    const frame = state === 'JUMP' ? Math.min(Math.floor(progress * 6), Math.min(5, animation.frames.length - 1))
+    const frame = actionProgress !== undefined ? Math.min(animation.frames.length - 1, Math.floor(Math.max(0, actionProgress) * animation.frames.length))
+      : action ? Math.floor(this.framePosition)
+      : state === 'JUMP' ? Math.min(Math.floor(progress * 6), Math.min(5, animation.frames.length - 1))
       : state === 'LAND' ? Math.min(6 + Math.floor(progress * 2), animation.frames.length - 1)
       : Math.floor(this.framePosition);
     this.sprite.gotoAndStop(frame);

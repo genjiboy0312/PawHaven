@@ -27,9 +27,16 @@ export async function loadCorgi(onProgress: (progress: number) => void): Promise
   const playfulAtlas = await Assets.load<Texture>(base + 'corgi-jump-emote.png');
   onProgress(0.8);
   const playful = await Assets.load<PlayfulMap>(base + 'playful-frames.json');
+  const combatAtlas = await Assets.load<Texture>(base + 'corgi-run-attack-skill.png');
+  const combat = await Assets.load<Record<'run' | 'attack' | 'skill', FrameRect[]>>(base + 'combat-frames.json');
   const config: AnimalConfig = {
     id: 'corgi', speed: 90, scale: 0.62,
     animations: {
+      run: { frames: textures(combatAtlas, combat.run, 256), fps: 12, scale: 212 / 188 },
+      attack: { frames: textures(combatAtlas, combat.attack, 256), fps: 16, scale: 212 / 188 },
+      skill: { frames: textures(combatAtlas, combat.skill, 256), fps: 24, scale: 212 / 188 },
+      fall: { frames: textures(playfulAtlas, playful.jump, 256).slice(4, 6), fps: 8, scale: 212 / 223 },
+      land: { frames: textures(playfulAtlas, playful.jump, 256).slice(6), fps: 12, scale: 212 / 223 },
       idle: { frames: textures(atlas, map.idle, 240), fps: 3 },
       walk: { frames: textures(atlas, map.walk, 240), fps: 8 },
       jump: { frames: textures(playfulAtlas, playful.jump, 256), fps: 8, scale: 212 / 223 },
