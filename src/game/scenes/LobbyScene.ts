@@ -33,7 +33,7 @@ export class LobbyScene extends Scene {
   resize(width: number, height: number): void {
     const ground = height * 0.72;
     this.garden.draw(width, height, this.home?.state.current ?? { Background: 0, Floor: 0 }, this.home?.state.items);
-    this.animal.setBounds(width, ground);
+    this.animal.setBounds(width, ground, height);
     if (!this.welcomeStarted) {
       this.welcomeStarted = true;
       this.animal.startWelcome();

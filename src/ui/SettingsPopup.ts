@@ -45,7 +45,7 @@ export class SettingsPopup {
       event.stopPropagation();
       if (event.key === 'Escape') { event.preventDefault(); this.close(); return; }
       if (event.key !== 'Tab') return;
-      const controls = Array.from(this.panel!.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)'));
+      const controls = Array.from(this.panel!.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), a[href]'));
       const first = controls[0], last = controls.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -87,7 +87,13 @@ export class SettingsPopup {
     }
     if (this.tab === 'About') {
       const title = document.createElement('p'); title.textContent = 'Paw Haven'; this.content.append(title);
-      this.paragraph('version'); this.paragraph('aboutText'); return;
+      this.paragraph('version'); this.paragraph('aboutText');
+      this.paragraph('feedbackHint');
+      const email = document.createElement('p'); email.className = 'feedback-email'; email.textContent = 'genjimain0312@gmail.com';
+      const feedback = document.createElement('a'); feedback.className = 'settings-feedback';
+      feedback.setAttribute('href', 'mailto:genjimain0312@gmail.com?subject=' + encodeURIComponent('[PawHaven Feedback]'));
+      bindText(feedback, 'sendFeedback');
+      this.content.append(email, feedback); return;
     }
     const preferences = this.store.current;
     for (const channel of ['master', 'bgm', 'sfx'] as const) {

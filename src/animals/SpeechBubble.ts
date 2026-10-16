@@ -1,43 +1,91 @@
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
 
-/** Screen-upright expression bubble shared by lobby and character previews. */
+// Conservative font widths keep layout deterministic before Pixi creates a canvas.
+const glyphWidth = (char: string): number => char === ' ' ? 5 : char.charCodeAt(0) > 255 ? 18 : 10;
+const lineWidth = (line: string): number => Array.from(line).reduce((sum, char) => sum + glyphWidth(char), 0);
+
+export function wrapSpeech(message: string, maxWidth = 272): string {
+  const lines: string[] = [];
+  for (const paragraph of message.split('\n')) {
+    let line = '';
+    for (const word of paragraph.split(/\s+/).filter(Boolean)) {
+      if (line && lineWidth(line + ' ' + word) > maxWidth) { lines.push(line.trimEnd()); line = ''; }
+      for (const char of Array.from(word)) {
+        if (line && lineWidth(line + char) > maxWidth) { lines.push(line.trimEnd()); line = ''; }
+        line += char;
+      }
+      // Preserve spaces between words while allowing a long future nickname to wrap.
+      line += ' ';
+    }
+    lines.push(line.trimEnd());
+  }
+  return lines.join('\n');
+}
+
+/** Appearance and viewport placement are independent from dialogue content/timing. */
 export class SpeechBubble extends Container {
   private readonly plate = new Graphics();
+  private readonly tail = new Graphics();
   private readonly caption = new Text({
-    text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fontWeight: '600', fill: '#59605b' },
+    text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fontWeight: '600', lineHeight: 25, align: 'center', fill: '#59605b' },
   });
+  private tailX = NaN;
   private age = 0;
-  get text(): string { return this.caption.text; }
+  private source = '';
+  private bubbleWidth = 40;
+  halfHeight = 18;
+  get text(): string { return this.source; }
+  get displayText(): string { return this.caption.text; }
 
   constructor() {
     super();
     this.caption.anchor.set(0.5);
-    this.addChild(this.plate, this.caption);
+    this.addChild(this.plate, this.tail, this.caption);
     this.visible = false;
     this.eventMode = 'none';
   }
 
-  present(message: string, seconds: number, hold = false): void {
-    const changed = message !== this.text;
+  present(message: string, seconds: number, hold = false, lifetime = 1.1, remaining?: number): void {
+    const changed = message !== this.source;
     if (changed) {
-      this.caption.text = message;
+      this.source = message;
+      const wrapped = wrapSpeech(message);
+      this.caption.text = wrapped;
       this.age = 0;
-      // Avoid measuring a canvas: symbols and localized greetings have bounded widths.
-      const width = Math.min(240, Math.max(40, Array.from(message).reduce((sum, char) => sum + (char.charCodeAt(0) > 255 ? 18 : 10), 24)));
-      this.plate.clear()
-        .roundRect(-width / 2, -18, width, 36, 10).fill('#ffffff').stroke({ color: '#a9afaa', width: 1.3 })
-        .moveTo(-5, 17).lineTo(1, 25).lineTo(7, 17).fill('#ffffff')
-        .moveTo(-5, 18).lineTo(1, 25).lineTo(7, 18).stroke({ color: '#a9afaa', width: 1.3 });
+      const lines = wrapped.split('\n');
+      this.bubbleWidth = Math.max(40, ...lines.map(line => lineWidth(line) + 24));
+      this.halfHeight = lines.length === 1 ? 18 : (lines.length * 25 + 20) / 2;
+      this.plate.clear().roundRect(-this.bubbleWidth / 2, -this.halfHeight, this.bubbleWidth, this.halfHeight * 2, 10)
+        .fill('#ffffff').stroke({ color: '#a9afaa', width: 1.3 });
+      this.tailX = NaN;
+      this.drawTail(0);
     }
     if (!changed && Number.isFinite(seconds) && seconds > 0) this.age += seconds;
-    const lifetime = hold ? Infinity : 1.1;
-    this.visible = !!message && this.age < lifetime;
-    this.alpha = Math.max(0, Math.min(1, (lifetime - this.age) / 0.2));
+    const end = hold ? Infinity : lifetime;
+    const timeLeft = remaining ?? end - this.age;
+    this.visible = !!message && timeLeft > 0;
+    this.alpha = Math.max(0, Math.min(1, timeLeft / 0.25));
     const entrance = Math.min(1, this.age / 0.14);
     this.scale.set(0.9 + 0.1 * (1 - (1 - entrance) ** 3));
   }
 
+  fitToViewport(animalX: number, animalY: number, width: number, height: number): void {
+    const halfWidth = this.bubbleWidth / 2 + 12, halfHeight = this.halfHeight + 12;
+    const targetX = Math.max(halfWidth, Math.min(width - halfWidth, animalX));
+    this.x = targetX - animalX;
+    this.y = Math.max(halfHeight - animalY, Math.min(height - halfHeight - animalY, this.y));
+    this.drawTail(Math.max(-this.bubbleWidth / 2 + 16, Math.min(this.bubbleWidth / 2 - 16, -this.x)));
+  }
+
+  private drawTail(x: number): void {
+    if (x === this.tailX) return;
+    this.tailX = x;
+    const y = this.halfHeight;
+    this.tail.clear().moveTo(x - 6, y - 1).lineTo(x, y + 8).lineTo(x + 6, y - 1).fill('#ffffff')
+      .moveTo(x - 6, y).lineTo(x, y + 8).lineTo(x + 6, y).stroke({ color: '#a9afaa', width: 1.3 });
+  }
+
   override destroy(options?: DestroyOptions): void {
-    super.destroy(typeof options === 'boolean' ? { children: true, texture: options, textureSource: options } : { ...options, children: true });
+    super.destroy({ ...(typeof options === 'object' ? options : {}), children: true });
   }
 }

@@ -173,3 +173,6 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .home-inventory .outfit-slot:disabled { cursor: default; }
 .home-inventory .outfit-slot:disabled .outfit-object { opacity: 0.28; filter: grayscale(0.6); }
 .home-inventory .outfit-slot:disabled::before { opacity: 0.35; }
+
+.settings-feedback { display: inline-block; padding: 1.5cqh 1.5cqw; border-radius: 2cqw; background: #dde3d6; color: #53604f; text-decoration: none; }
+.feedback-email { overflow-wrap: anywhere; }

@@ -33,3 +33,6 @@
 - Settings를 일반 click으로 연다. pointerdown에서 오버레이를 띄우면 손을 뗄 때 새 배경으로 클릭이 전달될 수 있던 경로를 제거했다.
 - 배경 닫기는 배경에서 직접 pointerdown과 pointerup을 한 경우만 처리한다. 단독 click/pointerup은 무시하며 ×/Escape 닫기도 유지한다.
 - 테스트 33개: 설정 6개 탭, 한영 즉시 전환과 저장, 조작/화면 옵션 적용, 열린 뒤 손 떼기에도 팝업 유지, 의도적인 배경 탭 닫기를 포함한다. 실기기 브라우저 시각·터치 재확인은 별도 필요하다.
+## About 피드백 및 후속 계정 기획 (2026-10-17)
+- About에 한영 피드백 안내, genjimain0312@gmail.com과 제목 [PawHaven Feedback]을 지정한 Send Feedback 메일 링크를 추가했다. 메일 링크도 키보드 포커스 순환에 포함한다.
+- 로그인/DB 연동 후 첫 닉네임 설정은 무료, 이후 Account에서 변경권을 소모하는 기획이다. 현재는 게스트 UI를 유지한다. 상세: [HEALING_DIALOGUE.md](HEALING_DIALOGUE.md).

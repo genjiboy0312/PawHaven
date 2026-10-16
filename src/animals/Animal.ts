@@ -1,4 +1,5 @@
 import { Container } from 'pixi.js';
+import { HealingDialogue } from './HealingDialogue';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import { AnimalAnimationController } from './AnimalAnimationController';
 import { AnimalStateMachine } from './AnimalStateMachine';
@@ -9,6 +10,8 @@ export class Animal extends Container {
   private readonly animation: AnimalAnimationController;
   private readonly behavior: AnimalStateMachine;
   private readonly welcome: WelcomeSequence;
+  private readonly dialogue: HealingDialogue;
+  private viewport = { width: 960, height: 540 };
   get state(): AnimalVisualState { return this.welcome.state ?? this.behavior.state; }
   get mode(): BehaviorMode { return this.behavior.mode; }
   get welcoming(): boolean { return this.welcome.active; }
@@ -18,6 +21,7 @@ export class Animal extends Container {
     this.behavior = new AnimalStateMachine(config.speed, config.behavior, random);
     this.welcome = new WelcomeSequence(config.speed, config.welcome);
     this.animation = new AnimalAnimationController(config);
+    this.dialogue = new HealingDialogue(random);
     this.addChild(this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark);
     this.label = config.id;
   }
@@ -29,12 +33,15 @@ export class Animal extends Container {
     return true;
   }
   pet(): boolean {
-    if (this.welcoming || !this.behavior.pet()) return false;
+    if (this.welcoming || this.dialogue.active || !this.behavior.canPet) return false;
+    this.dialogue.start();
+    this.behavior.pet(this.dialogue.duration);
     this.update(0);
     return true;
   }
   play(action: AnimalAction): boolean {
     if (this.welcoming || (action !== 'idle' && action !== 'walk') || !this.config.animations[action]) return false;
+    this.dialogue.clear();
     this.behavior.setMode(action);
     this.update(0);
     return true;
@@ -44,7 +51,8 @@ export class Animal extends Container {
     this.behavior.setMode('auto');
     this.update(0);
   }
-  setBounds(width: number, ground: number): void {
+  setBounds(width: number, ground: number, height = ground / 0.72): void {
+    this.viewport = { width, height };
     const margin = Math.min(100, width * 0.24);
     const right = Math.max(margin, width - margin);
     this.behavior.setBounds(margin, right);
@@ -53,6 +61,7 @@ export class Animal extends Container {
     this.y = ground;
   }
   update(seconds: number): void {
+    this.dialogue.update(seconds);
     if (this.welcoming) {
       this.welcome.update(seconds);
       this.behavior.setPosition(this.welcome.x, this.welcome.direction);
@@ -66,6 +75,10 @@ export class Animal extends Container {
       this.welcoming ? 0 : this.behavior.progress,
       this.welcoming ? 0 : this.behavior.jumpHeight,
       seconds,
+      undefined,
+      undefined,
+      this.dialogue.active ? { message: this.dialogue.message, remaining: this.dialogue.remainingTime } : undefined,
     );
+    this.animation.welcomeMark.fitToViewport(this.x, this.y, this.viewport.width, this.viewport.height);
   }
 }

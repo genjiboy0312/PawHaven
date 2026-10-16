@@ -857,7 +857,7 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
     focus() { document.activeElement = this; }
     querySelectorAll() {
-      const result = []; const walk = node => { for (const item of node.children) { if (['button', 'input'].includes(item.tag) && !item.disabled) result.push(item); walk(item); } };
+      const result = []; const walk = node => { for (const item of node.children) { if (['button', 'input', 'a'].includes(item.tag) && !item.disabled) result.push(item); walk(item); } };
       walk(this); return result;
     }
   }
@@ -924,6 +924,17 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     content.children[1].dispatchEvent(new Event('click'));
     assert.equal(settings.textContent, 'Settings'); assert.equal(document.documentElement.lang, 'en');
     tabs.children[5].dispatchEvent(new Event('click')); assert.ok(content.children[1].textContent.includes('0.1.0'));
+    const feedback = content.children.at(-1);
+    assert.equal(feedback.tag, 'a'); assert.equal(feedback.textContent, 'Send Feedback');
+    assert.equal(feedback.getAttribute('href'), 'mailto:genjimain0312@gmail.com?subject=%5BPawHaven%20Feedback%5D');
+    assert.equal(content.children.at(-2).textContent, 'genjimain0312@gmail.com');
+    assert.ok(content.children[3].textContent.includes('bugs'));
+    const aboutControls = panel.querySelectorAll(); assert.equal(aboutControls.at(-1), feedback);
+    feedback.focus();
+    overlay.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Tab' }));
+    assert.equal(document.activeElement, close);
+    setLanguage('ko'); assert.equal(feedback.textContent, '피드백 보내기');
+    setLanguage('en');
     tabs.children[4].dispatchEvent(new Event('click'));
     assert.equal(content.children[0].textContent, 'Playing as Guest'); assert.equal(content.children[2].disabled, true);
     tabs.children[0].dispatchEvent(new Event('click')); assert.equal(content.children[0].children[1].value, '35');
@@ -1164,7 +1175,7 @@ test('petting rejects welcome, jumping and repeated taps, then resumes autonomou
       assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
     }
     assert.ok(animal.children[0].currentFrame > 0);
-    animal.update(0.51); assert.equal(animal.state, 'IDLE'); assert.equal(animal.mode, 'auto');
+    animal.update(0.51); assert.equal(animal.pet(), false); animal.update(6); assert.equal(animal.state, 'IDLE'); assert.equal(animal.mode, 'auto');
     const states = new Set();
     for (let i = 0; i < 7200; i++) {
       animal.update(1 / 60); states.add(animal.state);
@@ -1199,7 +1210,7 @@ test('lobby body taps react independently of HUD, respect pause and release list
     scene.update(0.5); const frame = pet.children[0].currentFrame;
     for (const group of host.children[0].children) for (const button of group.children) button.dispatchEvent(new Event('click'));
     scene.setPaused(true); scene.update(10); assert.equal(pet.children[0].currentFrame, frame);
-    scene.setPaused(false); scene.update(1.01); assert.equal(pet.state, 'IDLE');
+    scene.setPaused(false); scene.update(7); assert.equal(pet.state, 'IDLE');
     scene.destroy({ children: true }); assert.equal(pet.listenerCount('pointertap'), 0); assert.equal(host.children.length, 0);
   } finally {
     if (!scene.destroyed) scene.destroy({ children: true });
@@ -1606,6 +1617,10 @@ test('speech bubbles pop, fade, reset on symbol changes and keep greetings visib
     bubble.present('♪', 0.1); assert.equal(bubble.visible, true); assert.equal(bubble.alpha, 1);
     bubble.present('Welcome!', 0, true); bubble.present('Welcome!', 10, true);
     assert.equal(bubble.visible, true); assert.equal(bubble.alpha, 1);
+    bubble.present('오늘도 고생 많았어.', 0, false, 5, 0.1);
+    const fade = bubble.alpha;
+    bubble.present('You did well today.', 0, false, 5, 0.1);
+    assert.equal(bubble.alpha, fade); // changing language must not restart the reading/fade clock
     bubble.present('', 0); assert.equal(bubble.visible, false);
   } finally { bubble.destroy(); }
   assert.ok(children.every(child => child.destroyed));
@@ -1635,4 +1650,74 @@ test('fixed play zoom shows more course and retains screen running/dash speed wi
     baseline.update(0.2, 0); zoomed.update(0.2, 0);
     assert.equal(zoomed.height, baseline.height); assert.equal(zoomed.attack, baseline.attack);
   }
+});
+test('healing dialogue never repeats consecutively and locks its text until reading ends', async () => {
+  const { HealingDialogue, HEALING_LINES } = await importTs('../src/animals/HealingDialogue.ts', import.meta.url);
+  for (const random of [() => 0, () => 0.999999, seededRandom(17), () => NaN]) {
+    const dialogue = new HealingDialogue(random); let previous;
+    for (let count = 0; count < 20; count++) {
+      setLanguage('ko');
+      assert.equal(dialogue.start(), true);
+      const korean = dialogue.message, index = HEALING_LINES.findIndex(line => line.ko === korean);
+      assert.ok(index >= 0); assert.notEqual(index, previous); previous = index;
+      assert.ok(dialogue.duration >= 4.5 && dialogue.duration <= 7);
+      assert.equal(dialogue.start(), false); assert.equal(dialogue.message, korean);
+      dialogue.update(NaN); dialogue.update(-1); assert.equal(dialogue.active, true);
+      dialogue.update(dialogue.duration / 2);
+      setLanguage('en'); assert.equal(dialogue.message, HEALING_LINES[index].en);
+      dialogue.update(dialogue.duration / 2 + 0.001);
+      assert.equal(dialogue.active, false); assert.equal(dialogue.message, '');
+    }
+    dialogue.start(); dialogue.clear(); assert.equal(dialogue.active, false);
+  }
+  setLanguage('en');
+});
+
+test('healing speech keeps semantic breaks, fits in two or three lines and remains inside viewport edges', async () => {
+  const { SpeechBubble, wrapSpeech } = await importTs('../src/animals/SpeechBubble.ts', import.meta.url);
+  const { HEALING_LINES } = await importTs('../src/animals/HealingDialogue.ts', import.meta.url);
+  const bubble = new SpeechBubble();
+  try {
+    for (const translation of HEALING_LINES) for (const message of Object.values(translation)) {
+      const wrapped = wrapSpeech(message), lines = wrapped.split('\n');
+      assert.ok(lines.length >= 2 && lines.length <= 3, wrapped);
+      assert.equal(wrapped.replace(/\s/g, ''), message.replace(/\s/g, ''));
+      for (const line of lines) assert.ok(Array.from(line).reduce((width, c) => width + (c === ' ' ? 5 : c.charCodeAt(0) > 255 ? 18 : 10), 0) <= 272);
+      bubble.present(message, 0, false, 5);
+      assert.equal(bubble.displayText, wrapped);
+      for (const x of [0, 100, 480, 860, 960]) {
+        bubble.position.set(0, -200); bubble.fitToViewport(x, 180, 960, 540);
+        const halfWidth = Math.max(...lines.map(line => Array.from(line).reduce((width, c) => width + (c === ' ' ? 5 : c.charCodeAt(0) > 255 ? 18 : 10), 24))) / 2;
+        assert.ok(x + bubble.x - halfWidth >= 12);
+        assert.ok(x + bubble.x + halfWidth <= 948);
+        assert.ok(180 + bubble.y - bubble.halfHeight >= 12);
+      }
+      bubble.present(message, 4.8, false, 5); assert.ok(bubble.alpha > 0 && bubble.alpha < 1);
+      bubble.present(message, 0.21, false, 5); assert.equal(bubble.visible, false);
+    }
+    assert.ok(wrapSpeech('아주긴닉네임'.repeat(6)).split('\n').length > 1);
+    assert.equal(wrapSpeech('Rest well.\nSee you tomorrow.'), 'Rest well.\nSee you tomorrow.');
+  } finally { bubble.destroy(); }
+});
+
+test('pet dialogue stays still, survives resizing/language changes, ignores spam and resumes autonomy', () => {
+  const animal = new Animal({ id: 'myeongrang', speed: 90, scale: 0.62, animations: {
+    idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
+    emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 },
+    walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+  } }, () => 0);
+  try {
+    animal.setBounds(960, 390); setLanguage('ko');
+    assert.equal(animal.pet(), true);
+    const bubble = animal.children[2], message = bubble.text, x = animal.x;
+    assert.ok(message.includes('오늘도')); assert.equal(animal.pet(), false);
+    animal.update(2.35); assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
+    assert.equal(bubble.text, message); assert.ok(animal.children[0].currentFrame > 0);
+    animal.setBounds(390, 280); animal.update(0); assert.equal(bubble.text, message);
+    setLanguage('en'); animal.update(0); assert.ok(bubble.text.includes('today'));
+    assert.equal(animal.pet(), false);
+    animal.update(6); assert.equal(animal.state, 'IDLE'); assert.equal(bubble.visible, false);
+    assert.equal(animal.pet(), true); assert.ok(!bubble.text.includes('You did well'));
+    animal.play('idle'); assert.equal(bubble.visible, false);
+  } finally { animal.destroy({ children: true }); setLanguage('en'); }
 });

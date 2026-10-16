@@ -18,11 +18,13 @@ export class AnimalStateMachine {
   private observeDirection = 1;
   private petted = false;
 
-  pet(): boolean {
-    if (this.mode !== 'auto' || this.petted || this.state === 'JUMP' || this.state === 'LAND') return false;
+  get canPet(): boolean { return this.mode === 'auto' && !this.petted && this.state !== 'JUMP' && this.state !== 'LAND'; }
+
+  pet(duration = 1.5): boolean {
+    if (!this.canPet) return false;
     this.enter('EMOTE');
     this.petted = true;
-    this.duration = 1.5;
+    this.duration = duration;
     return true;
   }
 
