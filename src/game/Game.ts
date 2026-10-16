@@ -1,3 +1,6 @@
+import { ShopState } from '../shop/ShopState';
+import { ShopScene } from './scenes/ShopScene';
+import { QuestPopup } from '../ui/QuestPopup';
 import { CharacterPresets } from '../animals/CharacterPresets';
 import { GameSettings, type GamePreferences } from '../settings/GameSettings';
 import { setLanguage } from '../settings/i18n';
@@ -18,6 +21,7 @@ import { LobbyScene } from './scenes/LobbyScene';
 
 export class Game {
   private settings?: SettingsPopup;
+  private quests?: QuestPopup;
   private audio?: AudioSystem;
   private readonly outfit = createOutfit();
   private readonly app = new Application();
@@ -58,6 +62,7 @@ export class Game {
     const preferences = new SoundSettings(storage);
     const gameSettings = new GameSettings(storage);
     const presets = new CharacterPresets(storage);
+    const commerce = new ShopState(storage);
     const applyGame = (value: GamePreferences): void => {
       host.style.setProperty('--control-scale', String(value.controlSize));
       host.classList.toggle('left-handed', value.leftHanded);
@@ -82,13 +87,17 @@ export class Game {
     if (this.disposed) return;
     let activePet = corgi;
     const pets = [{ config: corgi, name: 'Corgi', thumbnail: './assets/characters/corgi/corgi-idle-walk.png' }];
+    const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
+      if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab));
+    };
+    this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
     const lobby = (returning = false): void => {
       if (this.disposed) return;
       this.scenes?.show(new LobbyScene(activePet, () => {
-        if (!this.disposed) this.scenes?.show(new PlayScene(activePet, () => lobby(true), { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
+        if (!this.disposed) this.scenes?.show(new PlayScene(activePet, () => { commerce.completeRun(); lobby(true); }, { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
       }, returning, () => {
-        if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onPetChanged: config => { activePet = config; } }));
-      }, openSettings));
+        if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index) }));
+      }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open() }));
     };
     this.scenes.show(new TitleScene(() => lobby()));
 
@@ -102,6 +111,7 @@ export class Game {
     if (!this.initialized) return;
     this.app.renderer.off('resize', this.resize);
     this.app.ticker.remove(this.tick);
+    this.quests?.destroy();
     this.settings?.destroy();
     this.audio?.destroy();
     this.scenes?.destroy();

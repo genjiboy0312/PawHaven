@@ -954,3 +954,100 @@ test('three global presets deep-copy pet and outfit, survive reload, and reject 
   const blocked = new CharacterPresets({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
   assert.equal(blocked.save(0, current), true); assert.equal(blocked.load(0).outfit.Hat, 9);
 });
+const { ShopState, SHOP_STORAGE_KEY } = await importTs('../src/shop/ShopState.ts', import.meta.url);
+test('prototype purchases charge once, appear as owned, persist, and stop on insufficient coins', () => {
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const state = new ShopState(storage);
+  assert.equal(state.coins, 1000); assert.equal(state.owns('Hat', 1), true);
+  assert.equal(state.buy('Hat', 2), 'purchased'); assert.equal(state.coins, 925);
+  assert.equal(state.buy('Hat', 2), 'owned'); assert.equal(state.coins, 925);
+  assert.equal(new ShopState(storage).owns('Hat', 2), true); assert.equal(new ShopState(storage).coins, 925);
+  for (let index = 3; index <= 20; index++) state.buy('Hat', index);
+  const balance = state.coins;
+  assert.equal(state.buy('Body', 20), 'insufficient'); assert.equal(state.coins, balance);
+  assert.equal(state.buy('Hat', -1), 'invalid'); assert.equal(state.buy('bad', 2), 'invalid');
+  values.set(SHOP_STORAGE_KEY, 'bad'); assert.equal(new ShopState(storage).coins, 1000);
+  const blocked = new ShopState({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  assert.equal(blocked.buy('Body', 2), 'purchased'); assert.equal(blocked.owns('Body', 2), true);
+});
+test('pass eligibility, XP cap and claimed rewards stay shared and survive reload', () => {
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const state = new ShopState(storage);
+  assert.equal(state.canClaim(1, false), true); assert.equal(state.claim(1, true), false);
+  assert.equal(state.claim(2, false), false); assert.equal(state.claim(1, false), true);
+  assert.equal(state.claim(1, false), false); assert.equal(state.coins, 1020);
+  state.unlockPass(); state.unlockPass(); assert.equal(state.coins, 1020);
+  assert.equal(state.claim(1, true), true); assert.equal(state.coins, 1060);
+  state.completeRun(); assert.equal(state.level, 2); assert.equal(state.canClaim(2, true), true);
+  for (let i = 0; i < 10; i++) state.completeRun();
+  assert.equal(state.xp, 400); assert.equal(state.level, 5); assert.equal(state.claim(6, false), false);
+  const restored = new ShopState(storage); assert.equal(restored.hasPass, true);
+  assert.equal(restored.isClaimed(1, true), true); assert.equal(restored.claim(1, true), false);
+  assert.equal(restored.xp, 400); assert.equal(restored.coins, 1060);
+});
+
+test('Shop and Quest link pass purchase and rewards, and bought items appear in Character inventory', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; inert = false; scrollTop = 0; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    replaceChildren(...items) { this.children.forEach(item => { item.parent = undefined; }); this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); this.parent = undefined; }
+    get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
+    focus() { document.activeElement = this; }
+    querySelector(selector) { return this.children.flatMap(item => [item, ...item.all()]).find(item => (item.className ?? '').split(' ').includes(selector.slice(1))) ?? null; }
+    all() { return this.children.flatMap(item => [item, ...item.all()]); }
+    querySelectorAll() { return this.all().filter(item => item.tag === 'button' && !item.disabled); }
+  }
+  const oldDocument = globalThis.document, oldHTMLElement = globalThis.HTMLElement;
+  const host = new Element('main'); globalThis.HTMLElement = Element;
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
+  const { Container } = await import('pixi.js');
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const { ShopScene } = await importTs('../src/game/scenes/ShopScene.ts', import.meta.url);
+  const { CharacterScene } = await importTs('../src/game/scenes/CharacterScene.ts', import.meta.url);
+  const { QuestPopup } = await importTs('../src/ui/QuestPopup.ts', import.meta.url);
+  const state = new ShopState(), app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
+  const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 } } };
+  const showShop = (tab = 'Style') => manager.show(new ShopScene(config, state, lobby, () => { lobby(); quest.open('seasonPass'); }, tab));
+  const lobby = () => manager.show(new LobbyScene(config, undefined, true, undefined, undefined, { shop: () => showShop(), quest: () => quest.open() }));
+  const quest = new QuestPopup(state, paused => manager.setPaused(paused), () => showShop('Pass'));
+  const click = node => node.dispatchEvent(new Event('click'));
+  try {
+    lobby(); const utilities = host.children[0].children[1]; assert.equal(utilities.children[0].disabled, false); assert.equal(utilities.children[2].disabled, false);
+    click(utilities.children[2]);
+    let panel = host.children[0], content = panel.children[4];
+    assert.equal(content.children[1].children.length, 20);
+    click(content.children[1].children[1]); click(content.children[2].children[1]);
+    assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true); assert.equal(content.children[2].children[1].disabled, true);
+    click(panel.children[3].children[1]);
+    assert.equal(content.children[0].children[3].textContent, 'Test unlock · Free');
+    click(content.children[1]); // Shop -> Quest pass
+    let overlay = host.children[1], pass = overlay.children[0].children[3].children[0];
+    assert.equal(pass.children[3].textContent, 'Go to Shop');
+    click(pass.children[3]); // Quest -> Shop pass
+    assert.equal(host.children.length, 1);
+    panel = host.children[0]; content = panel.children[4];
+    click(content.children[0].children[3]); assert.equal(state.hasPass, true);
+    assert.equal(content.children[0].children[3].disabled, true);
+    click(content.children[1]);
+    overlay = host.children[1]; pass = overlay.children[0].children[3].children[0];
+    click(pass.children[4].children[0].children[1]); assert.equal(state.coins, 945);
+    pass = overlay.children[0].children[3].children[0]; click(pass.children[4].children[0].children[2]); assert.equal(state.coins, 985);
+    assert.equal(state.claim(1, true), false);
+    quest.close(); assert.equal(host.children.length, 1);
+    const outfit = { Hat: 0, Body: 0, Acc: 0, Etc: 0 };
+    manager.show(new CharacterScene(config, outfit, lobby, { owns: (category, index) => state.owns(category, index) }));
+    panel = host.children[0]; click(panel.children[1].children[1]);
+    assert.equal(panel.children[2].children.length, 3); // None, starter, purchased
+    click(panel.children[2].children[2]); assert.equal(outfit.Hat, 2);
+    manager.destroy(); assert.equal(host.children.length, 0);
+  } finally {
+    quest.destroy(); manager.destroy(); app.stage.destroy();
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
+  }
+});

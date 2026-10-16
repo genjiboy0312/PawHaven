@@ -1,6 +1,12 @@
 export type Language = 'en' | 'ko';
 const en = {
   Pets: 'Pets', preset: 'Preset', save: 'Save', corgi: 'Corgi', presetUnsaved: 'Unsaved changes', presetSaved: 'Saved', presetLoaded: 'Loaded', presetEmpty: 'Empty slot — press Save to store this look.', petUnavailable: 'This pet is not available yet.',
+  Style: 'Style', Pass: 'Pass', Daily: 'Daily', Weekly: 'Weekly', seasonPass: 'Season Pass',
+  seasonName: 'Season 0 · Cozy Beginnings', seasonPrototype: 'Prototype season · No expiry · No real payment',
+  level: 'Level', passOwned: 'Premium unlocked', testUnlock: 'Test unlock · Free', upgradePass: 'Go to Shop',
+  freeTrack: 'Free', premiumTrack: 'Premium', rewardPreview: 'Reward preview', claim: 'Claim', claimed: 'Claimed',
+  coins: 'Coins', testCoins: 'Test coins', owned: 'Owned', buy: 'Buy', notEnoughCoins: 'Not enough coins',
+  viewPass: 'View pass rewards', questsSoon: 'Daily and weekly quests are coming soon. Complete a run to earn season XP.',
   settings: 'Settings', Sound: 'Sound', Controls: 'Controls', Display: 'Display', Language: 'Language', Account: 'Account', About: 'About',
   master: 'Master', bgm: 'BGM', sfx: 'SFX', mute: 'Mute all', previewBgm: 'Preview BGM', previewSfx: 'Preview SFX',
   closeSettings: 'Close settings', settingsCategories: 'Settings categories', guest: 'Playing as Guest', accountSoon: 'Account login and cloud saves are coming soon.', login: 'Login',
@@ -18,6 +24,12 @@ const en = {
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
   Pets: '동물', preset: '프리셋', save: '저장', corgi: '코기', presetUnsaved: '저장하지 않은 변경사항', presetSaved: '저장했어요', presetLoaded: '불러왔어요', presetEmpty: '빈 슬롯이에요. 저장을 눌러 조합을 보관하세요.', petUnavailable: '아직 사용할 수 없는 동물이에요.',
+  Style: '꾸미기', Pass: '패스', Daily: '일일', Weekly: '주간', seasonPass: '시즌패스',
+  seasonName: '시즌 0 · 포근한 시작', seasonPrototype: '프로토타입 시즌 · 종료일 없음 · 실제 결제 없음',
+  level: '단계', passOwned: '프리미엄 해금 완료', testUnlock: '테스트 해금 · 무료', upgradePass: '상점으로 이동',
+  freeTrack: '무료', premiumTrack: '프리미엄', rewardPreview: '보상 미리보기', claim: '받기', claimed: '수령 완료',
+  coins: '코인', testCoins: '테스트 코인', owned: '보유 중', buy: '구매', notEnoughCoins: '코인 부족',
+  viewPass: '패스 보상 보기', questsSoon: '일일·주간 퀘스트는 준비 중입니다. 코스를 완주하면 시즌 경험치를 얻습니다.',
   settings: '설정', Sound: '사운드', Controls: '조작', Display: '화면', Language: '언어', Account: '계정', About: '정보',
   master: '전체', bgm: '배경음', sfx: '효과음', mute: '전체 음소거', previewBgm: '배경음 미리듣기', previewSfx: '효과음 미리듣기',
   closeSettings: '설정 닫기', settingsCategories: '설정 항목', guest: '게스트로 플레이 중', accountSoon: '로그인과 클라우드 저장은 추후 지원됩니다.', login: '로그인',

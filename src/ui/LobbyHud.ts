@@ -16,7 +16,7 @@ export class LobbyHud {
   private readonly status = document.createElement('p');
   private previousState: AnimalVisualState | undefined;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }) {
     this.element.className = 'lobby-hud';
     this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
@@ -35,7 +35,12 @@ export class LobbyHud {
       settings.disabled = false; bindAria(settings, 'settings');
       settings.addEventListener('click', onSettings);
     }
-    utilities.append(this.menu('quest', 'Quest'), this.menu('friends', 'Friends'), this.menu('shop', 'Shop'), settings);
+    const quest = this.menu('quest', 'Quest'), shop = this.menu('shop', 'Shop');
+    if (commerce) {
+      quest.disabled = shop.disabled = false;
+      quest.addEventListener('click', commerce.quest); shop.addEventListener('click', commerce.shop);
+    }
+    utilities.append(quest, this.menu('friends', 'Friends'), shop, settings);
     const play = document.createElement('div');
     play.className = 'hud-play';
     const playButton = this.menu('play', 'Play');

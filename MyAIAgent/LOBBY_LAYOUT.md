@@ -95,3 +95,8 @@ Create a clean prototype sprite atlas matching the exact approved orange-and-whi
 ## Quest 진입점
 
 Friends 왼쪽에 기존 스타일의 원형 Quest 버튼을 배치한다. 한국어는 퀘스트로 표시한다. 현재 버튼은 기능 없는 비활성 더미이며 퀘스트·시즌패스·보상 알림은 미구현이다. Character/Play/Settings의 기존 기능은 유지한다.
+
+
+## Shop / Quest 연결
+
+Quest와 Shop 버튼은 프로토타입 화면에 연결했다. 기존 Quest 비활성 더미 기록은 초기 배치 단계이며, 현재 구현은 [SHOP_QUEST.md](SHOP_QUEST.md)를 따른다.

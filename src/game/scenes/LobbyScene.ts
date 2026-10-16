@@ -11,9 +11,9 @@ export class LobbyScene extends Scene {
   private readonly hud: LobbyHud;
   private welcomeStarted = false;
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }) {
     super();
-    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings);
+    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce);
     this.welcomeStarted = returning;
     this.animal = new Animal(config);
     this.addChild(this.garden, this.shadow, this.animal);
