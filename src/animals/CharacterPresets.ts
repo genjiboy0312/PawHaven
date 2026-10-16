@@ -1,7 +1,7 @@
 import { OUTFIT_TABS, type OutfitState } from './OutfitState';
 export interface CharacterPreset { petId: string; outfit: OutfitState }
 export const PRESET_STORAGE_KEY = 'pawhaven.presets.v1';
-function valid(value: unknown): value is CharacterPreset {
+export function isCharacterPreset(value: unknown): value is CharacterPreset {
   if (!value || typeof value !== 'object') return false;
   const item = value as CharacterPreset;
   return typeof item.petId === 'string' && /^[a-z0-9_-]{1,64}$/.test(item.petId) && !!item.outfit &&
@@ -15,7 +15,7 @@ export class CharacterPresets {
   constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>) {
     try {
       const saved: unknown = JSON.parse(storage?.getItem(PRESET_STORAGE_KEY) ?? 'null');
-      if (Array.isArray(saved)) this.slots = [0, 1, 2].map(index => valid(saved[index]) ? copy(saved[index]) : null);
+      if (Array.isArray(saved)) this.slots = [0, 1, 2].map(index => isCharacterPreset(saved[index]) ? copy(saved[index]) : null);
     } catch { /* A blocked or old store must not stop the character screen. */ }
   }
   load(slot: number): CharacterPreset | null {
@@ -23,7 +23,7 @@ export class CharacterPresets {
     const value = this.slots[slot]; return value ? copy(value) : null;
   }
   save(slot: number, value: CharacterPreset): boolean {
-    if (!Number.isInteger(slot) || slot < 0 || slot > 2 || !valid(value)) return false;
+    if (!Number.isInteger(slot) || slot < 0 || slot > 2 || !isCharacterPreset(value)) return false;
     this.slots[slot] = copy(value);
     try { this.storage?.setItem(PRESET_STORAGE_KEY, JSON.stringify(this.slots)); } catch { /* Session saves remain usable. */ }
     return true;

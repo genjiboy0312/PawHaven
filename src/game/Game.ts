@@ -6,6 +6,7 @@ import { ShopState } from '../shop/ShopState';
 import { ShopScene } from './scenes/ShopScene';
 import { QuestPopup } from '../ui/QuestPopup';
 import { CharacterPresets } from '../animals/CharacterPresets';
+import { CharacterSelection } from '../animals/CharacterSelection';
 import { GameSettings, type GamePreferences } from '../settings/GameSettings';
 import { setLanguage } from '../settings/i18n';
 import { SoundSettings } from '../settings/SoundSettings';
@@ -72,6 +73,9 @@ export class Game {
     const presets = new CharacterPresets(storage);
     const commerce = new ShopState(storage);
     const home = new HomeState(storage);
+    const character = new CharacterSelection(storage);
+    const savedCharacter = character.restore(['corgi', 'myeongrang'], (category, index) => commerce.owns(category, index));
+    Object.assign(this.outfit, savedCharacter.outfit);
     const applyGame = (value: GamePreferences): void => {
       host.style.setProperty('--control-scale', String(value.controlSize));
       host.classList.toggle('left-handed', value.leftHanded);
@@ -97,7 +101,7 @@ export class Game {
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
-    let activePet = corgi;
+    let activePet = savedCharacter.petId === this.myeongrang?.id ? this.myeongrang : corgi;
     preload.setProgress(1);
     const pets = [{ config: corgi, name: 'Corgi', thumbnail: './assets/characters/corgi/corgi-idle-walk.png' },
       { config: this.myeongrang!, name: 'Myeongrang', thumbnail: './assets/characters/myeongrang/idle.png' }];
@@ -110,7 +114,7 @@ export class Game {
       this.scenes?.show(new LobbyScene(activePet, () => {
         if (!this.disposed) this.scenes?.show(new PlayScene(activePet, () => { commerce.completeRun(); lobby(true); }, { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
       }, returning, () => {
-        if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index) }));
+        if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index) }));
       }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open() }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } }));
     };
     this.scenes.show(new TitleScene(() => lobby()));

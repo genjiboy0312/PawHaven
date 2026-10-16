@@ -754,11 +754,14 @@ test('Character opens a stationary preview, keeps category selection without equ
   const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 } } };
   const { CharacterPresets } = await importTs('../src/animals/CharacterPresets.ts', import.meta.url);
   const presets = new CharacterPresets();
+  const { CharacterSelection } = await importTs('../src/animals/CharacterSelection.ts', import.meta.url);
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const selection = new CharacterSelection(storage);
   const outfit = createOutfit(); let returns = 0;
   config.wardrobe = { outfit, santaHat: Texture.WHITE };
   for (const animation of Object.values(config.animations)) animation.head = animation.frames.map(() => ({ x: 18, y: -170, width: 88 }));
   const lobby = () => manager.show(new LobbyScene(config, undefined, true, () => {
-    manager.show(new CharacterScene(config, outfit, () => { returns++; lobby(); }, { presets }));
+    manager.show(new CharacterScene(config, outfit, () => { returns++; lobby(); }, { presets, onLookChanged: value => selection.save(value) }));
   }));
   try {
     lobby();
@@ -781,14 +784,17 @@ test('Character opens a stationary preview, keeps category selection without equ
     inventory.children[0].dispatchEvent(new Event('click')); manager.update(0.01);
     assert.equal(scene.children[1].children[0].children[0].visible, false);
     inventory.children[3].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
+    assert.equal(new CharacterSelection(storage).current.outfit.Hat, 3);
     const presetRow = panel.children[3];
     assert.equal(presetRow.children.length, 4);
     presetRow.children[2].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
+    assert.equal(new CharacterSelection(storage).current.outfit.Hat, 3);
     assert.equal(presets.load(2), null);
     presetRow.children[3].dispatchEvent(new Event('click')); assert.equal(presets.load(2).outfit.Hat, 3);
     inventory.children[4].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 4);
     assert.equal(presets.load(2).outfit.Hat, 3);
     presetRow.children[2].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
+    assert.equal(new CharacterSelection(storage).current.outfit.Hat, 3);
     assert.equal(inventory.children[3].attributes.get('aria-pressed'), 'true');
     tabs.children[2].dispatchEvent(new Event('click'));
     inventory.children[2].dispatchEvent(new Event('click')); assert.equal(outfit.Body, 2);
@@ -810,16 +816,18 @@ test('Character opens a stationary preview, keeps category selection without equ
     const other = { ...config, id: 'test-pet' }, changes = [];
     const multi = new CharacterScene(config, outfit, () => {}, { presets,
       pets: [{ config, name: 'Corgi', thumbnail: './corgi.png' }, { config: other, name: 'Test pet', thumbnail: './test.png' }],
-      onPetChanged: pet => changes.push(pet.id) });
+      onPetChanged: pet => changes.push(pet.id), onLookChanged: look => selection.save(look) });
     manager.show(multi);
     const oldSprite = multi.children[1].children[0], petGrid = host.children[0].children[2];
     petGrid.children[1].dispatchEvent(new Event('click'));
     assert.equal(oldSprite.destroyed, true); assert.equal(changes.at(-1), 'test-pet');
+    assert.equal(new CharacterSelection(storage).current.petId, 'test-pet');
     host.children[0].children[3].children[3].dispatchEvent(new Event('click'));
     assert.equal(presets.load(2).petId, 'test-pet');
     petGrid.children[0].dispatchEvent(new Event('click')); assert.equal(changes.at(-1), 'corgi');
     host.children[0].children[3].children[2].dispatchEvent(new Event('click'));
     assert.equal(changes.at(-1), 'test-pet');
+    assert.equal(new CharacterSelection(storage).current.petId, 'test-pet');
     assert.equal(petGrid.children[1].attributes.get('aria-pressed'), 'true');
     manager.destroy(); assert.equal(host.children.length, 0);
   } finally {
@@ -1497,9 +1505,12 @@ test('Myeongrang cells fit their real PNGs, preserve padding and reuse Corgi eff
           assert.equal(controller.sprite.texture, texture); assert.equal(controller.hat.visible, true);
           assert.equal(Math.sign(controller.sprite.scale.x), direction); seen.add(controller.sprite.texture);
           const b = config.animations[key].bodyBounds[i], hit = controller.bodyHitArea;
-          assert.ok(Math.abs(hit.width - (Math.max(48, b.width * Math.abs(controller.sprite.scale.x)) + 56)) < 0.001);
-          assert.ok(Math.abs(hit.height - (Math.max(64, b.height * controller.sprite.scale.y) + 56)) < 0.001);
+          assert.ok(Math.abs(hit.width - (Math.max(120, b.width * Math.abs(controller.sprite.scale.x)) + 112)) < 0.001);
+          assert.ok(Math.abs(hit.height - (Math.max(128, b.height * controller.sprite.scale.y) + 112)) < 0.001);
+          assert.ok(hit.width >= 232 && hit.height >= 240);
           const centre = (b.x + b.width / 2) * controller.sprite.scale.x;
+          assert.ok(hit.contains(centre + b.width * Math.abs(controller.sprite.scale.x) / 2 + 48,
+            (b.y + b.height / 2) * controller.sprite.scale.y));
           assert.ok(hit.contains(centre, (b.y + b.height / 2) * controller.sprite.scale.y));
           assert.equal(hit.contains(centre + 400, -50), false);
         }
@@ -1882,4 +1893,32 @@ test('lobby depth layers share furniture/animal ordering, keep speech above obje
     if (!scene.destroyed) scene.destroy({ children: true });
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
+});
+test('last applied character restores locally independently of presets and validates ownership/storage', async () => {
+  const { CharacterSelection, CHARACTER_STORAGE_KEY } = await importTs('../src/animals/CharacterSelection.ts', import.meta.url);
+  const { CharacterPresets } = await importTs('../src/animals/CharacterPresets.ts', import.meta.url);
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const current = new CharacterSelection(storage), presets = new CharacterPresets(storage);
+  assert.equal(current.current.petId, 'corgi');
+  const look = { petId: 'myeongrang', outfit: { Hat: 1, Body: 1, Acc: 0, Etc: 0 } };
+  presets.save(0, { petId: 'corgi', outfit: { Hat: 0, Body: 0, Acc: 0, Etc: 0 } });
+  assert.equal(current.save(look), true);
+  look.outfit.Hat = 20;
+  const restored = new CharacterSelection(storage).restore(['corgi', 'myeongrang'], (_key, index) => index <= 1);
+  assert.equal(restored.petId, 'myeongrang'); assert.equal(restored.outfit.Hat, 1);
+  restored.outfit.Hat = 0; assert.equal(current.current.outfit.Hat, 1);
+  assert.equal(new CharacterPresets(storage).load(0).petId, 'corgi');
+  assert.equal(new CharacterPresets(storage).load(0).outfit.Hat, 0);
+  assert.equal(current.save({ petId: 'x', outfit: { Hat: -1, Body: 0, Acc: 0, Etc: 0 } }), false);
+  values.set(CHARACTER_STORAGE_KEY, JSON.stringify({ petId: 'unavailable-pet', outfit: { Hat: 20, Body: 1, Acc: 0, Etc: 0 } }));
+  const repaired = new CharacterSelection(storage).restore(['corgi', 'myeongrang'], (_key, index) => index <= 1);
+  assert.equal(repaired.petId, 'corgi'); assert.equal(repaired.outfit.Hat, 0); assert.equal(repaired.outfit.Body, 1);
+  assert.deepEqual(new CharacterSelection(storage).current, repaired);
+  for (const corrupt of ['{', 'null', '{"petId":"myeongrang","outfit":{}}']) {
+    values.set(CHARACTER_STORAGE_KEY, corrupt);
+    assert.equal(new CharacterSelection(storage).current.petId, 'corgi');
+  }
+  const blocked = new CharacterSelection({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  assert.equal(blocked.save({ petId: 'myeongrang', outfit: { Hat: 1, Body: 0, Acc: 0, Etc: 0 } }), true);
+  assert.equal(blocked.current.petId, 'myeongrang');
 });

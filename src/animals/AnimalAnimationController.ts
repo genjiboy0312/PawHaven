@@ -6,7 +6,7 @@ import type { AnimalVisualState } from './AnimalState';
 
 export class AnimalAnimationController {
   readonly sprite: AnimatedSprite;
-  readonly bodyHitArea = new Rectangle(-52, -92, 104, 120);
+  readonly bodyHitArea = new Rectangle(-88, -136, 176, 176);
   restart(): void { this.framePosition = 0; }
   readonly hat: Sprite | undefined;
   readonly sleepMark = new Text({
@@ -95,10 +95,13 @@ export class AnimalAnimationController {
       });
     const left = Math.min(...corners.map(p => p.x)), right = Math.max(...corners.map(p => p.x));
     const top = Math.min(...corners.map(p => p.y)), bottom = Math.max(...corners.map(p => p.y));
-    const width = Math.max(48, right - left), height = Math.max(64, bottom - top);
-    this.bodyHitArea.x = (left + right - width) / 2 - 28;
-    this.bodyHitArea.y = bottom - height - 28;
-    this.bodyHitArea.width = width + 56; this.bodyHitArea.height = height + 56;
+    const personalPet = this.config.id === 'myeongrang';
+    const padding = personalPet ? 56 : 40;
+    const width = Math.max(personalPet ? 120 : 80, right - left);
+    const height = Math.max(personalPet ? 128 : 96, bottom - top);
+    this.bodyHitArea.x = (left + right - width) / 2 - padding;
+    this.bodyHitArea.y = bottom - height - padding;
+    this.bodyHitArea.width = width + padding * 2; this.bodyHitArea.height = height + padding * 2;
     this.sleepMark.visible = state === 'SLEEP';
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;

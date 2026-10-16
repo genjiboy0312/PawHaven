@@ -1,5 +1,5 @@
 import { itemIcon } from '../../ui/itemIcon';
-import { CharacterPresets } from '../../animals/CharacterPresets';
+import { CharacterPresets, type CharacterPreset } from '../../animals/CharacterPresets';
 import { bindAria, bindText, t } from '../../settings/i18n';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
@@ -8,7 +8,7 @@ import { OUTFIT_TABS, type OutfitState, type OutfitTab } from '../../animals/Out
 import { Scene } from './Scene';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
-interface CharacterOptions { presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
+interface CharacterOptions { onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
 const CHARACTER_TABS = ['Pets', ...OUTFIT_TABS] as const;
 
 export class CharacterScene extends Scene {
@@ -95,7 +95,7 @@ export class CharacterScene extends Scene {
       button.setAttribute('aria-pressed', String(this.outfit[category] === index));
       // The handler lives on its short-lived slot; discarding the slot releases it.
       button.addEventListener('click', () => {
-        this.outfit[category] = index; this.reaction = 1.5; bindText(this.feedback, 'presetUnsaved');
+        this.outfit[category] = index; this.notifyLook(); this.reaction = 1.5; bindText(this.feedback, 'presetUnsaved');
         for (const slot of Array.from(this.inventory.children)) {
           slot.setAttribute('aria-pressed', String(Number(slot.getAttribute('data-item')) === index));
         }
@@ -127,8 +127,9 @@ export class CharacterScene extends Scene {
       this.animation = new AnimalAnimationController(pet.config);
       this.preview.addChild(this.animation.sprite, this.animation.welcomeMark);
     }
-    this.pet = pet; this.options.onPetChanged?.(pet.config); this.reaction = 1.5;
+    this.pet = pet; this.options.onPetChanged?.(pet.config); this.notifyLook(); this.reaction = 1.5;
   }
+  private notifyLook(): void { this.options.onLookChanged?.({ petId: this.pet.config.id, outfit: { ...this.outfit } }); }
   private loadPreset(slot: number): void {
     this.activePreset = slot; this.presets.selectedSlot = slot;
     const saved = this.presets.load(slot);
