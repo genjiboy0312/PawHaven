@@ -1,14 +1,16 @@
 export const HOME_TABS = ['Background', 'Floor', 'Furniture', 'Etc'] as const;
 export type HomeTab = typeof HOME_TABS[number];
-export type HomeLook = Record<HomeTab, number>;
+export type HomeLook = Record<'Background' | 'Floor', number>;
 export const HOME_STORAGE_KEY = 'pawhaven.home.v1';
 export const homeOptions: Record<HomeTab, number> = { Background: 4, Floor: 4, Furniture: 5, Etc: 5 };
 export const SKY_COLORS = ['#edf0df', '#dce8ef', '#f0ded5', '#e4dff0'];
 export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#b8ced0', '#cfc3d8'];
 export type PlaceableTab = 'Furniture' | 'Etc';
 export interface Placement { x: number; y: number }
-export type HomePlacements = Record<PlaceableTab, Placement>;
-export const defaultPlacements = (): HomePlacements => ({ Furniture: { x: 0.21, y: 0.7 }, Etc: { x: 0.47, y: 0.7 } });
+export interface HomeItem extends Placement { id: number; tab: PlaceableTab; option: number }
+export const HOME_STOCK = 3;
+const validItem = (tab: unknown, option: unknown): tab is PlaceableTab =>
+  (tab === 'Furniture' || tab === 'Etc') && Number.isInteger(option) && Number(option) > 0 && Number(option) < homeOptions[tab];
 export function clampPlacement(x: number, y: number): Placement {
   return { x: Math.max(0.10, Math.min(0.56, x)), y: Math.max(0.62, Math.min(0.87, y)) };
 }
@@ -18,33 +20,60 @@ export function placementPoint(clientX: number, clientY: number, rect: { left: n
     : { x: (clientX - rect.left) / rect.width, y: (clientY - rect.top) / rect.height };
 }
 export class HomeState {
-  private positions = defaultPlacements();
-  get placements(): HomePlacements { return { Furniture: { ...this.positions.Furniture }, Etc: { ...this.positions.Etc } }; }
-  move(tab: PlaceableTab, x: number, y: number): boolean {
-    if (!['Furniture', 'Etc'].includes(tab) || !this.value[tab] || !Number.isFinite(x) || !Number.isFinite(y)) return false;
-    this.positions[tab] = clampPlacement(x, y); this.save(); return true;
+  private value: HomeLook = { Background: 0, Floor: 0 };
+  private objects: HomeItem[] = [];
+  private nextId = 1;
+  get current(): HomeLook { return { ...this.value }; }
+  get items(): HomeItem[] { return this.objects.map(item => ({ ...item })); }
+  remaining(tab: PlaceableTab, option: number): number {
+    return validItem(tab, option) ? HOME_STOCK - this.objects.filter(item => item.tab === tab && item.option === option).length : 0;
   }
-  private save(): void {
-    try { this.storage?.setItem(HOME_STORAGE_KEY, JSON.stringify({ ...this.value, placements: this.positions })); } catch { /* Keep session changes. */ }
-  }
-  private value: HomeLook = { Background: 0, Floor: 0, Furniture: 0, Etc: 0 };
   constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>) {
     try {
       const saved = JSON.parse(storage?.getItem(HOME_STORAGE_KEY) ?? 'null');
-      if (saved && typeof saved === 'object') for (const tab of HOME_TABS) {
-        if (Number.isInteger(saved[tab]) && saved[tab] >= 0 && saved[tab] < homeOptions[tab]) this.value[tab] = saved[tab];
+      for (const tab of ['Background', 'Floor'] as const) {
+        if (Number.isInteger(saved?.[tab]) && saved[tab] >= 0 && saved[tab] < homeOptions[tab]) this.value[tab] = saved[tab];
       }
-      for (const tab of ['Furniture', 'Etc'] as const) {
-        const position = saved?.placements?.[tab];
-        if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) this.positions[tab] = clampPlacement(position.x, position.y);
+      if (saved?.version === 2) {
+        if (Array.isArray(saved.items)) for (const item of saved.items.slice(0, 200)) {
+          if (!item || !validItem(item.tab, item.option) || !this.remaining(item.tab, item.option) ||
+              !Number.isSafeInteger(item.id) || item.id <= 0 || item.id > 1000000000 || this.objects.some(existing => existing.id === item.id) ||
+              !Number.isFinite(item.x) || !Number.isFinite(item.y)) continue;
+          this.objects.push({ id: item.id, tab: item.tab, option: item.option, ...clampPlacement(item.x, item.y) });
+          this.nextId = Math.max(this.nextId, item.id + 1);
+        }
+      } else {
+        // Migrate the previous single-object look without losing its saved positions.
+        for (const tab of ['Furniture', 'Etc'] as const) if (validItem(tab, saved?.[tab])) {
+          const position = saved?.placements?.[tab];
+          const point = position && Number.isFinite(position.x) && Number.isFinite(position.y)
+            ? clampPlacement(position.x, position.y) : { x: tab === 'Furniture' ? 0.21 : 0.47, y: 0.7 };
+          this.objects.push({ id: this.nextId++, tab, option: saved[tab], ...point });
+        }
       }
-    } catch { /* The default map works without browser storage. */ }
+    } catch { /* Defaults work without storage. */ }
   }
-  get current(): HomeLook { return { ...this.value }; }
-  select(tab: HomeTab, option: number): boolean {
-    if (!HOME_TABS.includes(tab) || !Number.isInteger(option) || option < 0 || option >= homeOptions[tab]) return false;
-    this.value[tab] = option;
-    this.save();
-    return true;
+  select(tab: 'Background' | 'Floor', option: number): boolean {
+    if (!['Background', 'Floor'].includes(tab) || !Number.isInteger(option) || option < 0 || option >= homeOptions[tab]) return false;
+    this.value[tab] = option; this.save(); return true;
+  }
+  place(tab: PlaceableTab, option: number): number | undefined {
+    if (!validItem(tab, option) || this.remaining(tab, option) === 0) return;
+    const slot = this.objects.length, id = this.nextId++;
+    this.objects.push({ id, tab, option, x: 0.15 + slot % 4 * 0.13, y: 0.67 + Math.floor(slot / 4) % 3 * 0.08 });
+    this.save(); return id;
+  }
+  move(id: number, x: number, y: number): boolean {
+    const item = this.objects.find(item => item.id === id);
+    if (!item || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+    Object.assign(item, clampPlacement(x, y)); this.save(); return true;
+  }
+  remove(id: number): boolean {
+    const index = this.objects.findIndex(item => item.id === id);
+    if (index < 0) return false;
+    this.objects.splice(index, 1); this.save(); return true;
+  }
+  private save(): void {
+    try { this.storage?.setItem(HOME_STORAGE_KEY, JSON.stringify({ version: 2, ...this.value, items: this.objects })); } catch { /* Keep session changes. */ }
   }
 }

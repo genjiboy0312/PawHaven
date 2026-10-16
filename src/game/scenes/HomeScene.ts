@@ -8,8 +8,8 @@ export class HomeScene extends Scene {
   private readonly map: LobbyMap;
   private readonly placements = document.createElement('div');
   private readonly remove = document.createElement('button');
-  private selected?: PlaceableTab;
-  private drag?: { tab: PlaceableTab; pointer: number; element: HTMLButtonElement; offset: Placement; preview: Placement };
+  private selected?: number;
+  private drag?: { id: number; pointer: number; element: HTMLButtonElement; offset: Placement; preview: Placement };
   private readonly panel = document.createElement('section');
   private readonly tabs = document.createElement('nav');
   private readonly inventory = document.createElement('div');
@@ -46,9 +46,14 @@ export class HomeScene extends Scene {
     this.drawMap(); this.renderPlacements();
     Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(HOME_TABS[index] === this.tab)));
     this.inventory.replaceChildren(); this.inventory.scrollTop = 0;
-    for (let index = 0; index < homeOptions[this.tab]; index++) {
+    for (let index = this.tab === 'Furniture' || this.tab === 'Etc' ? 1 : 0; index < homeOptions[this.tab]; index++) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot';
-      button.setAttribute('aria-label', t(this.tab) + ' ' + (index + 1)); button.setAttribute('aria-pressed', String(look[this.tab] === index));
+      const placeable = this.tab === 'Furniture' || this.tab === 'Etc';
+      const count = placeable ? this.state.remaining(this.tab as PlaceableTab, index) : undefined;
+      button.setAttribute('aria-label', t(this.tab) + ' ' + (placeable ? index : index + 1) + (count === undefined ? '' : ` · ${t('remaining')}: ${count}`));
+      const active = placeable ? this.state.items.some(item => item.id === this.selected && item.tab === this.tab && item.option === index) : look[this.tab as 'Background' | 'Floor'] === index;
+      button.setAttribute('aria-pressed', String(active));
+      button.disabled = count === 0;
       if (index === 0 && (this.tab === 'Furniture' || this.tab === 'Etc')) bindText(button, 'none');
       else {
         const image = document.createElement('img'); image.className = 'outfit-object'; image.alt = '';
@@ -63,26 +68,36 @@ export class HomeScene extends Scene {
         if (resource) { image.src = './assets/home/' + resource; image.classList.add('home-pixel-icon'); }
         button.append(image);
       }
-      button.addEventListener('click', () => { this.cancelDrag(false); this.state.select(this.tab, index); if (this.tab === 'Furniture' || this.tab === 'Etc') this.selected = index ? this.tab : undefined; this.render(); }); this.inventory.append(button);
+      if (count !== undefined) {
+        const quantity = document.createElement('span'); quantity.className = 'home-count'; quantity.textContent = String(count); button.append(quantity);
+      }
+      button.addEventListener('click', () => {
+        this.cancelDrag(false);
+        if (this.tab === 'Furniture' || this.tab === 'Etc') {
+          const id = this.state.place(this.tab, index); if (id === undefined) return; this.selected = id;
+        } else this.state.select(this.tab, index);
+        this.render();
+      }); this.inventory.append(button);
     }
   }
   private drawMap(): void {
-    const positions = this.state.placements;
-    if (this.drag) positions[this.drag.tab] = this.drag.preview;
-    this.map.draw(this.viewWidth, this.viewHeight, this.state.current, positions);
+    const items = this.state.items;
+    if (this.drag) { const item = items.find(item => item.id === this.drag!.id); if (item) Object.assign(item, this.drag.preview); }
+    this.map.draw(this.viewWidth, this.viewHeight, this.state.current, items);
     for (const element of Array.from(this.placements.children) as HTMLButtonElement[]) {
-      const tab = element.getAttribute('data-placement') as PlaceableTab, point = positions[tab];
+      const point = items.find(item => item.id === Number(element.getAttribute('data-placement'))); if (!point) continue;
+      const tab = point.tab;
       const box = tab === 'Furniture'
-        ? [[80, 110, 30], [78, 70, 30], [45, 100, 20], [70, 55, 20], [80, 65, 8]][this.state.current[tab]]
-        : [[80, 110, 30], [50, 40, 20], [65, 5, 30], [25, 100, 20], [70, 50, 20]][this.state.current[tab]];
+        ? [[80, 110, 30], [78, 70, 30], [45, 100, 20], [70, 55, 20], [80, 65, 8]][point.option]
+        : [[80, 110, 30], [50, 40, 20], [65, 5, 30], [25, 100, 20], [70, 50, 20]][point.option];
       element.style.left = `${(point.x - box[0] / 960) * 100}%`;
       element.style.width = `${box[0] * 2 / 960 * 100}%`;
       element.style.height = `${(box[1] + box[2]) / 540 * 100}%`;
       element.style.top = `${(point.y - box[1] / 540) * 100}%`;
-      element.setAttribute('aria-pressed', String(tab === this.selected));
-      element.style.zIndex = tab === this.selected ? '2' : '1';
+      element.setAttribute('aria-pressed', String(point.id === this.selected));
+      element.style.zIndex = String(Math.round(point.y * 100) + (point.id === this.selected ? 100 : 0));
     }
-    this.remove.hidden = !this.selected || !this.state.current[this.selected];
+    this.remove.hidden = !items.some(item => item.id === this.selected);
   }
   private point(event: PointerEvent): Placement {
     const host = document.querySelector<HTMLElement>('#app')!;
@@ -90,15 +105,15 @@ export class HomeScene extends Scene {
   }
   private renderPlacements(): void {
     this.placements.replaceChildren();
-    for (const tab of ['Furniture', 'Etc'] as const) {
-      if (!this.state.current[tab]) continue;
+    for (const item of this.state.items) {
+      const { id, tab } = item;
       const button = document.createElement('button'); button.type = 'button'; button.className = 'home-placement';
-      button.setAttribute('data-placement', tab); bindAria(button, tab);
+      button.setAttribute('data-placement', String(id)); bindAria(button, tab);
       button.addEventListener('pointerdown', event => {
         if (event.button !== 0 || this.drag) return;
-        event.preventDefault(); this.selected = tab; button.focus();
-        const point = this.point(event), position = this.state.placements[tab];
-        this.drag = { tab, pointer: event.pointerId, element: button, offset: { x: point.x - position.x, y: point.y - position.y }, preview: position };
+        event.preventDefault(); this.selected = id; button.focus();
+        const point = this.point(event), position = this.state.items.find(item => item.id === id)!;
+        this.drag = { id, pointer: event.pointerId, element: button, offset: { x: point.x - position.x, y: point.y - position.y }, preview: position };
         button.setPointerCapture(event.pointerId); this.drawMap();
       });
       button.addEventListener('pointermove', event => {
@@ -108,16 +123,16 @@ export class HomeScene extends Scene {
       });
       button.addEventListener('pointerup', event => {
         if (!this.drag || this.drag.pointer !== event.pointerId) return;
-        const { tab, preview } = this.drag; this.state.move(tab, preview.x, preview.y); this.cancelDrag();
+        const { id, preview } = this.drag; this.state.move(id, preview.x, preview.y); this.cancelDrag();
       });
       for (const name of ['pointercancel', 'lostpointercapture'] as const) button.addEventListener(name, event => { if (this.drag?.pointer === event.pointerId) this.cancelDrag(); });
-      button.addEventListener('click', () => { if (this.drag) return; this.selected = tab; this.drawMap(); });
+      button.addEventListener('click', () => { if (this.drag) return; this.selected = id; this.drawMap(); });
       button.addEventListener('keydown', event => {
         if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Delete', 'Backspace'].includes(event.key)) return;
-        event.preventDefault(); this.cancelDrag(false); this.selected = tab;
+        event.preventDefault(); this.cancelDrag(false); this.selected = id;
         if (event.key === 'Delete' || event.key === 'Backspace') { this.removeSelected(); return; }
-        const point = this.state.placements[tab];
-        this.state.move(tab, point.x + (event.key === 'ArrowRight' ? 16 / 960 : event.key === 'ArrowLeft' ? -16 / 960 : 0), point.y + (event.key === 'ArrowDown' ? 16 / 540 : event.key === 'ArrowUp' ? -16 / 540 : 0));
+        const point = this.state.items.find(item => item.id === id)!;
+        this.state.move(id, point.x + (event.key === 'ArrowRight' ? 16 / 960 : event.key === 'ArrowLeft' ? -16 / 960 : 0), point.y + (event.key === 'ArrowDown' ? 16 / 540 : event.key === 'ArrowUp' ? -16 / 540 : 0));
         this.drawMap();
       });
       this.placements.append(button);
@@ -126,7 +141,7 @@ export class HomeScene extends Scene {
   }
   private removeSelected(): void {
     this.cancelDrag(false);
-    if (this.selected) this.state.select(this.selected, 0);
+    if (this.selected !== undefined) this.state.remove(this.selected);
     this.selected = undefined; this.render();
   }
   private cancelDrag(redraw = true): void {

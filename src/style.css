@@ -169,3 +169,7 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .home-tabs, .home-inventory, .home-hint, .home-drawer, .home-screen > .character-close { z-index: 4; }
 .home-drawer { pointer-events: auto; }
 .home-pixel-icon { image-rendering: pixelated; }
+.home-count { position: absolute; right: 12%; bottom: 0; font-size: 1.3cqw; font-variant-numeric: tabular-nums; color: #56634e; }
+.home-inventory .outfit-slot:disabled { cursor: default; }
+.home-inventory .outfit-slot:disabled .outfit-object { opacity: 0.28; filter: grayscale(0.6); }
+.home-inventory .outfit-slot:disabled::before { opacity: 0.35; }

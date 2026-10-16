@@ -6,7 +6,7 @@
 
 - 타이틀, 로비 자율 행동, 약 10초 더미 플레이와 Victory → 로비 복귀, Character, Home, Shop, Quest, Settings가 있다.
 - Character: Pets / Hat / Body / Acc / Etc, 공용 프리셋 3개. Hat:1 산타모자 실제 착용을 연결했고 나머지는 아이템 선택 이모션만 적용한다. [SANTA_HAT.md](SANTA_HAT.md) 참고. 현재 동물은 코기 한 마리다.
-- Home: Background / Floor / Furniture / Etc. 캐릭터 없이 맵을 편집하며 로비에 공유된다. 가구·소품은 각각 한 개씩 드래그 재배치·제거·위치 자동 저장을 지원한다. 픽셀 배경·바닥·쿠션을 연결했다. 상세: [HOME.md](HOME.md). 큰 타원형 바닥 패치는 제거하고 Background와 Floor를 독립 선택한다.
+- Home: Background / Floor / Furniture / Etc. 캐릭터 없이 맵을 편집하며 로비에 공유된다. 가구·소품마다 기본 3개씩 제공하고 여러 개를 독립 배치·드래그·회수할 수 있다. 남은 수량 표시·0개 흐림·위치 자동 저장을 지원한다. 픽셀 배경·바닥·쿠션을 연결했다. 상세: [HOME.md](HOME.md). 큰 타원형 바닥 패치는 제거하고 Background와 Floor를 독립 선택한다.
 - Shop 재화·구매·패스, Quest 패스 경험치·보상은 기기 내 테스트 데이터다. 실제 결제와 서버 검증은 없다. Daily / Weekly는 자리만 준비되어 있다.
 - 설정의 사운드·컨트롤·화면·언어는 연결되어 있다. 계정은 Guest이고 Friends는 비활성이다. Supabase 연동과 기기 간 동기화는 아직 없다.
 - GitHub Pages 배포, 자동 테스트 48개가 있다. 실제 PC·모바일 화면/터치 검증을 대신하는 테스트는 아니다.

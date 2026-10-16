@@ -1083,16 +1083,16 @@ const { HomeState, HOME_STORAGE_KEY } = await importTs('../src/home/HomeState.ts
 test('Home prototype selections persist with validation and storage failure fallback', () => {
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
   const home = new HomeState(storage);
-  home.select('Background', 2); home.select('Floor', 3); home.select('Furniture', 1); home.select('Etc', 4);
-  assert.deepEqual(new HomeState(storage).current, { Background: 2, Floor: 3, Furniture: 1, Etc: 4 });
+  home.select('Background', 2); home.select('Floor', 3); home.place('Furniture', 1); home.place('Etc', 4);
+  assert.deepEqual(new HomeState(storage).current, { Background: 2, Floor: 3 });
   const copy = home.current; copy.Floor = 0; assert.equal(home.current.Floor, 3);
   assert.equal(home.select('Floor', 99), false); assert.equal(home.select('bad', 1), false);
-  assert.equal(home.select('Furniture', -1), false); assert.equal(home.select('Etc', 1.2), false);
+  assert.equal(home.place('Furniture', -1), undefined); assert.equal(home.place('Etc', 1.2), undefined);
   values.set(HOME_STORAGE_KEY, '{"Background":100,"Floor":2,"Furniture":"1"}');
-  assert.deepEqual(new HomeState(storage).current, { Background: 0, Floor: 2, Furniture: 0, Etc: 0 });
+  assert.deepEqual(new HomeState(storage).current, { Background: 0, Floor: 2 });
   values.set(HOME_STORAGE_KEY, 'broken'); assert.equal(new HomeState(storage).current.Background, 0);
   const blocked = new HomeState({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
-  assert.equal(blocked.select('Etc', 2), true); assert.equal(blocked.current.Etc, 2);
+  assert.ok(blocked.place('Etc', 2)); assert.equal(blocked.items[0].option, 2);
 });
 
 test('Home beside Character opens a pet-free map editor and returns the same edited map to lobby', async () => {
@@ -1125,19 +1125,19 @@ test('Home beside Character opens a pet-free map editor and returns the same edi
     assert.deepEqual(tabs.children.map(button => button.textContent), ['Background', 'Floor', 'Furniture', 'Etc']);
     assert.equal(inventory.children.length, 4); click(inventory.children[2]); assert.equal(home.current.Background, 2);
     click(tabs.children[1]); click(inventory.children[3]); assert.equal(home.current.Floor, 3);
-    click(tabs.children[2]); assert.equal(inventory.children[0].textContent, 'None'); click(inventory.children[1]);
-    assert.equal(home.current.Furniture, 1);
-    click(tabs.children[3]); click(inventory.children[1]); assert.equal(home.current.Etc, 1);
-    const previewPosition = { x: scene.children[0].furniture.x, y: scene.children[0].furniture.y };
-    assert.equal(scene.children[0].furniture.visible, true); assert.equal(scene.children[0].etc.visible, true);
+    click(tabs.children[2]); assert.equal(inventory.children.length, 4); click(inventory.children[0]);
+    assert.equal(home.items[0].option, 1);
+    click(tabs.children[3]); click(inventory.children[0]); assert.equal(home.items[1].option, 1);
+    const previewPosition = scene.children[0].objects.children.map(child => [child.label, child.x, child.y]);
+    assert.equal(scene.children[0].objects.children.length, 2);
     click(panel.children[1]); assert.equal(scene.destroyed, true); assert.equal(host.children.length, 1);
     const map = app.stage.children[0].children[0], pet = app.stage.children[0].children.find(item => item.label === 'corgi');
-    assert.deepEqual({ x: map.furniture.x, y: map.furniture.y }, previewPosition);
+    assert.deepEqual(map.objects.children.map(child => [child.label, child.x, child.y]), previewPosition);
     assert.equal(pet.welcoming, false);
     click(host.children[0].children[0].children[1]);
     click(host.children[0].children[3].children[3]);
-    assert.equal(host.children[0].children[4].children[1].attributes.get('aria-pressed'), 'true');
-    click(host.children[0].children[4].children[0]); assert.equal(home.current.Etc, 0);
+    assert.equal(host.children[0].children[4].children[0].children.at(-1).textContent, '2');
+    click(host.children[0].children[6].children[1]); click(host.children[0].children[7]); assert.equal(home.remaining('Etc', 1), 3);
     manager.destroy(); assert.equal(host.children.length, 0);
   } finally {
     manager.destroy(); app.stage.destroy();
@@ -1331,26 +1331,34 @@ test('Santa hat follows every animation frame and body transform, shared selecti
     views.forEach(view => { if (!view.sprite.destroyed) view.sprite.destroy({ children: true }); view.sleepMark.destroy(); view.welcomeMark.destroy(); });
   }
 });
-test('Home placement storage migrates old looks, clamps coordinates, rejects invalid input and keeps detached snapshots', () => {
+test('Home stock persists, recovers on removal, validates saves and migrates old placements once', () => {
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
-  values.set(HOME_STORAGE_KEY, '{"Furniture":4,"Etc":1,"Floor":2}');
-  const home = new HomeState(storage);
-  assert.equal(home.move('Furniture', 0.4, 0.8), true);
-  assert.equal(home.move('Etc', 8, -9), true);
-  assert.deepEqual(new HomeState(storage).placements, { Furniture: { x: 0.4, y: 0.8 }, Etc: { x: 0.56, y: 0.62 } });
-  assert.equal(new HomeState(storage).current.Floor, 2);
-  const copy = home.placements; copy.Furniture.x = 0; assert.equal(home.placements.Furniture.x, 0.4);
-  assert.equal(home.move('Floor', 0.3, 0.7), false); assert.equal(home.move('Etc', NaN, 0.7), false);
-  home.select('Etc', 0); assert.equal(home.move('Etc', 0.3, 0.7), false);
-  home.select('Etc', 1); assert.equal(home.placements.Etc.x, 0.56);
-  values.set(HOME_STORAGE_KEY, '{"Furniture":4,"placements":{"Furniture":{"x":"bad","y":0.7},"Etc":{"x":8,"y":-3}}}');
-  const repaired = new HomeState(storage);
-  assert.equal(repaired.placements.Furniture.x, 0.21); assert.deepEqual(repaired.placements.Etc, { x: 0.56, y: 0.62 });
+  values.set(HOME_STORAGE_KEY, '{"Furniture":4,"Etc":1,"Floor":2,"placements":{"Furniture":{"x":0.4,"y":0.8}}}');
+  const home = new HomeState(storage), original = home.items[0].id;
+  assert.equal(home.remaining('Furniture', 4), 2); assert.equal(home.remaining('Etc', 1), 2);
+  assert.equal(home.items[0].x, 0.4); assert.equal(home.items[1].x, 0.47);
+  const second = home.place('Furniture', 4), third = home.place('Furniture', 4);
+  assert.ok(second !== original && third !== second); assert.equal(home.remaining('Furniture', 4), 0);
+  assert.equal(home.place('Furniture', 4), undefined); assert.equal(home.items.length, 4);
+  assert.equal(home.move(second, 8, -9), true); assert.equal(home.items.find(item => item.id === second).x, 0.56);
+  assert.equal(home.items[0].x, 0.4);
+  assert.deepEqual(new HomeState(storage).items, home.items); assert.equal(new HomeState(storage).current.Floor, 2);
+  const copy = home.items; copy[0].x = 0; assert.equal(home.items[0].x, 0.4);
+  assert.equal(home.move(999, 0.3, 0.7), false); assert.equal(home.move(original, NaN, 0.7), false);
+  assert.equal(home.remove(second), true); assert.equal(home.remove(second), false); assert.equal(home.remaining('Furniture', 4), 1);
+  home.remove(original); home.remove(third); assert.equal(home.remaining('Furniture', 4), 3);
+  assert.equal(new HomeState(storage).items.some(item => item.tab === 'Furniture'), false);
+  values.set(HOME_STORAGE_KEY, JSON.stringify({ version: 2, items: [
+    { id: 1, tab: 'Furniture', option: 4, x: 0.3, y: 0.7 }, { id: 1, tab: 'Furniture', option: 4, x: 0.4, y: 0.8 },
+    ...[2, 3, 4, 5].map(id => ({ id, tab: 'Furniture', option: 4, x: 8, y: -9 })),
+    { id: 9, tab: 'Floor', option: 1, x: 0.3, y: 0.7 }, { id: 10, tab: 'Etc', option: 0, x: 0.3, y: 0.7 },
+    { id: 11, tab: 'Etc', option: 1, x: 'bad', y: 0.7 },
+  ] }));
+  const repaired = new HomeState(storage); assert.equal(repaired.items.length, 3); assert.equal(repaired.remaining('Furniture', 4), 0);
+  assert.equal(repaired.items[1].y, 0.62); assert.ok(repaired.place('Etc', 1) > 3);
   const blocked = new HomeState({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
-  blocked.select('Furniture', 4); assert.equal(blocked.move('Furniture', 0.5, 0.8), true);
-  assert.equal(blocked.placements.Furniture.x, 0.5);
+  const id = blocked.place('Furniture', 4); assert.equal(blocked.move(id, 0.5, 0.8), true); assert.equal(blocked.items[0].x, 0.5);
 });
-
 test('Home drag/drop saves only on release, handles rotation/cancel, removal and shared lobby positions', async () => {
   class Element extends EventTarget {
     children = []; attributes = new Map(); style = {}; classList = { add() {} }; captured = new Set();
@@ -1368,7 +1376,8 @@ test('Home drag/drop saves only on release, handles rotation/cancel, removal and
   }
   let rotated = false, writes = 0;
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => { writes++; values.set(key, value); } };
-  const home = new HomeState(storage); home.select('Furniture', 4); home.select('Etc', 1);
+  values.set(HOME_STORAGE_KEY, '{"Furniture":4,"Etc":1}');
+  const home = new HomeState(storage);
   const oldDocument = globalThis.document, oldWindow = globalThis.window, host = new Element('main');
   globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
   globalThis.window = Object.assign(new EventTarget(), { matchMedia: () => ({ matches: rotated }) });
@@ -1388,30 +1397,49 @@ test('Home drag/drop saves only on release, handles rotation/cancel, removal and
     const furniture = layer.children[0], etc = layer.children[1];
     const before = writes;
     pointer(furniture, 'pointerdown', 1, 0.21, 0.7); pointer(furniture, 'pointermove', 2, 0.1, 0.62);
-    assert.equal(map.furniture.x, 0.21 * 960);
+    assert.equal(map.objects.children.find(child => child.label === '1').x, 0.21 * 960);
     pointer(furniture, 'pointermove', 1, 0.4, 0.8);
-    assert.ok(Math.abs(map.furniture.x - 384) < 0.001); assert.equal(writes, before);
-    assert.equal(home.placements.Furniture.x, 0.21); assert.equal(remove.hidden, false);
+    assert.ok(Math.abs(map.objects.children.find(child => child.label === '1').x - 384) < 0.001); assert.equal(writes, before);
+    assert.equal(home.items.find(item => item.id === 1).x, 0.21); assert.equal(remove.hidden, false);
     pointer(furniture, 'pointerup', 1, 0.4, 0.8);
     assert.equal(writes, before + 1); assert.equal(furniture.captured.size, 0);
-    assert.ok(Math.abs(new HomeState(storage).placements.Furniture.x - 0.4) < 0.000001);
+    assert.ok(Math.abs(new HomeState(storage).items.find(item => item.id === 1).x - 0.4) < 0.000001);
     pointer(furniture, 'pointerdown', 3, 0.4, 0.8); pointer(furniture, 'pointermove', 3, 8, -4);
-    assert.equal(map.furniture.x, 0.56 * 960); pointer(furniture, 'pointercancel', 3, 8, -4);
-    assert.ok(Math.abs(map.furniture.x - 384) < 0.001); assert.equal(writes, before + 1);
+    assert.equal(map.objects.children.find(child => child.label === '1').x, 0.56 * 960); pointer(furniture, 'pointercancel', 3, 8, -4);
+    assert.ok(Math.abs(map.objects.children.find(child => child.label === '1').x - 384) < 0.001); assert.equal(writes, before + 1);
     rotated = true;
     pointer(etc, 'pointerdown', 4, 0.47, 0.7); pointer(etc, 'pointermove', 4, 0.3, 0.85); pointer(etc, 'pointerup', 4, 0.3, 0.85);
-    assert.ok(Math.abs(home.placements.Etc.y - 0.85) < 0.000001); assert.ok(Math.abs(map.etc.x - 288) < 0.001);
+    assert.ok(Math.abs(home.items.find(item => item.id === 2).y - 0.85) < 0.000001); assert.ok(Math.abs(map.objects.children.find(child => child.label === '2').x - 288) < 0.001);
     pointer(etc, 'pointerdown', 5, 0.3, 0.85); pointer(etc, 'pointermove', 5, 0.5, 0.7);
-    window.dispatchEvent(new Event('resize')); assert.ok(Math.abs(map.etc.x - 288) < 0.001); assert.equal(etc.captured.size, 0);
+    window.dispatchEvent(new Event('resize')); assert.ok(Math.abs(map.objects.children.find(child => child.label === '2').x - 288) < 0.001); assert.equal(etc.captured.size, 0);
     const key = Object.assign(new Event('keydown', { cancelable: true }), { key: 'ArrowLeft' }); etc.dispatchEvent(key);
-    assert.ok(map.etc.x < 288);
-    remove.dispatchEvent(new Event('click')); assert.equal(home.current.Etc, 0); assert.equal(map.etc.visible, false);
-    assert.equal(home.current.Furniture, 4);
+    assert.ok(map.objects.children.find(child => child.label === '2').x < 288);
+    remove.dispatchEvent(new Event('click')); assert.equal(home.items.some(item => item.id === 2), false); assert.equal(map.objects.children.some(child => child.label === '2'), false);
+    assert.equal(home.items[0].option, 4);
+    panel.children[3].children[2].dispatchEvent(new Event('click'));
+    const inventory = panel.children[4];
+    assert.equal(inventory.children[3].children.at(-1).textContent, '2');
+    inventory.children[3].dispatchEvent(new Event('click'));
+    inventory.children[3].dispatchEvent(new Event('click'));
+    assert.equal(home.remaining('Furniture', 4), 0); assert.equal(inventory.children[3].disabled, true);
+    assert.equal(inventory.children[3].children.at(-1).textContent, '0');
+    assert.equal(inventory.children[0].children.at(-1).textContent, '3');
+    inventory.children[3].dispatchEvent(new Event('click')); assert.equal(home.items.length, 3);
+    const copy = home.items.find(item => item.id !== 1), copyButton = layer.children.find(button => Number(button.getAttribute('data-placement')) === copy.id);
+    pointer(copyButton, 'pointerdown', 8, copy.x, copy.y); pointer(copyButton, 'pointermove', 8, 0.52, 0.84); pointer(copyButton, 'pointerup', 8, 0.52, 0.84);
+    assert.ok(Math.abs(home.items.find(item => item.id === copy.id).x - 0.52) < 0.000001);
+    assert.ok(Math.abs(home.items.find(item => item.id === 1).x - 0.4) < 0.000001);
+    const removed = home.items.find(item => item.id !== 1 && item.id !== copy.id);
+    layer.children.find(button => Number(button.getAttribute('data-placement')) === removed.id).dispatchEvent(new Event('click'));
+    remove.dispatchEvent(new Event('click'));
+    assert.equal(home.remaining('Furniture', 4), 1); assert.equal(inventory.children[3].disabled, false);
+    assert.equal(inventory.children[3].children.at(-1).textContent, '1');
+    assert.equal(home.items.length, 2); assert.equal(map.objects.children.length, 2);
     scene.destroy({ children: true }); assert.equal(Texture.WHITE.destroyed, false);
     const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } };
     const lobby = new LobbyScene(config, undefined, true, undefined, undefined, undefined, { state: new HomeState(storage), textures, open() {} });
     lobby.resize(960, 540);
-    assert.ok(Math.abs(lobby.children[0].furniture.x - 384) < 0.001); assert.equal(lobby.children[0].etc.visible, false);
+    assert.ok(Math.abs(lobby.children[0].objects.children.find(child => child.label === '1').x - 384) < 0.001); assert.equal(lobby.children[0].objects.children.length, 2);
     lobby.destroy({ children: true }); assert.equal(host.children.length, 0);
   } finally {
     if (!scene.destroyed) scene.destroy({ children: true });
