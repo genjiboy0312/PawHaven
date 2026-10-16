@@ -58,3 +58,11 @@ Create a transparent pixel-art VFX atlas matching the approved animal sheet, wit
 - 첫 실제 아이템은 Hat:1 산타모자. [SANTA_HAT.md](SANTA_HAT.md) 참고. AnimationSet.head에 프레임별 부착점·폭을 두고 몸체 Sprite 자식으로 연결한다. 코기는 head-anchors.json을 사용한다. 새 동물에 좌표를 그대로 재사용하지 않는다. 모자 원본과 몸체/VFX는 분리한다.
 
 - 명랑이 런타임 예시: createMyeongrang.ts, loadMyeongrang.ts 및 public/assets/characters/myeongrang/frames.json. 원본 셀 규격을 가정하지 않고 실제 투명 구간으로 프레임을 나눈다. 논리 1024×1024·발 원점 870을 사용한다. 효과/모자는 기존 코기 설정을 참조 공유한다. 상세: [MYEONGRANG_ANIMATION.md](MYEONGRANG_ANIMATION.md).
+
+## 동작 전환 시 크기 기준 — 사용자 확인 완료 (2026-10-17)
+
+- 사용자가 승인한 Idle 크기를 기준으로 고정한다. 모션이 커 보인다고 Idle을 키워 맞추지 않는다.
+- 앉은 Idle과 서기/달리기/대시를 전체 높이 또는 프레임 사각형 크기로 각각 정규화하면 몸체가 커질 수 있다. 머리·몸통의 실제 표시 크기를 비교한다. 공격·대시를 Run에만 맞춰 해결한 것으로 처리하지 않는다.
+- 명랑이는 원본 alpha>128 몸체 픽셀 수(opaqueArea)를 측정하고, Idle 중앙값 면적×Idle 배율²을 기준으로 다른 클립의 최대 표시 몸체 면적을 맞춘 보정이 사용자 확인 완료되었다. 현재 배율과 계산은 MYEONGRANG_ANIMATION.md 및 배포용 frames.json을 따른다.
+- 클립 안에서는 일정 배율을 사용해 프레임별 크기 떨림을 방지한다. 발 기준점·좌우 반전·다리를 뻗거나 몸을 낮추는 원래 자세·이펙트는 유지한다. 모자와 잔상은 몸체 배율을 상속한다.
+- 새 동물에도 승인된 Idle→Walk/Run/Attack/Skill/Jump/Emote→Idle 전환을 양방향으로 검증한다. 면적 보정은 초기 기준이며 자세·털·꼬리 차이도 있으므로 최종 시각 확인을 대신하지 않는다. 명랑이의 수치 자체를 다른 동물에 복사하지 않는다.
