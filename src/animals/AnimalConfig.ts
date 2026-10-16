@@ -13,6 +13,7 @@ export interface AnimalConfig {
   speed: number;
   scale: number;
   animations: AnimationSet;
+  effects?: Partial<Record<'attack' | 'skill', Texture[]>>;
   behavior?: BehaviorProfile;
   welcome?: WelcomeConfig;
 }

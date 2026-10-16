@@ -1,4 +1,5 @@
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
+import { AnimalEffects } from '../../animals/AnimalEffects';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
@@ -8,7 +9,7 @@ export class PlayScene extends Scene {
   private readonly run = new DummyRun();
   private readonly world = new Container();
   private readonly pet = new Container();
-  private readonly effect = new Graphics();
+  private readonly effect: AnimalEffects;
   private readonly animation: AnimalAnimationController;
   private readonly hud = document.createElement('section');
   private readonly victory = document.createElement('p');
@@ -27,6 +28,7 @@ export class PlayScene extends Scene {
   constructor(config: AnimalConfig, private readonly onReturn: () => void) {
     super();
     this.animation = new AnimalAnimationController(config);
+    this.effect = new AnimalEffects(config.effects);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
     this.world.addChild(new Graphics().rect(0, 390, 2850, 150).fill('#b5cd99')
       .rect(0, 390, 2850, 6).fill('#78905c'));
@@ -39,7 +41,7 @@ export class PlayScene extends Scene {
       this.world.addChild(new Graphics().rect(x, 275, 5, 115).fill('#657653'), flag);
     }
     this.world.addChild(this.pet);
-    this.pet.addChild(this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
+    this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
     this.hud.className = 'play-hud';
     this.hud.setAttribute('aria-label', 'Game controls');
     this.stick.className = 'play-stick';
@@ -120,17 +122,7 @@ export class PlayScene extends Scene {
       : action === 'land' ? 1 - run.land / 0.16
       : action === 'jump' ? Math.min(0.49, Math.max(0, (440 - run.velocity) / 880)) : undefined;
     this.animation.update('IDLE', this.elapsed, run.direction, 0, 0, seconds, action, progress);
-    this.effect.clear();
-    if (!run.won && run.attack > 0) {
-      this.effect.arc(run.direction * 65, -65, 48, -1.1, 1.1).stroke({ color: '#fff9e5', width: 7, alpha: 0.85 });
-    }
-    if (!run.won && run.dash > 0) {
-      for (let i = 0; i < 3; i++) {
-        this.effect.moveTo(-run.direction * 65, -32 - i * 18)
-          .lineTo(-run.direction * (110 + i * 15), -32 - i * 18)
-          .stroke({ color: '#fff9e5', width: 4, alpha: 0.7 });
-      }
-    }
+    this.effect.update(action, progress ?? 0, run.direction, this.animation.sprite, run.horizontalVelocity);
     this.victory.hidden = !run.won;
     this.fade.style.opacity = String(run.fade);
     if (run.won) this.blur();

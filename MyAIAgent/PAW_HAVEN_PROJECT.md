@@ -7,6 +7,8 @@
 **Development:** Web First / Cross-platform Ready  
 **Last Updated:** 2026-10-16
 
+픽셀 아트·새 동물 추가 작업 지침: [PIXEL_ART_AGENT.md](PIXEL_ART_AGENT.md)
+
 ---
 
 # 1. 프로젝트 개요

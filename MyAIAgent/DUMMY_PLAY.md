@@ -46,3 +46,17 @@ Prepare a runtime sprite atlas from this exact corgi reference. Preserve orange-
 Create a clean game sprite atlas editing the provided corgi reference. Exact 4 COLUMNS x 4 ROWS = SIXTEEN isolated corgis, on transparent alpha. Each cell is square. CRITICAL: absolutely NO visual effects, NO dust, NO smoke, NO trails, NO crescents, NO glows, NO shadows, NO colored halo, NO background. Body ONLY. Wide EMPTY gutters between all dogs: corgi fits into middle 60% of each cell, never touches cell edges. All dogs face RIGHT with identical size, orange-white corgi, giant ears, soft detailed pixel style. Row1 four RUN cycle key poses (extended, gathered, opposite extended, gathered). Row2 four ATTACK paw-swipe poses (prepare, raise front paw, extend paw forward, recover). Row3 four DASH poses (lean forward, low stretched launch, low stretched burst, recover). Row4 four JUMP poses (rising paws tucked, airborne apex paws tucked, descending legs out, landing squash). Keep body paws at consistent baseline near 80% height of each cell; no jumping height baked into atlas. Dogs small within cells, centered, with generous transparent space in all directions. Preserve entire ears/tail/paws. No text or panels. Runtime draws effects separately so only clean animal bodies are needed.
 
 생성 결과는 1536×1024이므로 실제 384×256 셀 크기에 맞춰 좌표와 기준점을 설정했다.
+## 픽셀 VFX 및 잔상 반영
+
+- 기존 Graphics 선 효과를 제거했다. AnimalEffects에서 독립 투명 픽셀 아틀라스를 행동 진행률에 맞춰 재생한다.
+- Attack: 크림색 초승달·픽셀 파편 4프레임. Dash(Skill): 복숭아색 먼지·속도 잔상·파편 4프레임.
+- 대시에는 현재 코기 몸체의 텍스처·anchor·scale를 재사용한 반투명 잔상 3개를 뒤에 표시한다. 방향과 속도에 따라 위치를 맞추고 동작 종료 시 숨긴다.
+- 효과 저장: public/assets/characters/corgi/corgi-pixel-effects.png, effect-frames.json. 각 셀 전체를 사용하며 셀 경계 최대 알파는 1/255다.
+- 도구: built-in image_gen, 참고: Resources/Corgi_Art_Sheet.png. 원본 유지, 효과만 별도 생성.
+- 효과 프레임은 AnimalConfig.effects로 공유하고 Game.releaseFrames에서 최종 정리한다.
+- 재사용 지침: PIXEL_ART_AGENT.md. 프로젝트 마스터에서 링크한다.
+- 시각/터치 실기기 확인은 별도 필요.
+
+### VFX 최종 프롬프트
+
+Create a transparent PIXEL-ART game VFX atlas matching the ATTACK and SKILL effects in this corgi reference, but with NO DOGS, no characters. Exactly FOUR columns x TWO rows (eight isolated effects), landscape. Top row: four chronological frames of a small playful white-cream crescent paw-swipe with clustered pixel spark fragments, emerging small arc, full thick crescent, breaking crescent, dispersing tiny flecks. Arc opens toward LEFT, thick outer curve on RIGHT; effect strikes to the right. Bottom row: four chronological frames of a horizontal dash wake trailing LEFT: pale cream pixel dust puffs, peach-white staggered motion streaks, scattered square spark flecks, fading dispersed dust. Detailed sprite art with irregular clustered pixels, NOT thin vector lines, NOT UI symbols. Pixel-crisp texture, subtle pale peach inner shading, off-white silhouette, no neon. Each effect entirely within central 65% of its own equal grid cell with wide truly empty transparent gutters ALL around; no overlapping cells, no clipped effects. No labels, no frame borders, no grid, no backgrounds or shadows. Pure transparent alpha outside each compact effect. Reference is style only; DO NOT include the corgi.

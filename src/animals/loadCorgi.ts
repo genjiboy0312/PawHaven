@@ -44,8 +44,18 @@ export async function loadCorgi(onProgress: (progress: number) => void): Promise
   const clean = await Assets.load<CleanMap>(base + 'clean-frames.json');
   const cleanJump = paddedTextures(cleanAtlas, clean.actions.jump);
   const padded = { scale: 212 / 164, anchorY: 400 / 512 };
+  const effectAtlas = await Assets.load<Texture>(base + 'corgi-pixel-effects.png');
+  effectAtlas.source.scaleMode = 'nearest';
+  const effectMap = await Assets.load<Record<'attack' | 'skill', FrameRect[]>>(base + 'effect-frames.json');
+  const effectFrames = (frames: FrameRect[]): Texture[] => frames.map(({ x, y, width, height }) => {
+    if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > effectAtlas.width || y + height > effectAtlas.height) {
+      throw new Error('코기 효과 프레임 범위가 올바르지 않습니다.');
+    }
+    return new Texture({ source: effectAtlas.source, frame: new Rectangle(x, y, width, height) });
+  });
   const config: AnimalConfig = {
     id: 'corgi', speed: 90, scale: 0.62,
+    effects: { attack: effectFrames(effectMap.attack), skill: effectFrames(effectMap.skill) },
     animations: {
       run: { frames: paddedTextures(cleanAtlas, clean.actions.run), fps: 8, ...padded },
       attack: { frames: paddedTextures(cleanAtlas, clean.actions.attack), fps: 8, ...padded },

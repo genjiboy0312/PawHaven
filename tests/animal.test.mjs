@@ -665,3 +665,43 @@ test('padded clips change their foot anchor and lobby idle restores the old anch
   assert.equal(controller.sprite.anchor.y, 1);
   destroyAnimationController(controller);
 });
+test('raster effects follow action frames, mirror direction and clear with dash afterimages', async () => {
+  const { AnimalEffects } = await importTs('../src/animals/AnimalEffects.ts', import.meta.url);
+  const { Sprite } = await import('pixi.js');
+  const frames = Array.from({ length: 4 }, () => new Texture({ source: Texture.WHITE.source }));
+  const effect = new AnimalEffects({ attack: frames, skill: frames });
+  const body = new Sprite(Texture.WHITE); body.anchor.set(0.5, 0.78); body.scale.set(-0.8, 0.8);
+  effect.update('attack', 0.5, 1, body, 0);
+  assert.equal(effect.children[1].texture, frames[2]);
+  assert.equal(effect.children[1].visible, true);
+  assert.equal(effect.children[0].visible, false);
+  effect.update('skill', 0.25, -1, body, -800);
+  assert.equal(effect.children[0].texture, frames[1]);
+  assert.ok(effect.children[0].x > 0 && effect.children[0].scale.x < 0);
+  for (const ghost of effect.ghosts) {
+    assert.equal(ghost.visible, true); assert.equal(ghost.texture, body.texture);
+    assert.ok(ghost.x > body.x); assert.ok(ghost.alpha > 0 && ghost.alpha < 0.2);
+    assert.equal(ghost.anchor.y, body.anchor.y); assert.equal(ghost.scale.x, body.scale.x);
+  }
+  effect.update('attack', 1, -1, body, 0);
+  assert.equal(effect.children[1].texture, frames[3]);
+  effect.update('idle', 0, 1, body, 0);
+  assert.ok(effect.children.every(sprite => !sprite.visible));
+  assert.ok(effect.ghosts.every(sprite => !sprite.visible));
+  effect.destroy({ children: true }); effect.ghosts.forEach(ghost => ghost.destroy()); body.destroy();
+  frames.forEach(texture => texture.destroy(false));
+});
+
+test('pixel VFX map uses four complete isolated cells per action and an RGBA source', async () => {
+  const map = JSON.parse(await readFile(new URL('../public/assets/characters/corgi/effect-frames.json', import.meta.url), 'utf8'));
+  const png = await readFile(new URL('../public/assets/characters/corgi/corgi-pixel-effects.png', import.meta.url));
+  assert.equal(png.readUInt32BE(16), map.width); assert.equal(png.readUInt32BE(20), map.height);
+  assert.equal(png[25], 6);
+  for (const key of ['attack', 'skill']) {
+    assert.equal(map[key].length, 4);
+    for (const frame of map[key]) {
+      assert.ok(frame.x >= 0 && frame.y >= 0 && frame.width > 0 && frame.height > 0);
+      assert.ok(frame.x + frame.width <= map.width && frame.y + frame.height <= map.height);
+    }
+  }
+});

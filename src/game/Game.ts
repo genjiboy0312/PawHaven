@@ -15,7 +15,8 @@ export class Game {
   private corgi: AnimalConfig | undefined;
   private releaseFrames(): void {
     if (!this.corgi) return;
-    const textures = new Set(Object.values(this.corgi.animations).flatMap((animation) => animation.frames));
+    const textures = new Set([...Object.values(this.corgi.animations).flatMap((animation) => animation.frames),
+      ...Object.values(this.corgi.effects ?? {}).flat()]);
     for (const texture of textures) texture.destroy(false);
     this.corgi = undefined;
   }
