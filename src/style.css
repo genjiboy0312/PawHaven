@@ -93,3 +93,21 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .outfit-object { position: absolute; width: 7cqw; height: 10cqh; object-fit: contain; left: 50%; bottom: 3cqh; transform: translateX(-50%); pointer-events: none; }
 .outfit-slot[aria-pressed="true"]::before { background: radial-gradient(ellipse, #71836840 0%, #71836820 50%, transparent 75%); }
 .outfit-slot:focus-visible { outline: 1px dashed #87977b; outline-offset: -3px; border-radius: 10%; }
+.hud-menu-settings:enabled { pointer-events: auto; cursor: pointer; }
+.settings-overlay { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: #17221d75; pointer-events: auto; }
+.settings-panel { position: relative; width: 64%; height: 72%; padding: 3cqh 3cqw; border-radius: 2cqw; background: #f1f1e8; color: #53604f; box-shadow: 0 1cqh 4cqw #18271933; display: flex; flex-direction: column; }
+.settings-panel h2 { margin: 0; font-size: 2.4cqw; font-weight: 600; }
+.settings-close { position: absolute; right: 1.7cqw; top: 2cqh; border: 0; background: transparent; color: inherit; font-size: 3cqw; cursor: pointer; padding: 0 1cqw; }
+.settings-tabs { display: flex; gap: 2cqw; margin: 1cqh 0 3cqh; }
+.settings-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: #838b80; padding: 1cqh 1cqw; font-size: 1.7cqw; cursor: pointer; }
+.settings-tabs button[aria-pressed="true"] { color: #465a3d; border-color: #8a9c7e; }
+.settings-content { overflow-y: auto; min-height: 0; font-size: 1.5cqw; }
+.settings-volume { display: grid; grid-template-columns: 6cqw 1fr 5cqw; align-items: center; gap: 1.5cqw; margin: 0 0 3cqh; }
+.settings-volume input { width: 100%; min-width: 0; accent-color: #8c9f7b; }
+.settings-volume output { text-align: right; font-variant-numeric: tabular-nums; }
+.settings-mute { display: flex; gap: 1cqw; align-items: center; }
+.settings-mute input { accent-color: #8c9f7b; }
+.settings-preview { display: flex; gap: 1.5cqw; margin-top: 3cqh; }
+.settings-content button { border: 0; border-radius: 2cqw; padding: 1.5cqh 1.5cqw; font-size: 1.4cqw; background: #dde3d6; color: #53604f; cursor: pointer; }
+.settings-content button:disabled { opacity: 0.5; cursor: default; }
+.settings-guest { font-size: 2cqw; }

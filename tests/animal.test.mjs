@@ -763,3 +763,85 @@ test('Character opens a stationary preview, keeps category selection without equ
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
 });
+const { SoundSettings, SOUND_STORAGE_KEY } = await importTs('../src/settings/SoundSettings.ts', import.meta.url);
+test('sound preferences persist safely, clamp bad values, and tolerate blocked storage', () => {
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const store = new SoundSettings(storage);
+  store.volume('master', 0.42); store.volume('bgm', 2); store.volume('sfx', -1); store.mute(true);
+  assert.deepEqual(new SoundSettings(storage).current, { master: 0.42, bgm: 1, sfx: 0, muted: true });
+  const copy = store.current; copy.master = 1; assert.equal(store.current.master, 0.42);
+  store.volume('master', NaN); assert.equal(store.current.master, 0.42);
+  values.set(SOUND_STORAGE_KEY, 'broken'); assert.equal(new SoundSettings(storage).current.master, 0.8);
+  values.set(SOUND_STORAGE_KEY, '{"master":"bad","bgm":0.3,"muted":"yes"}');
+  assert.deepEqual(new SoundSettings(storage).current, { master: 0.8, bgm: 0.3, sfx: 0.7, muted: false });
+  const blocked = new SoundSettings({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  blocked.volume('sfx', 0.25); assert.equal(blocked.current.sfx, 0.25);
+});
+
+test('Settings overlays a live run, pauses controls, applies sound values, restores focus and resumes safely', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; inert = false;
+    classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
+    replaceChildren(...items) { this.children.forEach(item => { item.parent = undefined; }); this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); this.parent = undefined; }
+    get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
+    focus() { document.activeElement = this; }
+    querySelectorAll() {
+      const result = []; const walk = node => { for (const item of node.children) { if (['button', 'input'].includes(item.tag) && !item.disabled) result.push(item); walk(item); } };
+      walk(this); return result;
+    }
+  }
+  const oldDocument = globalThis.document, oldWindow = globalThis.window, oldHTMLElement = globalThis.HTMLElement;
+  const host = new Element('main');
+  globalThis.HTMLElement = Element;
+  globalThis.document = Object.assign(new EventTarget(), { createElement: tag => new Element(tag), querySelector: () => host, activeElement: undefined });
+  globalThis.window = new EventTarget();
+  const { Container } = await import('pixi.js');
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const { PlayScene } = await importTs('../src/game/scenes/PlayScene.ts', import.meta.url);
+  const { SettingsPopup } = await importTs('../src/ui/SettingsPopup.ts', import.meta.url);
+  const app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
+  const store = new SoundSettings(), applied = [], sounds = [];
+  const popup = new SettingsPopup(store, { apply: value => applied.push(value), play: value => sounds.push(value) }, paused => manager.setPaused(paused));
+  const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 } } };
+  const key = code => { const event = new Event('keydown', { cancelable: true }); Object.defineProperty(event, 'code', { value: code }); window.dispatchEvent(event); return event; };
+  try {
+    const scene = new PlayScene(config, () => assert.fail('paused run must not finish'), { open: () => popup.open(), sound: kind => sounds.push(kind) });
+    manager.show(scene);
+    const hud = host.children[0], pet = scene.children[1].children.at(-1), settings = hud.children[2];
+    assert.equal(settings.disabled, false);
+    key('ArrowRight'); manager.update(0.2); const x = pet.x;
+    settings.dispatchEvent(new Event('pointerdown', { cancelable: true }));
+    assert.equal(popup.opened, true); assert.equal(host.children.length, 2); assert.equal(hud.inert, true);
+    popup.open(); assert.equal(host.children.length, 2);
+    const overlay = host.children[1], panel = overlay.children[0], close = panel.children[1], tabs = panel.children[2], content = panel.children[3];
+    assert.equal(panel.attributes.get('role'), 'dialog'); assert.equal(document.activeElement, close);
+    key('Space'); hud.children[1].children[2].dispatchEvent(new Event('pointerdown', { cancelable: true }));
+    manager.update(30); assert.equal(pet.x, x); assert.equal(pet.y, 390); assert.ok(!sounds.includes('jump'));
+    const slider = content.children[0].children[1]; slider.value = '35'; slider.dispatchEvent(new Event('input'));
+    assert.equal(store.current.master, 0.35); assert.equal(applied.at(-1).master, 0.35);
+    const mute = content.children[3].children[0]; mute.checked = true; mute.dispatchEvent(new Event('change')); assert.equal(applied.at(-1).muted, true);
+    content.children[4].children[0].dispatchEvent(new Event('click')); assert.equal(sounds.at(-1), 'bgm');
+    tabs.children[1].dispatchEvent(new Event('click'));
+    assert.equal(content.children[0].textContent, 'Playing as Guest'); assert.equal(content.children[2].disabled, true);
+    tabs.children[0].dispatchEvent(new Event('click')); assert.equal(content.children[0].children[1].value, '35');
+    const controls = panel.querySelectorAll(); controls.at(-1).focus();
+    const tab = new Event('keydown', { cancelable: true }); Object.defineProperty(tab, 'key', { value: 'Tab' }); overlay.dispatchEvent(tab);
+    assert.equal(document.activeElement, close);
+    const escape = new Event('keydown', { cancelable: true }); Object.defineProperty(escape, 'key', { value: 'Escape' }); overlay.dispatchEvent(escape);
+    assert.equal(popup.opened, false); assert.equal(host.children.length, 1); assert.equal(hud.inert, false); assert.equal(document.activeElement, settings);
+    manager.update(0.1); assert.equal(pet.x, x); // held input was cleared
+    key('Space'); assert.equal(sounds.at(-1), 'jump');
+    manager.update(0.1); assert.ok(pet.y < 390);
+    popup.open(); popup.destroy(); assert.equal(hud.inert, false);
+    manager.destroy(); assert.equal(host.children.length, 0);
+  } finally {
+    popup.destroy(); manager.destroy(); app.stage.destroy();
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+    if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
+  }
+});

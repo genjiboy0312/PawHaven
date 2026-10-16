@@ -18,6 +18,8 @@ export class PlayScene extends Scene {
   private readonly knob = document.createElement('span');
   private readonly keys = new Set<string>();
   private readonly abort = new AbortController();
+  private paused = false;
+  override setPaused(paused: boolean): void { this.paused = paused; this.blur(); }
   private axis = 0;
   private pointer: number | undefined;
   private elapsed = 0;
@@ -25,7 +27,7 @@ export class PlayScene extends Scene {
   private returned = false;
   private readonly blur = (): void => { this.keys.clear(); this.axis = 0; this.pointer = undefined; this.knob.style.transform = ''; };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void }) {
     super();
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
@@ -51,21 +53,21 @@ export class PlayScene extends Scene {
     this.stick.append(this.knob);
     const actions = document.createElement('div');
     actions.className = 'play-actions';
-    actions.append(this.button('Attack', () => this.run.startAttack()), this.button('Dash', () => this.run.startDash()), this.button('Jump', () => this.run.jump()));
-    const settings = this.button('Settings');
-    settings.classList.add('play-settings');
-    settings.disabled = true;
+    actions.append(this.button('Attack', () => this.act('attack')), this.button('Dash', () => this.act('dash')), this.button('Jump', () => this.act('jump')));
+    const settingsButton = this.button('Settings', () => { this.blur(); settingsButton.focus(); this.settings?.open(); });
+    settingsButton.classList.add('play-settings');
+    settingsButton.disabled = !this.settings;
     this.victory.className = 'play-victory';
     this.victory.textContent = 'Victory!';
     this.victory.hidden = true;
     this.victory.setAttribute('role', 'status');
     this.fade.className = 'scene-fade';
     this.fade.style.opacity = '0';
-    this.hud.append(this.stick, actions, settings, this.victory, this.fade);
+    this.hud.append(this.stick, actions, settingsButton, this.victory, this.fade);
     document.querySelector('#app')?.append(this.hud);
     const signal = this.abort.signal;
     const move = (event: PointerEvent): void => {
-      if (event.pointerId !== this.pointer) return;
+      if (this.paused || event.pointerId !== this.pointer) return;
       const rect = this.stick.getBoundingClientRect();
       const rotated = window.matchMedia('(orientation: portrait) and (any-pointer: coarse)').matches;
       const distance = rotated ? event.clientY - rect.top - rect.height / 2 : event.clientX - rect.left - rect.width / 2;
@@ -74,7 +76,7 @@ export class PlayScene extends Scene {
       this.knob.style.transform = `translateX(${this.axis * 65}%)`;
     };
     this.stick.addEventListener('pointerdown', (event) => {
-      if (this.pointer !== undefined) return;
+      if (this.paused || this.pointer !== undefined) return;
       this.pointer = event.pointerId; this.stick.setPointerCapture(event.pointerId); move(event);
     }, { signal });
     this.stick.addEventListener('pointermove', move, { signal });
@@ -85,14 +87,24 @@ export class PlayScene extends Scene {
     window.addEventListener('resize', this.blur, { signal });
     document.addEventListener('visibilitychange', this.blur, { signal });
     window.addEventListener('keydown', (event) => {
+      if (this.paused) return;
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', 'KeyA', 'KeyD', 'KeyW', 'ShiftLeft', 'ShiftRight', 'KeyJ'].includes(event.code)) return;
       event.preventDefault(); this.keys.add(event.code);
       if (event.repeat) return;
-      if (['Space', 'KeyW', 'ArrowUp'].includes(event.code)) this.run.jump();
-      if (event.code.startsWith('Shift')) this.run.startDash();
-      if (event.code === 'KeyJ') this.run.startAttack();
+      if (['Space', 'KeyW', 'ArrowUp'].includes(event.code)) this.act('jump');
+      if (event.code.startsWith('Shift')) this.act('dash');
+      if (event.code === 'KeyJ') this.act('attack');
     }, { signal });
     window.addEventListener('keyup', (event) => { this.keys.delete(event.code); }, { signal });
+  }
+  private act(kind: 'jump' | 'dash' | 'attack'): void {
+    if (this.paused || this.run.won) return;
+    const before = kind === 'jump' ? this.run.velocity : this.run[kind];
+    if (kind === 'jump') this.run.jump();
+    else if (kind === 'dash') this.run.startDash();
+    else this.run.startAttack();
+    const after = kind === 'jump' ? this.run.velocity : this.run[kind];
+    if (after > before) this.settings?.sound?.(kind);
   }
   private button(label: string, action?: () => void): HTMLButtonElement {
     const button = document.createElement('button');
@@ -103,6 +115,7 @@ export class PlayScene extends Scene {
   }
   resize(_width: number, _height: number): void { this.render(0, 0); }
   override update(seconds: number): void {
+    if (this.paused) return;
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
     this.run.update(seconds, axis);

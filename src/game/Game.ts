@@ -1,3 +1,6 @@
+import { SoundSettings } from '../settings/SoundSettings';
+import { SettingsPopup } from '../ui/SettingsPopup';
+import { AudioSystem } from '../systems/AudioSystem';
 import { createOutfit } from '../animals/OutfitState';
 import { CharacterScene } from './scenes/CharacterScene';
 import { PlayScene } from './scenes/PlayScene';
@@ -11,6 +14,8 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 export class Game {
+  private settings?: SettingsPopup;
+  private audio?: AudioSystem;
   private readonly outfit = createOutfit();
   private readonly app = new Application();
   private scenes: SceneManager | undefined;
@@ -29,6 +34,7 @@ export class Game {
     this.scenes?.update(Math.min(ticker.deltaMS / 1000, 0.05));
   };
   private readonly visibility = (): void => {
+    this.audio?.visibility(document.hidden);
     if (document.hidden) this.app.stop();
     else this.app.start();
   };
@@ -44,6 +50,12 @@ export class Game {
     host.appendChild(this.app.canvas);
     this.app.canvas.setAttribute('aria-label', 'Paw Haven 정원');
     this.scenes = new SceneManager(this.app);
+    let storage: Storage | undefined;
+    try { storage = window.localStorage; } catch { /* Session-only settings. */ }
+    const preferences = new SoundSettings(storage);
+    this.audio = new AudioSystem(preferences.current);
+    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused));
+    const openSettings = (): void => this.settings?.open();
     this.app.renderer.on('resize', this.resize);
     this.app.ticker.add(this.tick);
     document.addEventListener('visibilitychange', this.visibility);
@@ -60,10 +72,10 @@ export class Game {
     const lobby = (returning = false): void => {
       if (this.disposed) return;
       this.scenes?.show(new LobbyScene(corgi, () => {
-        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true)));
+        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true), { open: openSettings, sound: kind => this.audio?.play(kind) }));
       }, returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(corgi, this.outfit, () => lobby(true)));
-      }));
+      }, openSettings));
     };
     this.scenes.show(new TitleScene(() => lobby()));
     document.querySelector('#status')?.remove();
@@ -77,6 +89,8 @@ export class Game {
     if (!this.initialized) return;
     this.app.renderer.off('resize', this.resize);
     this.app.ticker.remove(this.tick);
+    this.settings?.destroy();
+    this.audio?.destroy();
     this.scenes?.destroy();
     this.releaseFrames();
     this.app.destroy(true, { children: true });
