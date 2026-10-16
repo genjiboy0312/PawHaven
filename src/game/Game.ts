@@ -16,6 +16,7 @@ import { CharacterScene } from './scenes/CharacterScene';
 import { PlayScene } from './scenes/PlayScene';
 import { TitleScene } from './scenes/TitleScene';
 import type { AnimalConfig } from '../animals/AnimalConfig';
+import { loadMyeongrang } from '../animals/loadMyeongrang';
 import { loadCorgi } from '../animals/loadCorgi';
 import { Application, type Ticker } from 'pixi.js';
 import { SceneManager } from './SceneManager';
@@ -33,14 +34,14 @@ export class Game {
   private scenes: SceneManager | undefined;
   private disposed = false;
   private corgi: AnimalConfig | undefined;
+  private myeongrang: AnimalConfig | undefined;
   private releaseFrames(): void {
     if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => texture.destroy(false)); this.homeTextures = undefined; }
-    if (!this.corgi) return;
-    const textures = new Set([...Object.values(this.corgi.animations).flatMap((animation) => animation.frames),
-      ...Object.values(this.corgi.effects ?? {}).flat()]);
-    if (this.corgi.wardrobe) textures.add(this.corgi.wardrobe.santaHat);
-    for (const texture of textures) texture.destroy(false);
-    this.corgi = undefined;
+    const configs = [this.corgi, this.myeongrang].filter((config): config is AnimalConfig => !!config);
+    const textures = new Set(configs.flatMap(config => [...Object.values(config.animations).flatMap(animation => animation.frames),
+      ...Object.values(config.effects ?? {}).flat(), ...(config.wardrobe ? [config.wardrobe.santaHat] : [])]));
+    for (const texture of textures) if (!texture.destroyed) texture.destroy(false);
+    this.corgi = this.myeongrang = undefined;
   }
   private initialized = false;
   private readonly resize = (): void => this.scenes?.resize();
@@ -88,14 +89,18 @@ export class Game {
     const preload = new PreloadScene();
     this.scenes.show(preload);
     document.querySelector('#status')?.remove();
-    const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress); }, this.outfit);
+    const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress * 0.6); }, this.outfit);
     this.corgi = corgi;
+    if (!this.disposed) this.myeongrang = await loadMyeongrang(corgi);
+    if (!this.disposed) preload.setProgress(0.9);
     if (!this.disposed) this.homeTextures = await loadHome();
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
     let activePet = corgi;
-    const pets = [{ config: corgi, name: 'Corgi', thumbnail: './assets/characters/corgi/corgi-idle-walk.png' }];
+    preload.setProgress(1);
+    const pets = [{ config: corgi, name: 'Corgi', thumbnail: './assets/characters/corgi/corgi-idle-walk.png' },
+      { config: this.myeongrang!, name: 'Myeongrang', thumbnail: './assets/characters/myeongrang/idle.png' }];
     const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab));
     };

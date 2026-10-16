@@ -56,3 +56,5 @@ Create a transparent pixel-art VFX atlas matching the approved animal sheet, wit
 ## 착용 아이템 추가
 
 - 첫 실제 아이템은 Hat:1 산타모자. [SANTA_HAT.md](SANTA_HAT.md) 참고. AnimationSet.head에 프레임별 부착점·폭을 두고 몸체 Sprite 자식으로 연결한다. 코기는 head-anchors.json을 사용한다. 새 동물에 좌표를 그대로 재사용하지 않는다. 모자 원본과 몸체/VFX는 분리한다.
+
+- 명랑이 런타임 예시: createMyeongrang.ts, loadMyeongrang.ts 및 public/assets/characters/myeongrang/frames.json. 원본 셀 규격을 가정하지 않고 실제 투명 구간으로 프레임을 나눈다. 논리 1024×1024·발 원점 870을 사용한다. 효과/모자는 기존 코기 설정을 참조 공유한다. 상세: [MYEONGRANG_ANIMATION.md](MYEONGRANG_ANIMATION.md).

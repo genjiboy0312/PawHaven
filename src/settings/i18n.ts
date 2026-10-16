@@ -1,6 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
-  Pets: 'Pets', preset: 'Preset', save: 'Save', corgi: 'Corgi', presetUnsaved: 'Unsaved changes', presetSaved: 'Saved', presetLoaded: 'Loaded', presetEmpty: 'Empty slot — press Save to store this look.', petUnavailable: 'This pet is not available yet.',
+  Pets: 'Pets', preset: 'Preset', save: 'Save', corgi: 'Corgi', myeongrang: 'Myeongrang', presetUnsaved: 'Unsaved changes', presetSaved: 'Saved', presetLoaded: 'Loaded', presetEmpty: 'Empty slot — press Save to store this look.', petUnavailable: 'This pet is not available yet.',
   Style: 'Style', Pass: 'Pass', Daily: 'Daily', Weekly: 'Weekly', seasonPass: 'Season Pass',
   seasonName: 'Season 0 · Cozy Beginnings', seasonPrototype: 'Prototype season · No expiry · No real payment',
   level: 'Level', passOwned: 'Premium unlocked', testUnlock: 'Test unlock · Free', upgradePass: 'Go to Shop',
@@ -18,13 +18,13 @@ const en = {
   joystick: 'Movement joystick', gameControls: 'Game controls', close: 'Close', Hat: 'Hat', Body: 'Body', Acc: 'Acc', Etc: 'Etc', none: 'None',
   customize: 'Character customization', categories: 'Item categories', items: 'Items', welcomeHome: 'Welcome Home', touchStart: 'Tap to start', greet: 'Welcome! ♡',
   loading: 'Getting the game ready…', loadError: 'Could not open the garden. Check your connection and WebGL support, then refresh.',
-  'state.NOTICE': 'Your corgi noticed you', 'state.APPROACH': 'Your corgi is coming closer', 'state.GREET': 'A happy greeting',
+  'state.NOTICE': 'Your companion noticed you', 'state.APPROACH': 'Your companion is coming closer', 'state.GREET': 'A happy greeting',
   'state.IDLE': 'Relaxing', 'state.WANDER': 'Exploring the garden', 'state.REST': 'Taking a rest', 'state.SLEEP': 'Sleeping peacefully',
   'state.OBSERVE': 'Looking around', 'state.JUMP': 'Jumping', 'state.LAND': 'Landing softly', 'state.EMOTE': 'Feeling happy',
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
-  Pets: '동물', preset: '프리셋', save: '저장', corgi: '코기', presetUnsaved: '저장하지 않은 변경사항', presetSaved: '저장했어요', presetLoaded: '불러왔어요', presetEmpty: '빈 슬롯이에요. 저장을 눌러 조합을 보관하세요.', petUnavailable: '아직 사용할 수 없는 동물이에요.',
+  Pets: '동물', preset: '프리셋', save: '저장', corgi: '코기', myeongrang: '명랑이', presetUnsaved: '저장하지 않은 변경사항', presetSaved: '저장했어요', presetLoaded: '불러왔어요', presetEmpty: '빈 슬롯이에요. 저장을 눌러 조합을 보관하세요.', petUnavailable: '아직 사용할 수 없는 동물이에요.',
   Style: '꾸미기', Pass: '패스', Daily: '일일', Weekly: '주간', seasonPass: '시즌패스',
   seasonName: '시즌 0 · 포근한 시작', seasonPrototype: '프로토타입 시즌 · 종료일 없음 · 실제 결제 없음',
   level: '단계', passOwned: '프리미엄 해금 완료', testUnlock: '테스트 해금 · 무료', upgradePass: '상점으로 이동',
@@ -42,7 +42,7 @@ const ko: Record<TextKey, string> = {
   joystick: '이동 조이스틱', gameControls: '게임 조작', close: '닫기', Hat: '모자', Body: '상의', Acc: '장식', Etc: '기타', none: '없음',
   customize: '캐릭터 꾸미기', categories: '아이템 분류', items: '아이템', welcomeHome: '집에 온 걸 환영해요', touchStart: '화면을 터치해 시작하세요', greet: '반가워! ♡',
   loading: '게임을 준비하고 있어요…', loadError: '정원을 열지 못했어요. 네트워크와 WebGL 지원을 확인한 뒤 새로고침해 주세요.',
-  'state.NOTICE': '코기가 당신을 알아봤어요', 'state.APPROACH': '코기가 다가와요', 'state.GREET': '반갑게 인사해요',
+  'state.NOTICE': '코기가 당신을 알아봤어요', 'state.APPROACH': '친구가 다가와요', 'state.GREET': '반갑게 인사해요',
   'state.IDLE': '느긋하게 쉬고 있어요', 'state.WANDER': '정원을 산책해요', 'state.REST': '잠시 쉬고 있어요', 'state.SLEEP': '새근새근 자고 있어요',
   'state.OBSERVE': '주변을 둘러봐요', 'state.JUMP': '폴짝 뛰어올라요', 'state.LAND': '사뿐히 내려앉아요', 'state.EMOTE': '기분을 표현해요',
 };

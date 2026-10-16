@@ -114,7 +114,7 @@ export class CharacterScene extends Scene {
       portrait.style.backgroundSize = `${texture.source.width / frame.height * 9}cqh ${texture.source.height / frame.height * 9}cqh`;
       portrait.style.backgroundPosition = `${-frame.x / frame.height * 9}cqh ${-frame.y / frame.height * 9}cqh`;
       const name = document.createElement('span'); name.className = 'pet-name'; name.textContent = pet.name;
-      if (pet.config.id === 'corgi') bindText(name, 'corgi');
+      if (pet.config.id === 'corgi' || pet.config.id === 'myeongrang') bindText(name, pet.config.id);
       const check = document.createElement('span'); check.className = 'pet-check'; check.textContent = '✓'; check.hidden = pet.config.id !== this.pet.config.id;
       button.append(portrait, name, check);
       button.addEventListener('click', () => { this.selectPet(pet); bindText(this.feedback, 'presetUnsaved'); this.refresh(); });

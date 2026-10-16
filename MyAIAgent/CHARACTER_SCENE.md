@@ -28,3 +28,5 @@
 Shop 프로토타입 연결 이후에는 각 탭에 None 및 보유 아이템만 표시한다. 기본 분류별 1개와 상점에서 테스트 코인으로 구매한 아이템이 대상이며, 슬롯 배치와 선택 이모션·프리셋은 유지한다. 상세: [SHOP_QUEST.md](SHOP_QUEST.md).
 
 - Hat:1 산타모자 실제 착용 추가. 나머지는 더미 유지. 상세: [SANTA_HAT.md](SANTA_HAT.md).
+
+- Pets에 명랑이 추가. 코기/명랑이 전환·공용 프리셋·로비/게임 전달: [MYEONGRANG_ANIMATION.md](MYEONGRANG_ANIMATION.md).

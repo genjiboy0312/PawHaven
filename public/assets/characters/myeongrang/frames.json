@@ -1,0 +1,735 @@
+{
+  "actions": {
+    "run": {
+      "scale": 1.7096774193548387,
+      "frames": [
+        {
+          "height": 270,
+          "source": "combat",
+          "y": 0,
+          "baseline": 216,
+          "center": 240.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 106,
+            "right": 343,
+            "bottom": 216,
+            "left": 138
+          },
+          "x": 0,
+          "width": 443,
+          "head": {
+            "x": 45.10000000000002,
+            "y": -87.80000000000001,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 270,
+          "source": "combat",
+          "y": 0,
+          "baseline": 226,
+          "center": 231,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 103,
+            "right": 311,
+            "bottom": 226,
+            "left": 151
+          },
+          "x": 443,
+          "width": 444,
+          "head": {
+            "x": 35.19999999999999,
+            "y": -98.2,
+            "width": 47.12
+          }
+        },
+        {
+          "height": 270,
+          "source": "combat",
+          "y": 0,
+          "baseline": 226,
+          "center": 200,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 106,
+            "right": 297,
+            "bottom": 226,
+            "left": 103
+          },
+          "x": 887,
+          "width": 443,
+          "head": {
+            "x": 42.68000000000001,
+            "y": -95.80000000000001,
+            "width": 45.980000000000004
+          }
+        },
+        {
+          "height": 270,
+          "source": "combat",
+          "y": 0,
+          "baseline": 230,
+          "center": 214.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 105,
+            "right": 294,
+            "bottom": 230,
+            "left": 135
+          },
+          "x": 1330,
+          "width": 444,
+          "head": {
+            "x": 34.97999999999999,
+            "y": -99.80000000000001,
+            "width": 47.88
+          }
+        }
+      ],
+      "fps": 8
+    },
+    "emote": {
+      "scale": 0.5234567901234568,
+      "frames": [
+        {
+          "height": 444,
+          "source": "daily",
+          "y": 443,
+          "baseline": 417,
+          "center": 250.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 13,
+            "right": 431,
+            "bottom": 417,
+            "left": 70
+          },
+          "x": 0,
+          "width": 466,
+          "head": {
+            "x": 79.42000000000002,
+            "y": -323.0,
+            "width": 153.9
+          }
+        },
+        {
+          "height": 444,
+          "source": "daily",
+          "y": 443,
+          "baseline": 417,
+          "center": 215,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 13,
+            "right": 395,
+            "bottom": 417,
+            "left": 35
+          },
+          "x": 466,
+          "width": 433,
+          "head": {
+            "x": 79.19999999999999,
+            "y": -323.0,
+            "width": 153.9
+          }
+        },
+        {
+          "height": 444,
+          "source": "daily",
+          "y": 443,
+          "baseline": 417,
+          "center": 218,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 13,
+            "right": 399,
+            "bottom": 417,
+            "left": 37
+          },
+          "x": 899,
+          "width": 435,
+          "head": {
+            "x": 79.63999999999999,
+            "y": -323.0,
+            "width": 153.9
+          }
+        },
+        {
+          "height": 444,
+          "source": "daily",
+          "y": 443,
+          "baseline": 417,
+          "center": 214,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 13,
+            "right": 391,
+            "bottom": 417,
+            "left": 37
+          },
+          "x": 1334,
+          "width": 440,
+          "head": {
+            "x": 77.88,
+            "y": -323.0,
+            "width": 153.9
+          }
+        }
+      ],
+      "fps": 4
+    },
+    "idle": {
+      "scale": 0.5183374083129584,
+      "frames": [
+        {
+          "height": 443,
+          "source": "idle",
+          "y": 0,
+          "baseline": 423,
+          "center": 236.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 20,
+            "right": 407,
+            "bottom": 423,
+            "left": 66
+          },
+          "x": 0,
+          "width": 443,
+          "head": {
+            "x": 75.01999999999998,
+            "y": -322.2,
+            "width": 153.52
+          }
+        },
+        {
+          "height": 443,
+          "source": "idle",
+          "y": 0,
+          "baseline": 423,
+          "center": 209.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 19,
+            "right": 381,
+            "bottom": 423,
+            "left": 38
+          },
+          "x": 443,
+          "width": 444,
+          "head": {
+            "x": 75.45999999999998,
+            "y": -323.0,
+            "width": 153.9
+          }
+        },
+        {
+          "height": 443,
+          "source": "idle",
+          "y": 0,
+          "baseline": 424,
+          "center": 201,
+          "borderAlphaMax": 2,
+          "opaqueBounds": {
+            "top": 10,
+            "right": 376,
+            "bottom": 424,
+            "left": 26
+          },
+          "x": 887,
+          "width": 443,
+          "head": {
+            "x": 77.0,
+            "y": -331.0,
+            "width": 157.7
+          }
+        },
+        {
+          "height": 443,
+          "source": "idle",
+          "y": 0,
+          "baseline": 423,
+          "center": 204,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 20,
+            "right": 377,
+            "bottom": 423,
+            "left": 31
+          },
+          "x": 1330,
+          "width": 444,
+          "head": {
+            "x": 76.12,
+            "y": -322.2,
+            "width": 153.52
+          }
+        },
+        {
+          "height": 444,
+          "source": "idle",
+          "y": 443,
+          "baseline": 418,
+          "center": 237,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 12,
+            "right": 409,
+            "bottom": 418,
+            "left": 65
+          },
+          "x": 0,
+          "width": 443,
+          "head": {
+            "x": 75.67999999999995,
+            "y": -324.6,
+            "width": 154.66
+          }
+        },
+        {
+          "height": 444,
+          "source": "idle",
+          "y": 443,
+          "baseline": 418,
+          "center": 211.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 10,
+            "right": 385,
+            "bottom": 418,
+            "left": 38
+          },
+          "x": 443,
+          "width": 444,
+          "head": {
+            "x": 76.34000000000003,
+            "y": -326.2,
+            "width": 155.42000000000002
+          }
+        },
+        {
+          "height": 444,
+          "source": "idle",
+          "y": 443,
+          "baseline": 418,
+          "center": 206.5,
+          "borderAlphaMax": 2,
+          "opaqueBounds": {
+            "top": 7,
+            "right": 379,
+            "bottom": 418,
+            "left": 34
+          },
+          "x": 887,
+          "width": 443,
+          "head": {
+            "x": 75.89999999999998,
+            "y": -328.6,
+            "width": 156.56
+          }
+        },
+        {
+          "height": 444,
+          "source": "idle",
+          "y": 443,
+          "baseline": 418,
+          "center": 204,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 7,
+            "right": 377,
+            "bottom": 418,
+            "left": 31
+          },
+          "x": 1330,
+          "width": 444,
+          "head": {
+            "x": 76.12,
+            "y": -328.6,
+            "width": 156.56
+          }
+        }
+      ],
+      "fps": 3
+    },
+    "jump": {
+      "scale": 1.7096774193548387,
+      "frames": [
+        {
+          "height": 207,
+          "source": "combat",
+          "y": 680,
+          "baseline": 158,
+          "center": 232,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 25,
+            "right": 305,
+            "bottom": 158,
+            "left": 159
+          },
+          "x": 0,
+          "width": 443,
+          "head": {
+            "x": 32.120000000000005,
+            "y": -106.2,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 207,
+          "source": "combat",
+          "y": 680,
+          "baseline": 140,
+          "center": 228.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 29,
+            "right": 297,
+            "bottom": 140,
+            "left": 160
+          },
+          "x": 443,
+          "width": 444,
+          "head": {
+            "x": 30.139999999999986,
+            "y": -88.6,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 207,
+          "source": "combat",
+          "y": 680,
+          "baseline": 156,
+          "center": 206.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 33,
+            "right": 283,
+            "bottom": 156,
+            "left": 130
+          },
+          "x": 887,
+          "width": 443,
+          "head": {
+            "x": 33.66,
+            "y": -98.2,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 207,
+          "source": "combat",
+          "y": 680,
+          "baseline": 157,
+          "center": 223.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 46,
+            "right": 307,
+            "bottom": 157,
+            "left": 140
+          },
+          "x": 1330,
+          "width": 444,
+          "head": {
+            "x": 36.74000000000001,
+            "y": -88.6,
+            "width": 42.18
+          }
+        }
+      ],
+      "fps": 8
+    },
+    "walk": {
+      "scale": 0.5234567901234568,
+      "frames": [
+        {
+          "height": 443,
+          "source": "daily",
+          "y": 0,
+          "baseline": 422,
+          "center": 266,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 20,
+            "right": 469,
+            "bottom": 422,
+            "left": 63
+          },
+          "x": 0,
+          "width": 488,
+          "head": {
+            "x": 89.32,
+            "y": -321.4,
+            "width": 153.14000000000001
+          }
+        },
+        {
+          "height": 443,
+          "source": "daily",
+          "y": 0,
+          "baseline": 424,
+          "center": 218,
+          "borderAlphaMax": 0,
+          "opaqueBounds": {
+            "top": 19,
+            "right": 416,
+            "bottom": 424,
+            "left": 20
+          },
+          "x": 488,
+          "width": 432,
+          "head": {
+            "x": 87.12,
+            "y": -323.8,
+            "width": 154.28
+          }
+        },
+        {
+          "height": 443,
+          "source": "daily",
+          "y": 0,
+          "baseline": 424,
+          "center": 215.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 20,
+            "right": 414,
+            "bottom": 424,
+            "left": 17
+          },
+          "x": 920,
+          "width": 432,
+          "head": {
+            "x": 87.33999999999997,
+            "y": -323.0,
+            "width": 153.9
+          }
+        },
+        {
+          "height": 443,
+          "source": "daily",
+          "y": 0,
+          "baseline": 424,
+          "center": 214.5,
+          "borderAlphaMax": 3,
+          "opaqueBounds": {
+            "top": 20,
+            "right": 411,
+            "bottom": 424,
+            "left": 18
+          },
+          "x": 1352,
+          "width": 422,
+          "head": {
+            "x": 86.45999999999998,
+            "y": -323.0,
+            "width": 153.9
+          }
+        }
+      ],
+      "fps": 6
+    },
+    "skill": {
+      "scale": 1.7096774193548387,
+      "frames": [
+        {
+          "height": 180,
+          "source": "combat",
+          "y": 500,
+          "baseline": 144,
+          "center": 234.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 47,
+            "right": 330,
+            "bottom": 144,
+            "left": 139
+          },
+          "x": 0,
+          "width": 443,
+          "head": {
+            "x": 42.01999999999998,
+            "y": -77.4,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 180,
+          "source": "combat",
+          "y": 500,
+          "baseline": 145,
+          "center": 225.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 44,
+            "right": 334,
+            "bottom": 145,
+            "left": 117
+          },
+          "x": 443,
+          "width": 444,
+          "head": {
+            "x": 47.74000000000001,
+            "y": -80.6,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 180,
+          "source": "combat",
+          "y": 500,
+          "baseline": 138,
+          "center": 214,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 43,
+            "right": 331,
+            "bottom": 138,
+            "left": 97
+          },
+          "x": 887,
+          "width": 443,
+          "head": {
+            "x": 51.48000000000002,
+            "y": -75.8,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 180,
+          "source": "combat",
+          "y": 500,
+          "baseline": 143,
+          "center": 224.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 48,
+            "right": 315,
+            "bottom": 143,
+            "left": 134
+          },
+          "x": 1330,
+          "width": 444,
+          "head": {
+            "x": 39.81999999999999,
+            "y": -75.8,
+            "width": 42.18
+          }
+        }
+      ],
+      "fps": 12
+    },
+    "attack": {
+      "scale": 1.7096774193548387,
+      "frames": [
+        {
+          "height": 230,
+          "source": "combat",
+          "y": 270,
+          "baseline": 176,
+          "center": 230.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 43,
+            "right": 305,
+            "bottom": 176,
+            "left": 156
+          },
+          "x": 0,
+          "width": 443,
+          "head": {
+            "x": 32.77999999999997,
+            "y": -106.2,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 230,
+          "source": "combat",
+          "y": 270,
+          "baseline": 176,
+          "center": 232.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 43,
+            "right": 309,
+            "bottom": 176,
+            "left": 156
+          },
+          "x": 443,
+          "width": 444,
+          "head": {
+            "x": 33.65999999999997,
+            "y": -106.2,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 230,
+          "source": "combat",
+          "y": 270,
+          "baseline": 176,
+          "center": 218.5,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 45,
+            "right": 320,
+            "bottom": 176,
+            "left": 117
+          },
+          "x": 887,
+          "width": 443,
+          "head": {
+            "x": 44.65999999999997,
+            "y": -104.6,
+            "width": 42.18
+          }
+        },
+        {
+          "height": 230,
+          "source": "combat",
+          "y": 270,
+          "baseline": 176,
+          "center": 214,
+          "borderAlphaMax": 1,
+          "opaqueBounds": {
+            "top": 45,
+            "right": 289,
+            "bottom": 176,
+            "left": 139
+          },
+          "x": 1330,
+          "width": 444,
+          "head": {
+            "x": 33.0,
+            "y": -104.6,
+            "width": 42.18
+          }
+        }
+      ],
+      "fps": 8
+    }
+  },
+  "sources": {
+    "combat": {
+      "width": 1774,
+      "height": 887,
+      "file": "combat.png"
+    },
+    "idle": {
+      "width": 1774,
+      "height": 887,
+      "file": "idle.png"
+    },
+    "daily": {
+      "width": 1774,
+      "height": 887,
+      "file": "daily.png"
+    }
+  }
+}

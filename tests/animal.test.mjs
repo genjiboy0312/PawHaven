@@ -1447,3 +1447,109 @@ test('Home drag/drop saves only on release, handles rotation/cancel, removal and
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+test('Myeongrang cells fit their real PNGs, preserve padding and reuse Corgi effects without body substitution', async () => {
+  const map = JSON.parse(await readFile(new URL('../public/assets/characters/myeongrang/frames.json', import.meta.url), 'utf8'));
+  const { TextureSource } = await import('pixi.js');
+  const { createMyeongrang } = await importTs('../src/animals/createMyeongrang.ts', import.meta.url);
+  const atlases = {};
+  for (const [key, source] of Object.entries(map.sources)) {
+    const bytes = await readFile(new URL('../public/assets/characters/myeongrang/' + source.file, import.meta.url));
+    assert.equal(bytes.readUInt32BE(16), source.width); assert.equal(bytes.readUInt32BE(20), source.height); assert.equal(bytes[25], 6);
+    atlases[key] = new Texture({ source: new TextureSource({ width: source.width, height: source.height }) });
+  }
+  const outfit = { Hat: 1, Body: 0, Acc: 0, Etc: 0 };
+  const shared = { effects: { attack: [Texture.WHITE], skill: [Texture.WHITE] }, wardrobe: { outfit, santaHat: Texture.WHITE } };
+  const config = createMyeongrang(atlases, map, shared), controller = new AnimalAnimationController(config);
+  try {
+    assert.equal(config.id, 'myeongrang'); assert.equal(config.effects, shared.effects); assert.equal(config.wardrobe, shared.wardrobe);
+    assert.deepEqual(config.animations.fall.frames, config.animations.jump.frames.slice(2, 3));
+    assert.deepEqual(config.animations.land.frames, config.animations.jump.frames.slice(3));
+    for (const [key, clip] of Object.entries(map.actions)) {
+      assert.equal(clip.frames.length, key === 'idle' ? 8 : 4);
+      const seen = new Set();
+      for (const [i, frame] of clip.frames.entries()) {
+        assert.ok(frame.borderAlphaMax <= 8); assert.ok(frame.width > 0 && frame.height > 0);
+        const texture = config.animations[key].frames[i];
+        assert.ok(texture.trim.x >= 0 && texture.trim.y >= 0);
+        assert.ok(texture.trim.right <= texture.orig.width && texture.trim.bottom <= texture.orig.height);
+        for (const direction of [-1, 1]) {
+          controller.update('IDLE', 0, direction, 0, 0, 0, key, (i + 0.1) / clip.frames.length);
+          assert.equal(controller.sprite.texture, texture); assert.equal(controller.hat.visible, true);
+          assert.equal(Math.sign(controller.sprite.scale.x), direction); seen.add(controller.sprite.texture);
+        }
+      }
+      assert.equal(seen.size, clip.frames.length);
+    }
+    const broken = structuredClone(map); broken.actions.run.frames[0].x = 99999;
+    assert.throws(() => createMyeongrang(atlases, broken, shared), /atlas cell/);
+  } finally {
+    controller.sprite.destroy({ children: true }); controller.sleepMark.destroy(); controller.welcomeMark.destroy();
+    new Set(Object.values(config.animations).flatMap(clip => clip.frames)).forEach(texture => texture.destroy(false));
+    Object.values(atlases).forEach(texture => texture.destroy(true));
+  }
+});
+
+test('Myeongrang selection reaches lobby, game body/VFX and presets, and Corgi can still be selected', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    replaceChildren(...items) { this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, oldWindow = globalThis.window, host = new Element('main');
+  globalThis.document = Object.assign(new EventTarget(), { createElement: tag => new Element(tag), querySelector: () => host });
+  globalThis.window = new EventTarget();
+  const { Container, TextureSource } = await import('pixi.js');
+  const { createMyeongrang } = await importTs('../src/animals/createMyeongrang.ts', import.meta.url);
+  const { CharacterPresets } = await importTs('../src/animals/CharacterPresets.ts', import.meta.url);
+  const { CharacterScene } = await importTs('../src/game/scenes/CharacterScene.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const { PlayScene } = await importTs('../src/game/scenes/PlayScene.ts', import.meta.url);
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const map = JSON.parse(await readFile(new URL('../public/assets/characters/myeongrang/frames.json', import.meta.url), 'utf8'));
+  const atlases = Object.fromEntries(Object.entries(map.sources).map(([key, source]) => [key, new Texture({ source: new TextureSource({ width: source.width, height: source.height }) })]));
+  const outfit = { Hat: 1, Body: 0, Acc: 0, Etc: 0 }, presets = new CharacterPresets();
+  const corgi = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } },
+    effects: { attack: [Texture.WHITE], skill: [Texture.WHITE] }, wardrobe: { santaHat: Texture.WHITE, outfit } };
+  const myeongrang = createMyeongrang(atlases, map, corgi);
+  let active = corgi;
+  const manager = new SceneManager({ stage: new Container(), screen: { width: 960, height: 540 } });
+  let scene;
+  const character = () => { scene = new CharacterScene(active, outfit, lobby, { presets,
+    pets: [{ config: corgi, name: 'Corgi', thumbnail: './corgi.png' }, { config: myeongrang, name: 'Myeongrang', thumbnail: './idle.png' }],
+    onPetChanged: config => { active = config; } }); manager.show(scene); };
+  const lobby = () => { scene = new LobbyScene(active, () => { scene = new PlayScene(active, lobby); manager.show(scene); }, true, character); manager.show(scene); };
+  const key = code => window.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code }));
+  try {
+    character(); host.children[0].children[2].children[1].dispatchEvent(new Event('click'));
+    assert.equal(active.id, 'myeongrang'); manager.update(0.1);
+    assert.equal(scene.children[1].children[0].texture.source, atlases.daily.source);
+    host.children[0].children[3].children[3].dispatchEvent(new Event('click'));
+    assert.equal(presets.load(0).petId, 'myeongrang');
+    host.children[0].children[0].dispatchEvent(new Event('click'));
+    const animal = scene.children.find(child => child.label === 'myeongrang');
+    assert.ok(animal); animal.play('walk'); manager.update(0.1);
+    assert.equal(animal.children[0].texture.source, atlases.daily.source);
+    host.children[0].children[2].children[0].dispatchEvent(new Event('click'));
+    const pet = scene.children[1].children.at(-1);
+    key('Space'); manager.update(0.1); assert.equal(pet.children[3].texture.source, atlases.combat.source);
+    key('KeyJ'); manager.update(0.05); assert.ok(myeongrang.animations.attack.frames.includes(pet.children[3].texture));
+    manager.update(1); key('ShiftLeft'); manager.update(0.05);
+    assert.ok(myeongrang.animations.skill.frames.includes(pet.children[3].texture));
+    assert.equal(pet.children[0].texture.source, atlases.combat.source); // dash afterimage uses Myeongrang body
+    assert.equal(pet.children[0].visible, true);
+    character(); host.children[0].children[2].children[0].dispatchEvent(new Event('click')); assert.equal(active.id, 'corgi');
+    host.children[0].children[3].children[0].dispatchEvent(new Event('click')); assert.equal(active.id, 'myeongrang');
+    host.children[0].children[0].dispatchEvent(new Event('click')); assert.ok(scene.children.some(child => child.label === 'myeongrang'));
+    manager.destroy(); assert.equal(host.children.length, 0); assert.equal(Texture.WHITE.destroyed, false);
+  } finally {
+    manager.destroy();
+    new Set(Object.values(myeongrang.animations).flatMap(clip => clip.frames)).forEach(texture => texture.destroy(false));
+    Object.values(atlases).forEach(texture => texture.destroy(true));
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});

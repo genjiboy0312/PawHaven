@@ -2,7 +2,7 @@
   "rows": 2,
   "actions": {
     "idle": {
-      "runtimeReady": false,
+      "runtimeReady": true,
       "referenceArt": true,
       "rects": [
         {
@@ -128,6 +128,54 @@
       ],
       "fps": 4,
       "frames": 8
+    },
+    "walk": {
+      "runtimeReady": true,
+      "frames": 4,
+      "referenceArt": true,
+      "runtimeClip": "walk"
+    },
+    "run": {
+      "runtimeReady": true,
+      "frames": 4,
+      "referenceArt": true,
+      "runtimeClip": "run"
+    },
+    "attack": {
+      "runtimeReady": true,
+      "frames": 4,
+      "referenceArt": true,
+      "runtimeClip": "attack"
+    },
+    "skill": {
+      "runtimeReady": true,
+      "frames": 4,
+      "referenceArt": true,
+      "runtimeClip": "skill"
+    },
+    "jump": {
+      "runtimeReady": true,
+      "frames": 3,
+      "referenceArt": true,
+      "runtimeClip": "jump"
+    },
+    "emote": {
+      "runtimeReady": true,
+      "frames": 4,
+      "referenceArt": true,
+      "runtimeClip": "emote"
+    },
+    "fall": {
+      "runtimeReady": true,
+      "frames": 1,
+      "referenceArt": true,
+      "runtimeClip": "jump"
+    },
+    "land": {
+      "runtimeReady": true,
+      "frames": 1,
+      "referenceArt": true,
+      "runtimeClip": "jump"
     }
   },
   "character": "myeongrang",
@@ -135,6 +183,7 @@
   "columns": 4,
   "height": 887,
   "width": 1774,
-  "note": "Idle-only prototype. Identity from user photos; Corgi_Art_Sheet is style reference only. Full 4x2 cells preserved. Center and baseline normalize preview placement; game integration and user art approval are pending.",
-  "displayName": "명랑이"
+  "note": "Idle retained; Walk/Emote and Run/Attack/Skill/Jump body atlases added. Fall/Land reuse Jump frames. Corgi pixel VFX and runtime afterimages are shared. See MYEONGRANG_ANIMATION.md.",
+  "displayName": "명랑이",
+  "runtimeAtlas": "public/assets/characters/myeongrang/frames.json"
 }
