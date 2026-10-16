@@ -16,14 +16,12 @@ export class AnimalStateMachine {
   get jumpHeight(): number { return this.state === 'JUMP' ? 4 * 48 * this.progress * (1 - this.progress) : 0; }
   private positioned = false;
   private observeDirection = 1;
-  private petted = false;
 
-  get canPet(): boolean { return this.mode === 'auto' && !this.petted && this.state !== 'JUMP' && this.state !== 'LAND'; }
+  get canPet(): boolean { return this.mode === 'auto' && this.state !== 'JUMP' && this.state !== 'LAND'; }
 
   pet(duration = 1.5): boolean {
     if (!this.canPet) return false;
     this.enter('EMOTE');
-    this.petted = true;
     this.duration = duration;
     return true;
   }
@@ -64,7 +62,6 @@ export class AnimalStateMachine {
   }
 
   private enter(state: AnimalState): void {
-    this.petted = false;
     this.state = state;
     this.elapsed = 0;
     if (state === 'WANDER') {

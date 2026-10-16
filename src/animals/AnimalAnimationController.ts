@@ -1,11 +1,13 @@
 import { t } from '../settings/i18n';
-import { AnimatedSprite, Sprite, Text } from 'pixi.js';
+import { AnimatedSprite, Sprite, Text, Rectangle } from 'pixi.js';
 import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
 
 export class AnimalAnimationController {
   readonly sprite: AnimatedSprite;
+  readonly bodyHitArea = new Rectangle(-36, -76, 72, 88);
+  restart(): void { this.framePosition = 0; }
   readonly hat: Sprite | undefined;
   readonly sleepMark = new Text({
     text: 'z z',
@@ -76,6 +78,27 @@ export class AnimalAnimationController {
     this.sprite.y = state === 'JUMP' ? -jumpHeight : 0;
     this.sprite.rotation = state === 'NOTICE' ? Math.sin(elapsed * 5) * 0.04 : 0;
     this.sprite.pivot.y = state === 'GREET' ? Math.abs(Math.sin(elapsed * 6)) * 8 : 0;
+    // Use opaque body metadata or the tightly trimmed art, never the padded canvas or bubble.
+    const texture = this.sprite.texture, rect = texture.trim ?? texture.orig;
+    const bounds = animation.bodyBounds?.[frame] ?? {
+      x: rect.x - texture.orig.width * this.sprite.anchor.x,
+      y: rect.y - texture.orig.height * this.sprite.anchor.y,
+      width: rect.width, height: rect.height,
+    };
+    const cos = Math.cos(this.sprite.rotation), sin = Math.sin(this.sprite.rotation);
+    const corners = [[bounds.x, bounds.y], [bounds.x + bounds.width, bounds.y],
+      [bounds.x, bounds.y + bounds.height], [bounds.x + bounds.width, bounds.y + bounds.height]]
+      .map(([x, y]) => {
+        const sx = (x! - this.sprite.pivot.x) * this.sprite.scale.x;
+        const sy = (y! - this.sprite.pivot.y) * this.sprite.scale.y;
+        return { x: this.sprite.x + sx * cos - sy * sin, y: this.sprite.y + sx * sin + sy * cos };
+      });
+    const left = Math.min(...corners.map(p => p.x)), right = Math.max(...corners.map(p => p.x));
+    const top = Math.min(...corners.map(p => p.y)), bottom = Math.max(...corners.map(p => p.y));
+    const width = Math.max(48, right - left), height = Math.max(64, bottom - top);
+    this.bodyHitArea.x = (left + right - width) / 2 - 12;
+    this.bodyHitArea.y = bottom - height - 12;
+    this.bodyHitArea.width = width + 24; this.bodyHitArea.height = height + 24;
     this.sleepMark.visible = state === 'SLEEP';
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;

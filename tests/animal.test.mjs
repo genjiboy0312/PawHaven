@@ -802,7 +802,7 @@ test('Character opens a stationary preview, keeps category selection without equ
     panel.children[0].dispatchEvent(new Event('click'));
     assert.equal(returns, 1); assert.equal(scene.destroyed, true); assert.equal(host.children.length, 1);
     const pet = app.stage.children[0].children.find(child => child.label === 'corgi');
-    assert.equal(pet.welcoming, false); assert.equal(pet.children.length, 3);
+    assert.equal(pet.welcoming, false); assert.equal(pet.children.length, 4);
     host.children[0].children[0].children[0].dispatchEvent(new Event('click'));
     host.children[0].children[1].children[2].dispatchEvent(new Event('click'));
     assert.equal(host.children[0].children[2].children[2].attributes.get('aria-pressed'), 'true');
@@ -1158,7 +1158,7 @@ test('Home beside Character opens a pet-free map editor and returns the same edi
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
 });
-test('petting rejects welcome, jumping and repeated taps, then resumes autonomous movement', () => {
+test('petting debounces rapid input, restarts motion on retouch and resumes autonomous movement', () => {
   const animal = new Animal({ id: 'corgi', speed: 90, scale: 0.62,
     animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
       walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
@@ -1170,12 +1170,13 @@ test('petting rejects welcome, jumping and repeated taps, then resumes autonomou
     animal.resumeAutonomy();
     const x = animal.x;
     assert.equal(animal.pet(), true); assert.equal(animal.state, 'EMOTE');
-    for (let i = 0; i < 60; i++) {
-      assert.equal(animal.pet(), false); animal.update(1 / 60);
-      assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
-    }
-    assert.ok(animal.children[0].currentFrame > 0);
-    animal.update(0.51); assert.equal(animal.pet(), false); animal.update(6); assert.equal(animal.state, 'IDLE'); assert.equal(animal.mode, 'auto');
+    for (let i = 0; i < 10; i++) assert.equal(animal.pet(), false);
+    const message = animal.children[2].text;
+    animal.update(0.4); assert.ok(animal.children[0].currentFrame > 0);
+    assert.equal(animal.pet(), true); assert.equal(animal.children[0].currentFrame, 0);
+    assert.equal(animal.children[2].text, message); assert.equal(animal.children[3].text, '♪');
+    animal.update(0.4); assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
+    animal.update(6); assert.equal(animal.state, 'IDLE'); assert.equal(animal.mode, 'auto');
     const states = new Set();
     for (let i = 0; i < 7200; i++) {
       animal.update(1 / 60); states.add(animal.state);
@@ -1204,14 +1205,14 @@ test('lobby body taps react independently of HUD, respect pause and release list
     const pet = scene.children.find(child => child.label === 'corgi');
     assert.equal(pet.eventMode, 'static'); assert.equal(pet.hitArea.contains(0, -60), true);
     assert.equal(pet.hitArea.contains(300, -60), false);
-    pet.emit('pointertap', { button: 2 }); assert.equal(pet.state, 'IDLE');
-    scene.setPaused(true); pet.emit('pointertap', { button: 0 }); assert.equal(pet.state, 'IDLE');
-    scene.setPaused(false); pet.emit('pointertap', { button: 0 }); assert.equal(pet.state, 'EMOTE');
+    pet.emit('pointerdown', { button: 2 }); assert.equal(pet.state, 'IDLE');
+    scene.setPaused(true); pet.emit('pointerdown', { button: 0 }); assert.equal(pet.state, 'IDLE');
+    scene.setPaused(false); pet.emit('pointerdown', { button: 0 }); assert.equal(pet.state, 'EMOTE');
     scene.update(0.5); const frame = pet.children[0].currentFrame;
     for (const group of host.children[0].children) for (const button of group.children) button.dispatchEvent(new Event('click'));
     scene.setPaused(true); scene.update(10); assert.equal(pet.children[0].currentFrame, frame);
     scene.setPaused(false); scene.update(7); assert.equal(pet.state, 'IDLE');
-    scene.destroy({ children: true }); assert.equal(pet.listenerCount('pointertap'), 0); assert.equal(host.children.length, 0);
+    scene.destroy({ children: true }); assert.equal(pet.listenerCount('pointerdown'), 0); assert.equal(host.children.length, 0);
   } finally {
     if (!scene.destroyed) scene.destroy({ children: true });
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
@@ -1495,6 +1496,12 @@ test('Myeongrang cells fit their real PNGs, preserve padding and reuse Corgi eff
           controller.update('IDLE', 0, direction, 0, 0, 0, key, (i + 0.1) / clip.frames.length);
           assert.equal(controller.sprite.texture, texture); assert.equal(controller.hat.visible, true);
           assert.equal(Math.sign(controller.sprite.scale.x), direction); seen.add(controller.sprite.texture);
+          const b = config.animations[key].bodyBounds[i], hit = controller.bodyHitArea;
+          assert.ok(Math.abs(hit.width - (Math.max(48, b.width * Math.abs(controller.sprite.scale.x)) + 24)) < 0.001);
+          assert.ok(Math.abs(hit.height - (Math.max(64, b.height * controller.sprite.scale.y) + 24)) < 0.001);
+          const centre = (b.x + b.width / 2) * controller.sprite.scale.x;
+          assert.ok(hit.contains(centre, (b.y + b.height / 2) * controller.sprite.scale.y));
+          assert.equal(hit.contains(centre + 400, -50), false);
         }
       }
       assert.equal(seen.size, clip.frames.length);
@@ -1713,6 +1720,9 @@ test('pet dialogue stays still, survives resizing/language changes, ignores spam
     assert.ok(message.includes('오늘도')); assert.equal(animal.pet(), false);
     animal.update(2.35); assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
     assert.equal(bubble.text, message); assert.ok(animal.children[0].currentFrame > 0);
+    const firstReaction = animal.children[3].text;
+    assert.equal(animal.pet(), true); assert.equal(animal.children[0].currentFrame, 0);
+    assert.notEqual(animal.children[3].text, firstReaction); assert.equal(bubble.text, message);
     animal.setBounds(390, 280); animal.update(0); assert.equal(bubble.text, message);
     setLanguage('en'); animal.update(0); assert.ok(bubble.text.includes('today'));
     assert.equal(animal.pet(), false);
@@ -1720,4 +1730,25 @@ test('pet dialogue stays still, survives resizing/language changes, ignores spam
     assert.equal(animal.pet(), true); assert.ok(!bubble.text.includes('You did well'));
     animal.play('idle'); assert.equal(bubble.visible, false);
   } finally { animal.destroy({ children: true }); setLanguage('en'); }
+});
+test('repeated touches give immediate feedback without extending the healing dialogue clock', () => {
+  const animal = new Animal({ id: 'myeongrang', speed: 90, scale: 0.62, animations: {
+    idle: { frames: [Texture.WHITE], fps: 3 }, emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 },
+  } }, () => 0);
+  try {
+    animal.setBounds(960, 390); assert.equal(animal.pet(), true);
+    const dialogue = animal.children[2], reaction = animal.children[3], message = dialogue.text;
+    assert.equal(reaction.text, '♡'); assert.equal(reaction.visible, true);
+    for (let i = 0; i < 20; i++) {
+      const symbol = reaction.text;
+      animal.update(0.2); assert.equal(animal.pet(), true);
+      assert.equal(animal.children[0].currentFrame, 0); assert.notEqual(reaction.text, symbol);
+      assert.equal(dialogue.text, message); assert.equal(animal.pet(), false);
+    }
+    animal.update(2);
+    assert.equal(dialogue.visible, false); assert.equal(reaction.visible, false);
+    assert.equal(animal.state, 'IDLE');
+    assert.equal(animal.pet(), true); assert.notEqual(dialogue.text, message);
+    assert.equal(animal.hitArea.contains(dialogue.x, dialogue.y), false);
+  } finally { animal.destroy({ children: true }); }
 });

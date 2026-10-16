@@ -71,7 +71,7 @@ export class SpeechBubble extends Container {
 
   fitToViewport(animalX: number, animalY: number, width: number, height: number): void {
     const halfWidth = this.bubbleWidth / 2 + 12, halfHeight = this.halfHeight + 12;
-    const targetX = Math.max(halfWidth, Math.min(width - halfWidth, animalX));
+    const targetX = Math.max(halfWidth, Math.min(width - halfWidth, animalX + this.x));
     this.x = targetX - animalX;
     this.y = Math.max(halfHeight - animalY, Math.min(height - halfHeight - animalY, this.y));
     this.drawTail(Math.max(-this.bubbleWidth / 2 + 16, Math.min(this.bubbleWidth / 2 - 16, -this.x)));

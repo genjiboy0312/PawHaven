@@ -1,5 +1,6 @@
 import { Container } from 'pixi.js';
 import { HealingDialogue } from './HealingDialogue';
+import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import { AnimalAnimationController } from './AnimalAnimationController';
 import { AnimalStateMachine } from './AnimalStateMachine';
@@ -11,6 +12,10 @@ export class Animal extends Container {
   private readonly behavior: AnimalStateMachine;
   private readonly welcome: WelcomeSequence;
   private readonly dialogue: HealingDialogue;
+  private readonly touchReaction = new SpeechBubble();
+  private touchCooldown = 0;
+  private reactionRemaining = 0;
+  private touches = 0;
   private viewport = { width: 960, height: 540 };
   get state(): AnimalVisualState { return this.welcome.state ?? this.behavior.state; }
   get mode(): BehaviorMode { return this.behavior.mode; }
@@ -22,7 +27,9 @@ export class Animal extends Container {
     this.welcome = new WelcomeSequence(config.speed, config.welcome);
     this.animation = new AnimalAnimationController(config);
     this.dialogue = new HealingDialogue(random);
-    this.addChild(this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark);
+    this.addChild(this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.touchReaction);
+    this.hitArea = this.animation.bodyHitArea;
+    this.interactiveChildren = false;
     this.label = config.id;
   }
 
@@ -33,15 +40,21 @@ export class Animal extends Container {
     return true;
   }
   pet(): boolean {
-    if (this.welcoming || this.dialogue.active || !this.behavior.canPet) return false;
-    this.dialogue.start();
-    this.behavior.pet(this.dialogue.duration);
+    if (this.welcoming || this.touchCooldown > 0 || !this.behavior.canPet) return false;
+    if (!this.dialogue.active) this.dialogue.start();
+    this.behavior.pet(Math.max(1.5, this.dialogue.remainingTime));
+    this.animation.restart();
+    this.touchCooldown = 0.18;
+    this.reactionRemaining = 0.75;
+    this.touches++;
     this.update(0);
     return true;
   }
   play(action: AnimalAction): boolean {
     if (this.welcoming || (action !== 'idle' && action !== 'walk') || !this.config.animations[action]) return false;
     this.dialogue.clear();
+    this.reactionRemaining = 0;
+    this.touchReaction.present('', 0);
     this.behavior.setMode(action);
     this.update(0);
     return true;
@@ -61,6 +74,10 @@ export class Animal extends Container {
     this.y = ground;
   }
   update(seconds: number): void {
+    if (Number.isFinite(seconds) && seconds > 0) {
+      this.touchCooldown = Math.max(0, this.touchCooldown - seconds);
+      this.reactionRemaining = Math.max(0, this.reactionRemaining - seconds);
+    }
     this.dialogue.update(seconds);
     if (this.welcoming) {
       this.welcome.update(seconds);
@@ -80,5 +97,9 @@ export class Animal extends Container {
       this.dialogue.active ? { message: this.dialogue.message, remaining: this.dialogue.remainingTime } : undefined,
     );
     this.animation.welcomeMark.fitToViewport(this.x, this.y, this.viewport.width, this.viewport.height);
+    const body = this.animation.bodyHitArea;
+    this.touchReaction.present(this.reactionRemaining > 0 ? (this.touches % 2 ? '♡' : '♪') : '', seconds, false, 0.75, this.reactionRemaining);
+    this.touchReaction.position.set(body.right + 18, body.top + 25);
+    this.touchReaction.fitToViewport(this.x, this.y, this.viewport.width, this.viewport.height);
   }
 }

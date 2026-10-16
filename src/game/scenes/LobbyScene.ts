@@ -1,6 +1,6 @@
 import { HomeState } from '../../home/HomeState';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
-import { Graphics, Rectangle, type DestroyOptions } from 'pixi.js';
+import { Graphics, type DestroyOptions } from 'pixi.js';
 import { Animal } from '../../animals/Animal';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { LobbyHud } from '../../ui/LobbyHud';
@@ -21,11 +21,10 @@ export class LobbyScene extends Scene {
     this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open);
     this.welcomeStarted = returning;
     this.animal = new Animal(config);
-    // Body hit area excludes padded sprite cells and expression text.
-    this.animal.hitArea = new Rectangle(-80, -145, 160, 145);
+    // Animal maintains a frame-aware body hit area with a small touch margin.
     this.animal.eventMode = 'static';
     this.animal.cursor = 'pointer';
-    this.animal.on('pointertap', event => {
+    this.animal.on('pointerdown', event => {
       if (!this.paused && event.button === 0) this.animal.pet();
     });
     this.addChild(this.garden, this.shadow, this.animal);
