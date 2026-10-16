@@ -6,7 +6,7 @@ import type { AnimalVisualState } from './AnimalState';
 
 export class AnimalAnimationController {
   readonly sprite: AnimatedSprite;
-  readonly bodyHitArea = new Rectangle(-36, -76, 72, 88);
+  readonly bodyHitArea = new Rectangle(-52, -92, 104, 120);
   restart(): void { this.framePosition = 0; }
   readonly hat: Sprite | undefined;
   readonly sleepMark = new Text({
@@ -96,9 +96,9 @@ export class AnimalAnimationController {
     const left = Math.min(...corners.map(p => p.x)), right = Math.max(...corners.map(p => p.x));
     const top = Math.min(...corners.map(p => p.y)), bottom = Math.max(...corners.map(p => p.y));
     const width = Math.max(48, right - left), height = Math.max(64, bottom - top);
-    this.bodyHitArea.x = (left + right - width) / 2 - 12;
-    this.bodyHitArea.y = bottom - height - 12;
-    this.bodyHitArea.width = width + 24; this.bodyHitArea.height = height + 24;
+    this.bodyHitArea.x = (left + right - width) / 2 - 28;
+    this.bodyHitArea.y = bottom - height - 28;
+    this.bodyHitArea.width = width + 56; this.bodyHitArea.height = height + 56;
     this.sleepMark.visible = state === 'SLEEP';
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;

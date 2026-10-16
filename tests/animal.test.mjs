@@ -1497,8 +1497,8 @@ test('Myeongrang cells fit their real PNGs, preserve padding and reuse Corgi eff
           assert.equal(controller.sprite.texture, texture); assert.equal(controller.hat.visible, true);
           assert.equal(Math.sign(controller.sprite.scale.x), direction); seen.add(controller.sprite.texture);
           const b = config.animations[key].bodyBounds[i], hit = controller.bodyHitArea;
-          assert.ok(Math.abs(hit.width - (Math.max(48, b.width * Math.abs(controller.sprite.scale.x)) + 24)) < 0.001);
-          assert.ok(Math.abs(hit.height - (Math.max(64, b.height * controller.sprite.scale.y) + 24)) < 0.001);
+          assert.ok(Math.abs(hit.width - (Math.max(48, b.width * Math.abs(controller.sprite.scale.x)) + 56)) < 0.001);
+          assert.ok(Math.abs(hit.height - (Math.max(64, b.height * controller.sprite.scale.y) + 56)) < 0.001);
           const centre = (b.x + b.width / 2) * controller.sprite.scale.x;
           assert.ok(hit.contains(centre, (b.y + b.height / 2) * controller.sprite.scale.y));
           assert.equal(hit.contains(centre + 400, -50), false);
