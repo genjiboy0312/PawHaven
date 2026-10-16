@@ -74,6 +74,7 @@ export class Game {
     if (this.disposed) return;
     const preload = new PreloadScene();
     this.scenes.show(preload);
+    document.querySelector('#status')?.remove();
     const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress); });
     this.corgi = corgi;
     if (this.disposed) { this.releaseFrames(); return; }
@@ -90,7 +91,7 @@ export class Game {
       }, openSettings));
     };
     this.scenes.show(new TitleScene(() => lobby()));
-    document.querySelector('#status')?.remove();
+
     this.visibility();
   }
 
