@@ -41,3 +41,32 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: 3px; }
   margin: 0 auto;
 }
 .behavior-buttons button { min-width: 0; margin: 0; padding: 10px 12px; }
+
+.is-title > .game-heading { visibility: hidden; }
+.title-screen { position: absolute; inset: 0; z-index: 4; }
+.title-copy {
+  position: absolute; top: 18%; left: 16px; right: 16px;
+  text-align: center; pointer-events: none; z-index: 1;
+}
+.title-copy h1 { margin: 0; font: clamp(38px, 8vw, 64px) Georgia, serif; letter-spacing: 2px; }
+.title-copy p { margin: 10px 0 0; font: 18px Georgia, serif; color: #6b7b5c; }
+.title-copy .title-description { margin-top: 20px; font: 14px system-ui, sans-serif; }
+.title-start {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0 16px max(32px, 13vh);
+  border: 0; border-radius: 0; background: transparent; color: #526744;
+  display: flex; align-items: flex-end; justify-content: center;
+  font-size: 15px; -webkit-tap-highlight-color: transparent;
+}
+.title-start span { animation: invitation 2.4s ease-in-out infinite; }
+.title-start:focus-visible { outline-offset: -6px; }
+.behavior-buttons button:disabled { opacity: 0.45; cursor: default; }
+@keyframes invitation { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (max-height: 420px) {
+  .title-copy { top: 8%; }
+  .title-copy h1 { font-size: 36px; }
+  .title-copy .title-description { display: none; }
+  .title-copy p { font-size: 14px; margin-top: 4px; }
+  .title-start { padding-bottom: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .title-start span { animation: none; } }

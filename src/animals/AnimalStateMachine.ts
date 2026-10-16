@@ -39,6 +39,11 @@ export class AnimalStateMachine {
       ? (this.direction > 0 ? right : left) : this.clamp(this.target);
   }
 
+  setPosition(x: number, direction: number): void {
+    this.x = this.clamp(x);
+    this.direction = direction < 0 ? -1 : 1;
+  }
+
   setMode(mode: BehaviorMode): void {
     this.mode = mode;
     this.enter(mode === 'walk' ? 'WANDER' : 'IDLE');

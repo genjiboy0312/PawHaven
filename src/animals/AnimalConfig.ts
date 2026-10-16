@@ -1,3 +1,4 @@
+import type { WelcomeConfig } from '../systems/WelcomeSequence';
 import type { BehaviorProfile } from './AnimalState';
 import type { Texture } from 'pixi.js';
 
@@ -13,4 +14,5 @@ export interface AnimalConfig {
   scale: number;
   animations: AnimationSet;
   behavior?: BehaviorProfile;
+  welcome?: WelcomeConfig;
 }

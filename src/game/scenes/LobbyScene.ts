@@ -1,10 +1,13 @@
 import { Graphics, type DestroyOptions } from 'pixi.js';
 import { Animal } from '../../animals/Animal';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
-import type { AnimalState, BehaviorMode } from '../../animals/AnimalState';
+import type { AnimalVisualState, BehaviorMode } from '../../animals/AnimalState';
 import { Scene } from './Scene';
 
-const STATE_MESSAGES: Record<AnimalState, string> = {
+const STATE_MESSAGES: Record<AnimalVisualState, string> = {
+  NOTICE: '코기가 당신을 알아봤어요',
+  APPROACH: '반가운 발걸음으로 다가와요',
+  GREET: '어서 와요, 기다리고 있었어요',
   IDLE: '코기가 느긋하게 쉬고 있어요',
   WANDER: '코기가 정원을 산책하고 있어요',
   REST: '코기가 잠시 눈을 붙이고 있어요',
@@ -20,7 +23,8 @@ export class LobbyScene extends Scene {
   private readonly caption = document.createElement('p');
   private readonly buttons = new Map<BehaviorMode, HTMLButtonElement>();
   private readonly buttonCleanups: (() => void)[] = [];
-  private previousState: AnimalState | undefined;
+  private previousState: AnimalVisualState | undefined;
+  private welcomeStarted = false;
 
   constructor(config: AnimalConfig) {
     super();
@@ -48,6 +52,7 @@ export class LobbyScene extends Scene {
     this.setMode('auto');
   }
   private setMode(mode: BehaviorMode): void {
+    if (this.animal.welcoming) return;
     if (mode === 'auto') this.animal.resumeAutonomy();
     else this.animal.play(mode);
     for (const [key, button] of this.buttons) {
@@ -61,11 +66,16 @@ export class LobbyScene extends Scene {
       .rect(0, height * 0.45, width, height * 0.55).fill('#c4d6a7')
       .ellipse(width * 0.5, ground + 20, width * 0.46, height * 0.12).fill('#b7ce98');
     this.animal.setBounds(width, ground);
+    if (!this.welcomeStarted) {
+      this.welcomeStarted = true;
+      this.animal.startWelcome();
+    }
     this.shadow.clear().ellipse(0, 0, 54, 9).fill({ color: '#566840', alpha: 0.13 });
     this.update(0);
   }
   override update(seconds: number): void {
     this.animal.update(seconds);
+    for (const button of this.buttons.values()) button.disabled = this.animal.welcoming;
     this.shadow.position.set(this.animal.x, this.animal.y - 2);
     if (this.previousState !== this.animal.state) {
       this.caption.textContent = STATE_MESSAGES[this.animal.state];

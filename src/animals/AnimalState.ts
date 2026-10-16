@@ -1,5 +1,7 @@
+import type { WelcomeState } from '../systems/WelcomeSequence';
 export const ANIMAL_STATES = ['IDLE', 'WANDER', 'REST', 'SLEEP', 'OBSERVE'] as const;
 export type AnimalState = typeof ANIMAL_STATES[number];
+export type AnimalVisualState = AnimalState | WelcomeState;
 export type BehaviorMode = 'auto' | 'idle' | 'walk';
 export type DurationRange = readonly [number, number];
 export interface BehaviorProfile {

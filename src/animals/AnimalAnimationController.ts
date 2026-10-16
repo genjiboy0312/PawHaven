@@ -1,6 +1,6 @@
 import { AnimatedSprite, Text } from 'pixi.js';
 import type { AnimalConfig } from './AnimalConfig';
-import type { AnimalState } from './AnimalState';
+import type { AnimalVisualState } from './AnimalState';
 
 export class AnimalAnimationController {
   readonly sprite: AnimatedSprite;
@@ -8,7 +8,11 @@ export class AnimalAnimationController {
     text: 'z z',
     style: { fontFamily: 'Georgia, serif', fontSize: 20, fill: '#687b58' },
   });
-  private lastState: AnimalState = 'IDLE';
+  readonly welcomeMark = new Text({
+    text: '',
+    style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fontWeight: '600', fill: '#765536' },
+  });
+  private lastState: AnimalVisualState = 'IDLE';
 
   constructor(private readonly config: AnimalConfig) {
     const idle = config.animations.idle;
@@ -19,25 +23,34 @@ export class AnimalAnimationController {
     this.sprite.scale.set(config.scale);
     this.sleepMark.anchor.set(0.5);
     this.sleepMark.visible = false;
+    this.welcomeMark.anchor.set(0.5);
+    this.welcomeMark.visible = false;
   }
 
-  update(state: AnimalState, elapsed: number, direction: number): void {
-    const animation = this.config.animations[state === 'WANDER' ? 'walk' : 'idle'];
+  update(state: AnimalVisualState, elapsed: number, direction: number): void {
+    const moving = state === 'WANDER' || state === 'APPROACH';
+    const animation = this.config.animations[moving ? 'walk' : 'idle'];
     if (!animation) return;
     if (state !== this.lastState) {
       this.sprite.textures = animation.frames;
       this.lastState = state;
     }
-    // Dedicated rest/sleep/observe art will replace these explicit prototype expressions.
+    // Dedicated rest, sleep and greeting art can replace these prototype expressions.
+    const fps = animation.fps * (state === 'APPROACH' ? 1.25 : state === 'GREET' ? 1.6 : 1);
     const frame = state === 'SLEEP' ? Math.min(5, animation.frames.length - 1)
       : state === 'REST' ? Math.min(3, animation.frames.length - 1)
       : state === 'OBSERVE' ? 0
-      : Math.floor(elapsed * animation.fps) % animation.frames.length;
+      : Math.floor(elapsed * fps) % animation.frames.length;
     this.sprite.gotoAndStop(frame);
     const breath = state === 'SLEEP' || state === 'REST' ? 1 + Math.sin(elapsed * 2) * 0.012 : 1;
     this.sprite.scale.set(direction * this.config.scale, this.config.scale * breath);
+    this.sprite.rotation = state === 'NOTICE' ? Math.sin(elapsed * 5) * 0.04 : 0;
+    this.sprite.pivot.y = state === 'GREET' ? Math.abs(Math.sin(elapsed * 6)) * 8 : 0;
     this.sleepMark.visible = state === 'SLEEP';
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;
+    this.welcomeMark.visible = state === 'NOTICE' || state === 'GREET';
+    this.welcomeMark.text = state === 'NOTICE' ? '!' : state === 'GREET' ? '반가워! ♡' : '';
+    this.welcomeMark.position.set(0, -155 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
   }
 }

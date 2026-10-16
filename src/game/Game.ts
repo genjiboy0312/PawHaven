@@ -1,3 +1,4 @@
+import { TitleScene } from './scenes/TitleScene';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { loadCorgi } from '../animals/loadCorgi';
 import { Application, type Ticker } from 'pixi.js';
@@ -51,7 +52,9 @@ export class Game {
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
-    this.scenes.show(new LobbyScene(corgi));
+    this.scenes.show(new TitleScene(corgi, () => {
+      if (!this.disposed) this.scenes?.show(new LobbyScene(corgi));
+    }));
     document.querySelector('#status')?.remove();
     this.visibility();
   }

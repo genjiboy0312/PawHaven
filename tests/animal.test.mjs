@@ -194,3 +194,155 @@ test('sleep expression follows automatic state and clears immediately on manual 
   assert.equal(animal.children[1].visible, false);
   animal.destroy({ children: true });
 });
+
+const { WelcomeSequence } = await importTs('../src/systems/WelcomeSequence.ts', import.meta.url);
+
+test('welcome runs notice, approach and greet exactly once before ending', () => {
+  const welcome = new WelcomeSequence(90);
+  welcome.setBounds(100, 1180);
+  assert.equal(welcome.start(), true);
+  const spawn = welcome.x;
+  assert.equal(welcome.state, 'NOTICE');
+  assert.equal(welcome.start(), false);
+  welcome.update(0.3);
+  assert.equal(welcome.x, spawn);
+  const visited = new Set([welcome.state]);
+  for (let i = 0; i < 1200 && welcome.active; i++) {
+    welcome.update(1 / 60);
+    if (welcome.state) visited.add(welcome.state);
+    assert.ok(welcome.x >= 100 && welcome.x <= 1180);
+  }
+  assert.deepEqual([...visited], ['NOTICE', 'APPROACH', 'GREET']);
+  assert.equal(welcome.active, false);
+  assert.equal(welcome.x, 640);
+  assert.equal(welcome.start(), false);
+  const stopped = welcome.x;
+  welcome.update(30);
+  assert.equal(welcome.x, stopped);
+});
+
+test('welcome target follows resize and degenerate areas do not trap approach', () => {
+  const welcome = new WelcomeSequence(90);
+  welcome.setBounds(100, 1180);
+  welcome.start();
+  welcome.update(0.9);
+  welcome.update(0.3);
+  welcome.setBounds(76.8, 243.2);
+  for (let i = 0; i < 1200 && welcome.active; i++) {
+    welcome.update(1 / 60);
+    assert.ok(welcome.x >= 76.8 && welcome.x <= 243.2);
+  }
+  assert.equal(welcome.active, false);
+  assert.equal(welcome.x, 160);
+  const tiny = new WelcomeSequence(90);
+  tiny.setBounds(80, 80);
+  tiny.start();
+  for (let i = 0; i < 600; i++) tiny.update(1 / 60);
+  assert.equal(tiny.active, false);
+  assert.equal(tiny.x, 80);
+});
+
+test('animal pauses daily behavior during welcome, then resumes autonomous life', () => {
+  const animal = createAnimal();
+  animal.setBounds(390, 590);
+  assert.equal(animal.startWelcome(), true);
+  assert.equal(animal.state, 'NOTICE');
+  assert.equal(animal.play('walk'), false);
+  animal.resumeAutonomy();
+  assert.equal(animal.state, 'NOTICE');
+  const greetingStates = new Set();
+  for (let i = 0; i < 1200 && animal.welcoming; i++) {
+    greetingStates.add(animal.state);
+    animal.update(1 / 60);
+    if (animal.state === 'GREET') assert.equal(animal.children[2].visible, true);
+  }
+  assert.deepEqual([...greetingStates], ['NOTICE', 'APPROACH', 'GREET']);
+  assert.equal(animal.welcoming, false);
+  assert.equal(animal.mode, 'auto');
+  assert.equal(animal.state, 'IDLE');
+  assert.equal(animal.children[2].visible, false);
+  assert.equal(animal.children[0].pivot.y, 0);
+  assert.equal(animal.children[0].rotation, 0);
+  assert.equal(animal.startWelcome(), false);
+  assert.equal(animal.play('walk'), true);
+  animal.destroy({ children: true });
+});
+
+test('title click creates one lobby and cleans up entry/control listeners', async () => {
+  // Native EventTarget with a minimal DOM surface: this checks scene lifecycle, not browser rendering.
+  class Element extends EventTarget {
+    children = [];
+    parent = undefined;
+    attributes = new Map();
+    classes = new Set();
+    classList = {
+      add: (name) => this.classes.add(name),
+      remove: (name) => this.classes.delete(name),
+    };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...children) {
+      for (const child of children) { child.parent = this; this.children.push(child); }
+    }
+    setAttribute(name, value) { this.attributes.set(name, value); }
+    remove() {
+      if (this.parent) this.parent.children = this.parent.children.filter((child) => child !== this);
+      this.parent = undefined;
+    }
+  }
+  const originalDocument = globalThis.document;
+  const host = new Element('main');
+  globalThis.document = {
+    createElement: (tag) => new Element(tag),
+    querySelector: (selector) => selector === '#app' ? host : null,
+  };
+  const { Container } = await import('pixi.js');
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const { TitleScene } = await importTs('../src/game/scenes/TitleScene.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const app = { stage: new Container(), screen: { width: 390, height: 844 } };
+  const manager = new SceneManager(app);
+  let entries = 0;
+  const config = {
+    id: 'corgi', speed: 90, scale: 0.62,
+    animations: {
+      idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
+      walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+    },
+  };
+  try {
+    const title = new TitleScene(config, () => { entries++; manager.show(new LobbyScene(config)); });
+    manager.show(title);
+    manager.update(0.1);
+    assert.equal(host.classes.has('is-title'), true);
+    assert.equal(host.children.length, 1);
+    const start = host.children[0].children.find((element) => element.tag === 'button');
+    assert.equal(start.type, 'button');
+    for (let i = 0; i < 10; i++) start.dispatchEvent(new Event('click'));
+    assert.equal(entries, 1);
+    assert.equal(title.destroyed, true);
+    assert.equal(host.classes.has('is-title'), false);
+    assert.equal(app.stage.children.length, 1);
+    assert.equal(host.children.length, 1);
+    const controls = host.children[0];
+    const walk = controls.children[1].children.find((element) => element.textContent === '걷기');
+    assert.equal(walk.disabled, true);
+    walk.dispatchEvent(new Event('click'));
+    assert.equal(controls.children[0].textContent, '코기가 당신을 알아봤어요');
+    for (let i = 0; i < 20; i++) manager.resize();
+    for (let i = 0; i < 2400; i++) manager.update(1 / 60);
+    assert.equal(walk.disabled, false);
+    walk.dispatchEvent(new Event('click'));
+    assert.equal(walk.attributes.get('aria-pressed'), 'true');
+    manager.destroy();
+    assert.equal(host.children.length, 0);
+    walk.dispatchEvent(new Event('click'));
+    assert.equal(app.stage.children.length, 0);
+    start.dispatchEvent(new Event('click'));
+    assert.equal(entries, 1);
+  } finally {
+    manager.destroy();
+    app.stage.destroy();
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+  }
+});
