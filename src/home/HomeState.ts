@@ -23,6 +23,7 @@ export class HomeState {
   private value: HomeLook = { Background: 0, Floor: 0 };
   private objects: HomeItem[] = [];
   private nextId = 1;
+  revision = 0;
   get current(): HomeLook { return { ...this.value }; }
   get items(): HomeItem[] { return this.objects.map(item => ({ ...item })); }
   remaining(tab: PlaceableTab, option: number): number {
@@ -74,6 +75,7 @@ export class HomeState {
     this.objects.splice(index, 1); this.save(); return true;
   }
   private save(): void {
+    this.revision++;
     try { this.storage?.setItem(HOME_STORAGE_KEY, JSON.stringify({ version: 2, ...this.value, items: this.objects })); } catch { /* Keep session changes. */ }
   }
 }

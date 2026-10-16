@@ -37,7 +37,7 @@ export class AnimalAnimationController {
     this.welcomeMark.visible = false;
   }
 
-  update(state: AnimalVisualState, elapsed: number, direction: number, progress = 0, jumpHeight = 0, seconds = 0, action?: AnimalAction, actionProgress?: number, speech?: { message: string; remaining: number }): void {
+  update(state: AnimalVisualState, elapsed: number, direction: number, progress = 0, jumpHeight = 0, seconds = 0, action?: AnimalAction, actionProgress?: number, speech?: { message: string; remaining: number; reaction?: string }): void {
     const moving = state === 'WANDER' || state === 'APPROACH';
     const key = action ?? (state === 'JUMP' || state === 'LAND' ? 'jump' : state === 'EMOTE' ? 'emote' : moving ? 'walk' : 'idle');
     const animation = this.config.animations[key] ?? this.config.animations.idle;
@@ -103,7 +103,7 @@ export class AnimalAnimationController {
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;
     const message = speech?.message ?? (state === 'NOTICE' ? '!' : state === 'GREET' ? t('greet') : state === 'EMOTE' ? ['♡', '♪', '?'][Math.floor(elapsed * 0.9) % 3] : '');
-    this.welcomeMark.present(message, seconds, state === 'GREET', 1.1, speech?.remaining);
+    this.welcomeMark.present(message, seconds, state === 'GREET', 1.1, speech?.remaining, speech?.reaction);
     const headTop = head ? (head.y - head.width * 0.8) * nativeScale : -125;
     this.welcomeMark.position.set(0, this.sprite.y + headTop - this.welcomeMark.halfHeight - 18 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
   }

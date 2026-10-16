@@ -29,6 +29,11 @@ export class SpeechBubble extends Container {
   private readonly caption = new Text({
     text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fontWeight: '600', lineHeight: 25, align: 'center', fill: '#59605b' },
   });
+  private readonly reaction = new Text({
+    text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 22, fill: '#c5838a' },
+  });
+  private reactionAge = 0;
+  get reactionText(): string { return this.reaction.text; }
   private tailX = NaN;
   private age = 0;
   private source = '';
@@ -40,12 +45,13 @@ export class SpeechBubble extends Container {
   constructor() {
     super();
     this.caption.anchor.set(0.5);
-    this.addChild(this.plate, this.tail, this.caption);
+    this.reaction.anchor.set(0.5);
+    this.addChild(this.plate, this.tail, this.caption, this.reaction);
     this.visible = false;
     this.eventMode = 'none';
   }
 
-  present(message: string, seconds: number, hold = false, lifetime = 1.1, remaining?: number): void {
+  present(message: string, seconds: number, hold = false, lifetime = 1.1, remaining?: number, reaction = ''): void {
     const changed = message !== this.source;
     if (changed) {
       this.source = message;
@@ -54,13 +60,21 @@ export class SpeechBubble extends Container {
       this.age = 0;
       const lines = wrapped.split('\n');
       this.bubbleWidth = Math.max(40, ...lines.map(line => lineWidth(line) + 24));
-      this.halfHeight = lines.length === 1 ? 18 : (lines.length * 25 + 20) / 2;
+      const header = lines.length > 1 ? 28 : 0;
+      this.halfHeight = lines.length === 1 ? 18 : (lines.length * 25 + 20 + header) / 2;
+      this.caption.y = header / 2;
+      this.reaction.y = -this.halfHeight + 19;
       this.plate.clear().roundRect(-this.bubbleWidth / 2, -this.halfHeight, this.bubbleWidth, this.halfHeight * 2, 10)
         .fill('#ffffff').stroke({ color: '#a9afaa', width: 1.3 });
       this.tailX = NaN;
       this.drawTail(0);
     }
     if (!changed && Number.isFinite(seconds) && seconds > 0) this.age += seconds;
+    if (reaction !== this.reaction.text) { this.reaction.text = reaction; this.reactionAge = 0; }
+    else if (Number.isFinite(seconds) && seconds > 0) this.reactionAge += seconds;
+    this.reaction.visible = !!reaction;
+    const pop = Math.min(1, this.reactionAge / 0.25);
+    this.reaction.scale.set(1 + Math.sin(pop * Math.PI) * 0.22);
     const end = hold ? Infinity : lifetime;
     const timeLeft = remaining ?? end - this.age;
     this.visible = !!message && timeLeft > 0;

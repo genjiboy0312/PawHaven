@@ -802,7 +802,7 @@ test('Character opens a stationary preview, keeps category selection without equ
     panel.children[0].dispatchEvent(new Event('click'));
     assert.equal(returns, 1); assert.equal(scene.destroyed, true); assert.equal(host.children.length, 1);
     const pet = app.stage.children[0].children.find(child => child.label === 'corgi');
-    assert.equal(pet.welcoming, false); assert.equal(pet.children.length, 4);
+    assert.equal(pet.welcoming, false); assert.equal(pet.children.length, 3);
     host.children[0].children[0].children[0].dispatchEvent(new Event('click'));
     host.children[0].children[1].children[2].dispatchEvent(new Event('click'));
     assert.equal(host.children[0].children[2].children[2].attributes.get('aria-pressed'), 'true');
@@ -1174,7 +1174,7 @@ test('petting debounces rapid input, restarts motion on retouch and resumes auto
     const message = animal.children[2].text;
     animal.update(0.4); assert.ok(animal.children[0].currentFrame > 0);
     assert.equal(animal.pet(), true); assert.equal(animal.children[0].currentFrame, 0);
-    assert.equal(animal.children[2].text, message); assert.equal(animal.children[3].text, '♪');
+    assert.equal(animal.children[2].text, message); assert.equal(animal.children[2].reactionText, '♪');
     animal.update(0.4); assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
     animal.update(6); assert.equal(animal.state, 'IDLE'); assert.equal(animal.mode, 'auto');
     const states = new Set();
@@ -1720,9 +1720,9 @@ test('pet dialogue stays still, survives resizing/language changes, ignores spam
     assert.ok(message.includes('오늘도')); assert.equal(animal.pet(), false);
     animal.update(2.35); assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
     assert.equal(bubble.text, message); assert.ok(animal.children[0].currentFrame > 0);
-    const firstReaction = animal.children[3].text;
+    const firstReaction = animal.children[2].reactionText;
     assert.equal(animal.pet(), true); assert.equal(animal.children[0].currentFrame, 0);
-    assert.notEqual(animal.children[3].text, firstReaction); assert.equal(bubble.text, message);
+    assert.notEqual(animal.children[2].reactionText, firstReaction); assert.equal(bubble.text, message);
     animal.setBounds(390, 280); animal.update(0); assert.equal(bubble.text, message);
     setLanguage('en'); animal.update(0); assert.ok(bubble.text.includes('today'));
     assert.equal(animal.pet(), false);
@@ -1737,12 +1737,12 @@ test('repeated touches give immediate feedback without extending the healing dia
   } }, () => 0);
   try {
     animal.setBounds(960, 390); assert.equal(animal.pet(), true);
-    const dialogue = animal.children[2], reaction = animal.children[3], message = dialogue.text;
-    assert.equal(reaction.text, '♡'); assert.equal(reaction.visible, true);
+    const dialogue = animal.children[2], reaction = dialogue, message = dialogue.text;
+    assert.equal(reaction.reactionText, '♡'); assert.equal(reaction.visible, true);
     for (let i = 0; i < 20; i++) {
-      const symbol = reaction.text;
+      const symbol = reaction.reactionText;
       animal.update(0.2); assert.equal(animal.pet(), true);
-      assert.equal(animal.children[0].currentFrame, 0); assert.notEqual(reaction.text, symbol);
+      assert.equal(animal.children[0].currentFrame, 0); assert.notEqual(reaction.reactionText, symbol);
       assert.equal(dialogue.text, message); assert.equal(animal.pet(), false);
     }
     animal.update(2);
@@ -1751,4 +1751,135 @@ test('repeated touches give immediate feedback without extending the healing dia
     assert.equal(animal.pet(), true); assert.notEqual(dialogue.text, message);
     assert.equal(animal.hitArea.contains(dialogue.x, dialogue.y), false);
   } finally { animal.destroy({ children: true }); }
+});
+test('lobby floor roaming visits both axes and stays clear of the Play control at varied frame rates', () => {
+  for (const fps of [30, 60, 120]) {
+    const machine = new AnimalStateMachine(90, CORGI_BEHAVIOR, seededRandom(170));
+    machine.setBounds(100, 860); machine.setFloor(960, 540, 390);
+    let low = machine.y, high = machine.y, left = machine.x, right = machine.x;
+    for (let i = 0; i < fps * 240; i++) {
+      const oldX = machine.x, oldY = machine.y;
+      machine.update(1 / fps);
+      assert.ok(Math.hypot(machine.x - oldX, (machine.y - oldY) / 0.65) <= 90 / fps + 0.001);
+      low = Math.min(low, machine.y); high = Math.max(high, machine.y);
+      left = Math.min(left, machine.x); right = Math.max(right, machine.x);
+      assert.ok(machine.x >= 100 && machine.x <= 860);
+      assert.ok(machine.y >= 540 * 0.62 && machine.y <= 540 * 0.86);
+      assert.ok(machine.x <= 960 * 0.8 || machine.y <= 540 * 0.7);
+    }
+    assert.ok(high - low > 80); assert.ok(right - left > 200);
+    machine.setBounds(60, 330); machine.setFloor(390, 300, 216);
+    machine.update(0);
+    assert.ok(machine.y >= 186 && machine.y <= 258);
+  }
+});
+const cushionProfile = {
+  durations: { IDLE: [0.1, 0.1], REST: [0.4, 0.4], SLEEP: [0.6, 0.6], EMOTE: [1, 1] },
+  weights: { REST: 1 }, wanderDistance: [80, 80],
+};
+function cushionMachine() {
+  const machine = new AnimalStateMachine(90, cushionProfile, () => 0.5);
+  machine.setBounds(100, 860); machine.setFloor(960, 540, 390);
+  return machine;
+}
+function advanceUntil(machine, condition, seconds = 20, fps = 60) {
+  for (let i = 0; i < seconds * fps && !condition(); i++) machine.update(1 / fps);
+  assert.ok(condition(), 'state=' + machine.state + ', cushion=' + machine.restingCushion);
+}
+test('cushions select a usable nearby target, approach, rest, sleep and release without immediate looping', () => {
+  for (const fps of [30, 60, 120]) {
+    const machine = cushionMachine();
+    machine.setCushions([{ id: 1, x: 240, y: 390, depth: 398 }, { id: 2, x: 620, y: 350, depth: 358 },
+      { id: 3, x: 850, y: 450, depth: 458 }]);
+    advanceUntil(machine, () => machine.cushionActivity === 'rest', 20, fps);
+    assert.equal(machine.restingCushion, 2);
+    assert.ok(Math.abs(machine.x - 620) < 0.001); assert.ok(Math.abs(machine.y - 350) < 0.001);
+    assert.equal(machine.depth, 358.5);
+    advanceUntil(machine, () => machine.state === 'SLEEP', 2, fps);
+    advanceUntil(machine, () => machine.restingCushion === undefined, 2, fps);
+    machine.update(0.2); assert.equal(machine.restingCushion, undefined);
+  }
+});
+test('moving/removing a cushion retargets an approach and interrupts rest without teleporting the animal', () => {
+  const machine = cushionMachine();
+  machine.setCushions([{ id: 8, x: 200, y: 400, depth: 408 }]);
+  advanceUntil(machine, () => machine.cushionActivity === 'approach');
+  machine.update(0.3);
+  machine.setCushions([{ id: 8, x: 400, y: 450, depth: 458 }]);
+  advanceUntil(machine, () => machine.cushionActivity === 'rest');
+  assert.ok(Math.abs(machine.x - 400) < 0.001); assert.equal(machine.y, 450);
+  const position = [machine.x, machine.y];
+  machine.setCushions([{ id: 8, x: 250, y: 400, depth: 408 }]);
+  assert.equal(machine.restingCushion, undefined); assert.equal(machine.state, 'IDLE');
+  assert.deepEqual([machine.x, machine.y], position);
+  const other = cushionMachine();
+  other.setCushions([{ id: 9, x: 200, y: 400, depth: 408 }]);
+  advanceUntil(other, () => other.cushionActivity === 'approach');
+  other.setCushions([]); assert.equal(other.restingCushion, undefined); assert.equal(other.state, 'IDLE');
+  for (let i = 0; i < 1000; i++) other.update(1 / 60);
+  assert.equal(other.restingCushion, undefined);
+});
+test('both pets wake on touch and use one bubble with an internal reaction while preserving dialogue', () => {
+  for (const id of ['corgi', 'myeongrang']) {
+    const animal = new Animal({ id, speed: 90, scale: 0.62, behavior: cushionProfile, animations: {
+      idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
+      walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+      emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 },
+    } }, () => 0.5);
+    try {
+      animal.setBounds(960, 388.8, 540);
+      animal.setHome(960, 540, [{ id: 12, tab: 'Furniture', option: 4, x: 0.4, y: 0.75 }]);
+      advanceUntil(animal, () => animal.state === 'SLEEP');
+      assert.equal(animal.cushionId, 12); assert.ok(animal.floorDepth > 405);
+      const position = [animal.x, animal.y];
+      assert.equal(animal.pet(), true); assert.equal(animal.state, 'EMOTE'); assert.equal(animal.cushionId, undefined);
+      assert.deepEqual([animal.x, animal.y], position);
+      assert.equal(animal.children.length, 3);
+      const bubble = animal.speechBubble, message = bubble.text, height = bubble.halfHeight;
+      assert.equal(bubble.reactionText, '♡');
+      animal.update(0.25); assert.equal(animal.pet(), true);
+      assert.equal(bubble.text, message); assert.equal(bubble.reactionText, '♪'); assert.equal(bubble.halfHeight, height);
+      animal.update(7); assert.equal(bubble.visible, false);
+    } finally { animal.destroy({ children: true }); }
+  }
+});
+test('lobby depth layers share furniture/animal ordering, keep speech above objects and track Home edits', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); classList = { add() {} };
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, host = new Element();
+  globalThis.document = { createElement: () => new Element(), querySelector: () => host };
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const home = new HomeState(), id = home.place('Furniture', 4); home.move(id, 0.4, 0.75);
+  const scene = new LobbyScene({ id: 'myeongrang', speed: 90, scale: 0.62, behavior: cushionProfile,
+    animations: { idle: { frames: [Texture.WHITE], fps: 3 }, walk: { frames: [Texture.WHITE], fps: 8 } } },
+    undefined, true, undefined, undefined, undefined, { state: home, open() {} });
+  try {
+    scene.resize(960, 540);
+    const animal = scene.children.find(child => child.label === 'myeongrang');
+    const [map, , , depth, expressions] = scene.children;
+    const cushion = map.objects.children.find(child => child.label === String(id));
+    advanceUntil(scene, () => animal.state === 'SLEEP');
+    assert.ok(depth.renderLayerChildren.indexOf(animal) > depth.renderLayerChildren.indexOf(cushion));
+    assert.equal(animal.speechBubble.parent, animal);
+    assert.equal(animal.speechBubble.parentRenderLayer, expressions);
+    const snapshot = [animal.x, animal.y, animal.state];
+    scene.setPaused(true); scene.update(50); animal.emit('pointerdown', { button: 0 });
+    assert.deepEqual([animal.x, animal.y, animal.state], snapshot);
+    scene.setPaused(false); animal.emit('pointerdown', { button: 0 }); assert.equal(animal.state, 'EMOTE');
+    home.move(id, 0.5, 0.85); scene.update(0);
+    assert.ok(depth.renderLayerChildren.indexOf(animal) < depth.renderLayerChildren.indexOf(cushion));
+    home.remove(id); scene.update(0);
+    assert.equal(cushion.destroyed, true); assert.equal(depth.renderLayerChildren.includes(cushion), false);
+    assert.equal(animal.cushionId, undefined);
+    scene.destroy({ children: true });
+    assert.equal(host.children.length, 0); assert.equal(expressions.renderLayerChildren.length, 0);
+    assert.equal(Texture.WHITE.destroyed, false);
+  } finally {
+    if (!scene.destroyed) scene.destroy({ children: true });
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
 });
