@@ -21,7 +21,7 @@
 | 위치 | 메뉴 |
 |---|---|
 | 좌측 상단 | Character |
-| 우측 상단 | Friends · Shop · Settings |
+| 우측 상단 | Quest · Friends · Shop · Settings |
 | 우측 하단 | Play |
 
 캐릭터 메뉴는 향후 꾸미기 진입점으로 사용할 수 있다. 실제 기능은 미구현이다.
@@ -91,3 +91,7 @@ Create a clean prototype sprite atlas matching the exact approved orange-and-whi
 - 별도 휴식/수면/관찰 시트가 없어 현재 idle 시트를 재사용한다.
 - 회귀 검증: 각 정지 행동의 프레임 진행, 같은 시트 전환의 연속성, 다른 시트의 재시작, Animal을 통한 수면 프레임 진행 및 이동 전환을 확인한다.
 - 실기기에서 사용자가 겪은 증상을 직접 재현하지는 못했으며, 코드의 고정 프레임 경로를 확인해 수정했다.
+
+## Quest 진입점
+
+Friends 왼쪽에 기존 스타일의 원형 Quest 버튼을 배치한다. 한국어는 퀘스트로 표시한다. 현재 버튼은 기능 없는 비활성 더미이며 퀘스트·시즌패스·보상 알림은 미구현이다. Character/Play/Settings의 기존 기능은 유지한다.

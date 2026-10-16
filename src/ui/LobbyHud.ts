@@ -2,6 +2,7 @@ import { bindAria, bindText } from '../settings/i18n';
 import type { AnimalVisualState } from '../animals/AnimalState';
 
 const ICONS = {
+  quest: '<path d="M20 14h24v40H16V14h4m3-4h18v9H23z"/><path d="m23 31 3 3 5-6m3 4h6M23 43h17"/>',
   character: '<path d="m21 20-9 8 7 10 5-4v19h24V34l5 4 7-10-9-8-8 5h-6z"/><path d="M27 39c0-6 10-6 10 0s-10 6-10 0z"/><path d="M26 32v1m6-2v1m6 0v1"/>',
   shop: '<path d="M17 27h30v27H17zM13 27l5-13h28l5 13"/><path d="M13 27c0 8 10 8 10 0 0 8 9 8 9 0 0 8 9 8 9 0 0 8 10 8 10 0M27 54V41h11v13"/>',
   settings: '<circle cx="32" cy="32" r="17"/><circle cx="32" cy="32" r="7"/><path d="M32 8v7m0 34v7M8 32h7m34 0h7M15 15l5 5m24 24 5 5M15 49l5-5m24-24 5-5"/>',
@@ -34,7 +35,7 @@ export class LobbyHud {
       settings.disabled = false; bindAria(settings, 'settings');
       settings.addEventListener('click', onSettings);
     }
-    utilities.append(this.menu('friends', 'Friends'), this.menu('shop', 'Shop'), settings);
+    utilities.append(this.menu('quest', 'Quest'), this.menu('friends', 'Friends'), this.menu('shop', 'Shop'), settings);
     const play = document.createElement('div');
     play.className = 'hud-play';
     const playButton = this.menu('play', 'Play');

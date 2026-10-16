@@ -269,7 +269,7 @@ test('animal pauses daily behavior during welcome, then resumes autonomous life'
   animal.destroy({ children: true });
 });
 
-test('title has no corgi, opens one autonomous lobby, and all five menu placeholders are inert', async () => {
+test('title has no corgi, opens one autonomous lobby, and all six menu placeholders are inert', async () => {
   class Element extends EventTarget {
     children = [];
     parent = undefined;
@@ -322,9 +322,9 @@ test('title has no corgi, opens one autonomous lobby, and all five menu placehol
       ...hud.children[0].children, ...hud.children[1].children, ...hud.children[2].children,
     ];
     assert.deepEqual(menus.map((item) => item.attributes.get('data-menu')),
-      ['character', 'friends', 'shop', 'settings', 'play']);
+      ['character', 'quest', 'friends', 'shop', 'settings', 'play']);
     assert.deepEqual(menus.map((item) => item.children[1].textContent),
-      ['Character', 'Friends', 'Shop', 'Settings', 'Play']);
+      ['Character', 'Quest', 'Friends', 'Shop', 'Settings', 'Play']);
     assert.equal(hud.children[0].className, 'hud-character');
     assert.equal(hud.children[1].className, 'hud-utilities');
     assert.equal(hud.children[2].className, 'hud-play');
