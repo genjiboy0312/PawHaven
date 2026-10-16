@@ -16,8 +16,12 @@ export class LobbyHud {
   readonly element = document.createElement('section');
   private readonly status = document.createElement('p');
   private previousState: AnimalVisualState | undefined;
+  private questButton?: HTMLButtonElement;
+  private questReady?: boolean;
+  private readonly rewards?: () => boolean;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }, onHome?: () => void) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; rewards?: () => boolean }, onHome?: () => void) {
+    this.rewards = commerce?.rewards;
     this.element.className = 'lobby-hud';
     this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
@@ -43,7 +47,10 @@ export class LobbyHud {
       quest.disabled = shop.disabled = false;
       quest.addEventListener('click', commerce.quest); shop.addEventListener('click', commerce.shop);
     }
-    utilities.append(quest, this.menu('friends', 'Friends'), shop, settings);
+    this.questButton = quest;
+    const friends = this.menu('friends', 'Friends');
+    if (commerce?.friends) { friends.disabled = false; friends.addEventListener('click', commerce.friends); }
+    utilities.append(quest, friends, shop, settings);
     const play = document.createElement('div');
     play.className = 'hud-play';
     const playButton = this.menu('play', 'Play');
@@ -84,6 +91,12 @@ export class LobbyHud {
     return button;
   }
   update(state: AnimalVisualState): void {
+    const ready = this.rewards?.() ?? false;
+    if (this.questButton && ready !== this.questReady) {
+      this.questReady = ready;
+      this.questButton.setAttribute('data-reward-ready', String(ready));
+      bindAria(this.questButton, ready ? 'questRewardReady' : 'quest');
+    }
     if (state !== this.previousState) {
       bindText(this.status, `state.${state}`);
       this.previousState = state;

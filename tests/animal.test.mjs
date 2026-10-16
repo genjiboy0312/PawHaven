@@ -1072,6 +1072,7 @@ test('Shop and Quest link pass purchase and rewards, and bought items appear in 
     lobby(); const utilities = host.children[0].children[1]; assert.equal(utilities.children[0].disabled, false); assert.equal(utilities.children[2].disabled, false);
     click(utilities.children[2]);
     let panel = host.children[0], content = panel.children[4];
+    assert.equal(panel.children[2].textContent, 'Coins: 1000');
     assert.equal(content.children[1].children.length, 20);
     click(content.children[1].children[1]); click(content.children[2].children[1]);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true); assert.equal(content.children[2].children[1].disabled, true);
@@ -2021,9 +2022,14 @@ test('lobby valid touches count Daily, Quest claims update coins, translate and 
     const panel = host.children[1].children[0], content = panel.children[3];
     assert.equal(content.children.length, 4);
     assert.equal(content.children[2].children[1].disabled, false);
+    assert.equal(content.children[2].children[1].getAttribute('data-reward-ready'), 'true');
+    assert.equal(panel.children[2].children[0].getAttribute('data-reward-ready'), 'true');
     assert.equal(content.children[3].children[1].disabled, true);
     content.children[2].children[1].dispatchEvent(new Event('click'));
     assert.equal(state.coins, 1050); assert.equal(content.children[2].children[1].disabled, true);
+    assert.equal(content.children[2].children[1].getAttribute('data-reward-ready'), 'false');
+    assert.equal(content.children[2].children[1].getAttribute('data-claimed'), 'true');
+    assert.equal(panel.children[2].children[0].getAttribute('data-reward-ready'), 'false');
     assert.equal(document.activeElement, content);
     setLanguage('ko'); assert.equal(content.children[2].children[0].children[0].textContent, '오늘의 교감');
     assert.equal(content.children[2].children[1].textContent, '수령 완료');
@@ -2036,6 +2042,67 @@ test('lobby valid touches count Daily, Quest claims update coins, translate and 
     popup.destroy(); scene.destroy({ children: true });
   } finally {
     popup.destroy(); if (!scene.destroyed) scene.destroy({ children: true }); setLanguage('en');
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
+  }
+});
+test('Friends opens as an accessible paused lobby overlay and Quest badge clears after reward collection', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); inert = false; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    replaceChildren(...items) { this.children.forEach(item => { item.parent = undefined; }); this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); this.parent = undefined; }
+    get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
+    focus() { document.activeElement = this; }
+    querySelectorAll() { const controls = []; const walk = node => node.children.forEach(item => { if (item.tag === 'button' && !item.disabled) controls.push(item); walk(item); }); walk(this); return controls; }
+  }
+  const oldDocument = globalThis.document, oldHTMLElement = globalThis.HTMLElement;
+  const host = new Element('main'); globalThis.HTMLElement = Element;
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host, activeElement: undefined };
+  const { FriendsPopup } = await importTs('../src/ui/FriendsPopup.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const state = new ShopState(); state.claim(1, false);
+  let scene; const friends = new FriendsPopup(value => scene.setPaused(value));
+  scene = new LobbyScene({ id: 'myeongrang', speed: 90, scale: 0.62,
+    animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, undefined, true, undefined, undefined,
+    { shop() {}, quest() {}, friends: () => friends.open(), rewards: () => state.hasQuestRewards });
+  try {
+    scene.resize(960, 540);
+    const hud = host.children[0], questButton = hud.children[1].children[0], friendButton = hud.children[1].children[1];
+    assert.equal(questButton.getAttribute('data-reward-ready'), 'false');
+    state.completeRun(); scene.update(0);
+    assert.equal(questButton.getAttribute('data-reward-ready'), 'true');
+    assert.equal(questButton.getAttribute('data-i18n-aria'), 'questRewardReady');
+    state.claimDaily('run'); assert.equal(state.hasQuestRewards, true); // newly unlocked pass tier
+    state.claim(2, false); scene.update(0);
+    assert.equal(questButton.getAttribute('data-reward-ready'), 'false');
+    assert.equal(friendButton.disabled, false); friendButton.focus(); friendButton.dispatchEvent(new Event('click'));
+    friends.open(); assert.equal(host.children.length, 2); assert.equal(hud.inert, true);
+    const animal = scene.children.find(child => child.label === 'myeongrang'), position = [animal.x, animal.y];
+    scene.update(20); animal.emit('pointerdown', { button: 0 });
+    assert.deepEqual([animal.x, animal.y], position); assert.equal(animal.state, 'IDLE');
+    const overlay = host.children[1], panel = overlay.children[0], tabs = panel.children[2], content = panel.children[3];
+    assert.equal(panel.getAttribute('role'), 'dialog');
+    assert.deepEqual(tabs.children.map(button => button.textContent), ['Friends', 'Add Friend', 'Requests']);
+    assert.equal(content.children[1].textContent, 'Your friends will appear here.');
+    overlay.dispatchEvent(new Event('pointerup')); assert.equal(host.children.length, 2);
+    tabs.children[1].dispatchEvent(new Event('click')); assert.equal(content.children[1].disabled, true);
+    tabs.children[2].dispatchEvent(new Event('click')); assert.equal(content.children[1].textContent, 'No friend requests yet.');
+    setLanguage('ko'); assert.equal(content.children[1].textContent, '아직 받은 친구 요청이 없어요.');
+    const controls = panel.querySelectorAll(); controls.at(-1).focus();
+    overlay.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Tab' }));
+    assert.equal(document.activeElement, panel.children[1]);
+    overlay.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Escape' }));
+    assert.equal(host.children.length, 1); assert.equal(hud.inert, false); assert.equal(document.activeElement, friendButton);
+    friendButton.dispatchEvent(new Event('click'));
+    host.children[1].dispatchEvent(new Event('pointerdown')); host.children[1].dispatchEvent(new Event('pointerup'));
+    assert.equal(host.children.length, 1);
+    friends.destroy(); scene.destroy({ children: true }); assert.equal(host.children.length, 0);
+  } finally {
+    friends.destroy(); if (!scene.destroyed) scene.destroy({ children: true }); setLanguage('en');
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
     if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
   }

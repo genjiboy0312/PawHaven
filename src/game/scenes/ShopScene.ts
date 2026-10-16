@@ -44,7 +44,7 @@ export class ShopScene extends Scene {
     this.unsubscribe = state.subscribe(() => this.render()); this.render(); this.update(0);
   }
   private render(): void {
-    this.balance.textContent = `${t('testCoins')}: ${this.state.coins}`;
+    this.balance.textContent = `${t('coins')}: ${this.state.coins}`;
     this.preview.visible = this.platform.visible = this.tab === 'Style';
     Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String((index === 0 ? 'Style' : 'Pass') === this.tab)));
     this.content.replaceChildren(); this.content.className = this.tab === 'Pass' ? 'shop-pass' : 'shop-style';

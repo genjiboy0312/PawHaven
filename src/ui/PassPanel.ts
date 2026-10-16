@@ -18,6 +18,7 @@ export function passPanel(state: ShopState, mode: 'shop' | 'quest', navigate: ()
       const reward = document.createElement('button'); reward.type = 'button'; reward.className = 'pass-reward';
       const status = state.isClaimed(tier, premium) ? t('claimed') : mode === 'quest' && state.canClaim(tier, premium) ? t('claim') : t('rewardPreview');
       reward.textContent = `${premium ? t('premiumTrack') : t('freeTrack')} · ${state.reward(tier, premium)} ${t('coins')}\n${status}`;
+      reward.setAttribute('data-reward-ready', String(mode === 'quest' && state.canClaim(tier, premium)));
       reward.disabled = mode === 'shop' || !state.canClaim(tier, premium);
       reward.addEventListener('click', () => state.claim(tier, premium)); column.append(reward);
     }

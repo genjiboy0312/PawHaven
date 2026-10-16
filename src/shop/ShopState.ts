@@ -76,6 +76,11 @@ export class ShopState {
     // Claim flag and coins are persisted in one storage record.
     this.daily.claimed.push(id); this.balance += quest.reward; this.save(); return true;
   }
+  get hasDailyRewards(): boolean { return this.dailyQuests.some(quest => quest.canClaim); }
+  get hasPassRewards(): boolean {
+    return Array.from({ length: PASS_TIERS }, (_, index) => index + 1).some(tier => this.canClaim(tier, false) || this.canClaim(tier, true));
+  }
+  get hasQuestRewards(): boolean { return this.hasDailyRewards || this.hasPassRewards; }
   get coins(): number { return this.balance; }
   get xp(): number { return this.experience; }
   get level(): number { return Math.min(PASS_TIERS, 1 + Math.floor(this.experience / 100)); }

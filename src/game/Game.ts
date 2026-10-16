@@ -5,6 +5,7 @@ import { HomeScene } from './scenes/HomeScene';
 import { ShopState } from '../shop/ShopState';
 import { ShopScene } from './scenes/ShopScene';
 import { QuestPopup } from '../ui/QuestPopup';
+import { FriendsPopup } from '../ui/FriendsPopup';
 import { CharacterPresets } from '../animals/CharacterPresets';
 import { CharacterSelection } from '../animals/CharacterSelection';
 import { GameSettings, type GamePreferences } from '../settings/GameSettings';
@@ -29,6 +30,7 @@ export class Game {
   private homeTextures?: HomeTextures;
   private settings?: SettingsPopup;
   private quests?: QuestPopup;
+  private friends?: FriendsPopup;
   private audio?: AudioSystem;
   private readonly outfit = createOutfit();
   private readonly app = new Application();
@@ -108,6 +110,7 @@ export class Game {
     const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab));
     };
+    this.friends = new FriendsPopup(paused => this.scenes?.setPaused(paused));
     this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
     const lobby = (returning = false): void => {
       if (this.disposed) return;
@@ -115,7 +118,7 @@ export class Game {
         if (!this.disposed) this.scenes?.show(new PlayScene(activePet, () => { commerce.completeRun(); lobby(true); }, { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
       }, returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index) }));
-      }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { commerce.recordPet(); } }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } }));
+      }, openSettings, { shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } }));
     };
     this.scenes.show(new TitleScene(() => lobby()));
 
@@ -130,6 +133,7 @@ export class Game {
     this.app.renderer.off('resize', this.resize);
     this.app.ticker.remove(this.tick);
     this.quests?.destroy();
+    this.friends?.destroy();
     this.settings?.destroy();
     this.audio?.destroy();
     this.scenes?.destroy();

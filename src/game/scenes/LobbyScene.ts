@@ -21,7 +21,7 @@ export class LobbyScene extends Scene {
 
   override setPaused(paused: boolean): void { this.paused = paused; }
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void; friends?: () => void; rewards?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }) {
     super(); this.garden = new LobbyMap(home?.textures);
     this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open);
     this.welcomeStarted = returning;
