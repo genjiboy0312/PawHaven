@@ -64,6 +64,7 @@ Paw Haven은 사용자가 언제든 돌아와 편안하게 쉴 수 있는 작은
 | 기술 스택 | PixiJS + TypeScript + Vite로 확정 (2026-10-16) |
 | 프로젝트 초기화 | M0 완료; M0_M1_PROGRESS.md 참조 |
 | 플레이 가능한 프로토타입 | 미구현 |
+| 웹 배포 | GitHub Pages 게시 완료; [DEPLOYMENT.md](DEPLOYMENT.md) 참조 |
 | 멀티플레이 | 향후 검토 |
 | Android/iOS 앱 | 향후 검토 |
 
