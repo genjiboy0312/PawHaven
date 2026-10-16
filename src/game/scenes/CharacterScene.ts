@@ -1,3 +1,4 @@
+import { bindAria, bindText, t } from '../../settings/i18n';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
@@ -31,19 +32,19 @@ export class CharacterScene extends Scene {
     this.preview.scale.set(1.45);
     this.preview.addChild(this.animation.sprite, this.animation.welcomeMark);
     this.panel.className = 'character-screen';
-    this.panel.setAttribute('aria-label', 'Character customization');
+    bindAria(this.panel, 'customize');
     const close = document.createElement('button');
-    close.type = 'button'; close.className = 'character-close'; close.textContent = 'Close';
+    close.type = 'button'; close.className = 'character-close'; bindText(close, 'close');
     close.addEventListener('click', onClose, { once: true, signal: this.abort.signal });
-    this.tabs.className = 'outfit-tabs'; this.tabs.setAttribute('aria-label', 'Item categories');
+    this.tabs.className = 'outfit-tabs'; bindAria(this.tabs, 'categories');
     for (const tab of OUTFIT_TABS) {
       const button = document.createElement('button');
-      button.type = 'button'; button.textContent = tab;
+      button.type = 'button'; bindText(button, tab);
       button.addEventListener('click', () => { this.tab = tab; this.refresh(); }, { signal: this.abort.signal });
       this.tabs.append(button);
     }
     this.inventory.className = 'outfit-inventory';
-    this.inventory.setAttribute('aria-label', 'Items');
+    bindAria(this.inventory, 'items');
     this.panel.append(close, this.tabs, this.inventory);
     document.querySelector('#app')?.append(this.panel);
     this.refresh(); this.update(0);
@@ -56,7 +57,7 @@ export class CharacterScene extends Scene {
     for (let index = 0; index <= 20; index++) {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'outfit-slot';
-      if (index === 0) button.textContent = 'None';
+      if (index === 0) bindText(button, 'none');
       else {
         const image = document.createElement('img');
         image.className = 'outfit-object'; image.alt = '';
@@ -65,7 +66,7 @@ export class CharacterScene extends Scene {
           `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="${color}" color="${color}" stroke="#727970" stroke-width="1.5" stroke-linejoin="round">${ITEM_ICONS[this.tab]}</svg>`);
         button.append(image);
       }
-      button.setAttribute('aria-label', index === 0 ? `Clear ${this.tab} selection` : `${this.tab} ${index}`);
+      button.setAttribute('aria-label', index === 0 ? t('none') : t(this.tab) + ' ' + index);
       button.setAttribute('aria-pressed', String(this.outfit[this.tab] === index));
       // The handler lives on its short-lived slot; discarding the slot releases it.
       button.addEventListener('click', () => {

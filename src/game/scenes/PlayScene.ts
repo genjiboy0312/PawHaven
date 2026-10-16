@@ -1,3 +1,5 @@
+import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../../settings/i18n';
+import type { GamePreferences } from '../../settings/GameSettings';
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
@@ -7,6 +9,8 @@ import { Scene } from './Scene';
 
 export class PlayScene extends Scene {
   private readonly run = new DummyRun();
+  private readonly labels: { text: Text; key: 'start' | 'finish' }[] = [];
+  private readonly localeOff: () => void;
   private readonly world = new Container();
   private readonly pet = new Container();
   private readonly effect: AnimalEffects;
@@ -27,8 +31,9 @@ export class PlayScene extends Scene {
   private returned = false;
   private readonly blur = (): void => { this.keys.clear(); this.axis = 0; this.pointer = undefined; this.knob.style.transform = ''; };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences }) {
     super();
+    this.localeOff = onLanguageChange(() => this.labels.forEach(label => { label.text.text = t(label.key); }));
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
@@ -37,28 +42,31 @@ export class PlayScene extends Scene {
     for (let x = 120; x <= 2520; x += 240) {
       this.world.addChild(new Graphics().rect(x, 410, 90, 3).fill('#90aa73'));
     }
-    for (const [x, label] of [[120, 'START'], [2520, 'FINISH']] as const) {
-      const flag = new Text({ text: label, style: { fontFamily: 'system-ui', fontSize: 23, fontWeight: 'bold', fill: '#455b3b' } });
+    for (const [x, label] of [[120, 'start'], [2520, 'finish']] as const) {
+      const flag = new Text({ text: t(label), style: { fontFamily: 'system-ui', fontSize: 23, fontWeight: 'bold', fill: '#455b3b' } });
+      this.labels.push({ text: flag, key: label });
       flag.position.set(x - 40, 240);
       this.world.addChild(new Graphics().rect(x, 275, 5, 115).fill('#657653'), flag);
     }
     this.world.addChild(this.pet);
     this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
     this.hud.className = 'play-hud';
-    this.hud.setAttribute('aria-label', 'Game controls');
+    bindAria(this.hud, 'gameControls');
     this.stick.className = 'play-stick';
     this.stick.type = 'button';
-    this.stick.setAttribute('aria-label', 'Movement joystick');
+    bindAria(this.stick, 'joystick');
     this.knob.className = 'stick-knob';
     this.stick.append(this.knob);
     const actions = document.createElement('div');
     actions.className = 'play-actions';
-    actions.append(this.button('Attack', () => this.act('attack')), this.button('Dash', () => this.act('dash')), this.button('Jump', () => this.act('jump')));
-    const settingsButton = this.button('Settings', () => { this.blur(); settingsButton.focus(); this.settings?.open(); });
+    actions.append(this.button('attack', () => this.act('attack')), this.button('dash', () => this.act('dash')), this.button('jump', () => this.act('jump')));
+    const settingsButton = document.createElement('button');
+    settingsButton.type = 'button'; settingsButton.className = 'play-circle'; bindText(settingsButton, 'settings');
+    settingsButton.addEventListener('click', () => { this.blur(); settingsButton.focus(); this.settings?.open(); }, { signal: this.abort.signal });
     settingsButton.classList.add('play-settings');
     settingsButton.disabled = !this.settings;
     this.victory.className = 'play-victory';
-    this.victory.textContent = 'Victory!';
+    bindText(this.victory, 'victory');
     this.victory.hidden = true;
     this.victory.setAttribute('role', 'status');
     this.fade.className = 'scene-fade';
@@ -106,9 +114,9 @@ export class PlayScene extends Scene {
     const after = kind === 'jump' ? this.run.velocity : this.run[kind];
     if (after > before) this.settings?.sound?.(kind);
   }
-  private button(label: string, action?: () => void): HTMLButtonElement {
+  private button(label: TextKey, action?: () => void): HTMLButtonElement {
     const button = document.createElement('button');
-    button.type = 'button'; button.className = 'play-circle'; button.textContent = label;
+    button.type = 'button'; button.className = 'play-circle'; bindText(button, label);
     button.addEventListener('pointerdown', (event) => { event.preventDefault(); action?.(); }, { signal: this.abort.signal });
     button.addEventListener('click', (event) => { if (event.detail === 0) action?.(); }, { signal: this.abort.signal });
     return button;
@@ -126,7 +134,9 @@ export class PlayScene extends Scene {
   private render(seconds: number, axis: number): void {
     const run = this.run;
     const target = Math.max(0, Math.min(run.finish - 740, run.x - 280));
-    this.cameraX += (target - this.cameraX) * (1 - Math.exp(-7 * seconds));
+    const preferences = this.settings?.preferences?.();
+    if (preferences?.smoothCamera === false) this.cameraX = target;
+    else this.cameraX += (target - this.cameraX) * (1 - Math.exp(-7 * seconds));
     this.world.x = -this.cameraX;
     this.pet.position.set(run.x, 390 - run.height);
     const action = run.action(axis);
@@ -136,11 +146,13 @@ export class PlayScene extends Scene {
       : action === 'jump' ? Math.min(0.49, Math.max(0, (440 - run.velocity) / 880)) : undefined;
     this.animation.update('IDLE', this.elapsed, run.direction, 0, 0, seconds, action, progress);
     this.effect.update(action, progress ?? 0, run.direction, this.animation.sprite, run.horizontalVelocity);
+    this.effect.visible = preferences?.effects !== false;
+    if (preferences?.effects === false) this.effect.ghosts.forEach(ghost => { ghost.visible = false; });
     this.victory.hidden = !run.won;
     this.fade.style.opacity = String(run.fade);
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
-    this.abort.abort(); this.hud.remove(); super.destroy(options);
+    this.localeOff(); this.abort.abort(); this.hud.remove(); super.destroy(options);
   }
 }

@@ -1,3 +1,5 @@
+import { GameSettings, type GamePreferences } from '../settings/GameSettings';
+import { setLanguage } from '../settings/i18n';
 import { SoundSettings } from '../settings/SoundSettings';
 import { SettingsPopup } from '../ui/SettingsPopup';
 import { AudioSystem } from '../systems/AudioSystem';
@@ -53,8 +55,14 @@ export class Game {
     let storage: Storage | undefined;
     try { storage = window.localStorage; } catch { /* Session-only settings. */ }
     const preferences = new SoundSettings(storage);
+    const gameSettings = new GameSettings(storage);
+    const applyGame = (value: GamePreferences): void => {
+      host.style.setProperty('--control-scale', String(value.controlSize));
+      host.classList.toggle('left-handed', value.leftHanded);
+    };
+    setLanguage(gameSettings.current.language); applyGame(gameSettings.current);
     this.audio = new AudioSystem(preferences.current);
-    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused));
+    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused), gameSettings, applyGame);
     const openSettings = (): void => this.settings?.open();
     this.app.renderer.on('resize', this.resize);
     this.app.ticker.add(this.tick);
@@ -72,7 +80,7 @@ export class Game {
     const lobby = (returning = false): void => {
       if (this.disposed) return;
       this.scenes?.show(new LobbyScene(corgi, () => {
-        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true), { open: openSettings, sound: kind => this.audio?.play(kind) }));
+        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true), { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
       }, returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(corgi, this.outfit, () => lobby(true)));
       }, openSettings));

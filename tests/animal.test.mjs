@@ -521,6 +521,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
     constructor(tag) { super(); this.tag = tag; }
     append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
     setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
     remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
   }
   const oldDocument = globalThis.document, oldWindow = globalThis.window;
@@ -713,6 +714,7 @@ test('Character opens a stationary preview, keeps category selection without equ
     append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
     replaceChildren(...items) { this.children.forEach(item => { item.parent = undefined; }); this.children = []; this.append(...items); }
     setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
     remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
   }
   const oldDocument = globalThis.document;
@@ -763,6 +765,8 @@ test('Character opens a stationary preview, keeps category selection without equ
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
 });
+const { GameSettings, GAME_SETTINGS_KEY } = await importTs('../src/settings/GameSettings.ts', import.meta.url);
+const { setLanguage, t } = await importTs('../src/settings/i18n.ts', import.meta.url);
 const { SoundSettings, SOUND_STORAGE_KEY } = await importTs('../src/settings/SoundSettings.ts', import.meta.url);
 test('sound preferences persist safely, clamp bad values, and tolerate blocked storage', () => {
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
@@ -786,6 +790,7 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
     replaceChildren(...items) { this.children.forEach(item => { item.parent = undefined; }); this.children = []; this.append(...items); }
     setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
     remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); this.parent = undefined; }
     get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
     focus() { document.activeElement = this; }
@@ -797,7 +802,12 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
   const oldDocument = globalThis.document, oldWindow = globalThis.window, oldHTMLElement = globalThis.HTMLElement;
   const host = new Element('main');
   globalThis.HTMLElement = Element;
-  globalThis.document = Object.assign(new EventTarget(), { createElement: tag => new Element(tag), querySelector: () => host, activeElement: undefined });
+  globalThis.document = Object.assign(new EventTarget(), { createElement: tag => new Element(tag), querySelector: () => host, activeElement: undefined, documentElement: {},
+    querySelectorAll: selector => {
+      const result = [], attribute = selector.slice(1, -1);
+      const walk = node => { for (const item of node.children) { if (item.attributes.has(attribute)) result.push(item); walk(item); } };
+      walk(host); return result;
+    } });
   globalThis.window = new EventTarget();
   const { Container } = await import('pixi.js');
   const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
@@ -805,20 +815,28 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
   const { SettingsPopup } = await importTs('../src/ui/SettingsPopup.ts', import.meta.url);
   const app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
   const store = new SoundSettings(), applied = [], sounds = [];
-  const popup = new SettingsPopup(store, { apply: value => applied.push(value), play: value => sounds.push(value) }, paused => manager.setPaused(paused));
+  const gamePreferences = new GameSettings(), gameApplied = [];
+  const popup = new SettingsPopup(store, { apply: value => applied.push(value), play: value => sounds.push(value) }, paused => manager.setPaused(paused), gamePreferences, value => gameApplied.push(value));
   const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 } } };
   const key = code => { const event = new Event('keydown', { cancelable: true }); Object.defineProperty(event, 'code', { value: code }); window.dispatchEvent(event); return event; };
   try {
-    const scene = new PlayScene(config, () => assert.fail('paused run must not finish'), { open: () => popup.open(), sound: kind => sounds.push(kind) });
+    const scene = new PlayScene(config, () => assert.fail('paused run must not finish'), { open: () => popup.open(), sound: kind => sounds.push(kind), preferences: () => gamePreferences.current });
     manager.show(scene);
     const hud = host.children[0], pet = scene.children[1].children.at(-1), settings = hud.children[2];
     assert.equal(settings.disabled, false);
     key('ArrowRight'); manager.update(0.2); const x = pet.x;
     settings.dispatchEvent(new Event('pointerdown', { cancelable: true }));
+    assert.equal(popup.opened, false);
+    settings.dispatchEvent(new Event('pointerup'));
+    settings.dispatchEvent(new Event('click'));
     assert.equal(popup.opened, true); assert.equal(host.children.length, 2); assert.equal(hud.inert, true);
     popup.open(); assert.equal(host.children.length, 2);
     const overlay = host.children[1], panel = overlay.children[0], close = panel.children[1], tabs = panel.children[2], content = panel.children[3];
     assert.equal(panel.attributes.get('role'), 'dialog'); assert.equal(document.activeElement, close);
+    assert.deepEqual(tabs.children.map(button => button.textContent), ['Sound', 'Controls', 'Display', 'Language', 'Account', 'About']);
+    overlay.dispatchEvent(new Event('pointerup'));
+    overlay.dispatchEvent(new Event('click'));
+    assert.equal(popup.opened, true); // release/click from the opening tap must not dismiss it
     key('Space'); hud.children[1].children[2].dispatchEvent(new Event('pointerdown', { cancelable: true }));
     manager.update(30); assert.equal(pet.x, x); assert.equal(pet.y, 390); assert.ok(!sounds.includes('jump'));
     const slider = content.children[0].children[1]; slider.value = '35'; slider.dispatchEvent(new Event('input'));
@@ -826,6 +844,25 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     const mute = content.children[3].children[0]; mute.checked = true; mute.dispatchEvent(new Event('change')); assert.equal(applied.at(-1).muted, true);
     content.children[4].children[0].dispatchEvent(new Event('click')); assert.equal(sounds.at(-1), 'bgm');
     tabs.children[1].dispatchEvent(new Event('click'));
+    const size = content.children[0].children[1]; size.value = '110'; size.dispatchEvent(new Event('input'));
+    assert.equal(gamePreferences.current.controlSize, 1.1);
+    const left = content.children[1].children[0]; left.checked = true; left.dispatchEvent(new Event('change'));
+    assert.equal(gameApplied.at(-1).leftHanded, true);
+    tabs.children[2].dispatchEvent(new Event('click'));
+    const effects = content.children[0].children[0]; effects.checked = false; effects.dispatchEvent(new Event('change'));
+    assert.equal(gamePreferences.current.effects, false);
+    const camera = content.children[1].children[0]; camera.checked = false; camera.dispatchEvent(new Event('change'));
+    assert.equal(gamePreferences.current.smoothCamera, false);
+    tabs.children[3].dispatchEvent(new Event('click'));
+    content.children[0].dispatchEvent(new Event('click'));
+    assert.equal(gamePreferences.current.language, 'ko'); assert.equal(t('settings'), '설정');
+    assert.equal(settings.textContent, '설정'); assert.equal(panel.children[0].textContent, '설정');
+    assert.equal(tabs.children[3].textContent, '언어'); assert.equal(document.documentElement.lang, 'ko');
+    assert.ok(scene.children[1].children.some(child => child.text === '도착'));
+    content.children[1].dispatchEvent(new Event('click'));
+    assert.equal(settings.textContent, 'Settings'); assert.equal(document.documentElement.lang, 'en');
+    tabs.children[5].dispatchEvent(new Event('click')); assert.ok(content.children[1].textContent.includes('0.1.0'));
+    tabs.children[4].dispatchEvent(new Event('click'));
     assert.equal(content.children[0].textContent, 'Playing as Guest'); assert.equal(content.children[2].disabled, true);
     tabs.children[0].dispatchEvent(new Event('click')); assert.equal(content.children[0].children[1].value, '35');
     const controls = panel.querySelectorAll(); controls.at(-1).focus();
@@ -834,14 +871,33 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     const escape = new Event('keydown', { cancelable: true }); Object.defineProperty(escape, 'key', { value: 'Escape' }); overlay.dispatchEvent(escape);
     assert.equal(popup.opened, false); assert.equal(host.children.length, 1); assert.equal(hud.inert, false); assert.equal(document.activeElement, settings);
     manager.update(0.1); assert.equal(pet.x, x); // held input was cleared
+    assert.equal(pet.children.at(-1).visible, false); // effects setting reaches the renderer
     key('Space'); assert.equal(sounds.at(-1), 'jump');
     manager.update(0.1); assert.ok(pet.y < 390);
+    popup.open();
+    host.children[1].dispatchEvent(new Event('pointerdown'));
+    host.children[1].dispatchEvent(new Event('pointerup'));
+    assert.equal(popup.opened, false); // a deliberate backdrop tap still closes
     popup.open(); popup.destroy(); assert.equal(hud.inert, false);
     manager.destroy(); assert.equal(host.children.length, 0);
   } finally {
-    popup.destroy(); manager.destroy(); app.stage.destroy();
+    popup.destroy(); manager.destroy(); app.stage.destroy(); setLanguage('en');
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
     if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
   }
+});
+test('game preferences persist language, controls and display with safe defaults', () => {
+  const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const store = new GameSettings(storage);
+  store.update({ language: 'ko', controlSize: 1.1, leftHanded: true, vibration: true, effects: false, smoothCamera: false });
+  assert.deepEqual(new GameSettings(storage).current, { language: 'ko', controlSize: 1.1, leftHanded: true, vibration: true, effects: false, smoothCamera: false });
+  store.update({ controlSize: 4 }); assert.equal(store.current.controlSize, 1.2);
+  store.update({ controlSize: -2 }); assert.equal(store.current.controlSize, 0.8);
+  store.update({ controlSize: NaN }); assert.equal(store.current.controlSize, 0.8);
+  values.set(GAME_SETTINGS_KEY, '{"language":"invalid","controlSize":"bad","effects":"false"}');
+  assert.equal(new GameSettings(storage).current.language, 'en'); assert.equal(new GameSettings(storage).current.effects, true);
+  values.set(GAME_SETTINGS_KEY, 'bad'); assert.equal(new GameSettings(storage).current.controlSize, 1);
+  const blocked = new GameSettings({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  blocked.update({ language: 'ko' }); assert.equal(blocked.current.language, 'ko');
 });

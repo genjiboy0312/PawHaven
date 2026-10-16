@@ -1,3 +1,4 @@
+import { bindAria, bindText } from '../../settings/i18n';
 import { Graphics, type DestroyOptions } from 'pixi.js';
 import { Scene } from './Scene';
 
@@ -23,13 +24,13 @@ export class TitleScene extends Scene {
     const title = document.createElement('h1');
     title.textContent = 'Paw Haven';
     const subtitle = document.createElement('p');
-    subtitle.textContent = 'Welcome Home';
+    bindText(subtitle, 'welcomeHome');
     copy.append(title, subtitle);
     this.button.className = 'title-start';
     this.button.type = 'button';
-    this.button.setAttribute('aria-label', '터치하거나 클릭해서 정원에 들어가기');
+    bindAria(this.button, 'touchStart');
     const prompt = document.createElement('span');
-    prompt.textContent = '화면을 터치해 시작하세요';
+    bindText(prompt, 'touchStart');
     this.button.append(prompt);
     this.button.addEventListener('click', this.begin);
     this.overlay.append(copy, this.button);

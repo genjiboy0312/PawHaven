@@ -1,9 +1,10 @@
+import { t } from '../../settings/i18n';
 import { Graphics, Text } from 'pixi.js';
 import { Scene } from './Scene';
 
 export class PreloadScene extends Scene {
   private readonly caption = new Text({
-    text: '정원을 준비하고 있어요…',
+    text: t('loading'),
     style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fill: '#344b38' },
   });
   private readonly bar = new Graphics();

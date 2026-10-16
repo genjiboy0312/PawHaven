@@ -1,3 +1,4 @@
+import { t } from '../settings/i18n';
 import { AnimatedSprite, Text } from 'pixi.js';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
@@ -64,7 +65,7 @@ export class AnimalAnimationController {
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;
     this.welcomeMark.visible = state === 'NOTICE' || state === 'GREET' || state === 'EMOTE';
-    this.welcomeMark.text = state === 'NOTICE' ? '!' : state === 'GREET' ? '반가워! ♡' : state === 'EMOTE' ? ['♡', '♪', '?'][Math.floor(elapsed * 0.9) % 3] : '';
+    this.welcomeMark.text = state === 'NOTICE' ? '!' : state === 'GREET' ? t('greet') : state === 'EMOTE' ? ['♡', '♪', '?'][Math.floor(elapsed * 0.9) % 3] : '';
     this.welcomeMark.position.set(0, -155 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
   }
 }

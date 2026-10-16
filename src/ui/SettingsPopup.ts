@@ -1,3 +1,6 @@
+import { bindAria, bindText, setLanguage, t, type TextKey } from '../settings/i18n';
+import { GameSettings } from '../settings/GameSettings';
+import type { GamePreferences } from '../settings/GameSettings';
 import { type SoundPreferences, SoundSettings } from '../settings/SoundSettings';
 
 interface SettingsAudio {
@@ -13,10 +16,9 @@ export class SettingsPopup {
   private pageAbort?: AbortController;
   private previousFocus?: HTMLElement;
   private blocked: { element: HTMLElement; inert: boolean }[] = [];
-  private tab: 'Sound' | 'Account' = 'Sound';
+  private tab: 'Sound' | 'Controls' | 'Display' | 'Language' | 'Account' | 'About' = 'Sound';
   get opened(): boolean { return !!this.element; }
-  preferences() { return this.store.current; }
-  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void) {}
+  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined) {}
   open(): void {
     if (this.opened) return;
     const host = document.querySelector<HTMLElement>('#app');
@@ -28,14 +30,17 @@ export class SettingsPopup {
     this.pause(true); this.audio.play('click');
     this.element = document.createElement('div'); this.element.className = 'settings-overlay';
     this.panel = document.createElement('section'); this.panel.className = 'settings-panel';
-    this.panel.setAttribute('role', 'dialog'); this.panel.setAttribute('aria-modal', 'true'); this.panel.setAttribute('aria-label', 'Settings');
-    const heading = document.createElement('h2'); heading.textContent = 'Settings';
-    const close = this.button('×', () => this.close()); close.className = 'settings-close'; close.setAttribute('aria-label', 'Close settings');
-    this.tabs = document.createElement('nav'); this.tabs.className = 'settings-tabs'; this.tabs.setAttribute('aria-label', 'Settings categories');
-    for (const label of ['Sound', 'Account'] as const) this.tabs.append(this.button(label, () => { this.tab = label; this.render(); }));
+    this.panel.setAttribute('role', 'dialog'); this.panel.setAttribute('aria-modal', 'true'); bindAria(this.panel, 'settings');
+    const heading = document.createElement('h2'); bindText(heading, 'settings');
+    const close = this.button('×', () => this.close()); close.className = 'settings-close'; bindAria(close, 'closeSettings');
+    this.tabs = document.createElement('nav'); this.tabs.className = 'settings-tabs'; bindAria(this.tabs, 'settingsCategories');
+    for (const label of ['Sound', 'Controls', 'Display', 'Language', 'Account', 'About'] as const) { const button = this.button(t(label), () => { this.tab = label; this.render(); }); bindText(button, label); this.tabs.append(button); };
     this.content = document.createElement('div'); this.content.className = 'settings-content';
     this.panel.append(heading, close, this.tabs, this.content); this.element.append(this.panel); host.append(this.element);
-    this.element.addEventListener('click', event => { if (event.target === this.element) this.close(); }, { signal: this.abort.signal });
+    let backdropPressed = false;
+    this.element.addEventListener('pointerdown', event => { backdropPressed = event.target === this.element; }, { signal: this.abort.signal });
+    this.element.addEventListener('pointerup', event => { if (backdropPressed && event.target === this.element) this.close(); backdropPressed = false; }, { signal: this.abort.signal });
+    this.element.addEventListener('pointercancel', () => { backdropPressed = false; }, { signal: this.abort.signal });
     this.element.addEventListener('keydown', event => {
       event.stopPropagation();
       if (event.key === 'Escape') { event.preventDefault(); this.close(); return; }
@@ -53,20 +58,42 @@ export class SettingsPopup {
   }
   private render(): void {
     if (!this.content || !this.tabs) return;
-    for (const button of Array.from(this.tabs.children)) button.setAttribute('aria-pressed', String(button.textContent === this.tab));
+    for (const button of Array.from(this.tabs.children)) button.setAttribute('aria-pressed', String(button.textContent === t(this.tab)));
     this.pageAbort?.abort(); this.pageAbort = new AbortController();
     this.content.replaceChildren();
     if (this.tab === 'Account') {
-      const title = document.createElement('p'); title.className = 'settings-guest'; title.textContent = 'Playing as Guest';
-      const hint = document.createElement('p'); hint.textContent = 'Account login and cloud saves are coming soon.';
-      const login = document.createElement('button'); login.type = 'button'; login.textContent = 'Login'; login.disabled = true;
+      const title = document.createElement('p'); title.className = 'settings-guest'; title.textContent = t('guest');
+      const hint = document.createElement('p'); hint.textContent = t('accountSoon');
+      const login = document.createElement('button'); login.type = 'button'; login.textContent = t('login'); login.disabled = true;
       this.content.append(title, hint, login); return;
     }
+    const options = this.game.current;
+    if (this.tab === 'Controls') {
+      this.slider('controlSize', Math.round(options.controlSize * 100), 80, 120, value => this.changeGame({ controlSize: value / 100 }));
+      this.toggle('leftHanded', options.leftHanded, value => this.changeGame({ leftHanded: value }));
+      this.toggle('vibration', options.vibration, value => this.changeGame({ vibration: value }));
+      this.paragraph('keyboardHelp'); return;
+    }
+    if (this.tab === 'Display') {
+      this.toggle('effects', options.effects, value => this.changeGame({ effects: value }));
+      this.toggle('camera', options.smoothCamera, value => this.changeGame({ smoothCamera: value })); return;
+    }
+    if (this.tab === 'Language') {
+      for (const [code, label] of [['ko', '한국어'], ['en', 'English']] as const) {
+        const button = this.button(label, () => { this.changeGame({ language: code }); this.render(); }, this.pageAbort.signal);
+        button.setAttribute('aria-pressed', String(options.language === code)); this.content.append(button);
+      }
+      this.paragraph('languageHint'); return;
+    }
+    if (this.tab === 'About') {
+      const title = document.createElement('p'); title.textContent = 'Paw Haven'; this.content.append(title);
+      this.paragraph('version'); this.paragraph('aboutText'); return;
+    }
     const preferences = this.store.current;
-    for (const [channel, label] of [['master', 'Master'], ['bgm', 'BGM'], ['sfx', 'SFX']] as const) {
+    for (const channel of ['master', 'bgm', 'sfx'] as const) {
       const row = document.createElement('label'); row.className = 'settings-volume';
-      const name = document.createElement('span'); name.textContent = label;
-      const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.step = '1'; slider.value = String(Math.round(preferences[channel] * 100)); slider.setAttribute('aria-label', label + ' volume');
+      const name = document.createElement('span'); name.textContent = t(channel);
+      const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.step = '1'; slider.value = String(Math.round(preferences[channel] * 100)); slider.setAttribute('aria-label', t(channel));
       const output = document.createElement('output'); output.textContent = slider.value + '%';
       slider.addEventListener('input', () => { this.store.volume(channel, Number(slider.value) / 100); output.textContent = slider.value + '%'; this.audio.apply(this.store.current); });
       row.append(name, slider, output); this.content.append(row);
@@ -74,10 +101,26 @@ export class SettingsPopup {
     const mute = document.createElement('label'); mute.className = 'settings-mute';
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = preferences.muted;
     checkbox.addEventListener('change', () => { this.store.mute(checkbox.checked); this.audio.apply(this.store.current); });
-    const text = document.createElement('span'); text.textContent = 'Mute all'; mute.append(checkbox, text);
+    const text = document.createElement('span'); text.textContent = t('mute'); mute.append(checkbox, text);
     const preview = document.createElement('div'); preview.className = 'settings-preview';
-    preview.append(this.button('Preview BGM', () => this.audio.play('bgm'), this.pageAbort.signal), this.button('Preview SFX', () => this.audio.play('click'), this.pageAbort.signal));
+    preview.append(this.button(t('previewBgm'), () => this.audio.play('bgm'), this.pageAbort.signal), this.button(t('previewSfx'), () => this.audio.play('click'), this.pageAbort.signal));
     this.content.append(mute, preview);
+  }
+  private changeGame(next: Partial<GamePreferences>): void { this.game.update(next); if (next.language) setLanguage(next.language); this.applyGame(this.game.current); }
+  private paragraph(key: TextKey): void { const p = document.createElement('p'); p.textContent = t(key); this.content?.append(p); }
+  private toggle(key: TextKey, checked: boolean, change: (value: boolean) => void): void {
+    const label = document.createElement('label'); label.className = 'settings-option';
+    const input = document.createElement('input'); input.type = 'checkbox'; input.checked = checked;
+    input.addEventListener('change', () => change(input.checked));
+    const text = document.createElement('span'); text.textContent = t(key); label.append(input, text); this.content?.append(label);
+  }
+  private slider(key: TextKey, value: number, min: number, max: number, change: (value: number) => void): void {
+    const row = document.createElement('label'); row.className = 'settings-volume';
+    const name = document.createElement('span'); name.textContent = t(key);
+    const input = document.createElement('input'); input.type = 'range'; input.min = String(min); input.max = String(max); input.value = String(value); input.setAttribute('aria-label', t(key));
+    const output = document.createElement('output'); output.textContent = value + '%';
+    input.addEventListener('input', () => { output.textContent = input.value + '%'; change(Number(input.value)); });
+    row.append(name, input, output); this.content?.append(row);
   }
   close(): void {
     if (!this.opened) return;

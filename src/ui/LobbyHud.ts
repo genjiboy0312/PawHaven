@@ -1,11 +1,6 @@
+import { bindAria, bindText } from '../settings/i18n';
 import type { AnimalVisualState } from '../animals/AnimalState';
 
-const MESSAGES: Record<AnimalVisualState, string> = {
-  NOTICE: '코기가 당신을 알아봤어요', APPROACH: '코기가 다가와요', GREET: '반갑게 인사해요',
-  IDLE: '느긋하게 쉬고 있어요', WANDER: '정원을 산책해요', REST: '잠시 눈을 붙여요',
-  SLEEP: '새근새근 자고 있어요', OBSERVE: '주변을 둘러봐요',
-  JUMP: '폴짝 뛰어올라요', LAND: '사뿐히 내려앉아요', EMOTE: '기분을 표현해요',
-};
 const ICONS = {
   character: '<path d="m21 20-9 8 7 10 5-4v19h24V34l5 4 7-10-9-8-8 5h-6z"/><path d="M27 39c0-6 10-6 10 0s-10 6-10 0z"/><path d="M26 32v1m6-2v1m6 0v1"/>',
   shop: '<path d="M17 27h30v27H17zM13 27l5-13h28l5 13"/><path d="M13 27c0 8 10 8 10 0 0 8 9 8 9 0 0 8 9 8 9 0 0 8 10 8 10 0M27 54V41h11v13"/>',
@@ -27,7 +22,7 @@ export class LobbyHud {
     character.className = 'hud-character';
     const characterButton = this.menu('character', 'Character');
     if (onCharacter) {
-      characterButton.disabled = false; characterButton.setAttribute('aria-label', 'Character');
+      characterButton.disabled = false; bindAria(characterButton, 'character');
       characterButton.addEventListener('click', onCharacter, { once: true });
     }
     character.append(characterButton);
@@ -36,7 +31,7 @@ export class LobbyHud {
     utilities.setAttribute('aria-label', 'Lobby menu');
     const settings = this.menu('settings', 'Settings');
     if (onSettings) {
-      settings.disabled = false; settings.setAttribute('aria-label', 'Settings');
+      settings.disabled = false; bindAria(settings, 'settings');
       settings.addEventListener('click', onSettings);
     }
     utilities.append(this.menu('friends', 'Friends'), this.menu('shop', 'Shop'), settings);
@@ -45,7 +40,7 @@ export class LobbyHud {
     const playButton = this.menu('play', 'Play');
     if (onPlay) {
       playButton.disabled = false;
-      playButton.setAttribute('aria-label', 'Play');
+      bindAria(playButton, 'play');
       playButton.addEventListener('click', onPlay, { once: true });
     }
     play.append(playButton);
@@ -60,13 +55,13 @@ export class LobbyHud {
     document.querySelector('#app')?.append(this.element);
   }
 
-  private menu(id: MenuId, label: string): HTMLButtonElement {
+  private menu(id: MenuId, _label: string): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'hud-menu hud-menu-' + id;
     button.disabled = true;
     button.setAttribute('data-menu', id);
-    button.setAttribute('aria-label', label + ' (coming soon)');
+    bindAria(button, id);
     const image = document.createElement('img');
     image.className = 'hud-icon';
     image.alt = '';
@@ -75,13 +70,13 @@ export class LobbyHud {
     );
     const name = document.createElement('span');
     name.className = 'hud-label';
-    name.textContent = label;
+    bindText(name, id);
     button.append(image, name);
     return button;
   }
   update(state: AnimalVisualState): void {
     if (state !== this.previousState) {
-      this.status.textContent = MESSAGES[state];
+      bindText(this.status, `state.${state}`);
       this.previousState = state;
     }
   }
