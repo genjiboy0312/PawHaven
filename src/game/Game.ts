@@ -1,3 +1,5 @@
+import { createOutfit } from '../animals/OutfitState';
+import { CharacterScene } from './scenes/CharacterScene';
 import { PlayScene } from './scenes/PlayScene';
 import { TitleScene } from './scenes/TitleScene';
 import type { AnimalConfig } from '../animals/AnimalConfig';
@@ -9,6 +11,7 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 export class Game {
+  private readonly outfit = createOutfit();
   private readonly app = new Application();
   private scenes: SceneManager | undefined;
   private disposed = false;
@@ -57,8 +60,10 @@ export class Game {
     const lobby = (returning = false): void => {
       if (this.disposed) return;
       this.scenes?.show(new LobbyScene(corgi, () => {
-        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true)));
-      }, returning));
+        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true), this.outfit));
+      }, returning, () => {
+        if (!this.disposed) this.scenes?.show(new CharacterScene(corgi, this.outfit, () => lobby(true)));
+      }, this.outfit));
     };
     this.scenes.show(new TitleScene(() => lobby()));
     document.querySelector('#status')?.remove();

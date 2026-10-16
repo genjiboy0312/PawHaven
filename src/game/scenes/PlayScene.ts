@@ -1,3 +1,5 @@
+import { AnimalOutfit } from '../../animals/AnimalOutfit';
+import type { OutfitState } from '../../animals/OutfitState';
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
@@ -8,6 +10,7 @@ import { Scene } from './Scene';
 export class PlayScene extends Scene {
   private readonly run = new DummyRun();
   private readonly world = new Container();
+  private readonly outfitView = new AnimalOutfit();
   private readonly pet = new Container();
   private readonly effect: AnimalEffects;
   private readonly animation: AnimalAnimationController;
@@ -25,9 +28,10 @@ export class PlayScene extends Scene {
   private returned = false;
   private readonly blur = (): void => { this.keys.clear(); this.axis = 0; this.pointer = undefined; this.knob.style.transform = ''; };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, outfit?: OutfitState) {
     super();
     this.animation = new AnimalAnimationController(config);
+    if (outfit) this.outfitView.apply(outfit);
     this.effect = new AnimalEffects(config.effects);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
     this.world.addChild(new Graphics().rect(0, 390, 2850, 150).fill('#b5cd99')
@@ -41,7 +45,7 @@ export class PlayScene extends Scene {
       this.world.addChild(new Graphics().rect(x, 275, 5, 115).fill('#657653'), flag);
     }
     this.world.addChild(this.pet);
-    this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
+    this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.outfitView, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
     this.hud.className = 'play-hud';
     this.hud.setAttribute('aria-label', 'Game controls');
     this.stick.className = 'play-stick';
@@ -122,6 +126,7 @@ export class PlayScene extends Scene {
       : action === 'land' ? 1 - run.land / 0.16
       : action === 'jump' ? Math.min(0.49, Math.max(0, (440 - run.velocity) / 880)) : undefined;
     this.animation.update('IDLE', this.elapsed, run.direction, 0, 0, seconds, action, progress);
+    this.outfitView.scale.x = run.direction;
     this.effect.update(action, progress ?? 0, run.direction, this.animation.sprite, run.horizontalVelocity);
     this.victory.hidden = !run.won;
     this.fade.style.opacity = String(run.fade);

@@ -1,3 +1,5 @@
+import { AnimalOutfit } from './AnimalOutfit';
+import type { OutfitState } from './OutfitState';
 import { Container } from 'pixi.js';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import { AnimalAnimationController } from './AnimalAnimationController';
@@ -6,6 +8,8 @@ import { WelcomeSequence } from '../systems/WelcomeSequence';
 import type { AnimalVisualState, BehaviorMode } from './AnimalState';
 
 export class Animal extends Container {
+  private readonly outfitView = new AnimalOutfit();
+  setOutfit(outfit: OutfitState): void { this.outfitView.apply(outfit); }
   private readonly animation: AnimalAnimationController;
   private readonly behavior: AnimalStateMachine;
   private readonly welcome: WelcomeSequence;
@@ -18,7 +22,7 @@ export class Animal extends Container {
     this.behavior = new AnimalStateMachine(config.speed, config.behavior, random);
     this.welcome = new WelcomeSequence(config.speed, config.welcome);
     this.animation = new AnimalAnimationController(config);
-    this.addChild(this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark);
+    this.addChild(this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.outfitView);
     this.label = config.id;
   }
 
@@ -62,5 +66,7 @@ export class Animal extends Container {
       this.welcoming ? 0 : this.behavior.jumpHeight,
       seconds,
     );
+    this.outfitView.scale.x = this.animation.sprite.scale.x < 0 ? -1 : 1;
+    this.outfitView.y = this.animation.sprite.y;
   }
 }

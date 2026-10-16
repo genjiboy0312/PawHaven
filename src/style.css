@@ -81,3 +81,13 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .scene-fade { position: absolute; inset: 0; z-index: 10; background: #242e26; pointer-events: none; }
 .fade-in { animation: scene-reveal 0.4s linear forwards; }
 @keyframes scene-reveal { from { opacity: 1; } to { opacity: 0; } }
+.hud-menu-character:enabled { pointer-events: auto; cursor: pointer; }
+.character-screen { position: absolute; inset: 0; z-index: 3; pointer-events: none; color: #59605b; }
+.character-close { position: absolute; right: 2cqw; top: 2cqh; border: 0; border-radius: 50%; width: 5.5cqw; height: 5.5cqw; background: #d9ddda; color: inherit; font-size: 1.2cqw; pointer-events: auto; cursor: pointer; }
+.outfit-tabs { position: absolute; left: 52%; right: 10%; top: 7cqh; display: flex; gap: 1cqw; pointer-events: auto; }
+.outfit-tabs button { flex: 1; border: 0; background: transparent; color: #7d847e; padding: 1cqh 0; font-size: 1.7cqw; cursor: pointer; border-bottom: 2px solid transparent; }
+.outfit-tabs button[aria-pressed="true"] { color: #465646; border-color: #87977b; }
+.outfit-inventory { position: absolute; left: 52%; right: 3%; top: 20cqh; height: 72cqh; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: calc((72cqh - 6cqh) / 4); gap: 2cqh 1cqw; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #a2aaa3 transparent; pointer-events: auto; padding: 1px 1cqw 1px 2px; touch-action: pan-y; }
+.outfit-slot { --item-color: #bcc1bc; justify-self: center; align-self: center; height: 14cqh; width: 14cqh; border: 2px solid transparent; border-radius: 50%; background: #d9ddda; color: #525c54; font-size: 1.5cqw; cursor: pointer; box-shadow: inset 0 -0.3cqh 0 #c8ceca; }
+.outfit-slot:not(:first-child) { background: radial-gradient(circle at 50% 32%, var(--item-color) 0 14%, #d9ddda 16%); padding-top: 4cqh; }
+.outfit-slot[aria-pressed="true"] { border-color: #718368; background-color: #cbd4c6; }

@@ -705,3 +705,58 @@ test('pixel VFX map uses four complete isolated cells per action and an RGBA sou
     }
   }
 });
+test('Character opens a stationary preview, keeps category equipment and returns to the shared lobby', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = { setProperty() {} };
+    classList = { add() {} }; scrollTop = 0;
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
+    replaceChildren(...items) { this.children.forEach(item => { item.parent = undefined; }); this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document;
+  const host = new Element('main');
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
+  const { Container } = await import('pixi.js');
+  const { createOutfit } = await importTs('../src/animals/OutfitState.ts', import.meta.url);
+  const { CharacterScene } = await importTs('../src/game/scenes/CharacterScene.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
+  const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 } } };
+  const outfit = createOutfit(); let returns = 0;
+  const lobby = () => manager.show(new LobbyScene(config, undefined, true, () => {
+    manager.show(new CharacterScene(config, outfit, () => { returns++; lobby(); }));
+  }, outfit));
+  try {
+    lobby();
+    const character = host.children[0].children[0].children[0];
+    assert.equal(character.disabled, false);
+    character.dispatchEvent(new Event('click'));
+    const scene = app.stage.children[0], panel = host.children[0], tabs = panel.children[1], inventory = panel.children[2];
+    assert.deepEqual(tabs.children.map(button => button.textContent), ['Hat', 'Body', 'Acc', 'Etc']);
+    assert.equal(inventory.children.length, 21);
+    inventory.children[3].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
+    tabs.children[1].dispatchEvent(new Event('click'));
+    inventory.children[2].dispatchEvent(new Event('click')); assert.equal(outfit.Body, 2);
+    tabs.children[0].dispatchEvent(new Event('click'));
+    assert.equal(inventory.children[3].attributes.get('aria-pressed'), 'true');
+    inventory.children[0].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 0);
+    const preview = scene.children[1], x = preview.x, y = preview.y;
+    const textures = new Set();
+    for (let frame = 0; frame < 660; frame++) { manager.update(1 / 60); textures.add(preview.children[0].textures); }
+    assert.equal(preview.x, x); assert.equal(preview.y, y); assert.equal(textures.size, 2);
+    panel.children[0].dispatchEvent(new Event('click'));
+    assert.equal(returns, 1); assert.equal(scene.destroyed, true); assert.equal(host.children.length, 1);
+    const pet = app.stage.children[0].children.find(child => child.label === 'corgi');
+    assert.equal(pet.welcoming, false); assert.ok(pet.children.at(-1).context.instructions.length > 0);
+    host.children[0].children[0].children[0].dispatchEvent(new Event('click'));
+    host.children[0].children[1].children[1].dispatchEvent(new Event('click'));
+    assert.equal(host.children[0].children[2].children[2].attributes.get('aria-pressed'), 'true');
+    manager.destroy(); assert.equal(host.children.length, 0);
+  } finally {
+    manager.destroy(); app.stage.destroy();
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});
