@@ -16,7 +16,7 @@
 
 원본 시트를 재편집하거나 타이트하게 잘라낸 PNG로 바꾸지 않았다. frames.json의 Texture.frame은 실제 동작 사이의 투명 구간까지 포함한다. Daily는 실제 그림 사이 여백을 기준으로 열 폭을 다르게 나눴고, 액션 시트는 충분한 행 여백 안에서 경계를 정했다. 시트가 정확한 동일 셀 크기라고 가정하지 않는다.
 
-alpha>128은 중심/발 기준점 측정용이며 런타임 투명도를 삭제하지 않는다. 각 셀 경계 최대 알파를 확인해 8/255 이하만 채택했다. 논리 orig=1024×1024, trim=(512-center,870-baseline,width,height), anchorY=870/1024. Idle/Daily는 실제 몸체 높이를 기준으로 크기를 맞추고 Combat는 Run 기준 공통 크기를 유지해 대시의 낮은 자세를 보존한다.
+alpha>128은 중심/발 기준점 측정용이며 런타임 투명도를 삭제하지 않는다. 각 셀 경계 최대 알파를 확인해 8/255 이하만 채택했다. 논리 orig=1024×1024, trim=(512-center,870-baseline,width,height), anchorY=870/1024. Idle/Daily는 실제 몸체 높이를 기준으로 크기를 맞추고 Run/Jump는 기존 크기를 유지한다. Attack은 Run 기준 높이, Skill은 Run 최대 가로 폭으로 배율을 맞춰 동작 전환 시 몸체가 커지는 현상을 줄였다.
 
 프레임별 머리 부착점으로 기존 산타모자를 사용할 수 있다. 현재는 초기 위치값이므로 실제 화면에서 미세 조정이 필요할 수 있다.
 
@@ -44,3 +44,7 @@ Use case: stylized-concept. Game runtime sprite atlas for the EXACT approved dog
 ## 최종 생성 프롬프트 3
 
 EDIT THIS EXISTING MYEONGRANG ACTION ATLAS. Preserve the same dog's face, chestnut/white markings, pixel style and the same sixteen poses in the SAME row order. CRITICAL LAYOUT REPAIR: shrink EACH dog to HALF ITS CURRENT SIZE within its own cell. Add extremely generous truly transparent margins. EXACT FOUR COLUMNS x FOUR ROWS uniform equal cells. Each dog occupies AT MOST 45% of cell width AND AT MOST 50% of cell height. Put each little dog in centre of cell at consistent baseline around 70% of cell height. Enormous clear gutters between all sixteen complete silhouettes, especially row3 first dog and row4 first dog; these must NEVER touch. No silhouette crosses a cell border, all ears, paws, tails completely visible. Row1 four run gait poses; row2 brace, raised paw, extended paw-swipe, recover; row3 lean/push/extend/recover dash; row4 rising/apex/descending/landing jump. Bodies ONLY, NO glows, NO ground, NO shadow, NO VFX, NO labels, NO lines, NO panels. Actual transparent alpha everywhere outside bodies. This is a spacing repair, keep dog identity and animation intent unchanged. Landscape canvas.
+
+## 2026-10-17 공격·대시 크기 보정
+
+사용자 화면 확인 후 Attack 배율을 1.709677 → 1.582090, Skill을 1.709677 → 1.498696으로 조정했다. 공격 최대 높이를 달리기 기준 높이에, 대시 최대 폭을 달리기 최대 폭에 맞췄다. 원본 PNG·전체 프레임·발 기준점·이펙트는 유지한다. 모자와 몸체 잔상도 실제 몸체 배율을 그대로 상속한다. 테스트 51개·타입 검사·빌드로 전환/방향별 크기 제한을 검증했다.

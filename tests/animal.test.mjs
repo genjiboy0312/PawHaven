@@ -1553,3 +1553,32 @@ test('Myeongrang selection reaches lobby, game body/VFX and presets, and Corgi c
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+
+test('Myeongrang attack height and dash width stay within running size across transitions and directions', async () => {
+  const map = JSON.parse(await readFile(new URL('../public/assets/characters/myeongrang/frames.json', import.meta.url), 'utf8'));
+  const height = frame => frame.opaqueBounds.bottom - frame.opaqueBounds.top + 1;
+  const width = frame => frame.opaqueBounds.right - frame.opaqueBounds.left + 1;
+  const runHeights = map.actions.run.frames.map(height).sort((a, b) => a - b);
+  const referenceHeight = runHeights[Math.floor(runHeights.length / 2)] * map.actions.run.scale;
+  const referenceWidth = Math.max(...map.actions.run.frames.map(width)) * map.actions.run.scale;
+  const animations = Object.fromEntries(Object.entries(map.actions).map(([key, clip]) => [key, {
+    frames: clip.frames.map(() => new Texture({ source: Texture.WHITE.source })), fps: clip.fps, scale: clip.scale,
+  }]));
+  const controller = new AnimalAnimationController({ id: 'myeongrang', speed: 90, scale: 0.62, animations });
+  try {
+    for (const direction of [-1, 1]) for (const key of ['idle', 'run', 'attack', 'run', 'skill', 'idle']) {
+      const clip = map.actions[key];
+      for (const [frameIndex, frame] of clip.frames.entries()) {
+        controller.update('IDLE', 0, direction, 0, 0, 0, key, (frameIndex + 0.1) / clip.frames.length);
+        assert.equal(controller.sprite.scale.x, direction * 0.62 * clip.scale);
+        assert.equal(controller.sprite.scale.y, 0.62 * clip.scale);
+        assert.equal(controller.sprite.y, 0);
+        if (key === 'attack') assert.ok(height(frame) * Math.abs(controller.sprite.scale.y) <= referenceHeight * 0.62 + 0.000001);
+        if (key === 'skill') assert.ok(width(frame) * Math.abs(controller.sprite.scale.x) <= referenceWidth * 0.62 + 0.000001);
+      }
+    }
+  } finally {
+    controller.sprite.destroy({ children: true }); controller.sleepMark.destroy(); controller.welcomeMark.destroy();
+    Object.values(animations).flatMap(clip => clip.frames).forEach(texture => texture.destroy(false));
+  }
+});
