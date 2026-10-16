@@ -475,3 +475,96 @@ test('shared idle playback survives behavior timer resets and independent clips 
   assert.equal(controller.sprite.currentFrame, 4);
   destroyAnimationController(controller);
 });
+const { DummyRun } = await importTs('../src/game/DummyRun.ts', import.meta.url);
+test('dummy course takes ten seconds and returns only after victory and fade', () => {
+  const run = new DummyRun();
+  for (let i = 0; i < 599; i++) run.update(1 / 60, 1);
+  assert.equal(run.won, false);
+  run.update(1 / 60, 1);
+  assert.equal(run.won, true);
+  assert.equal(run.x, run.finish);
+  run.jump(); run.startDash(); run.startAttack();
+  run.update(1.5, -1);
+  assert.equal(run.x, run.finish);
+  assert.equal(run.height, 0);
+  assert.equal(run.fade, 0);
+  assert.equal(run.returnReady, false);
+  run.update(0.2, 0);
+  assert.ok(Math.abs(run.fade - 0.5) < 0.001);
+  run.update(0.21, 0);
+  assert.equal(run.returnReady, true);
+  assert.equal(run.fade, 1);
+});
+test('dummy controls jump, land, dash with cooldown and expire attack', () => {
+  const run = new DummyRun();
+  run.update(1, -1);
+  assert.equal(run.x, run.start);
+  run.jump(); run.update(0.1, 0);
+  assert.ok(run.height > 0);
+  const velocity = run.velocity;
+  run.jump(); assert.equal(run.velocity, velocity);
+  for (let i = 0; i < 90; i++) run.update(1 / 60, 0);
+  assert.equal(run.height, 0);
+  run.direction = 1;
+  run.startDash(); run.startAttack(); run.update(0.1, 0);
+  assert.ok(run.x > run.start);
+  const cooldown = run.dashCooldown;
+  run.startDash(); assert.equal(run.dashCooldown, cooldown);
+  for (let i = 0; i < 60; i++) run.update(1 / 60, 0);
+  assert.equal(run.attack, 0);
+  assert.equal(run.dash, 0);
+});
+
+test('Play enters a run, victory returns once without another greeting, and scenes clean up', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, oldWindow = globalThis.window;
+  const host = new Element('main');
+  globalThis.document = Object.assign(new EventTarget(), { createElement: tag => new Element(tag), querySelector: () => host });
+  globalThis.window = new EventTarget();
+  const { Container } = await import('pixi.js');
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const { PlayScene } = await importTs('../src/game/scenes/PlayScene.ts', import.meta.url);
+  const app = { stage: new Container(), screen: { width: 960, height: 540 } };
+  const manager = new SceneManager(app);
+  const config = { id: 'corgi', speed: 90, scale: 0.62, animations: {
+    idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+    jump: { frames: Array(8).fill(Texture.WHITE), fps: 8 } } };
+  let returns = 0;
+  try {
+    manager.show(new LobbyScene(config, () => manager.show(new PlayScene(config, () => {
+      returns++; manager.show(new LobbyScene(config, undefined, true));
+    }))));
+    const playButton = host.children[0].children[2].children[0];
+    assert.equal(playButton.disabled, false);
+    playButton.dispatchEvent(new Event('click'));
+    const runHud = host.children[0];
+    assert.equal(runHud.className, 'play-hud');
+    assert.deepEqual(runHud.children[1].children.map(item => item.textContent), ['Attack', 'Dash', 'Jump']);
+    const down = new Event('keydown', { cancelable: true });
+    Object.defineProperty(down, 'code', { value: 'ArrowRight' });
+    window.dispatchEvent(down);
+    for (let i = 0; i < 600; i++) manager.update(1 / 60);
+    assert.equal(runHud.children[3].hidden, false);
+    for (let i = 0; i < 120; i++) manager.update(1 / 60);
+    assert.equal(returns, 1);
+    assert.equal(host.children.length, 1);
+    assert.equal(app.stage.children.length, 1);
+    const pet = app.stage.children[0].children.find(item => item.label === 'corgi');
+    assert.equal(pet.welcoming, false);
+    assert.equal(pet.mode, 'auto');
+    window.dispatchEvent(down);
+    manager.destroy();
+    assert.equal(host.children.length, 0);
+  } finally {
+    manager.destroy(); app.stage.destroy();
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});

@@ -1,3 +1,4 @@
+import { PlayScene } from './scenes/PlayScene';
 import { TitleScene } from './scenes/TitleScene';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { loadCorgi } from '../animals/loadCorgi';
@@ -52,9 +53,13 @@ export class Game {
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
-    this.scenes.show(new TitleScene(() => {
-      if (!this.disposed) this.scenes?.show(new LobbyScene(corgi));
-    }));
+    const lobby = (returning = false): void => {
+      if (this.disposed) return;
+      this.scenes?.show(new LobbyScene(corgi, () => {
+        if (!this.disposed) this.scenes?.show(new PlayScene(corgi, () => lobby(true)));
+      }, returning));
+    };
+    this.scenes.show(new TitleScene(() => lobby()));
     document.querySelector('#status')?.remove();
     this.visibility();
   }

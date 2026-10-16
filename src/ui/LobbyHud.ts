@@ -20,7 +20,7 @@ export class LobbyHud {
   private readonly status = document.createElement('p');
   private previousState: AnimalVisualState | undefined;
 
-  constructor() {
+  constructor(onPlay?: () => void, fadeIn = false) {
     this.element.className = 'lobby-hud';
     this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
@@ -32,10 +32,21 @@ export class LobbyHud {
     utilities.append(this.menu('friends', 'Friends'), this.menu('shop', 'Shop'), this.menu('settings', 'Settings'));
     const play = document.createElement('div');
     play.className = 'hud-play';
-    play.append(this.menu('play', 'Play'));
+    const playButton = this.menu('play', 'Play');
+    if (onPlay) {
+      playButton.disabled = false;
+      playButton.setAttribute('aria-label', 'Play');
+      playButton.addEventListener('click', onPlay, { once: true });
+    }
+    play.append(playButton);
     this.status.className = 'sr-only';
     this.status.setAttribute('role', 'status');
     this.element.append(character, utilities, play, this.status);
+    if (fadeIn) {
+      const fade = document.createElement('div');
+      fade.className = 'scene-fade fade-in';
+      this.element.append(fade);
+    }
     document.querySelector('#app')?.append(this.element);
   }
 

@@ -8,11 +8,13 @@ export class LobbyScene extends Scene {
   private readonly garden = new Graphics();
   private readonly shadow = new Graphics();
   private readonly animal: Animal;
-  private readonly hud = new LobbyHud();
+  private readonly hud: LobbyHud;
   private welcomeStarted = false;
 
-  constructor(config: AnimalConfig) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false) {
     super();
+    this.hud = new LobbyHud(onPlay, returning);
+    this.welcomeStarted = returning;
     this.animal = new Animal(config);
     this.addChild(this.garden, this.shadow, this.animal);
   }
