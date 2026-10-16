@@ -28,6 +28,11 @@ export class Animal extends Container {
     this.update(0);
     return true;
   }
+  pet(): boolean {
+    if (this.welcoming || !this.behavior.pet()) return false;
+    this.update(0);
+    return true;
+  }
   play(action: AnimalAction): boolean {
     if (this.welcoming || (action !== 'idle' && action !== 'walk') || !this.config.animations[action]) return false;
     this.behavior.setMode(action);

@@ -856,7 +856,7 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     const hud = host.children[0], pet = scene.children[1].children.at(-1), settings = hud.children[2];
     assert.equal(settings.disabled, false);
     key('ArrowRight'); manager.update(0.2); const x = pet.x;
-    settings.dispatchEvent(new Event('pointerdown', { cancelable: true }));
+    settings.dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
     assert.equal(popup.opened, false);
     settings.dispatchEvent(new Event('pointerup'));
     settings.dispatchEvent(new Event('click'));
@@ -868,7 +868,7 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     overlay.dispatchEvent(new Event('pointerup'));
     overlay.dispatchEvent(new Event('click'));
     assert.equal(popup.opened, true); // release/click from the opening tap must not dismiss it
-    key('Space'); hud.children[1].children[2].dispatchEvent(new Event('pointerdown', { cancelable: true }));
+    key('Space'); hud.children[1].children[2].dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
     manager.update(30); assert.equal(pet.x, x); assert.equal(pet.y, 390); assert.ok(!sounds.includes('jump'));
     const slider = content.children[0].children[1]; slider.value = '35'; slider.dispatchEvent(new Event('input'));
     assert.equal(store.current.master, 0.35); assert.equal(applied.at(-1).master, 0.35);
@@ -1114,5 +1114,110 @@ test('Home beside Character opens a pet-free map editor and returns the same edi
   } finally {
     manager.destroy(); app.stage.destroy();
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});
+test('petting rejects welcome, jumping and repeated taps, then resumes autonomous movement', () => {
+  const animal = new Animal({ id: 'corgi', speed: 90, scale: 0.62,
+    animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
+      walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+      emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 } } }, seededRandom(42));
+  try {
+    animal.setBounds(960, 390);
+    animal.startWelcome(); assert.equal(animal.pet(), false);
+    for (let i = 0; i < 1000; i++) animal.update(1 / 60);
+    animal.resumeAutonomy();
+    const x = animal.x;
+    assert.equal(animal.pet(), true); assert.equal(animal.state, 'EMOTE');
+    for (let i = 0; i < 60; i++) {
+      assert.equal(animal.pet(), false); animal.update(1 / 60);
+      assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
+    }
+    assert.ok(animal.children[0].currentFrame > 0);
+    animal.update(0.51); assert.equal(animal.state, 'IDLE'); assert.equal(animal.mode, 'auto');
+    const states = new Set();
+    for (let i = 0; i < 7200; i++) {
+      animal.update(1 / 60); states.add(animal.state);
+      if (animal.state === 'JUMP' || animal.state === 'LAND') assert.equal(animal.pet(), false);
+    }
+    assert.ok(states.has('WANDER')); assert.ok(states.has('JUMP'));
+    assert.equal(animal.play('walk'), true); assert.equal(animal.pet(), false);
+  } finally { animal.destroy({ children: true }); }
+});
+
+test('lobby body taps react independently of HUD, respect pause and release listeners on exit', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, host = new Element('main');
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const scene = new LobbyScene({ id: 'corgi', speed: 90, scale: 0.62,
+    animations: { idle: { frames: [Texture.WHITE], fps: 3 }, emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 } } }, undefined, true);
+  try {
+    scene.resize(960, 540);
+    const pet = scene.children.find(child => child.label === 'corgi');
+    assert.equal(pet.eventMode, 'static'); assert.equal(pet.hitArea.contains(0, -60), true);
+    assert.equal(pet.hitArea.contains(300, -60), false);
+    pet.emit('pointertap', { button: 2 }); assert.equal(pet.state, 'IDLE');
+    scene.setPaused(true); pet.emit('pointertap', { button: 0 }); assert.equal(pet.state, 'IDLE');
+    scene.setPaused(false); pet.emit('pointertap', { button: 0 }); assert.equal(pet.state, 'EMOTE');
+    scene.update(0.5); const frame = pet.children[0].currentFrame;
+    for (const group of host.children[0].children) for (const button of group.children) button.dispatchEvent(new Event('click'));
+    scene.setPaused(true); scene.update(10); assert.equal(pet.children[0].currentFrame, frame);
+    scene.setPaused(false); scene.update(1.01); assert.equal(pet.state, 'IDLE');
+    scene.destroy({ children: true }); assert.equal(pet.listenerCount('pointertap'), 0); assert.equal(host.children.length, 0);
+  } finally {
+    if (!scene.destroyed) scene.destroy({ children: true });
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});
+
+test('joystick supports rotated multitouch and does not clear held keyboard movement on release', async () => {
+  class Element extends EventTarget {
+    children = []; style = {}; attributes = new Map(); classList = { add() {} }; captured = new Set();
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+    getBoundingClientRect() { return { left: 10, top: 10, width: 100, height: 100 }; }
+    setPointerCapture(id) { this.captured.add(id); }
+    hasPointerCapture(id) { return this.captured.has(id); }
+    releasePointerCapture(id) { this.captured.delete(id); this.dispatchEvent(Object.assign(new Event('lostpointercapture'), { pointerId: id })); }
+  }
+  const oldDocument = globalThis.document, oldWindow = globalThis.window, host = new Element('main');
+  globalThis.document = Object.assign(new EventTarget(), { createElement: tag => new Element(tag), querySelector: () => host });
+  let rotated = false;
+  globalThis.window = Object.assign(new EventTarget(), { matchMedia: () => ({ matches: rotated }) });
+  const { PlayScene } = await importTs('../src/game/scenes/PlayScene.ts', import.meta.url);
+  const scene = new PlayScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, () => {});
+  const pointer = (element, type, id, x = 60, y = 60, button = 0) => element.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, clientX: x, clientY: y, button }));
+  const key = (type, code) => window.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { code }));
+  try {
+    const hud = host.children[0], stick = hud.children[0], jump = hud.children[1].children[2];
+    const pet = scene.children[1].children.at(-1); scene.resize(960, 540);
+    pointer(stick, 'pointerdown', 1, 90); scene.update(0.1); assert.ok(pet.x > 120);
+    const x = pet.x; pointer(stick, 'pointermove', 2, 30); scene.update(0.1); assert.ok(pet.x > x);
+    pointer(jump, 'pointerdown', 2); scene.update(0.1); assert.ok(pet.y < 390);
+    key('keydown', 'ArrowRight'); pointer(stick, 'pointerup', 1);
+    const released = pet.x; scene.update(0.1); assert.ok(pet.x > released); assert.equal(stick.captured.size, 0);
+    key('keyup', 'ArrowRight');
+    rotated = true; pointer(stick, 'pointerdown', 3, 60, 90);
+    const before = pet.x; scene.update(0.1); assert.ok(pet.x > before);
+    pointer(stick, 'pointercancel', 3); const stopped = pet.x; scene.update(0.1); assert.equal(pet.x, stopped);
+    pointer(stick, 'pointerdown', 4, 60, 30); scene.setPaused(true); scene.update(1); assert.equal(pet.x, stopped);
+    scene.setPaused(false); scene.update(0.1); assert.equal(pet.x, stopped); assert.equal(stick.captured.size, 0);
+    pointer(stick, 'pointerdown', 5, 60, 90); window.dispatchEvent(new Event('resize'));
+    scene.update(0.1); assert.equal(pet.x, stopped);
+    pointer(stick, 'pointerdown', 6, 60, 90); scene.destroy({ children: true }); assert.equal(stick.captured.size, 0);
+    assert.equal(host.children.length, 0);
+  } finally {
+    if (!scene.destroyed) scene.destroy({ children: true });
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });

@@ -29,7 +29,12 @@ export class PlayScene extends Scene {
   private elapsed = 0;
   private cameraX = 0;
   private returned = false;
-  private readonly blur = (): void => { this.keys.clear(); this.axis = 0; this.pointer = undefined; this.knob.style.transform = ''; };
+  private readonly releaseStick = (): void => {
+    const pointer = this.pointer;
+    this.axis = 0; this.pointer = undefined; this.knob.style.transform = '';
+    if (pointer !== undefined && this.stick.hasPointerCapture(pointer)) this.stick.releasePointerCapture(pointer);
+  };
+  private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
   constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences }) {
     super();
@@ -84,12 +89,12 @@ export class PlayScene extends Scene {
       this.knob.style.transform = `translateX(${this.axis * 65}%)`;
     };
     this.stick.addEventListener('pointerdown', (event) => {
-      if (this.paused || this.pointer !== undefined) return;
+      if (this.paused || event.button !== 0 || this.pointer !== undefined) return;
       this.pointer = event.pointerId; this.stick.setPointerCapture(event.pointerId); move(event);
     }, { signal });
     this.stick.addEventListener('pointermove', move, { signal });
     for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) {
-      this.stick.addEventListener(name, (event) => { if (event.pointerId === this.pointer) this.blur(); }, { signal });
+      this.stick.addEventListener(name, (event) => { if (event.pointerId === this.pointer) this.releaseStick(); }, { signal });
     }
     window.addEventListener('blur', this.blur, { signal });
     window.addEventListener('resize', this.blur, { signal });
@@ -117,7 +122,7 @@ export class PlayScene extends Scene {
   private button(label: TextKey, action?: () => void): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'play-circle'; bindText(button, label);
-    button.addEventListener('pointerdown', (event) => { event.preventDefault(); action?.(); }, { signal: this.abort.signal });
+    button.addEventListener('pointerdown', (event) => { if (event.button !== 0) return; event.preventDefault(); action?.(); }, { signal: this.abort.signal });
     button.addEventListener('click', (event) => { if (event.detail === 0) action?.(); }, { signal: this.abort.signal });
     return button;
   }
@@ -153,6 +158,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    this.blur();
     this.localeOff(); this.abort.abort(); this.hud.remove(); super.destroy(options);
   }
 }

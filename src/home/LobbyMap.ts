@@ -11,7 +11,6 @@ export class LobbyMap extends Container {
       .rect(0, height * 0.44, width, height * 0.56).fill(FLOOR_COLORS[look.Floor]);
     if (look.Background) {
       g.circle(width * 0.22, height * 0.2, 32).fill({ color: '#fff8df', alpha: 0.8 });
-      g.ellipse(width * 0.45, height * 0.44, width * 0.3, height * 0.12).fill({ color: '#95ac89', alpha: 0.18 });
     }
     const x = width * 0.21, y = ground - 10;
     if (look.Furniture === 1) {

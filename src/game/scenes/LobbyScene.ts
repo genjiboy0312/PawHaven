@@ -1,6 +1,6 @@
 import { HomeState } from '../../home/HomeState';
 import { LobbyMap } from '../../home/LobbyMap';
-import { Graphics, type DestroyOptions } from 'pixi.js';
+import { Graphics, Rectangle, type DestroyOptions } from 'pixi.js';
 import { Animal } from '../../animals/Animal';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { LobbyHud } from '../../ui/LobbyHud';
@@ -12,12 +12,22 @@ export class LobbyScene extends Scene {
   private readonly animal: Animal;
   private readonly hud: LobbyHud;
   private welcomeStarted = false;
+  private paused = false;
+
+  override setPaused(paused: boolean): void { this.paused = paused; }
 
   constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void }, private readonly home?: { state: HomeState; open: () => void }) {
     super();
     this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open);
     this.welcomeStarted = returning;
     this.animal = new Animal(config);
+    // Body hit area excludes padded sprite cells and expression text.
+    this.animal.hitArea = new Rectangle(-80, -145, 160, 145);
+    this.animal.eventMode = 'static';
+    this.animal.cursor = 'pointer';
+    this.animal.on('pointertap', event => {
+      if (!this.paused && event.button === 0) this.animal.pet();
+    });
     this.addChild(this.garden, this.shadow, this.animal);
   }
   resize(width: number, height: number): void {
@@ -32,6 +42,7 @@ export class LobbyScene extends Scene {
     this.update(0);
   }
   override update(seconds: number): void {
+    if (this.paused) return;
     this.animal.update(seconds);
     this.shadow.position.set(this.animal.x, this.animal.y - 2);
     const jumping = this.animal.state === 'JUMP';

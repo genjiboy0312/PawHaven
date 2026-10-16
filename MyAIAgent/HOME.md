@@ -13,3 +13,4 @@
 - 브라우저/모바일 실기기의 최종 시각·터치 확인은 별도 필요하다.
 - 큰 타원형 바닥 패치를 제거했다. Background는 배경, Floor는 전체 바닥 색상만 변경하며 아이템 목록 아래의 작은 그림자는 유지한다.
 - 후속 개발 순서: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+- Background에 포함되어 있던 지평선 타원도 제거했다. 관련 안정화·교감 검증: [STABILIZATION_M5.md](STABILIZATION_M5.md).
