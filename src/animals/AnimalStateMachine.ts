@@ -12,6 +12,8 @@ export class AnimalStateMachine {
   private right = 0;
   private target = 0;
   private duration = 0;
+  get progress(): number { return this.duration > 0 ? Math.min(1, this.elapsed / this.duration) : 0; }
+  get jumpHeight(): number { return this.state === 'JUMP' ? 4 * 48 * this.progress * (1 - this.progress) : 0; }
   private positioned = false;
   private observeDirection = 1;
 
@@ -63,13 +65,14 @@ export class AnimalStateMachine {
         this.target = this.clamp(this.x - sign * distance);
       }
     } else {
-      const [minimum, maximum] = this.profile.durations[state];
+      const [minimum, maximum] = this.profile.durations[state] ?? CORGI_BEHAVIOR.durations[state] ?? [2, 3];
       this.duration = minimum + this.sample() * (maximum - minimum);
       if (state === 'OBSERVE') this.observeDirection = this.direction;
     }
   }
 
   private next(): void {
+    if (this.state === 'JUMP') { this.enter('LAND'); return; }
     if (this.state !== 'IDLE') { this.enter('IDLE'); return; }
     const choices = Object.entries(this.profile.weights) as [Exclude<AnimalState, 'IDLE'>, number][];
     const total = choices.reduce((sum, [, weight]) => sum + Math.max(0, weight), 0);

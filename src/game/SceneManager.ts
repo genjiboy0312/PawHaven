@@ -1,5 +1,6 @@
 import type { Application } from 'pixi.js';
 import type { Scene } from './scenes/Scene';
+import { fitViewport, WORLD_HEIGHT, WORLD_WIDTH } from './viewport';
 
 export class SceneManager {
   private current: Scene | undefined;
@@ -11,7 +12,11 @@ export class SceneManager {
     this.resize();
   }
   resize(): void {
-    this.current?.resize(this.app.screen.width, this.app.screen.height);
+    if (!this.current) return;
+    const view = fitViewport(this.app.screen.width, this.app.screen.height);
+    this.current.scale.set(view.scale);
+    this.current.position.set(view.x, view.y);
+    this.current.resize(WORLD_WIDTH, WORLD_HEIGHT);
   }
   update(seconds: number): void { this.current?.update(seconds); }
   destroy(): void {
@@ -19,4 +24,3 @@ export class SceneManager {
     this.current = undefined;
   }
 }
-

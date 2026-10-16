@@ -1,7 +1,7 @@
 {
   "character": "corgi",
   "reference": "Resources/Corgi_Action_Art_Sheet.png",
-  "note": "All 16 families are present in the reference. Reference panel labels do not certify frame counts. Only idle/walk have validated transparent runtime rectangles.",
+  "note": "Reference art includes all 16 families. Runtime idle/walk, jump/land and emote are available; other families still require frame preparation.",
   "actions": {
     "idle": {
       "referenceArt": true,
@@ -20,8 +20,8 @@
     },
     "jump": {
       "referenceArt": true,
-      "runtimeReady": false,
-      "frames": null
+      "runtimeReady": true,
+      "frames": 6
     },
     "fall": {
       "referenceArt": true,
@@ -30,8 +30,8 @@
     },
     "land": {
       "referenceArt": true,
-      "runtimeReady": false,
-      "frames": null
+      "runtimeReady": true,
+      "frames": 2
     },
     "doubleJump": {
       "referenceArt": true,
@@ -60,8 +60,8 @@
     },
     "emote": {
       "referenceArt": true,
-      "runtimeReady": false,
-      "frames": null
+      "runtimeReady": true,
+      "frames": 8
     },
     "direction": {
       "referenceArt": true,

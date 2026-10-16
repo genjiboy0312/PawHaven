@@ -52,7 +52,7 @@ export class Game {
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
-    this.scenes.show(new TitleScene(corgi, () => {
+    this.scenes.show(new TitleScene(() => {
       if (!this.disposed) this.scenes?.show(new LobbyScene(corgi));
     }));
     document.querySelector('#status')?.remove();

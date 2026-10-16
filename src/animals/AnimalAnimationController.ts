@@ -27,9 +27,10 @@ export class AnimalAnimationController {
     this.welcomeMark.visible = false;
   }
 
-  update(state: AnimalVisualState, elapsed: number, direction: number): void {
+  update(state: AnimalVisualState, elapsed: number, direction: number, progress = 0, jumpHeight = 0): void {
     const moving = state === 'WANDER' || state === 'APPROACH';
-    const animation = this.config.animations[moving ? 'walk' : 'idle'];
+    const key = state === 'JUMP' || state === 'LAND' ? 'jump' : state === 'EMOTE' ? 'emote' : moving ? 'walk' : 'idle';
+    const animation = this.config.animations[key] ?? this.config.animations.idle;
     if (!animation) return;
     if (state !== this.lastState) {
       this.sprite.textures = animation.frames;
@@ -37,20 +38,25 @@ export class AnimalAnimationController {
     }
     // Dedicated rest, sleep and greeting art can replace these prototype expressions.
     const fps = animation.fps * (state === 'APPROACH' ? 1.25 : state === 'GREET' ? 1.6 : 1);
-    const frame = state === 'SLEEP' ? Math.min(5, animation.frames.length - 1)
+    const frame = state === 'JUMP' ? Math.min(Math.floor(progress * 6), Math.min(5, animation.frames.length - 1))
+      : state === 'LAND' ? Math.min(6 + Math.floor(progress * 2), animation.frames.length - 1)
+      : state === 'SLEEP' ? Math.min(5, animation.frames.length - 1)
       : state === 'REST' ? Math.min(3, animation.frames.length - 1)
       : state === 'OBSERVE' ? 0
       : Math.floor(elapsed * fps) % animation.frames.length;
     this.sprite.gotoAndStop(frame);
     const breath = state === 'SLEEP' || state === 'REST' ? 1 + Math.sin(elapsed * 2) * 0.012 : 1;
-    this.sprite.scale.set(direction * this.config.scale, this.config.scale * breath);
+    const nativeScale = this.config.scale * (animation.scale ?? 1);
+    const landing = state === 'LAND' ? 1 - Math.sin(progress * Math.PI) * 0.08 : 1;
+    this.sprite.scale.set(direction * nativeScale, nativeScale * breath * landing);
+    this.sprite.y = state === 'JUMP' ? -jumpHeight : 0;
     this.sprite.rotation = state === 'NOTICE' ? Math.sin(elapsed * 5) * 0.04 : 0;
     this.sprite.pivot.y = state === 'GREET' ? Math.abs(Math.sin(elapsed * 6)) * 8 : 0;
     this.sleepMark.visible = state === 'SLEEP';
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;
-    this.welcomeMark.visible = state === 'NOTICE' || state === 'GREET';
-    this.welcomeMark.text = state === 'NOTICE' ? '!' : state === 'GREET' ? '반가워! ♡' : '';
+    this.welcomeMark.visible = state === 'NOTICE' || state === 'GREET' || state === 'EMOTE';
+    this.welcomeMark.text = state === 'NOTICE' ? '!' : state === 'GREET' ? '반가워! ♡' : state === 'EMOTE' ? ['♡', '♪', '?'][Math.floor(elapsed * 0.9) % 3] : '';
     this.welcomeMark.position.set(0, -155 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
   }
 }

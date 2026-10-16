@@ -58,6 +58,8 @@ export class Animal extends Container {
       this.state,
       this.welcoming ? this.welcome.elapsed : this.behavior.elapsed,
       this.welcoming ? this.welcome.direction : this.behavior.direction,
+      this.welcoming ? 0 : this.behavior.progress,
+      this.welcoming ? 0 : this.behavior.jumpHeight,
     );
   }
 }

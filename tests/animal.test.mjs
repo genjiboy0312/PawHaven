@@ -69,10 +69,10 @@ test('scene replacement destroys old content and leaves no duplicate children', 
   manager.show(lobby);
   assert.equal(boot.destroyed, true);
   assert.equal(app.stage.children.length, 1);
-  assert.deepEqual(lobby.size, [390, 844]);
+  assert.deepEqual(lobby.size, [960, 540]);
   app.screen = { width: 844, height: 390 };
   manager.resize();
-  assert.deepEqual(lobby.size, [844, 390]);
+  assert.deepEqual(lobby.size, [960, 540]);
   manager.update(0.05);
   assert.equal(lobby.seconds, 0.05);
   manager.destroy();
@@ -89,7 +89,7 @@ function seededRandom(seed) {
   return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 }
 
-test('autonomy visits all five daily states and never leaves its changing bounds', () => {
+test('autonomy visits every daily state and never leaves its changing bounds', () => {
   for (const seed of [1, 42, 999]) {
     const machine = new AnimalStateMachine(90, CORGI_BEHAVIOR, seededRandom(seed));
     let left = 100, right = 1180;
@@ -268,21 +268,14 @@ test('animal pauses daily behavior during welcome, then resumes autonomous life'
   animal.destroy({ children: true });
 });
 
-test('title click creates one lobby and cleans up entry/control listeners', async () => {
-  // Native EventTarget with a minimal DOM surface: this checks scene lifecycle, not browser rendering.
+test('title has no corgi, opens one autonomous lobby, and all five menu placeholders are inert', async () => {
   class Element extends EventTarget {
     children = [];
     parent = undefined;
     attributes = new Map();
-    classes = new Set();
-    classList = {
-      add: (name) => this.classes.add(name),
-      remove: (name) => this.classes.delete(name),
-    };
+    classList = { add() {}, remove() {} };
     constructor(tag) { super(); this.tag = tag; }
-    append(...children) {
-      for (const child of children) { child.parent = this; this.children.push(child); }
-    }
+    append(...children) { for (const child of children) { child.parent = this; this.children.push(child); } }
     setAttribute(name, value) { this.attributes.set(name, value); }
     remove() {
       if (this.parent) this.parent.children = this.parent.children.filter((child) => child !== this);
@@ -299,7 +292,7 @@ test('title click creates one lobby and cleans up entry/control listeners', asyn
   const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
   const { TitleScene } = await importTs('../src/game/scenes/TitleScene.ts', import.meta.url);
   const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
-  const app = { stage: new Container(), screen: { width: 390, height: 844 } };
+  const app = { stage: new Container(), screen: { width: 960, height: 540 } };
   const manager = new SceneManager(app);
   let entries = 0;
   const config = {
@@ -307,36 +300,49 @@ test('title click creates one lobby and cleans up entry/control listeners', asyn
     animations: {
       idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
       walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+      jump: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+      emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 },
     },
   };
   try {
-    const title = new TitleScene(config, () => { entries++; manager.show(new LobbyScene(config)); });
+    const title = new TitleScene(() => { entries++; manager.show(new LobbyScene(config)); });
     manager.show(title);
     manager.update(0.1);
-    assert.equal(host.classes.has('is-title'), true);
+    assert.equal(title.children.length, 1); // background only: no character portrait
     assert.equal(host.children.length, 1);
     const start = host.children[0].children.find((element) => element.tag === 'button');
-    assert.equal(start.type, 'button');
     for (let i = 0; i < 10; i++) start.dispatchEvent(new Event('click'));
     assert.equal(entries, 1);
     assert.equal(title.destroyed, true);
-    assert.equal(host.classes.has('is-title'), false);
     assert.equal(app.stage.children.length, 1);
     assert.equal(host.children.length, 1);
-    const controls = host.children[0];
-    const walk = controls.children[1].children.find((element) => element.textContent === '걷기');
-    assert.equal(walk.disabled, true);
-    walk.dispatchEvent(new Event('click'));
-    assert.equal(controls.children[0].textContent, '코기가 당신을 알아봤어요');
+    const hud = host.children[0];
+    const menus = [
+      ...hud.children[0].children, ...hud.children[1].children, ...hud.children[2].children,
+    ];
+    assert.deepEqual(menus.map((item) => item.attributes.get('data-menu')),
+      ['character', 'shop', 'settings', 'friends', 'play']);
+    assert.deepEqual(menus.map((item) => item.children[1].textContent),
+      ['캐릭터', 'Shop', 'Settings', 'Friends', 'Play']);
+    assert.equal(hud.children[0].className, 'hud-character');
+    assert.equal(hud.children[1].className, 'hud-utilities');
+    assert.equal(hud.children[2].className, 'hud-play');
+    for (const menu of menus) {
+      assert.equal(menu.disabled, true);
+      assert.equal(menu.children[0].tag, 'img');
+      menu.dispatchEvent(new Event('click'));
+    }
+    const animal = app.stage.children[0].children.find((child) => child.label === 'corgi');
+    assert.equal(animal.state, 'NOTICE');
     for (let i = 0; i < 20; i++) manager.resize();
     for (let i = 0; i < 2400; i++) manager.update(1 / 60);
-    assert.equal(walk.disabled, false);
-    walk.dispatchEvent(new Event('click'));
-    assert.equal(walk.attributes.get('aria-pressed'), 'true');
+    assert.equal(animal.welcoming, false);
+    assert.equal(animal.mode, 'auto');
+    const before = animal.state;
+    for (const menu of menus) menu.dispatchEvent(new Event('click'));
+    assert.equal(animal.state, before);
     manager.destroy();
     assert.equal(host.children.length, 0);
-    walk.dispatchEvent(new Event('click'));
-    assert.equal(app.stage.children.length, 0);
     start.dispatchEvent(new Event('click'));
     assert.equal(entries, 1);
   } finally {
@@ -344,5 +350,85 @@ test('title click creates one lobby and cleans up entry/control listeners', asyn
     app.stage.destroy();
     if (originalDocument === undefined) delete globalThis.document;
     else globalThis.document = originalDocument;
+  }
+});
+
+test('16:9 logical viewport fits desktop, landscape and portrait without clipping', async () => {
+  const { fitViewport, WORLD_WIDTH, WORLD_HEIGHT } = await importTs('../src/game/viewport.ts', import.meta.url);
+  assert.equal(WORLD_WIDTH / WORLD_HEIGHT, 16 / 9);
+  for (const [width, height] of [[1920, 1080], [1280, 720], [844, 390], [390, 844], [320, 568]]) {
+    const view = fitViewport(width, height);
+    assert.ok(view.x >= 0 && view.y >= 0);
+    assert.ok(view.x + WORLD_WIDTH * view.scale <= width + 0.001);
+    assert.ok(view.y + WORLD_HEIGHT * view.scale <= height + 0.001);
+    assert.ok(Math.abs((WORLD_WIDTH * view.scale) / (WORLD_HEIGHT * view.scale) - 16 / 9) < 1e-12);
+  }
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.equal(html.includes('game-heading'), false);
+});
+
+test('jump follows an airborne arc, lands, and restores ground alignment', () => {
+  const animal = new Animal({
+    id: 'corgi', speed: 90, scale: 0.62,
+    animations: {
+      idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
+      walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+      jump: { frames: Array(8).fill(Texture.WHITE), fps: 8 },
+    },
+    behavior: { durations: { IDLE: [0.1, 0.1], JUMP: [1, 1], LAND: [0.2, 0.2] },
+      weights: { JUMP: 1 }, wanderDistance: [80, 80] },
+  }, () => 0.5);
+  animal.setBounds(960, 390);
+  animal.update(0.11);
+  assert.equal(animal.state, 'JUMP');
+  animal.update(0.5);
+  assert.equal(animal.y, 390);
+  assert.equal(animal.children[0].y, -48);
+  assert.equal(animal.children[0].currentFrame, 3);
+  animal.update(0.51);
+  assert.equal(animal.state, 'LAND');
+  assert.equal(animal.children[0].y, 0);
+  assert.equal(animal.children[0].currentFrame, 6);
+  animal.update(0.21);
+  assert.equal(animal.state, 'IDLE');
+  assert.equal(animal.children[0].y, 0);
+  assert.equal(animal.children[0].scale.y, 0.62);
+  animal.destroy({ children: true });
+});
+
+test('emote plays on its own then clears its floating expression', () => {
+  const animal = new Animal({
+    id: 'corgi', speed: 90, scale: 0.62,
+    animations: {
+      idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
+      emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 },
+    },
+    behavior: { durations: { IDLE: [0.1, 0.1], EMOTE: [0.3, 0.3] },
+      weights: { EMOTE: 1 }, wanderDistance: [80, 80] },
+  }, () => 0.5);
+  animal.setBounds(960, 390);
+  animal.update(0.11);
+  assert.equal(animal.state, 'EMOTE');
+  assert.equal(animal.children[2].visible, true);
+  animal.update(0.31);
+  assert.equal(animal.state, 'IDLE');
+  assert.equal(animal.children[2].visible, false);
+  animal.destroy({ children: true });
+});
+
+test('jump/emote atlas has eight separated frames each within the actual PNG dimensions', async () => {
+  const map = JSON.parse(await readFile(new URL('../public/assets/characters/corgi/playful-frames.json', import.meta.url), 'utf8'));
+  const png = await readFile(new URL('../public/assets/characters/corgi/corgi-jump-emote.png', import.meta.url));
+  assert.equal(png.readUInt32BE(16), map.width);
+  assert.equal(png.readUInt32BE(20), map.height);
+  for (const action of ['jump', 'emote']) {
+    assert.equal(map[action].length, 8);
+    for (let i = 0; i < 8; i++) {
+      const frame = map[action][i];
+      assert.ok(frame.width > 0 && frame.width <= 256 && frame.height > 0 && frame.height <= 256);
+      assert.ok(frame.x >= 0 && frame.x + frame.width <= map.width);
+      assert.ok(frame.y >= 0 && frame.y + frame.height <= map.height);
+      if (i > 0) assert.ok(map[action][i - 1].x + map[action][i - 1].width < frame.x);
+    }
   }
 });
