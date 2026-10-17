@@ -148,14 +148,22 @@ export class Game {
       if (this.disposed) return;
       const runCommerce = commerce;
       let starting = false;
-      const scene = new LobbyScene(activePet, async () => {
-        if (starting || !runCommerce.ready) return;
+      const launch = async (origin: LobbyScene | PlayScene): Promise<boolean> => {
+        if (starting || !runCommerce.ready) return false;
         starting = true;
         try {
-          if (!await runCommerce.beginRun() || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(scene)) return;
-          this.scenes?.show(new PlayScene(activePet, () => { void runCommerce.completeRun(); lobby(true); }, { open: openSettings, preferences: () => gameSettings.current, sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); } }));
+          if (!await runCommerce.beginRun() || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
+          let completion = Promise.resolve();
+          const play = new PlayScene(activePet, () => lobby(true), {
+            open: openSettings, preferences: () => gameSettings.current,
+            sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
+            complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
+            retry: async () => { await completion; return launch(play); },
+          });
+          this.scenes.show(play); return true;
         } finally { starting = false; }
-      }, returning, () => {
+      };
+      const scene = new LobbyScene(activePet, async () => { await launch(scene); }, returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index), subscribe: callback => commerce.subscribe(callback) }));
       }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } });
       this.scenes?.show(scene);

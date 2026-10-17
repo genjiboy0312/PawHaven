@@ -131,3 +131,9 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .account-sync[data-sync-state="offline"], .account-sync[data-sync-state="conflict"], .account-sync[data-sync-state="setup"] { background: #f8dfd3; color: #895442; }
 .account-identity { font-family: var(--font-round); }
 .account-content button[hidden], .account-content p[hidden] { display: none; }
+.play-progress { position: absolute; left: 3cqw; top: 2cqh; max-width: 65%; margin: 0; padding: 1cqh 1.4cqw; border-radius: 1cqw; background: #fff8e5df; color: #665a45; font-size: 1.4cqw; }
+.play-result { position: absolute; left: 25%; top: 43%; width: 50%; box-sizing: border-box; padding: 3cqh 2cqw; border: 2px solid var(--ui-edge); border-radius: 2cqw; background: var(--ui-cream); text-align: center; box-shadow: 0 1cqh 0 #8e70442b; pointer-events: auto; }
+.play-result[hidden] { display: none; }
+.play-result p { margin: 0 0 2cqh; font-size: 1.5cqw; }
+.play-result button { padding: 1.4cqh 2cqw; margin: 0 0.6cqw; border: 1px solid var(--ui-edge); border-radius: 1.2cqw; color: var(--ui-ink); background: var(--ui-butter); font-size: 1.8cqw; }
+.play-result button:disabled { opacity: 0.55; }

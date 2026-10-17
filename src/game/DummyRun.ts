@@ -1,10 +1,11 @@
 import type { AnimalAction } from '../animals/AnimalConfig';
 import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
-/** About ten seconds of running distance, plus jumps and any retries. */
+export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean }
+/** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
   readonly start = 120;
-  readonly finish = 2520;
+  readonly finish: number;
   readonly halfWidth = 24;
   readonly bodyHeight = 90;
   x = this.start;
@@ -17,10 +18,17 @@ export class DummyRun {
   attack = 0;
   land = 0;
   respawns = 0;
+  checkpoint = this.start;
+  elapsed = 0;
+  readonly targets: { x: number; broken: boolean }[];
+  private exitTime = -1;
   readonly attackDuration = 0.48;
   readonly dashDuration = 0.32;
   victoryTime = -1;
-  constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1) {}
+  constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1, private readonly options: RunOptions = {}) {
+    this.finish = options.finish ?? 2520;
+    this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));
+  }
   private overlaps(solid: CourseSolid, x = this.x): boolean {
     return x + this.halfWidth > solid.x + 0.000001 && x - this.halfWidth < solid.x + solid.width - 0.000001;
   }
@@ -28,8 +36,10 @@ export class DummyRun {
     return this.velocity <= 0 && this.course.some(solid => this.overlaps(solid) && Math.abs(this.height - solid.top) < 0.000001);
   }
   get won(): boolean { return this.victoryTime >= 0; }
-  get returnReady(): boolean { return this.victoryTime >= 1.9; }
-  get fade(): number { return Math.max(0, Math.min(1, (this.victoryTime - 1.5) / 0.4)); }
+  get returnReady(): boolean { return this.options.manualReturn ? this.exitTime >= 0.4 : this.victoryTime >= 1.9; }
+  get fade(): number { return Math.max(0, Math.min(1, this.options.manualReturn ? this.exitTime / 0.4 : (this.victoryTime - 1.5) / 0.4)); }
+  leave(): void { if (this.won && this.exitTime < 0) this.exitTime = 0; }
+  cancelLeave(): void { this.exitTime = -1; }
   jump(): void { if (!this.won && this.grounded && this.dash === 0) this.velocity = 440; }
   startDash(): void {
     if (!this.won && this.grounded && this.attack === 0 && this.dashCooldown <= 0) { this.horizontalVelocity = this.direction * 1100 * this.movementScale; this.dash = this.dashDuration; this.dashCooldown = 0.8; }
@@ -45,7 +55,7 @@ export class DummyRun {
   }
   private respawn(): void {
     this.respawns++;
-    this.x = this.start; this.height = 0; this.direction = 1;
+    this.x = this.checkpoint; this.height = 0; this.direction = 1;
     this.velocity = this.horizontalVelocity = this.dash = this.dashCooldown = this.attack = this.land = 0;
     this.victoryTime = -1;
   }
@@ -57,7 +67,8 @@ export class DummyRun {
     while (remaining > 0.0000001) {
       const step = Math.min(remaining, 1 / 120);
       remaining -= step;
-      if (this.won) { this.victoryTime += step; continue; }
+      if (this.won) { this.victoryTime += step; if (this.exitTime >= 0) this.exitTime += step; continue; }
+      this.elapsed += step;
       if (this.step(step, input)) return;
     }
   }
@@ -102,6 +113,13 @@ export class DummyRun {
     // A dash that leaves a ledge becomes a fall; air dashing remains disabled.
     if (!this.grounded && this.dash > 0) this.dash = 0;
     if (this.height < -190) { this.respawn(); return true; }
+    if (this.options.checkpoint && this.x >= this.options.checkpoint && this.grounded) this.checkpoint = this.options.checkpoint;
+    if (this.attack > 0 && this.height < 72 && this.height + this.bodyHeight > 0) {
+      for (const target of this.targets) {
+        const distance = (target.x - this.x) * this.direction;
+        if (distance >= -this.halfWidth && distance <= 125) target.broken = true;
+      }
+    }
     if (this.x >= this.finish - 0.000001 && this.grounded) {
       this.x = this.finish; this.victoryTime = 0; this.velocity = 0; this.horizontalVelocity = 0;
     }

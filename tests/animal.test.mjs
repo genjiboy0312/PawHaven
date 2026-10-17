@@ -556,8 +556,8 @@ test('Play enters a run, victory returns once without another greeting, and scen
     assert.equal(world.scale.x, 0.78); assert.equal(world.scale.y, 0.78);
     assert.ok(Math.abs(world.y + 390 * world.scale.y - 365) < 0.001);
     // First attempt deliberately misses the gap; failure must not award Victory or keep held input.
-    const warmup = [400, 710]; let warmupJump = 0, reset = false;
-    for (let i = 0; i < 720; i++) {
+    const warmup = [560, 1260]; let warmupJump = 0, reset = false;
+    for (let i = 0; i < 2200; i++) {
       if (warmupJump < warmup.length && player.x >= warmup[warmupJump]) {
         window.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code: 'Space' })); warmupJump++;
       }
@@ -568,8 +568,8 @@ test('Play enters a run, victory returns once without another greeting, and scen
     assert.equal(daily.dailyQuests[1].progress, 0);
     manager.update(0.2); assert.equal(player.x, 120); assert.equal(player.y, 390);
     window.dispatchEvent(down);
-    const takeoffs = [400, 710, 1120, 1740]; let nextJump = 0;
-    for (let i = 0; i < 720; i++) {
+    const takeoffs = [560, 1260, 2190, 3210, 3760, 4390, 5410]; let nextJump = 0;
+    for (let i = 0; i < 2200; i++) {
       if (nextJump < takeoffs.length && player.x >= takeoffs[nextJump]) {
         const jump = Object.assign(new Event('keydown', { cancelable: true }), { code: 'Space' });
         window.dispatchEvent(jump); nextJump++;
@@ -579,6 +579,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
     }
     assert.equal(runHud.children[3].hidden, false);
     assert.equal(world.scale.x, 0.78); assert.equal(world.scale.y, 0.78);
+    runHud.children[5].children[2].dispatchEvent(new Event('click'));
     for (let i = 0; i < 120; i++) manager.update(1 / 60);
     assert.equal(returns, 1);
     assert.equal(daily.dailyQuests[1].progress, 1);
@@ -2174,6 +2175,7 @@ test('both pets accept DOM body taps after Play victory returns to Lobby, includ
       host.children[0].children[2].children[0].dispatchEvent(new Event('click'));
       const play = app.stage.children[0];
       play.run.x = play.run.finish; manager.update(0.05); assert.equal(play.run.won, true);
+      host.children[0].children[5].children[2].dispatchEvent(new Event('click'));
       manager.update(2); assert.equal(play.destroyed, true); assert.equal(host.children.length, 1);
       const pet = scene.children.find(child => child.label === id), target = host.children[0].children.at(-1);
       assert.notEqual(target, oldTarget); assert.equal(target.disabled, false);
@@ -2225,5 +2227,76 @@ test('every enabled lobby menu plays one shared click before its action', async 
   } finally {
     hud.destroy();
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});
+
+test('adventure course takes 20–30 seconds, activates a safe checkpoint and freezes the finish record', async () => {
+  const { ADVENTURE_COURSE, ADVENTURE_FINISH, ADVENTURE_CHECKPOINT, ADVENTURE_TARGETS } = await importTs('../src/game/AdventureCourse.ts', import.meta.url);
+  for (const fps of [30, 60, 120]) {
+    const run = new DummyRun(ADVENTURE_COURSE, 1 / 0.78, {
+      finish: ADVENTURE_FINISH, checkpoint: ADVENTURE_CHECKPOINT, targets: ADVENTURE_TARGETS, manualReturn: true,
+    });
+    const jumps = [560, 1260, 2190, 3210, 3760, 4390, 5410]; let next = 0;
+    for (let i = 0; i < fps * 35 && !run.won; i++) {
+      if (next < jumps.length && run.x >= jumps[next]) { run.jump(); next++; }
+      run.update(1 / fps, 1);
+    }
+    assert.equal(run.won, true); assert.equal(run.respawns, 0);
+    assert.equal(run.checkpoint, ADVENTURE_CHECKPOINT);
+    assert.ok(run.elapsed >= 20 && run.elapsed <= 30, String(run.elapsed));
+    const record = run.elapsed;
+    run.update(5, 1); assert.equal(run.elapsed, record); assert.equal(run.returnReady, false); assert.equal(run.fade, 0);
+    run.leave(); run.update(0.41, 0); assert.equal(run.returnReady, true); assert.equal(run.fade, 1);
+  }
+  const run = new DummyRun(ADVENTURE_COURSE, 1, { checkpoint: ADVENTURE_CHECKPOINT, finish: ADVENTURE_FINISH });
+  run.x = ADVENTURE_CHECKPOINT; run.update(0.01, 0);
+  run.x = 4550; run.height = -200; run.update(0.01, 0);
+  assert.equal(run.respawns, 1); assert.equal(run.x, ADVENTURE_CHECKPOINT); assert.equal(run.grounded, true);
+  assert.ok(run.elapsed > 0);
+});
+
+test('practice targets require an attack in range and facing direction, and never grant coins', () => {
+  const create = () => new DummyRun(flatCourse, 1, { targets: [500] });
+  const run = create(); run.x = 410;
+  run.update(0.1, 0); assert.equal(run.targets[0].broken, false);
+  run.direction = -1; run.startAttack(); run.update(0.5, 0); assert.equal(run.targets[0].broken, false);
+  run.direction = 1; run.startAttack(); run.update(0.1, 0); assert.equal(run.targets[0].broken, true);
+  run.update(1, 0); assert.equal(run.targets.filter(target => target.broken).length, 1);
+  const high = create(); high.x = 410; high.height = 150; high.startAttack(); high.update(0.01, 0);
+  assert.equal(high.targets[0].broken, false);
+  const dash = create(); dash.x = 410; dash.startDash(); dash.update(0.1, 0);
+  assert.equal(dash.targets[0].broken, false);
+});
+
+test('results submit completion once, wait for a choice and recover from a rejected retry', async () => {
+  const { PlayScene } = await importTs('../src/game/scenes/PlayScene.ts', import.meta.url);
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; classList = { add() {} };
+    append(...items) { this.children.push(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() {}
+  }
+  const oldDocument = globalThis.document, oldWindow = globalThis.window;
+  const host = new Element();
+  globalThis.document = Object.assign(new EventTarget(), { createElement: () => new Element(), querySelector: () => host });
+  globalThis.window = new EventTarget();
+  let completed = 0, returned = 0, retries = 0, scene;
+  try {
+    scene = new PlayScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } },
+      () => returned++, { open() {}, complete() { completed++; }, retry: async () => { retries++; throw Error('offline'); } });
+    scene.run.x = scene.run.finish; scene.update(0.01); scene.update(3);
+    assert.equal(completed, 1); assert.equal(returned, 0); assert.equal(scene.result.hidden, false);
+    scene.retry.dispatchEvent(new Event('click')); scene.retry.dispatchEvent(new Event('click'));
+    scene.update(0.41);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(retries, 1); assert.equal(scene.retry.disabled, false);
+    scene.update(0.1); assert.match(scene.stats.textContent, /Could not start/);
+    scene.back.dispatchEvent(new Event('click')); scene.update(0.41); scene.update(1);
+    assert.equal(returned, 1); assert.equal(completed, 1);
+  } finally {
+    scene?.destroy({ children: true });
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
