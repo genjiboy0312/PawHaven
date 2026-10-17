@@ -109,3 +109,11 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
   font: inherit; color: var(--ui-ink); background: #f3ead4; box-shadow: inset 0 0.2cqh 0.5cqw #b49a6520;
 }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+
+.account-content { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 1.2cqh 1cqw; }
+.account-content p, .account-field { flex-basis: 100%; margin: 0; }
+.account-field { display: flex; align-items: center; gap: 1cqw; }
+.account-field span { width: 9cqw; flex: none; }
+.account-field input { min-width: 0; width: 25cqw; padding: 0.8cqh 1cqw; border: 1px solid #d5bf95; border-radius: 0.8cqw; background: #fffaf0; color: #665d50; font: inherit; }
+.account-email { overflow-wrap: anywhere; }
+.account-content button { padding: 1cqh 1.4cqw; }

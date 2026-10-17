@@ -1,3 +1,5 @@
+import { AccountPanel } from './AccountPanel';
+import type { AccountService } from '../account/AccountService';
 import { bindAria, bindText, setLanguage, t, type TextKey } from '../settings/i18n';
 import { GameSettings } from '../settings/GameSettings';
 import type { GamePreferences } from '../settings/GameSettings';
@@ -8,6 +10,7 @@ interface SettingsAudio {
   play(kind: 'click' | 'bgm'): void;
 }
 export class SettingsPopup {
+  private accountPanel?: AccountPanel;
   private element?: HTMLElement;
   private panel?: HTMLElement;
   private content?: HTMLElement;
@@ -18,7 +21,7 @@ export class SettingsPopup {
   private blocked: { element: HTMLElement; inert: boolean }[] = [];
   private tab: 'Sound' | 'Controls' | 'Display' | 'Language' | 'Account' | 'About' = 'Sound';
   get opened(): boolean { return !!this.element; }
-  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined) {}
+  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService) {}
   open(playSound = true): void {
     if (this.opened) return;
     const host = document.querySelector<HTMLElement>('#app');
@@ -60,7 +63,9 @@ export class SettingsPopup {
     if (!this.content || !this.tabs) return;
     for (const button of Array.from(this.tabs.children)) button.setAttribute('aria-pressed', String(button.textContent === t(this.tab)));
     this.pageAbort?.abort(); this.pageAbort = new AbortController();
+    this.accountPanel?.destroy(); this.accountPanel = undefined;
     this.content.replaceChildren();
+    if (this.tab === 'Account' && this.account) { this.accountPanel = new AccountPanel(this.content, this.account); return; }
     if (this.tab === 'Account') {
       const title = document.createElement('p'); title.className = 'settings-guest'; title.textContent = t('guest');
       const hint = document.createElement('p'); hint.textContent = t('accountSoon');
@@ -130,7 +135,7 @@ export class SettingsPopup {
   }
   close(): void {
     if (!this.opened) return;
-    this.pageAbort?.abort(); this.abort?.abort(); this.element?.remove(); this.element = undefined; this.panel = undefined; this.content = undefined; this.tabs = undefined;
+    this.accountPanel?.destroy(); this.accountPanel = undefined; this.pageAbort?.abort(); this.abort?.abort(); this.element?.remove(); this.element = undefined; this.panel = undefined; this.content = undefined; this.tabs = undefined;
     for (const item of this.blocked) item.element.inert = item.inert;
     this.blocked = []; this.pause(false);
     if (this.previousFocus?.isConnected) this.previousFocus.focus(); this.previousFocus = undefined;

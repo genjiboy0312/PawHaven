@@ -1,3 +1,6 @@
+import { AccountStorage } from '../account/AccountStorage';
+import { AccountService } from '../account/AccountService';
+import { createAccountClient } from '../account/client';
 import { loadHome } from '../home/loadHome';
 import type { HomeTextures } from '../home/LobbyMap';
 import { HomeState } from '../home/HomeState';
@@ -27,6 +30,7 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 export class Game {
+  private account?: AccountService;
   private homeTextures?: HomeTextures;
   private settings?: SettingsPopup;
   private quests?: QuestPopup;
@@ -36,6 +40,7 @@ export class Game {
   private readonly app = new Application();
   private scenes: SceneManager | undefined;
   private disposed = false;
+  private readonly events = new AbortController();
   private corgi: AnimalConfig | undefined;
   private myeongrang: AnimalConfig | undefined;
   private releaseFrames(): void {
@@ -72,10 +77,16 @@ export class Game {
     try { storage = window.localStorage; } catch { /* Session-only settings. */ }
     const preferences = new SoundSettings(storage);
     const gameSettings = new GameSettings(storage);
-    const presets = new CharacterPresets(storage);
-    const commerce = new ShopState(storage);
-    const home = new HomeState(storage);
-    const character = new CharacterSelection(storage);
+
+    this.scenes.show(new BootScene());
+    const playerStorage = new AccountStorage(storage);
+    this.account = new AccountService(playerStorage, createAccountClient());
+    await this.account.initialize();
+    if (this.disposed) return;
+    let presets = new CharacterPresets(playerStorage);
+    let commerce = new ShopState(playerStorage);
+    let home = new HomeState(playerStorage);
+    let character = new CharacterSelection(playerStorage);
     const savedCharacter = character.restore(['corgi', 'myeongrang'], (category, index) => commerce.owns(category, index));
     Object.assign(this.outfit, savedCharacter.outfit);
     const applyGame = (value: GamePreferences): void => {
@@ -84,12 +95,12 @@ export class Game {
     };
     setLanguage(gameSettings.current.language); applyGame(gameSettings.current);
     this.audio = new AudioSystem(preferences.current);
-    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused), gameSettings, applyGame);
+    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused), gameSettings, applyGame, this.account);
     const openSettings = (): void => this.settings?.open();
     this.app.renderer.on('resize', this.resize);
     this.app.ticker.add(this.tick);
     document.addEventListener('visibilitychange', this.visibility);
-    this.scenes.show(new BootScene());
+
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
     const preload = new PreloadScene();
@@ -120,6 +131,25 @@ export class Game {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index) }));
       }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } }));
     };
+    this.account.onLoaded(() => {
+      if (this.disposed) return;
+      const reopenSettings = this.settings?.opened;
+      this.settings?.close();
+      this.quests?.destroy(); this.friends?.destroy();
+      presets = new CharacterPresets(playerStorage);
+      home = new HomeState(playerStorage);
+      commerce = new ShopState(playerStorage);
+      character = new CharacterSelection(playerStorage);
+      const look = character.restore(['corgi', 'myeongrang'], (category, index) => commerce.owns(category, index));
+      Object.assign(this.outfit, look.outfit);
+      activePet = look.petId === this.myeongrang?.id ? this.myeongrang! : corgi;
+      this.friends = new FriendsPopup(paused => this.scenes?.setPaused(paused));
+      this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
+      lobby(true);
+      if (reopenSettings) this.settings?.open(false);
+    });
+    window.addEventListener('online', () => { if (this.account?.storage.meta.dirty) void this.account.save(); }, { signal: this.events.signal });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.account?.storage.meta.dirty) void this.account.save(); }, { signal: this.events.signal });
     this.scenes.show(new TitleScene(() => lobby()));
 
     this.visibility();
@@ -128,6 +158,7 @@ export class Game {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.events.abort(); this.account?.destroy();
     document.removeEventListener('visibilitychange', this.visibility);
     if (!this.initialized) return;
     this.app.renderer.off('resize', this.resize);
