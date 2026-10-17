@@ -17,6 +17,11 @@ function fakeClient(shared = new Map(), id = 'a') {
     auth: {
       getSession: async () => ({ data: { session: api.session } }),
       onAuthStateChange: fn => { api.authChanged = fn; return { data: { subscription: { unsubscribe() { api.unsubscribed = true; } } } }; },
+      signInWithOAuth: async input => {
+        api.calls.push(['oauth', input]);
+        if (api.hold) await api.hold;
+        return { data: { provider: 'google', url: 'https://accounts.google.com/' }, error: api.failure };
+      },
       signInWithPassword: async input => { api.calls.push(['login', input]); return { data: { session: session('a') }, error: api.failure }; },
       signUp: async input => { api.calls.push(['signup', input]); return { data: { session: null }, error: api.failure }; },
       signOut: async input => { api.calls.push(['logout', input]); return { error: null }; },
@@ -233,5 +238,65 @@ test('account panel enables cloud actions after loading, translates, prevents du
   } finally {
     panel?.destroy(); service.destroy(); setLanguage('en');
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});
+
+test('Google OAuth uses the game path, clears callback fragments and query, and preserves guest data', async () => {
+  const client = fakeClient(new Map(), null), store = new AccountStorage(disk());
+  change(store, 'myeongrang'); const guest = store.snapshot();
+  const service = new AccountService(store, client);
+  try {
+    await service.initialize();
+    for (const base of ['https://genjiboy0312.github.io/PawHaven/', 'http://localhost:5173/']) {
+      await service.loginGoogle(base + '?old=query#access_token=stale');
+      assert.deepEqual(client.calls.at(-1), ['oauth', {
+        provider: 'google', options: { redirectTo: base, queryParams: { prompt: 'select_account' } },
+      }]);
+    }
+    assert.equal(service.user, null); assert.equal(store.owner, null);
+    assert.deepEqual(store.snapshot(), guest);
+    client.failure = { code: 'provider_disabled' };
+    await assert.rejects(() => service.loginGoogle('https://genjiboy0312.github.io/PawHaven/'),
+      error => error.code === 'provider_disabled');
+    assert.deepEqual(store.snapshot(), guest);
+  } finally { service.destroy(); }
+  const unavailable = new AccountService(new AccountStorage(disk()));
+  try { await assert.rejects(() => unavailable.loginGoogle('https://example.com/'), /account_unavailable/); }
+  finally { unavailable.destroy(); }
+});
+
+test('Google account panel accepts empty email fields, blocks duplicate clicks and shows errors safely', async () => {
+  const { AccountPanel } = await importTs('../src/ui/AccountPanel.ts', import.meta.url);
+  const { setLanguage } = await importTs('../src/settings/i18n.ts', import.meta.url);
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); classList = { add() {}, remove() {} }; value = '';
+    append(...items) { this.children.push(...items); }
+    replaceChildren() { this.children = []; }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    reportValidity() { throw Error('Google must not validate email or password'); }
+  }
+  const oldDocument = globalThis.document, oldWindow = globalThis.window;
+  globalThis.document = { createElement: () => new Element(), querySelectorAll: () => [] };
+  globalThis.window = { location: { href: 'https://genjiboy0312.github.io/PawHaven/' } };
+  const client = fakeClient(new Map(), null), service = new AccountService(new AccountStorage(disk()), client);
+  let panel;
+  try {
+    await service.initialize(); setLanguage('ko');
+    const host = new Element(); panel = new AccountPanel(host, service);
+    const google = host.children.find(item => item.getAttribute('data-account-action') === 'accountGoogle');
+    assert.equal(google.textContent, 'Google로 로그인');
+    let release; client.hold = new Promise(resolve => { release = resolve; });
+    client.failure = { message: 'private OAuth diagnostic must not be displayed' };
+    google.dispatchEvent(new Event('click')); google.dispatchEvent(new Event('click'));
+    assert.equal(client.calls.length, 1); assert.equal(google.disabled, true);
+    release(); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(service.busy, false); assert.equal(google.disabled, false);
+    assert.ok(host.children[1].textContent.length > 0);
+    assert.ok(!host.children[1].textContent.includes('private OAuth'));
+  } finally {
+    panel?.destroy(); service.destroy(); setLanguage('en');
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });

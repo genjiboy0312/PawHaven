@@ -141,6 +141,16 @@ export class AccountService {
     this.storage.apply(guest); this.storage.setMeta({ revision: this.revision, dirty: true });
     this.loaded(); await this.save();
   }
+  async loginGoogle(returnUrl: string): Promise<void> {
+    if (!this.client) throw Error('account_unavailable');
+    const redirect = new URL(returnUrl);
+    redirect.hash = ''; redirect.search = '';
+    const { error } = await this.client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: redirect.href, queryParams: { prompt: 'select_account' } },
+    });
+    if (error) throw error;
+  }
   async login(email: string, password: string): Promise<void> {
     if (!this.client) throw Error('account_unavailable');
     const { data, error } = await this.client.auth.signInWithPassword({ email: email.trim(), password });

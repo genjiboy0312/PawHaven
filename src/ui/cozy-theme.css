@@ -125,3 +125,4 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .lobby-economy-note { position: absolute; left: 2.6cqw; bottom: 3cqh; z-index: 1; max-width: 40%; display: flex; align-items: center; gap: 1cqw; background: #fff7e6ee; border-radius: 1cqw; padding: 1cqh 1cqw; font-size: 1.15cqw; pointer-events: auto; }
 .lobby-economy-note p { margin: 0; }
 .lobby-economy-note[hidden] { display: none; }
+.account-content button[data-account-action="accountGoogle"] { flex-basis: 100%; background: #fffaf0; color: #665d50; }

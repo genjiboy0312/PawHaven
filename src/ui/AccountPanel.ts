@@ -56,6 +56,8 @@ export class AccountPanel {
     this.feedback = this.text('accountHint'); this.feedback.setAttribute('role', 'status');
     if (!this.account.enabled) { this.text('accountDisabled'); this.refresh(); return; }
     if (!this.account.user) {
+      this.button('accountGoogle', () => this.account.loginGoogle(window.location.href));
+      this.text('accountEmailAlternative');
       const email = this.field('accountEmail', 'email', 'email');
       const password = this.field('accountPassword', 'password', 'current-password');
       this.text('accountPasswordHint');

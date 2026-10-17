@@ -8,17 +8,17 @@
    - Redirect URLs: https://genjiboy0312.github.io/PawHaven/ 및 로컬 개발 주소 http://localhost:5173/ (127.0.0.1을 쓰면 그 주소도 별도 추가).
 4. Authentication → Providers → Email 활성화, Confirm email 유지.
 5. 기본 이메일 발송기는 대상/발송량에 제한이 있으므로 공개 테스트 전 Custom SMTP 설정 필요.
-6. Google 로그인은 아직 연결하지 않음. 별도 OAuth 설정 후 추가.
+6. Google Auth Platform → Clients에서 Web application 생성. Origin은 https://genjiboy0312.github.io, Redirect URI는 https://rgsbqfjnhdvmqxrlqawm.supabase.co/auth/v1/callback. Client ID/Secret은 Supabase Google Provider에만 입력하고 활성화한다.
 
 공개 Publishable key는 클라이언트에서 사용하는 식별 키이다. Secret/service_role/DB 비밀번호는 코드·채팅·GitHub에 넣지 않는다.
 이 SQL은 사용자 본인 행만 읽고 저장하도록 RLS와 명시적 권한을 설정한다. 프로필의 최초 닉네임은 서버 함수에서 한 번만 설정할 수 있다.
 
 ## 구현 범위
-- 이메일·비밀번호 회원가입/로그인, 세션 복원, 로그아웃.
+- Google 로그인 및 이메일·비밀번호 회원가입/로그인, 세션 복원, 로그아웃.
 - 강아지·의상 선택, 프리셋 3개, Home 배치의 계정별 저장.
 - 게스트와 계정별 로컬 데이터를 분리. 게스트 꾸미기 가져오기는 계정 화면에서 명시적으로 선택.
 - revision 비교로 다른 기기의 새 저장을 무조건 덮어쓰지 않음. 충돌·오프라인 시 로컬 상태를 유지하고 알림.
-- 코인·소유권·구매·퀘스트·패스는 기기/계정별 로컬 프로토타입. 서버 검증/기기 간 공유는 후속 작업.
+- 로그인 계정의 코인·소유권·구매·퀘스트·패스는 적용된 서버 재화 RPC를 사용한다. 게스트는 로컬 프로토타입을 유지한다.
 - 공개 키만으로 SQL/인증 설정을 적용할 수 없으므로 위 대시보드 단계는 사용자가 실행해야 함.
 
 ## 연결/검증 기록
@@ -43,3 +43,12 @@
 - 로그인 계정의 코인/소유 아이템/퀘스트/패스는 새 economy_command RPC로 전환한다. 게스트의 기존 로컬 기록과 꾸미기 저장은 유지한다.
 - 새 SQL과 정확한 범위/테스트/실계정 확인 제한: [SERVER_ECONOMY.md](SERVER_ECONOMY.md).
 - 로그인 실사용 검증은 사용자 요청으로 추후 Google 연동 시 함께 진행한다.
+
+## 2026-10-17 Google 로그인
+- 사용자가 Google OAuth 설정 완료를 확인했으며 공개 Auth 설정에서 external.google=true를 확인했다.
+- Settings → Account 상단에 Google로 로그인 / Continue with Google 버튼. 이메일 입력 없이 별도 Google 인증 페이지로 이동한다.
+- signInWithOAuth(provider=google), prompt=select_account 사용. 현재 게임 주소의 경로를 보존하고 query/hash를 제거한 URL로 복귀한다. SDK 기본 브라우저 세션 복원으로 계정 저장과 서버 재화를 연결한다.
+- 새 로그인 계정은 기존 계정별 저장 정책을 따른다. 게스트 꾸미기를 사용할 때는 Account의 가져오기 기능을 명시적으로 선택한다.
+- Client Secret은 앱 환경 변수/저장소에 추가하지 않는다. 로그인 시작 오류는 일반 안내로 표시하고 중복 터치는 처리 중 차단한다.
+- 실제 Google 동의·콜백·두 기기 저장/재화 확인은 사용자 로그인으로 확인해야 한다. 공급자 활성화와 자동 테스트만으로 실제 인증 완료를 판단하지 않는다.
+- 공식 구현 참고: https://supabase.com/docs/guides/auth/social-login/auth-google- 이번 변경 검증: 전체 103개 자동 테스트와 타입 검사·프로덕션 빌드 통과.

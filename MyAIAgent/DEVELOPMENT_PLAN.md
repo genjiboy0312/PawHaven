@@ -87,3 +87,9 @@
 - 상세와 검증 한계: [SERVER_ECONOMY.md](SERVER_ECONOMY.md).
 
 - 재화 SQL은 사용자 실행 완료. 실제 Supabase 테이블 5개와 경제 RPC의 비로그인 접근 차단을 확인했다. 실계정 검증은 Google 연동 때 진행한다.
+
+## 2026-10-17 Google 계정 연결
+- 공개 Auth 설정에서 Google 활성화 확인. Settings → Account 상단에 Google 로그인 버튼을 추가했다.
+- Google 계정 선택 후 현재 게임 경로로 복귀하고 SDK 세션 복원/기존 계정별 클라우드·재화 흐름을 사용한다.
+- 게스트 데이터 보존, query/hash 제거, 공급자 오류 전달, 이메일 필드와 독립적인 Google 버튼/중복 요청 차단을 회귀 검증한다.
+- 실제 Google 로그인·PC/모바일 저장 복원·서버 구매/퀘스트 수령은 사용자 확인 대기. 상세: [SUPABASE.md](SUPABASE.md).
