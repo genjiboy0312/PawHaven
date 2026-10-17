@@ -24,6 +24,11 @@ export class AccountService {
   setBusy(value: boolean): void { this.busy = value; this.emit(); }
   get canSave(): boolean { return this.ready && !!this.user && !['loading', 'saving'].includes(this.status); }
   get enabled(): boolean { return !!this.client; }
+  get pendingSave(): boolean { return !!this.user && this.storage.meta.dirty; }
+  async retrySync(): Promise<void> {
+    await this.load(false);
+    if (this.canSave && this.pendingSave) await this.save();
+  }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   onLoaded(listener: () => void): () => void { this.loadedListeners.add(listener); return () => { this.loadedListeners.delete(listener); }; }
   private emit(): void { if (!this.disposed) this.listeners.forEach(listener => listener()); }
@@ -68,6 +73,7 @@ export class AccountService {
     if (generation !== this.generation || this.disposed || !this.user) return;
     this.ready = false;
     const userId = this.user.id;
+    const initialLook = JSON.stringify(this.storage.snapshot());
     this.status = 'loading'; this.emit();
     try {
       const [save, profile] = await Promise.all([
@@ -79,6 +85,8 @@ export class AccountService {
       if (profile.error) throw profile.error;
       this.nickname = profile.data?.nickname ?? null;
       const remoteRevision = save.data?.revision ?? 0, meta = this.storage.meta;
+      // A load may replace earlier edits by request, but never edits made while it was in flight.
+      if (initialLook !== JSON.stringify(this.storage.snapshot())) discardLocal = false;
       if (save.data && (!Number.isSafeInteger(remoteRevision) || remoteRevision < 1)) throw Error('invalid_save');
       if (!discardLocal && meta.dirty && meta.revision !== remoteRevision) {
         this.status = 'conflict'; this.ready = false; this.emit(); return;
@@ -86,7 +94,7 @@ export class AccountService {
       if (save.data && (discardLocal || !meta.dirty)) {
         this.storage.apply(normalizeSnapshot(save.data.snapshot));
         this.storage.setMeta({ revision: remoteRevision, dirty: false });
-      } else if (!save.data && discardLocal) {
+      } else if (!save.data) {
         // An empty cloud account starts from its own local cache, never a different guest.
         this.storage.setMeta({ revision: 0, dirty: true });
       }
@@ -107,6 +115,7 @@ export class AccountService {
     if (!this.ready || !this.user || this.disposed) return;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => { void this.save(); }, 800);
+    this.emit();
   }
   async save(): Promise<void> {
     clearTimeout(this.timer);

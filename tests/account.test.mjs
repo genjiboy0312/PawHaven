@@ -220,6 +220,12 @@ test('account panel enables cloud actions after loading, translates, prevents du
     panel = new AccountPanel(host, service);
     const button = key => host.children.find(item => item.attributes.get('data-account-action') === key);
     assert.equal(button('accountSave').disabled, false); assert.equal(button('accountImport').disabled, false);
+    assert.equal(host.children[0].getAttribute('data-sync-state'), 'pending');
+    assert.equal(button('accountRetry').hidden, true);
+    service.status = 'offline'; service.setBusy(false);
+    assert.equal(button('accountRetry').hidden, false);
+    assert.equal(button('accountRetry').disabled, false);
+    assert.equal(host.children[0].getAttribute('data-sync-state'), 'offline');
     service.status = 'loading'; service.setBusy(false);
     assert.equal(button('accountSave').disabled, true);
     service.status = 'saved'; service.setBusy(false);
@@ -299,4 +305,68 @@ test('Google account panel accepts empty email fields, blocks duplicate clicks a
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
+});
+
+test('sync retry preserves offline customization and refuses to overwrite a newer device save', async () => {
+  const remote = new Map(), client = fakeClient(remote), service = new AccountService(new AccountStorage(disk()), client);
+  try {
+    await service.initialize(); assert.equal(service.pendingSave, true);
+    await service.save(); assert.equal(service.pendingSave, false);
+    change(service.storage, 'myeongrang');
+    assert.equal(service.pendingSave, true);
+    client.failure = { code: 'network' }; await service.save();
+    assert.equal(service.status, 'offline');
+    client.failure = null; await service.retrySync();
+    assert.equal(service.pendingSave, false);
+    assert.equal(remote.get('a').snapshot.character.petId, 'myeongrang');
+    new HomeState(service.storage).select('Floor', 2);
+    remote.get('a').revision++;
+    const device = service.storage.snapshot(), revision = remote.get('a').revision;
+    await service.retrySync();
+    assert.equal(service.status, 'conflict'); assert.equal(service.pendingSave, true);
+    assert.deepEqual(service.storage.snapshot(), device); assert.equal(remote.get('a').revision, revision);
+  } finally { service.destroy(); }
+});
+
+test('cloud loads preserve changes made while waiting for the network, including explicit loads', async () => {
+  for (const newerRemote of [false, true]) {
+    const remote = new Map(), client = fakeClient(remote), service = new AccountService(new AccountStorage(disk()), client);
+    try {
+      await service.initialize(); await service.save();
+      let release; client.hold = new Promise(resolve => { release = resolve; });
+      const loading = service.load(true);
+      change(service.storage, 'myeongrang');
+      new HomeState(service.storage).select('Background', 3);
+      if (newerRemote) remote.get('a').revision++;
+      release(); await loading; client.hold = null;
+      assert.equal(service.storage.snapshot().character.petId, 'myeongrang');
+      assert.equal(service.storage.snapshot().home.Background, 3);
+      assert.equal(service.pendingSave, true);
+      assert.equal(service.status, newerRemote ? 'conflict' : 'saved');
+      if (!newerRemote) {
+        await service.save();
+        assert.equal(remote.get('a').snapshot.home.Background, 3);
+      }
+    } finally { service.destroy(); }
+  }
+});
+
+test('fresh devices restore the same pet, outfit, three presets and placed furniture after saving', async () => {
+  const remote = new Map(), first = new AccountService(new AccountStorage(disk()), fakeClient(remote));
+  let second;
+  try {
+    await first.initialize(); change(first.storage, 'myeongrang');
+    const presets = new CharacterPresets(first.storage);
+    for (let index = 0; index < 3; index++) presets.save(index, look(index === 1 ? 'corgi' : 'myeongrang'));
+    const home = new HomeState(first.storage);
+    home.select('Background', 2); home.select('Floor', 3);
+    home.place('Furniture', 4); home.place('Etc', 2);
+    await first.save();
+    const expected = first.storage.snapshot();
+    second = new AccountService(new AccountStorage(disk()), fakeClient(remote));
+    await second.initialize();
+    assert.deepEqual(second.storage.snapshot(), expected);
+    assert.equal(second.pendingSave, false);
+    assert.equal(second.storage.snapshot().home.items.length, 2);
+  } finally { first.destroy(); second?.destroy(); }
 });

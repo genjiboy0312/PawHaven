@@ -126,3 +126,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .lobby-economy-note p { margin: 0; }
 .lobby-economy-note[hidden] { display: none; }
 .account-content button[data-account-action="accountGoogle"] { flex-basis: 100%; background: #fffaf0; color: #665d50; }
+.account-sync { border-radius: 1cqw; padding: 1cqh 1cqw; background: #e7efdb; color: #4e6241; }
+.account-sync[data-sync-state="pending"], .account-sync[data-sync-state="saving"], .account-sync[data-sync-state="loading"] { background: #fff0c8; color: #786135; }
+.account-sync[data-sync-state="offline"], .account-sync[data-sync-state="conflict"], .account-sync[data-sync-state="setup"] { background: #f8dfd3; color: #895442; }
+.account-identity { font-family: var(--font-round); }
+.account-content button[hidden], .account-content p[hidden] { display: none; }

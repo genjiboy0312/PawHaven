@@ -9,6 +9,7 @@ export class AccountPanel {
   private notice?: TextKey;
   private status?: HTMLElement;
   private feedback?: HTMLElement;
+  private identityLabel?: HTMLElement;
   private controls: HTMLButtonElement[] = [];
   constructor(private readonly host: HTMLElement, private readonly account: AccountService) {
     this.render();
@@ -54,6 +55,9 @@ export class AccountPanel {
     this.host.classList.add('account-content');
     this.status = this.text('guest'); this.status.setAttribute('role', 'status');
     this.feedback = this.text('accountHint'); this.feedback.setAttribute('role', 'status');
+    this.status.className = 'account-sync';
+    this.status.setAttribute('aria-live', 'polite');
+    this.identityLabel = this.text('accountSignedIn'); this.identityLabel.className = 'account-identity';
     if (!this.account.enabled) { this.text('accountDisabled'); this.refresh(); return; }
     if (!this.account.user) {
       this.button('accountGoogle', () => this.account.loginGoogle(window.location.href));
@@ -86,6 +90,7 @@ export class AccountPanel {
       }
       this.text('accountCloudHint');
       this.button('accountSave', () => this.account.save());
+      this.button('accountRetry', () => this.account.retrySync());
       this.text('accountLoadHint');
       this.button('accountLoad', () => this.account.load(true));
       this.text('accountImportHint');
@@ -95,11 +100,22 @@ export class AccountPanel {
     this.refresh();
   }
   private refresh(): void {
-    if (this.status) this.status.textContent = this.account.busy ? t('accountWorking') : t(('sync.' + this.account.status) as TextKey);
+    if (this.identityLabel) {
+      this.identityLabel.hidden = !this.account.user;
+      this.identityLabel.textContent = t('accountSignedIn');
+    }
+    if (this.status) {
+      const pending = this.account.status === 'saved' && this.account.pendingSave;
+      this.status.textContent = this.account.busy ? t('accountWorking')
+        : pending ? t('accountPending') : t(('sync.' + this.account.status) as TextKey);
+      this.status.setAttribute('data-sync-state', pending ? 'pending' : this.account.status);
+    }
     if (this.feedback) this.feedback.textContent = this.notice ? t(this.notice) : this.account.user ? '' : t('accountHint');
     for (const button of this.controls) {
       const key = button.getAttribute('data-account-action');
+      if (key === 'accountRetry') button.hidden = !['offline', 'setup', 'conflict'].includes(this.account.status);
       button.disabled = this.account.busy ||
+        (key === 'accountRetry' && ['loading', 'saving'].includes(this.account.status)) ||
         ((key === 'accountSave' || key === 'accountImport') && !this.account.canSave) ||
         (key === 'accountLoad' && ['loading', 'saving'].includes(this.account.status));
     }

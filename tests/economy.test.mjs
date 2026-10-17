@@ -11,6 +11,7 @@ const { parseEconomyResult } = await importTs('../src/shop/EconomySnapshot.ts', 
 const { economyTransport } = await importTs('../src/shop/economyTransport.ts', import.meta.url);
 const db = new PGlite();
 await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema auth to authenticated, anon;");
+await db.exec(await readFile(new URL('../supabase/migrations/202610170001_player_accounts.sql', import.meta.url), 'utf8'));
 await db.query('insert into auth.users values($1),($2)', [A, B]);
 await db.exec(await readFile(new URL('../supabase/migrations/202610170002_server_economy.sql', import.meta.url), 'utf8'));
 let sequence = 0;
@@ -32,7 +33,7 @@ async function finish(user = A) {
   await db.query("update public.economy_runs set started_at = clock_timestamp() - interval '6 seconds' where id=$1", [start.run_id]);
   return command(user, 'run_finish', { run_id: start.run_id });
 }
-beforeEach(async () => { await db.exec('truncate public.economy_requests, public.economy_runs, public.economy_claims, public.economy_items, public.economy_wallets'); });
+beforeEach(async () => { await db.exec('truncate public.player_profiles, public.player_saves, public.economy_requests, public.economy_runs, public.economy_claims, public.economy_items, public.economy_wallets'); });
 after(async () => { await db.close(); });
 
 test('server initializes each account once and derives prices without accepting a supplied balance', async () => {
@@ -360,4 +361,34 @@ test('shared auth session changes cannot charge the next account for the old acc
   const abort = new AbortController(); abort.abort(); active = A;
   await assert.rejects(() => send(request, abort.signal), error => error.code === '42501');
   assert.equal(calls, 1);
+});
+
+test('account SQL enforces owner-only reads and revision conflicts without changing another player', async () => {
+  const state = { version: 1, character: { petId: 'myeongrang' }, presets: [], home: { version: 2 } };
+  const save = (user, revision, value = state) => as(user,
+    'select public.save_player_state($1,$2::jsonb) as revision', [revision, JSON.stringify(value)]);
+  assert.equal((await save(A, 0)).rows[0].revision, 1);
+  assert.equal((await as(B, 'select * from public.player_saves')).rows.length, 0);
+  await assert.rejects(() => save(A, 0), error => error.code === '40001');
+  assert.equal((await save(A, 1)).rows[0].revision, 2);
+  await assert.rejects(() => save(A, 1), error => error.code === '40001');
+  assert.equal((await as(A, 'select snapshot from public.player_saves')).rows[0].snapshot.character.petId, 'myeongrang');
+  assert.equal((await as(B, 'update public.player_saves set revision=99 where user_id=$1 returning *', [A])).rows.length, 0);
+  await assert.rejects(() => as(B, 'insert into public.player_saves(user_id,snapshot) values($1,$2::jsonb)',
+    [A, JSON.stringify(state)]), error => error.code === '42501');
+  await assert.rejects(() => as(null, 'select public.save_player_state(0,$1::jsonb)',
+    [JSON.stringify(state)], 'anon'), error => error.code === '42501');
+});
+
+test('nickname SQL allows one free name, rejects duplicates and prevents direct profile edits', async () => {
+  const claim = (user, name) => as(user, 'select public.claim_player_nickname($1) as nickname', [name]);
+  assert.equal((await claim(A, '명랑이친구')).rows[0].nickname, '명랑이친구');
+  await assert.rejects(() => claim(A, '다른이름'), error => error.code === 'P0001');
+  await assert.rejects(() => claim(B, '명랑이친구'), error => error.code === '23505');
+  await assert.rejects(() => claim(B, '<script>'), error => error.code === 'P0001');
+  assert.equal((await as(B, 'select * from public.player_profiles')).rows.length, 0);
+  await assert.rejects(() => as(A, "update public.player_profiles set nickname='Changed'"),
+    error => error.code === '42501');
+  await assert.rejects(() => as(null, "select public.claim_player_nickname('Anon')", [], 'anon'),
+    error => error.code === '42501');
 });
