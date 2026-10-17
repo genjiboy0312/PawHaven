@@ -18,8 +18,8 @@ export class HealingDialogue {
   get remainingTime(): number { return this.remaining; }
   get active(): boolean { return this.remaining > 0; }
   get message(): string { return this.active ? HEALING_LINES[this.last]![getLanguage()] : ''; }
-  start(): boolean {
-    if (this.active) return false;
+  start(replace = false): boolean {
+    if (this.active && !replace) return false;
     // Sample from all entries except the previous one, including a constant RNG.
     const count = HEALING_LINES.length - (this.last < 0 ? 0 : 1);
     const sample = this.random();

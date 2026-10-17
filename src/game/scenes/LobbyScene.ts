@@ -21,16 +21,17 @@ export class LobbyScene extends Scene {
 
   override setPaused(paused: boolean): void { this.paused = paused; }
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void; friends?: () => void; rewards?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void; friends?: () => void; rewards?: () => boolean; click?: () => void }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }) {
     super(); this.garden = new LobbyMap(home?.textures);
-    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open);
+    const pet = (): void => { if (!this.paused && this.animal.pet()) commerce?.pet?.(); };
+    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open, pet);
     this.welcomeStarted = returning;
     this.animal = new Animal(config);
-    // Animal maintains a frame-aware body hit area with a small touch margin.
+    // Animal owns a stable rectangular body target across animation frames.
     this.animal.eventMode = 'static';
     this.animal.cursor = 'pointer';
     this.animal.on('pointerdown', event => {
-      if (!this.paused && event.button === 0 && this.animal.pet()) commerce?.pet?.();
+      if (event.button === 0) pet();
     });
     this.addChild(this.garden, this.shadow, this.animal, this.depthLayer, this.expressionLayer);
     this.depthLayer.attach(this.shadow, this.animal);
@@ -67,6 +68,7 @@ export class LobbyScene extends Scene {
     this.shadow.scale.set(jumping ? 0.8 : 1);
     this.shadow.alpha = jumping ? 0.65 : 1;
     this.hud.update(this.animal.state);
+    this.hud.placePet(this.animal.x, this.animal.y, this.animal.touchBounds, this.viewWidth, this.viewHeight, !this.animal.welcoming);
   }
   override destroy(options?: DestroyOptions): void {
     this.hud.destroy();

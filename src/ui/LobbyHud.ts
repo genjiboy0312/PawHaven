@@ -15,13 +15,17 @@ type MenuId = keyof typeof ICONS;
 export class LobbyHud {
   readonly element = document.createElement('section');
   private readonly status = document.createElement('p');
+  private readonly petTarget = document.createElement('button');
+  private readonly abort = new AbortController();
   private previousState: AnimalVisualState | undefined;
   private questButton?: HTMLButtonElement;
   private questReady?: boolean;
   private readonly rewards?: () => boolean;
+  private readonly clickSound?: () => void;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; rewards?: () => boolean }, onHome?: () => void) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; rewards?: () => boolean; click?: () => void }, onHome?: () => void, onPet?: () => void) {
     this.rewards = commerce?.rewards;
+    this.clickSound = commerce?.click;
     this.element.className = 'lobby-hud';
     this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
@@ -68,6 +72,15 @@ export class LobbyHud {
       fade.className = 'scene-fade fade-in';
       this.element.append(fade);
     }
+    this.petTarget.type = 'button';
+    this.petTarget.className = 'lobby-pet-target';
+    bindAria(this.petTarget, 'petInteract');
+    this.petTarget.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      event.preventDefault(); onPet?.();
+    }, { signal: this.abort.signal });
+    this.petTarget.addEventListener('click', event => { if (event.detail === 0) onPet?.(); }, { signal: this.abort.signal });
+    this.element.append(this.petTarget);
     document.querySelector('#app')?.append(this.element);
   }
 
@@ -76,6 +89,7 @@ export class LobbyHud {
     button.type = 'button';
     button.className = 'hud-menu hud-menu-' + id;
     button.disabled = true;
+    button.addEventListener('click', () => { if (!button.disabled) this.clickSound?.(); });
     button.setAttribute('data-menu', id);
     bindAria(button, id);
     const image = document.createElement('img');
@@ -102,5 +116,10 @@ export class LobbyHud {
       this.previousState = state;
     }
   }
-  destroy(): void { this.element.remove(); }
+  placePet(x: number, y: number, bounds: { x: number; y: number; width: number; height: number }, width: number, height: number, enabled: boolean): void {
+    this.petTarget.disabled = !enabled;
+    this.petTarget.setAttribute('style', 'left:' + (x + bounds.x) / width * 100 + '%;top:' + (y + bounds.y) / height * 100 +
+      '%;width:' + bounds.width / width * 100 + '%;height:' + bounds.height / height * 100 + '%');
+  }
+  destroy(): void { this.abort.abort(); this.element.remove(); }
 }

@@ -1,6 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
-  Pets: 'Pets', preset: 'Preset', save: 'Save', corgi: 'Corgi', myeongrang: 'Myeongrang', presetUnsaved: 'Look autosaved · Preset not saved', presetSaved: 'Saved', presetLoaded: 'Loaded', presetEmpty: 'Empty slot — press Save to store this look.', petUnavailable: 'This pet is not available yet.',
+  petInteract: 'Talk to your pet', Pets: 'Pets', preset: 'Preset', save: 'Save', corgi: 'Corgi', myeongrang: 'Myeongrang', presetUnsaved: 'Look autosaved · Preset not saved', presetSaved: 'Saved', presetLoaded: 'Loaded', presetEmpty: 'Empty slot — press Save to store this look.', petUnavailable: 'This pet is not available yet.',
   Style: 'Style', Pass: 'Pass', Daily: 'Daily', Weekly: 'Weekly', seasonPass: 'Season Pass',
   seasonName: 'Season 0 · Cozy Beginnings', seasonPrototype: 'Prototype season · No expiry · No real payment',
   level: 'Level', passOwned: 'Premium unlocked', testUnlock: 'Test unlock · Free', upgradePass: 'Go to Shop',
@@ -31,7 +31,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
-  Pets: '동물', preset: '프리셋', save: '저장', corgi: '코기', myeongrang: '명랑이', presetUnsaved: '현재 조합 자동 저장 · 프리셋은 별도 저장', presetSaved: '저장했어요', presetLoaded: '불러왔어요', presetEmpty: '빈 슬롯이에요. 저장을 눌러 조합을 보관하세요.', petUnavailable: '아직 사용할 수 없는 동물이에요.',
+  petInteract: '강아지와 대화하기', Pets: '동물', preset: '프리셋', save: '저장', corgi: '코기', myeongrang: '명랑이', presetUnsaved: '현재 조합 자동 저장 · 프리셋은 별도 저장', presetSaved: '저장했어요', presetLoaded: '불러왔어요', presetEmpty: '빈 슬롯이에요. 저장을 눌러 조합을 보관하세요.', petUnavailable: '아직 사용할 수 없는 동물이에요.',
   Style: '꾸미기', Pass: '패스', Daily: '일일', Weekly: '주간', seasonPass: '시즌패스',
   seasonName: '시즌 0 · 포근한 시작', seasonPrototype: '프로토타입 시즌 · 종료일 없음 · 실제 결제 없음',
   level: '단계', passOwned: '프리미엄 해금 완료', testUnlock: '테스트 해금 · 무료', upgradePass: '상점으로 이동',

@@ -19,7 +19,7 @@ export class SettingsPopup {
   private tab: 'Sound' | 'Controls' | 'Display' | 'Language' | 'Account' | 'About' = 'Sound';
   get opened(): boolean { return !!this.element; }
   constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined) {}
-  open(): void {
+  open(playSound = true): void {
     if (this.opened) return;
     const host = document.querySelector<HTMLElement>('#app');
     if (!host) return;
@@ -27,7 +27,7 @@ export class SettingsPopup {
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     this.blocked = Array.from(host.children).filter((item): item is HTMLElement => item instanceof HTMLElement).map(element => ({ element, inert: element.inert }));
     for (const item of this.blocked) item.element.inert = true;
-    this.pause(true); this.audio.play('click');
+    this.pause(true); if (playSound) this.audio.play('click');
     this.element = document.createElement('div'); this.element.className = 'settings-overlay';
     this.panel = document.createElement('section'); this.panel.className = 'settings-panel';
     this.panel.setAttribute('role', 'dialog'); this.panel.setAttribute('aria-modal', 'true'); bindAria(this.panel, 'settings');

@@ -17,6 +17,7 @@ export class Animal extends Container {
   private inHome = false;
   get floorDepth(): number { return this.inHome && !this.welcoming ? this.behavior.depth : this.y; }
   get cushionId(): number | undefined { return this.behavior.restingCushion; }
+  get touchBounds() { return this.animation.bodyHitArea; }
   get speechBubble() { return this.animation.welcomeMark; }
   setHome(width: number, height: number, items: readonly HomeItem[]): void {
     this.inHome = true;
@@ -50,10 +51,10 @@ export class Animal extends Container {
   }
   pet(): boolean {
     if (this.welcoming || this.touchCooldown > 0 || !this.behavior.canPet) return false;
-    if (!this.dialogue.active) this.dialogue.start();
+    this.dialogue.start(true);
     this.behavior.pet(Math.max(1.5, this.dialogue.remainingTime));
     this.animation.restart();
-    this.touchCooldown = 0.18;
+    this.touchCooldown = 0.8;
     this.touches++;
     this.update(0);
     return true;

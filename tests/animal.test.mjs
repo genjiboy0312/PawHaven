@@ -1183,15 +1183,15 @@ test('petting debounces rapid input, restarts motion on retouch and resumes auto
     assert.equal(animal.pet(), true); assert.equal(animal.state, 'EMOTE');
     for (let i = 0; i < 10; i++) assert.equal(animal.pet(), false);
     const message = animal.children[2].text;
-    animal.update(0.4); assert.ok(animal.children[0].currentFrame > 0);
+    animal.update(0.81); assert.ok(animal.children[0].currentFrame > 0);
     assert.equal(animal.pet(), true); assert.equal(animal.children[0].currentFrame, 0);
-    assert.equal(animal.children[2].text, message); assert.equal(animal.children[2].reactionText, '♪');
+    assert.notEqual(animal.children[2].text, message); assert.equal(animal.children[2].reactionText, '♪');
     animal.update(0.4); assert.equal(animal.x, x); assert.equal(animal.state, 'EMOTE');
     animal.update(6); assert.equal(animal.state, 'IDLE'); assert.equal(animal.mode, 'auto');
     const states = new Set();
     for (let i = 0; i < 7200; i++) {
       animal.update(1 / 60); states.add(animal.state);
-      if (animal.state === 'JUMP' || animal.state === 'LAND') assert.equal(animal.pet(), false);
+
     }
     assert.ok(states.has('WANDER')); assert.ok(states.has('JUMP'));
     assert.equal(animal.play('walk'), true); assert.equal(animal.pet(), false);
@@ -1493,6 +1493,7 @@ test('Myeongrang cells fit their real PNGs, preserve padding and reuse Corgi eff
   const config = createMyeongrang(atlases, map, shared), controller = new AnimalAnimationController(config);
   try {
     assert.equal(config.id, 'myeongrang'); assert.equal(config.effects, shared.effects); assert.equal(config.wardrobe, shared.wardrobe);
+    const fixedBodyRect = [controller.bodyHitArea.x, controller.bodyHitArea.y, controller.bodyHitArea.width, controller.bodyHitArea.height];
     assert.deepEqual(config.animations.fall.frames, config.animations.jump.frames.slice(2, 3));
     assert.deepEqual(config.animations.land.frames, config.animations.jump.frames.slice(3));
     for (const [key, clip] of Object.entries(map.actions)) {
@@ -1508,8 +1509,9 @@ test('Myeongrang cells fit their real PNGs, preserve padding and reuse Corgi eff
           assert.equal(controller.sprite.texture, texture); assert.equal(controller.hat.visible, true);
           assert.equal(Math.sign(controller.sprite.scale.x), direction); seen.add(controller.sprite.texture);
           const b = config.animations[key].bodyBounds[i], hit = controller.bodyHitArea;
-          assert.ok(Math.abs(hit.width - (Math.max(120, b.width * Math.abs(controller.sprite.scale.x)) + 112)) < 0.001);
-          assert.ok(Math.abs(hit.height - (Math.max(128, b.height * controller.sprite.scale.y) + 112)) < 0.001);
+          assert.deepEqual([hit.x, hit.y, hit.width, hit.height], fixedBodyRect);
+          assert.ok(hit.width >= Math.max(120, b.width * Math.abs(controller.sprite.scale.x)) + 112 - 0.001);
+          assert.ok(hit.height >= Math.max(128, b.height * controller.sprite.scale.y) + 112 - 0.001);
           assert.ok(hit.width >= 232 && hit.height >= 240);
           const centre = (b.x + b.width / 2) * controller.sprite.scale.x;
           assert.ok(hit.contains(centre + b.width * Math.abs(controller.sprite.scale.x) / 2 + 48,
@@ -1736,36 +1738,36 @@ test('pet dialogue stays still, survives resizing/language changes, ignores spam
     assert.equal(bubble.text, message); assert.ok(animal.children[0].currentFrame > 0);
     const firstReaction = animal.children[2].reactionText;
     assert.equal(animal.pet(), true); assert.equal(animal.children[0].currentFrame, 0);
-    assert.notEqual(animal.children[2].reactionText, firstReaction); assert.equal(bubble.text, message);
-    animal.setBounds(390, 280); animal.update(0); assert.equal(bubble.text, message);
+    assert.notEqual(animal.children[2].reactionText, firstReaction); assert.notEqual(bubble.text, message);
+    const changedMessage = bubble.text; animal.setBounds(390, 280); animal.update(0); assert.equal(bubble.text, changedMessage);
     setLanguage('en'); animal.update(0); assert.ok(bubble.text.includes('today'));
     assert.equal(animal.pet(), false);
     animal.update(6); assert.equal(animal.state, 'IDLE'); assert.equal(bubble.visible, false);
-    assert.equal(animal.pet(), true); assert.ok(!bubble.text.includes('You did well'));
+    assert.equal(animal.pet(), true); assert.notEqual(bubble.text, changedMessage);
     animal.play('idle'); assert.equal(bubble.visible, false);
   } finally { animal.destroy({ children: true }); setLanguage('en'); }
 });
-test('repeated touches give immediate feedback without extending the healing dialogue clock', () => {
+test('touches refresh both dialogue and reaction after 0.8 seconds, while spam changes neither', () => {
   const animal = new Animal({ id: 'myeongrang', speed: 90, scale: 0.62, animations: {
     idle: { frames: [Texture.WHITE], fps: 3 }, emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 },
   } }, () => 0);
   try {
     animal.setBounds(960, 390); assert.equal(animal.pet(), true);
-    const dialogue = animal.children[2], reaction = dialogue, message = dialogue.text;
-    assert.equal(reaction.reactionText, '♡'); assert.equal(reaction.visible, true);
-    for (let i = 0; i < 20; i++) {
-      const symbol = reaction.reactionText;
-      animal.update(0.2); assert.equal(animal.pet(), true);
-      assert.equal(animal.children[0].currentFrame, 0); assert.notEqual(reaction.reactionText, symbol);
-      assert.equal(dialogue.text, message); assert.equal(animal.pet(), false);
+    const bubble = animal.speechBubble;
+    for (let i = 0; i < 10; i++) {
+      const message = bubble.text, symbol = bubble.reactionText;
+      animal.update(0.4); assert.equal(animal.pet(), false);
+      assert.equal(bubble.text, message); assert.equal(bubble.reactionText, symbol);
+      animal.update(0.41); assert.equal(animal.pet(), true);
+      assert.notEqual(bubble.text, message); assert.notEqual(bubble.reactionText, symbol);
+      assert.equal(animal.children[0].currentFrame, 0); assert.equal(bubble.visible, true);
     }
-    animal.update(2);
-    assert.equal(dialogue.visible, false); assert.equal(reaction.visible, false);
-    assert.equal(animal.state, 'IDLE');
-    assert.equal(animal.pet(), true); assert.notEqual(dialogue.text, message);
-    assert.equal(animal.hitArea.contains(dialogue.x, dialogue.y), false);
+    animal.update(7); assert.equal(bubble.visible, false); assert.equal(animal.state, 'IDLE');
+    assert.equal(animal.pet(), true);
+    assert.equal(animal.hitArea.contains(bubble.x, bubble.y), false);
   } finally { animal.destroy({ children: true }); }
 });
+
 test('lobby floor roaming visits both axes and stays clear of the Play control at varied frame rates', () => {
   for (const fps of [30, 60, 120]) {
     const machine = new AnimalStateMachine(90, CORGI_BEHAVIOR, seededRandom(170));
@@ -1833,7 +1835,7 @@ test('moving/removing a cushion retargets an approach and interrupts rest withou
   for (let i = 0; i < 1000; i++) other.update(1 / 60);
   assert.equal(other.restingCushion, undefined);
 });
-test('both pets wake on touch and use one bubble with an internal reaction while preserving dialogue', () => {
+test('both pets wake on touch and refresh dialogue and the internal reaction together', () => {
   for (const id of ['corgi', 'myeongrang']) {
     const animal = new Animal({ id, speed: 90, scale: 0.62, behavior: cushionProfile, animations: {
       idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 },
@@ -1851,8 +1853,8 @@ test('both pets wake on touch and use one bubble with an internal reaction while
       assert.equal(animal.children.length, 3);
       const bubble = animal.speechBubble, message = bubble.text, height = bubble.halfHeight;
       assert.equal(bubble.reactionText, '♡');
-      animal.update(0.25); assert.equal(animal.pet(), true);
-      assert.equal(bubble.text, message); assert.equal(bubble.reactionText, '♪'); assert.equal(bubble.halfHeight, height);
+      animal.update(0.81); assert.equal(animal.pet(), true);
+      assert.notEqual(bubble.text, message); assert.equal(bubble.reactionText, '♪'); assert.ok(bubble.halfHeight >= height - 13);
       animal.update(7); assert.equal(bubble.visible, false);
     } finally { animal.destroy({ children: true }); }
   }
@@ -2016,7 +2018,7 @@ test('lobby valid touches count Daily, Quest claims update coins, translate and 
     pet.emit('pointerdown', { button: 2 }); assert.equal(state.dailyQuests[0].progress, 0);
     touch(); touch(); assert.equal(state.dailyQuests[0].progress, 1);
     scene.update(0.2); touch(); assert.equal(state.dailyQuests[0].progress, 1);
-    for (let i = 0; i < 2; i++) { now += 10000; scene.update(0.2); touch(); }
+    for (let i = 0; i < 2; i++) { now += 10000; scene.update(0.81); touch(); }
     assert.equal(state.dailyQuests[0].progress, 3);
     popup.open(); popup.open(); assert.equal(host.children.length, 2);
     const panel = host.children[1].children[0], content = panel.children[3];
@@ -2133,6 +2135,95 @@ test('loading typography keeps one caption and cleans DOM when boot/preload scen
     assert.equal(host.children.length, 0);
   } finally {
     if (!boot.destroyed) boot.destroy({ children: true });
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});
+test('both pets accept DOM body taps after Play victory returns to Lobby, including airborne roaming', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+    hasPointerCapture() { return false; }
+  }
+  const oldDocument = globalThis.document, oldWindow = globalThis.window, host = new Element('main');
+  globalThis.document = Object.assign(new EventTarget(), { createElement: tag => new Element(tag), querySelector: () => host });
+  globalThis.window = Object.assign(new EventTarget(), { matchMedia: () => ({ matches: false }) });
+  const { Container } = await import('pixi.js');
+  const { SceneManager } = await importTs('../src/game/SceneManager.ts', import.meta.url);
+  const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
+  const { PlayScene } = await importTs('../src/game/scenes/PlayScene.ts', import.meta.url);
+  const app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
+  const down = target => target.dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
+  try {
+    for (const id of ['corgi', 'myeongrang']) {
+      const config = { id, speed: 90, scale: 0.62, behavior: {
+        ...CORGI_BEHAVIOR, durations: { ...CORGI_BEHAVIOR.durations, IDLE: [0.1, 0.1] }, weights: { JUMP: 1 },
+      }, animations: {
+        idle: { frames: [Texture.WHITE], fps: 3 }, jump: { frames: [Texture.WHITE], fps: 6 },
+        emote: { frames: [Texture.WHITE], fps: 4 },
+      } };
+      let scene;
+      const lobby = () => { scene = new LobbyScene(config, () => {
+        manager.show(new PlayScene(config, lobby));
+      }, true); manager.show(scene); };
+      lobby();
+      const oldTarget = host.children[0].children.at(-1);
+      down(oldTarget); assert.equal(scene.children.find(child => child.label === id).speechBubble.visible, true);
+      host.children[0].children[2].children[0].dispatchEvent(new Event('click'));
+      const play = app.stage.children[0];
+      play.run.x = play.run.finish; manager.update(0.05); assert.equal(play.run.won, true);
+      manager.update(2); assert.equal(play.destroyed, true); assert.equal(host.children.length, 1);
+      const pet = scene.children.find(child => child.label === id), target = host.children[0].children.at(-1);
+      assert.notEqual(target, oldTarget); assert.equal(target.disabled, false);
+      assert.match(target.attributes.get('style'), /left:.*%;top:.*%;width:.*%;height:.*%/);
+      down(oldTarget); assert.equal(pet.speechBubble.visible, false); // old listener was aborted
+      down(target); assert.equal(pet.speechBubble.visible, true); assert.equal(pet.state, 'EMOTE');
+      const message = pet.speechBubble.text;
+      manager.update(0.4); down(target); assert.equal(pet.speechBubble.text, message);
+      manager.update(0.41); down(target); assert.notEqual(pet.speechBubble.text, message);
+      manager.setPaused(true); manager.update(1); const paused = pet.speechBubble.text;
+      down(target); assert.equal(pet.speechBubble.text, paused); manager.setPaused(false);
+      manager.update(7); manager.update(0.2); assert.equal(pet.state, 'JUMP');
+      down(target); assert.equal(pet.state, 'EMOTE'); assert.equal(pet.speechBubble.visible, true);
+      app.screen = { width: 480, height: 270 }; manager.resize(); manager.update(0);
+      assert.match(target.attributes.get('style'), /width:/); app.screen = { width: 960, height: 540 };
+    }
+  } finally {
+    manager.destroy(); app.stage.destroy();
+    assert.equal(host.children.length, 0);
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});
+
+test('every enabled lobby menu plays one shared click before its action', async () => {
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); classList = { add() {} };
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, host = new Element();
+  globalThis.document = { createElement: () => new Element(), querySelector: () => host };
+  const { LobbyHud } = await importTs('../src/ui/LobbyHud.ts', import.meta.url);
+  const events = [], action = id => () => events.push(id);
+  const hud = new LobbyHud(action('play'), false, action('character'), action('settings'),
+    { shop: action('shop'), quest: action('quest'), friends: action('friends'), click: action('sound') }, action('home'));
+  try {
+    for (const group of hud.element.children) for (const button of group.children) {
+      const id = button.attributes.get('data-menu');
+      if (!id) continue;
+      const start = events.length; button.dispatchEvent(new Event('click'));
+      assert.deepEqual(events.slice(start), ['sound', id]);
+    }
+    const disabled = hud.element.children[1].children[0]; disabled.disabled = true;
+    const count = events.filter(item => item === 'sound').length;
+    disabled.dispatchEvent(new Event('click'));
+    assert.equal(events.filter(item => item === 'sound').length, count);
+  } finally {
+    hud.destroy();
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
 });

@@ -69,7 +69,7 @@ export class AnimalStateMachine {
   private positioned = false;
   private observeDirection = 1;
 
-  get canPet(): boolean { return this.mode === 'auto' && this.state !== 'JUMP' && this.state !== 'LAND'; }
+  get canPet(): boolean { return this.mode === 'auto'; }
 
   pet(duration = 1.5): boolean {
     if (!this.canPet) return false;

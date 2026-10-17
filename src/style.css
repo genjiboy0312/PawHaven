@@ -194,3 +194,8 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .friends-panel { width: 68%; height: 72%; }
 .friends-content { padding-top: 2cqh; }
 .friends-content input { width: 80%; padding: 1.5cqh 1cqw; border: 1px solid #c2cbb8; border-radius: 1cqw; font: inherit; background: #e4e8dc; }
+
+/* Pet input shares the DOM HUD lifecycle, including scene return and portrait rotation. */
+.lobby-pet-target { position: absolute; z-index: 0; padding: 0; border: 0; background: transparent; pointer-events: auto; touch-action: manipulation; cursor: pointer; }
+.lobby-pet-target:disabled { pointer-events: none; }
+.hud-character, .hud-utilities, .hud-play { z-index: 1; }

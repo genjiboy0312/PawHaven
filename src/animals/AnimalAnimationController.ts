@@ -14,12 +14,32 @@ export class AnimalAnimationController {
     style: { fontFamily: 'Georgia, serif', fontSize: 20, fill: '#687b58' },
   });
   readonly welcomeMark = new SpeechBubble();
+  private readonly touchBounds: Rectangle;
   private lastAnimation = 'idle';
   private framePosition = 0;
 
   constructor(private readonly config: AnimalConfig) {
     const idle = config.animations.idle;
     if (!idle?.frames.length) throw new Error('동물에게 idle 애니메이션이 필요합니다.');
+    // One full-body rectangle across all clips and both directions; no pixel holes
+    // or shrinking target when an animation frame changes.
+    const personalPet = config.id === 'myeongrang';
+    let halfWidth = (personalPet ? 120 : 80) / 2, top = -(personalPet ? 128 : 96), bottom = 0;
+    for (const clip of Object.values(config.animations)) {
+      const scale = config.scale * (clip.scale ?? 1);
+      clip.frames.forEach((texture, frame) => {
+        const rect = texture.trim ?? texture.orig;
+        const body = clip.bodyBounds?.[frame] ?? {
+          x: rect.x - texture.orig.width * 0.5, y: rect.y - texture.orig.height * (clip.anchorY ?? 1),
+          width: rect.width, height: rect.height,
+        };
+        halfWidth = Math.max(halfWidth, Math.abs(body.x * scale), Math.abs((body.x + body.width) * scale));
+        top = Math.min(top, body.y * scale); bottom = Math.max(bottom, (body.y + body.height) * scale);
+      });
+    }
+    const padding = personalPet ? 56 : 40;
+    this.touchBounds = new Rectangle(-halfWidth - padding, top - padding, (halfWidth + padding) * 2, bottom - top + padding * 2);
+    this.bodyHitArea.copyFrom(this.touchBounds);
     this.sprite = new AnimatedSprite(idle.frames);
     this.sprite.autoUpdate = false;
     this.sprite.anchor.set(0.5, 1);
@@ -78,30 +98,8 @@ export class AnimalAnimationController {
     this.sprite.y = state === 'JUMP' ? -jumpHeight : 0;
     this.sprite.rotation = state === 'NOTICE' ? Math.sin(elapsed * 5) * 0.04 : 0;
     this.sprite.pivot.y = state === 'GREET' ? Math.abs(Math.sin(elapsed * 6)) * 8 : 0;
-    // Use opaque body metadata or the tightly trimmed art, never the padded canvas or bubble.
-    const texture = this.sprite.texture, rect = texture.trim ?? texture.orig;
-    const bounds = animation.bodyBounds?.[frame] ?? {
-      x: rect.x - texture.orig.width * this.sprite.anchor.x,
-      y: rect.y - texture.orig.height * this.sprite.anchor.y,
-      width: rect.width, height: rect.height,
-    };
-    const cos = Math.cos(this.sprite.rotation), sin = Math.sin(this.sprite.rotation);
-    const corners = [[bounds.x, bounds.y], [bounds.x + bounds.width, bounds.y],
-      [bounds.x, bounds.y + bounds.height], [bounds.x + bounds.width, bounds.y + bounds.height]]
-      .map(([x, y]) => {
-        const sx = (x! - this.sprite.pivot.x) * this.sprite.scale.x;
-        const sy = (y! - this.sprite.pivot.y) * this.sprite.scale.y;
-        return { x: this.sprite.x + sx * cos - sy * sin, y: this.sprite.y + sx * sin + sy * cos };
-      });
-    const left = Math.min(...corners.map(p => p.x)), right = Math.max(...corners.map(p => p.x));
-    const top = Math.min(...corners.map(p => p.y)), bottom = Math.max(...corners.map(p => p.y));
-    const personalPet = this.config.id === 'myeongrang';
-    const padding = personalPet ? 56 : 40;
-    const width = Math.max(personalPet ? 120 : 80, right - left);
-    const height = Math.max(personalPet ? 128 : 96, bottom - top);
-    this.bodyHitArea.x = (left + right - width) / 2 - padding;
-    this.bodyHitArea.y = bottom - height - padding;
-    this.bodyHitArea.width = width + padding * 2; this.bodyHitArea.height = height + padding * 2;
+    this.bodyHitArea.copyFrom(this.touchBounds);
+    this.bodyHitArea.y += this.sprite.y;
     this.sleepMark.visible = state === 'SLEEP';
     this.sleepMark.position.set(32 * direction, -145 - Math.sin(elapsed * 1.5) * 5);
     this.sleepMark.alpha = 0.6 + Math.sin(elapsed * 1.5) * 0.2;
