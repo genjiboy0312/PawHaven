@@ -14,6 +14,7 @@ export class SceneManager {
     this.app.stage.addChild(scene);
     this.resize();
   }
+  isCurrent(scene: Scene): boolean { return this.current === scene && !scene.destroyed; }
   resize(): void {
     if (!this.current) return;
     const view = fitViewport(this.app.screen.width, this.app.screen.height);

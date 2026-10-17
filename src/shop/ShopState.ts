@@ -15,6 +15,14 @@ export const itemPrice = (index: number): number => 75 + Math.floor((index - 1) 
 const itemKey = (category: OutfitTab, index: number): string => category + ':' + index;
 const validItem = (value: string): boolean => OUTFIT_TABS.some(tab => Array.from({ length: 20 }, (_, i) => itemKey(tab, i + 1)).includes(value));
 export class ShopState {
+  readonly connection = 'local';
+  readonly ready = true;
+  readonly entitlementsKnown = true;
+  readonly busy = false;
+  readonly message = '';
+  retry(): void {}
+  beginRun(): boolean { return true; }
+  destroy(): void { this.listeners.clear(); }
   private balance = 1000;
   private experience = 0;
   private premium = false;

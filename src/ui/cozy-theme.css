@@ -117,3 +117,11 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .account-field input { min-width: 0; width: 25cqw; padding: 0.8cqh 1cqw; border: 1px solid #d5bf95; border-radius: 0.8cqw; background: #fffaf0; color: #665d50; font: inherit; }
 .account-email { overflow-wrap: anywhere; }
 .account-content button { padding: 1cqh 1.4cqw; }
+
+.commerce-status { display: flex; align-items: center; gap: 1cqw; font-size: 1.15cqw; color: #806c4d; }
+.commerce-status p { margin: 0; }
+.commerce-status button, .lobby-economy-note button { border: 1px solid #d9c79f; border-radius: 1cqw; background: #fff6df; color: #776344; padding: 0.5cqh 1cqw; font: inherit; cursor: pointer; }
+.shop-connection { position: absolute; left: 3%; right: 3%; bottom: 1%; z-index: 2; pointer-events: auto; }
+.lobby-economy-note { position: absolute; left: 2.6cqw; bottom: 3cqh; z-index: 1; max-width: 40%; display: flex; align-items: center; gap: 1cqw; background: #fff7e6ee; border-radius: 1cqw; padding: 1cqh 1cqw; font-size: 1.15cqw; pointer-events: auto; }
+.lobby-economy-note p { margin: 0; }
+.lobby-economy-note[hidden] { display: none; }

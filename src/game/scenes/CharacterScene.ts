@@ -8,7 +8,7 @@ import { OUTFIT_TABS, type OutfitState, type OutfitTab } from '../../animals/Out
 import { Scene } from './Scene';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
-interface CharacterOptions { onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
+interface CharacterOptions { subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
 const CHARACTER_TABS = ['Pets', ...OUTFIT_TABS] as const;
 
 export class CharacterScene extends Scene {
@@ -25,6 +25,7 @@ export class CharacterScene extends Scene {
   private readonly presetButtons: HTMLButtonElement[] = [];
   private readonly feedback = document.createElement('p');
   private tab: typeof CHARACTER_TABS[number] = 'Pets';
+  private readonly unsubscribe?: () => void;
   private elapsed = 0;
   private reaction = 0;
 
@@ -73,6 +74,7 @@ export class CharacterScene extends Scene {
     this.panel.append(close, this.tabs, this.inventory, presets, this.feedback);
     this.refreshPresets();
     document.querySelector('#app')?.append(this.panel);
+    this.unsubscribe = options.subscribe?.(() => this.refresh());
     this.refresh(); this.update(0);
   }
   private refresh(): void {
@@ -154,7 +156,7 @@ export class CharacterScene extends Scene {
     this.animation.update(emote ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds);
   }
   override destroy(options?: DestroyOptions): void {
-    this.abort.abort(); this.panel.remove(); super.destroy(options);
+    this.unsubscribe?.(); this.abort.abort(); this.panel.remove(); super.destroy(options);
     this.animation.sleepMark.destroy();
   }
 }

@@ -17,15 +17,25 @@ export class LobbyHud {
   private readonly status = document.createElement('p');
   private readonly petTarget = document.createElement('button');
   private readonly abort = new AbortController();
+  private readonly economyNote = document.createElement('div');
+  private readonly economyCaption = document.createElement('p');
+  private readonly economyRetry = document.createElement('button');
+  private readonly readNotice?: () => string;
+  private readonly economyBusy?: () => boolean;
   private previousState: AnimalVisualState | undefined;
   private questButton?: HTMLButtonElement;
   private questReady?: boolean;
   private readonly rewards?: () => boolean;
   private readonly clickSound?: () => void;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; rewards?: () => boolean; click?: () => void }, onHome?: () => void, onPet?: () => void) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void) {
     this.rewards = commerce?.rewards;
     this.clickSound = commerce?.click;
+    this.readNotice = commerce?.notice; this.economyBusy = commerce?.busy;
+    this.economyNote.className = 'lobby-economy-note'; this.economyNote.hidden = true; this.economyNote.setAttribute('role','status');
+    this.economyRetry.type = 'button'; bindText(this.economyRetry, 'economyRetry');
+    this.economyRetry.addEventListener('click', () => commerce?.retry?.(), { signal: this.abort.signal });
+    this.economyNote.append(this.economyCaption, this.economyRetry);
     this.element.className = 'lobby-hud';
     this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
@@ -61,7 +71,7 @@ export class LobbyHud {
     if (onPlay) {
       playButton.disabled = false;
       bindAria(playButton, 'play');
-      playButton.addEventListener('click', onPlay, { once: true });
+      playButton.addEventListener('click', onPlay);
     }
     play.append(playButton);
     this.status.className = 'sr-only';
@@ -80,7 +90,7 @@ export class LobbyHud {
       event.preventDefault(); onPet?.();
     }, { signal: this.abort.signal });
     this.petTarget.addEventListener('click', event => { if (event.detail === 0) onPet?.(); }, { signal: this.abort.signal });
-    this.element.append(this.petTarget);
+    this.element.append(this.economyNote, this.petTarget);
     document.querySelector('#app')?.append(this.element);
   }
 
@@ -105,6 +115,9 @@ export class LobbyHud {
     return button;
   }
   update(state: AnimalVisualState): void {
+    const message = this.readNotice?.() ?? '';
+    this.economyNote.hidden = !message; this.economyCaption.textContent = message;
+    this.economyRetry.disabled = this.economyBusy?.() ?? false;
     const ready = this.rewards?.() ?? false;
     if (this.questButton && ready !== this.questReady) {
       this.questReady = ready;

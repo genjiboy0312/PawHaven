@@ -1,5 +1,11 @@
 export type Language = 'en' | 'ko';
 const en = {
+  economyRetry: 'Retry', economyWorking: 'Processing…', economyRunRejected: 'Could not verify this finish. Please play again.',
+  dailyServerReset: 'Resets at midnight (Korea time) · Petting counts once every 10 seconds.',
+  'economy.loading': 'Connecting to your account balance…',
+  'economy.offline': 'Server connection failed. Retry to check the request.',
+  'economy.setup': 'Account balance is unavailable. Please try again shortly.',
+  'economy.rejected': 'The request could not be accepted. Please try again shortly.',
   accountEmail: 'Email', accountPassword: 'Password', accountSignup: 'Create account', accountLogout: 'Log out',
   accountHint: 'Sign in to keep your companion and home across devices.',
   accountPasswordHint: 'Use a password of at least 8 characters.',
@@ -11,7 +17,7 @@ const en = {
   accountNicknameSave: 'Set nickname · Free', accountNicknameError: 'Nickname unavailable, invalid, or already set.',
   accountRenameLater: 'Nickname changes will be available later with a rename ticket.',
   accountSave: 'Save to cloud', accountLoad: 'Load cloud save', accountImport: 'Use guest look', accountWorking: 'Working…',
-  accountCloudHint: 'Cloud: companion, outfit, 3 presets and home. Coins and rewards remain a local prototype.',
+  accountCloudHint: 'Your companion, outfit, presets and home save to the cloud. Account coins, items and rewards are verified on the server.',
   accountLoadHint: 'Load replaces this account’s current device look with its cloud save.',
   accountImportHint: 'Use guest look replaces this account’s customization with the guest look stored on this device.',
   'sync.guest': 'Playing as Guest', 'sync.loading': 'Loading cloud save…', 'sync.saved': 'Cloud connected · Changes save automatically',
@@ -49,6 +55,12 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  economyRetry: '재시도', economyWorking: '처리 중…', economyRunRejected: '완주 기록을 확인하지 못했어요. 다시 플레이해 주세요.',
+  dailyServerReset: '매일 오전 0시(한국 시간) 초기화 · 교감은 10초마다 1회 집계해요.',
+  'economy.loading': '계정 재화를 연결하고 있어요…',
+  'economy.offline': '서버 연결을 확인하지 못했어요. 재시도로 요청 결과를 확인해 주세요.',
+  'economy.setup': '계정 재화 연결을 준비 중이에요. 잠시 후 다시 시도해 주세요.',
+  'economy.rejected': '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.',
   accountEmail: '이메일', accountPassword: '비밀번호', accountSignup: '회원가입', accountLogout: '로그아웃',
   accountHint: '로그인하면 다른 기기에서도 강아지와 집을 이어서 만날 수 있어요.',
   accountPasswordHint: '비밀번호는 8자 이상으로 입력해 주세요.',
@@ -60,7 +72,7 @@ const ko: Record<TextKey, string> = {
   accountNicknameSave: '닉네임 설정 · 무료', accountNicknameError: '사용할 수 없거나 이미 설정된 닉네임이에요.',
   accountRenameLater: '닉네임 변경은 추후 변경권으로 제공될 예정이에요.',
   accountSave: '클라우드 저장', accountLoad: '클라우드 불러오기', accountImport: '게스트 꾸미기 가져오기', accountWorking: '처리 중이에요…',
-  accountCloudHint: '강아지·의상·프리셋 3개·집을 공유해요. 코인과 보상은 아직 기기 내 프로토타입이에요.',
+  accountCloudHint: '강아지·의상·프리셋·집을 공유해요. 계정의 코인·보유 아이템·보상은 서버에서 확인해요.',
   accountLoadHint: '불러오면 이 계정의 현재 기기 꾸미기를 클라우드 저장으로 교체해요.',
   accountImportHint: '가져오면 이 계정의 꾸미기를 현재 기기의 게스트 꾸미기로 교체해요.',
   'sync.guest': '게스트로 플레이 중', 'sync.loading': '클라우드를 불러오고 있어요…', 'sync.saved': '클라우드 연결됨 · 변경 시 자동 저장',

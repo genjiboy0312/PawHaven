@@ -3,7 +3,9 @@ import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import { OUTFIT_TABS, type OutfitTab } from '../../animals/OutfitState';
 import { bindText, t } from '../../settings/i18n';
-import { itemPrice, ShopState } from '../../shop/ShopState';
+import { itemPrice } from '../../shop/ShopState';
+import type { CommerceState } from '../../shop/CommerceState';
+import { commerceStatus } from '../../ui/CommerceStatus';
 import { itemIcon } from '../../ui/itemIcon';
 import { passPanel } from '../../ui/PassPanel';
 import { Scene } from './Scene';
@@ -14,6 +16,7 @@ export class ShopScene extends Scene {
   private readonly platform = new Graphics().ellipse(235, 395, 150, 28).fill('#d5ddc8');
   private readonly panel = document.createElement('section');
   private readonly balance = document.createElement('p');
+  private readonly connection = document.createElement('div');
   private readonly content = document.createElement('div');
   private readonly tabs = document.createElement('nav');
   private readonly abort = new AbortController();
@@ -23,7 +26,7 @@ export class ShopScene extends Scene {
   private elapsed = 0;
   private reaction = 0;
   private tab: 'Style' | 'Pass';
-  constructor(config: AnimalConfig, private readonly state: ShopState, onClose: () => void, private readonly onQuest: () => void, initial: 'Style' | 'Pass' = 'Style') {
+  constructor(config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Style' | 'Pass' = 'Style') {
     super(); this.tab = initial;
     this.animation = new AnimalAnimationController(config);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#edf0df'), this.platform, this.preview);
@@ -39,12 +42,14 @@ export class ShopScene extends Scene {
       const button = document.createElement('button'); button.type = 'button'; bindText(button, tab);
       button.addEventListener('click', () => { this.tab = tab; this.render(); }, { signal: this.abort.signal }); this.tabs.append(button);
     }
-    this.panel.append(title, close, this.balance, this.tabs, this.content);
+    this.connection.className = 'shop-connection';
+    this.panel.append(title, close, this.balance, this.tabs, this.content, this.connection);
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = state.subscribe(() => this.render()); this.render(); this.update(0);
   }
   private render(): void {
     this.balance.textContent = `${t('coins')}: ${this.state.coins}`;
+    this.connection.replaceChildren(); const connection = commerceStatus(this.state); if (connection) this.connection.append(connection);
     this.preview.visible = this.platform.visible = this.tab === 'Style';
     Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String((index === 0 ? 'Style' : 'Pass') === this.tab)));
     this.content.replaceChildren(); this.content.className = this.tab === 'Pass' ? 'shop-pass' : 'shop-style';
@@ -70,8 +75,12 @@ export class ShopScene extends Scene {
     const detail = document.createElement('span'); detail.textContent = `${t(this.category)} ${String(this.selected).padStart(2, '0')} · ${itemPrice(this.selected)} ${t('coins')}`;
     const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
     const owned = this.state.owns(this.category, this.selected), enough = this.state.coins >= itemPrice(this.selected);
-    buy.textContent = t(owned ? 'owned' : enough ? 'buy' : 'notEnoughCoins'); buy.disabled = owned || !enough;
-    buy.addEventListener('click', () => { if (this.state.buy(this.category, this.selected) === 'purchased') this.reaction = 1.5; });
+    buy.textContent = t(this.state.busy ? 'economyWorking' : owned ? 'owned' : enough ? 'buy' : 'notEnoughCoins'); buy.disabled = owned || !enough || !this.state.ready;
+    buy.addEventListener('click', () => {
+      const result = this.state.buy(this.category, this.selected);
+      if (result instanceof Promise) void result.then(value => { if (!this.destroyed && value === 'purchased') this.reaction = 1.5; });
+      else if (result === 'purchased') this.reaction = 1.5;
+    });
     footer.append(detail, buy); this.content.append(categories, grid, footer);
   }
   resize(_width: number, _height: number): void {}

@@ -1,5 +1,6 @@
 import { bindText, onLanguageChange, t } from '../settings/i18n';
-import { ShopState } from '../shop/ShopState';
+import type { CommerceState } from '../shop/CommerceState';
+import { commerceStatus } from './CommerceStatus';
 import { passPanel } from './PassPanel';
 
 export class QuestPopup {
@@ -13,7 +14,7 @@ export class QuestPopup {
   private readonly unsubscribe: () => void;
   private readonly localeOff: () => void;
   private resetTimer?: ReturnType<typeof setInterval>;
-  constructor(private readonly state: ShopState, private readonly pause: (value: boolean) => void, private readonly openShop: () => void) {
+  constructor(private readonly state: CommerceState, private readonly pause: (value: boolean) => void, private readonly openShop: () => void) {
     this.unsubscribe = state.subscribe(() => this.render());
     this.localeOff = onLanguageChange(() => this.render());
   }
@@ -63,7 +64,7 @@ export class QuestPopup {
     if (this.tab === 'seasonPass') this.content.append(passPanel(this.state, 'quest', () => { this.close(); this.openShop(); }));
     else if (this.tab === 'Daily') {
       const balance = document.createElement('p'); balance.textContent = t('coins') + ': ' + this.state.coins;
-      const hint = document.createElement('p'); hint.className = 'daily-hint'; hint.textContent = t('dailyReset');
+      const hint = document.createElement('p'); hint.className = 'daily-hint'; hint.textContent = t(this.state.connection === 'local' ? 'dailyReset' : 'dailyServerReset');
       this.content.append(balance, hint);
       for (const quest of this.state.dailyQuests) {
         const row = document.createElement('section'); row.className = 'daily-quest';
@@ -78,10 +79,15 @@ export class QuestPopup {
         claim.setAttribute('data-claimed', String(quest.claimed));
         row.setAttribute('data-reward-ready', String(quest.canClaim));
         claim.setAttribute('aria-label', t(quest.title) + ' · ' + claim.textContent);
-        claim.addEventListener('click', () => { if (this.state.claimDaily(quest.id)) this.content?.focus(); });
+        claim.addEventListener('click', () => {
+          const result = this.state.claimDaily(quest.id);
+          if (result instanceof Promise) void result.then(claimed => { if (claimed) this.content?.focus(); });
+          else if (result) this.content?.focus();
+        });
         row.append(detail, claim); this.content.append(row);
       }
     } else { const text = document.createElement('p'); text.textContent = t('weeklySoon'); this.content.append(text); }
+    const status = commerceStatus(this.state); if (status) this.content.append(status);
   }
   close(): void {
     if (!this.overlay) return;
