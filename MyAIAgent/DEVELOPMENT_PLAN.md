@@ -85,3 +85,5 @@
 - 한국 시간 자정·서버 교감 쿨다운·계정 귀속 1회성 Play 토큰을 연결한다. 시즌 0 무료 패스 해금은 유지한다.
 - 전체 101개 테스트(새 PGlite 실제 PostgreSQL 검증 19개 포함)·타입 검사·빌드. 실제 서버 적용은 두 번째 migration SQL이 필요하다.
 - 상세와 검증 한계: [SERVER_ECONOMY.md](SERVER_ECONOMY.md).
+
+- 재화 SQL은 사용자 실행 완료. 실제 Supabase 테이블 5개와 경제 RPC의 비로그인 접근 차단을 확인했다. 실계정 검증은 Google 연동 때 진행한다.
