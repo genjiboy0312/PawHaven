@@ -2,13 +2,13 @@ import { bindAria, bindText } from '../settings/i18n';
 import type { AnimalVisualState } from '../animals/AnimalState';
 
 const ICONS = {
-  home: '<path d="m9 30 23-19 23 19M16 27v27h32V27M27 54V37h11v17"/>',
-  quest: '<path d="M20 14h24v40H16V14h4m3-4h18v9H23z"/><path d="m23 31 3 3 5-6m3 4h6M23 43h17"/>',
-  character: '<path d="m21 20-9 8 7 10 5-4v19h24V34l5 4 7-10-9-8-8 5h-6z"/><path d="M27 39c0-6 10-6 10 0s-10 6-10 0z"/><path d="M26 32v1m6-2v1m6 0v1"/>',
-  shop: '<path d="M17 27h30v27H17zM13 27l5-13h28l5 13"/><path d="M13 27c0 8 10 8 10 0 0 8 9 8 9 0 0 8 9 8 9 0 0 8 10 8 10 0M27 54V41h11v13"/>',
-  settings: '<circle cx="32" cy="32" r="17"/><circle cx="32" cy="32" r="7"/><path d="M32 8v7m0 34v7M8 32h7m34 0h7M15 15l5 5m24 24 5 5M15 49l5-5m24-24 5-5"/>',
-  friends: '<circle cx="25" cy="24" r="8"/><path d="M10 50v-5c0-13 30-13 30 0v5z"/><path d="M41 17a8 8 0 0 1 0 16m5 5c6 1 9 4 9 10v2h-9"/>',
-  play: '<path d="m25 16 24 16-24 16z" fill="currentColor" stroke-linejoin="round"/>',
+  home: '<path d="M16 29h32v23H16z" fill="#fff2d6"/><path d="m10 29 22-18 22 18-4 5-18-14-18 14z" fill="#e8ac93"/><path d="M27 52V37h10v15" fill="#b6cba1"/><path d="M21 23v-9h6"/>',
+  quest: '<rect x="15" y="14" width="34" height="40" rx="5" fill="#b9cf9f"/><rect x="21" y="21" width="22" height="27" rx="2" fill="#fff9e7" stroke="none"/><rect x="24" y="10" width="16" height="11" rx="4" fill="#ecd095"/><path d="m25 34 5 5 10-12" stroke="#789461" stroke-width="4"/>',
+  character: '<path d="m21 15-11 9 8 12 6-4v21h24V32l6 4 8-12-11-9-9 6h-12z" fill="#cfbddb" transform="translate(-4 0)"/><ellipse cx="32" cy="40" rx="7" ry="5" fill="#fff6df" stroke="none"/><g fill="#fff6df" stroke="none"><ellipse cx="24" cy="32" rx="3" ry="4"/><ellipse cx="32" cy="29" rx="3" ry="4"/><ellipse cx="40" cy="32" rx="3" ry="4"/></g>',
+  shop: '<rect x="15" y="26" width="34" height="27" rx="3" fill="#fff0d2"/><path d="m11 27 6-14h30l6 14" fill="#e6a28c"/><path d="M22 14v13m10-13v13m10-13v13" stroke="#fff3dc" stroke-width="6"/><path d="M11 27c0 7 10 7 10 0 0 7 11 7 11 0 0 7 11 7 11 0 0 7 10 7 10 0" fill="#e6a28c"/><path d="M27 53V39h11v14" fill="#b8cda5"/>',
+  settings: '<path d="m27 10 10 0 2 7 5 3 7-2 5 9-5 5v5l5 5-5 9-7-2-5 3-2 6H27l-2-6-5-3-7 2-5-9 5-5v-5l-5-5 5-9 7 2 5-3z" fill="#b5cfd7" transform="translate(0 -2)"/><circle cx="32" cy="32" r="9" fill="#fff9e7"/>',
+  friends: '<path d="M36 49v-7c0-10 20-10 20 0v7z" fill="#b7cda9"/><circle cx="45" cy="24" r="8" fill="#e8d3a9"/><path d="M8 52v-8c0-14 30-14 30 0v8z" fill="#c4bbdb"/><circle cx="23" cy="23" r="10" fill="#f1d2b3"/><path d="M20 24h0m6 0h0" stroke-width="3"/>',
+  play: '<path d="M24 15q-4-2-4 3v28q0 5 4 3l25-15q4-2 0-4z" fill="#fffbee" stroke="#7e9953"/>',
 };
 type MenuId = keyof typeof ICONS;
 
@@ -106,7 +106,7 @@ export class LobbyHud {
     image.className = 'hud-icon';
     image.alt = '';
     image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="none" stroke="#4f6445" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' + ICONS[id] + '</g></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="none" stroke="#917655" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + ICONS[id] + '</g></svg>',
     );
     const name = document.createElement('span');
     name.className = 'hud-label';
