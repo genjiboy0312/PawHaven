@@ -370,3 +370,21 @@ test('fresh devices restore the same pet, outfit, three presets and placed furni
     assert.equal(second.storage.snapshot().home.items.length, 2);
   } finally { first.destroy(); second?.destroy(); }
 });
+
+test('dialogue follows the game nickname after setup, logout and a different account login', async () => {
+  const { HealingDialogue } = await importTs('../src/animals/HealingDialogue.ts', import.meta.url);
+  const { setLanguage } = await importTs('../src/settings/i18n.ts', import.meta.url);
+  const client = fakeClient(), service = new AccountService(new AccountStorage(disk()), client);
+  const dialogue = new HealingDialogue(() => 0, () => service.user ? service.nickname : null);
+  try {
+    setLanguage('ko'); await service.initialize(); dialogue.start();
+    assert.ok(!dialogue.message.includes('a@example.com'));
+    await service.claimNickname('명랑친구'); assert.ok(dialogue.message.startsWith('명랑친구님,\n'));
+    await service.logout(); assert.ok(!dialogue.message.includes('명랑친구'));
+    client.profiles.set('b', { nickname: '다른친구' });
+    client.session = session('b'); client.authChanged('SIGNED_IN', client.session);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(service.user.id, 'b'); assert.ok(dialogue.message.startsWith('다른친구님,\n'));
+    assert.ok(!dialogue.message.includes('명랑친구'));
+  } finally { service.destroy(); setLanguage('en'); }
+});

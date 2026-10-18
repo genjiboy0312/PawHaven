@@ -31,12 +31,12 @@ export class Animal extends Container {
   get mode(): BehaviorMode { return this.behavior.mode; }
   get welcoming(): boolean { return this.welcome.active; }
 
-  constructor(private readonly config: AnimalConfig, random: () => number = Math.random) {
+  constructor(private readonly config: AnimalConfig, random: () => number = Math.random, nickname?: () => string | null | undefined) {
     super();
     this.behavior = new AnimalStateMachine(config.speed, config.behavior, random);
     this.welcome = new WelcomeSequence(config.speed, config.welcome);
     this.animation = new AnimalAnimationController(config);
-    this.dialogue = new HealingDialogue(random);
+    this.dialogue = new HealingDialogue(random, nickname);
     this.addChild(this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark);
     this.hitArea = this.animation.bodyHitArea;
     this.interactiveChildren = false;

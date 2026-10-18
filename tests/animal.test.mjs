@@ -2300,3 +2300,45 @@ test('results submit completion once, wait for a choice and recover from a rejec
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+
+test('healing dialogue personalizes selected lines, uses a separate name line and preserves guest translations', async () => {
+  const { HealingDialogue, HEALING_LINES } = await importTs('../src/animals/HealingDialogue.ts', import.meta.url);
+  let nickname = '명랑아빠';
+  const dialogue = new HealingDialogue(() => 0, () => nickname);
+  try {
+    setLanguage('ko'); dialogue.start();
+    assert.equal(dialogue.message.split('\n')[0], '명랑아빠님,');
+    assert.ok(dialogue.message.includes('오늘도 고생 많았어요.'));
+    const remaining = dialogue.remainingTime;
+    setLanguage('en'); assert.equal(dialogue.message.split('\n')[0], '명랑아빠,');
+    assert.equal(dialogue.remainingTime, remaining);
+    nickname = null; assert.equal(dialogue.message, HEALING_LINES[0].en);
+    nickname = 'NewFriend'; assert.equal(dialogue.message.split('\n')[0], 'NewFriend,');
+    dialogue.start(true); assert.equal(dialogue.message, HEALING_LINES[1].en);
+    for (const invalid of ['', '  ', '<script>', 'a'.repeat(17)]) {
+      nickname = invalid; const fallback = new HealingDialogue(() => 0, () => nickname); fallback.start();
+      assert.equal(fallback.message, HEALING_LINES[0].en);
+    }
+    const beforeUpdate = dialogue.remainingTime; dialogue.update(0.5); assert.equal(dialogue.remainingTime, beforeUpdate - 0.5);
+  } finally { setLanguage('en'); }
+});
+
+test('both animals render the current nickname, retain long Korean names and keep touch cooldowns', () => {
+  const longName = '가나다라마바사아자차카타파하가나';
+  for (const id of ['corgi', 'myeongrang']) {
+    let nickname = longName;
+    const animal = new Animal({ id, speed: 90, scale: 0.62, animations: {
+      idle: { frames: [Texture.WHITE], fps: 3 }, emote: { frames: [Texture.WHITE], fps: 3 },
+    } }, () => 0, () => nickname);
+    try {
+      setLanguage('ko'); animal.setBounds(960, 390); animal.pet();
+      const bubble = animal.speechBubble, message = bubble.text;
+      assert.ok(message.startsWith(longName + '님,\n'));
+      assert.ok(bubble.displayText.replace(/\s/g, '').includes(longName + '님,'));
+      assert.ok(Number.isFinite(bubble.x) && Number.isFinite(bubble.y));
+      assert.equal(animal.pet(), false); assert.equal(bubble.text, message);
+      nickname = null; animal.update(0.1); assert.ok(!bubble.text.includes(longName));
+      assert.equal(bubble.visible, true);
+    } finally { animal.destroy({ children: true }); setLanguage('en'); }
+  }
+});
