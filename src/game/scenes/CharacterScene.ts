@@ -1,6 +1,6 @@
 import { itemIcon } from '../../ui/itemIcon';
 import { CharacterPresets, type CharacterPreset } from '../../animals/CharacterPresets';
-import { bindAria, bindText, t } from '../../settings/i18n';
+import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
@@ -23,6 +23,9 @@ export class CharacterScene extends Scene {
   private pet: PetChoice;
   private activePreset = 0;
   private readonly presetButtons: HTMLButtonElement[] = [];
+  private readonly presetStates: HTMLSpanElement[] = [];
+  private readonly save = document.createElement('button');
+  private readonly localeOff: () => void;
   private readonly feedback = document.createElement('p');
   private tab: typeof CHARACTER_TABS[number] = 'Pets';
   private readonly unsubscribe?: () => void;
@@ -44,7 +47,7 @@ export class CharacterScene extends Scene {
     this.panel.className = 'character-screen';
     bindAria(this.panel, 'customize');
     const close = document.createElement('button');
-    close.type = 'button'; close.className = 'character-close'; bindText(close, 'close');
+    close.type = 'button'; close.className = 'character-close'; close.textContent = '×'; bindAria(close, 'close');
     close.addEventListener('click', onClose, { once: true, signal: this.abort.signal });
     this.tabs.className = 'outfit-tabs'; bindAria(this.tabs, 'categories');
     for (const tab of CHARACTER_TABS) {
@@ -60,11 +63,12 @@ export class CharacterScene extends Scene {
       const button = document.createElement('button'); button.type = 'button';
       const label = document.createElement('span'); bindText(label, 'preset');
       const number = document.createElement('span'); number.textContent = ' ' + (slot + 1);
-      button.append(label, number);
+      const state = document.createElement('span'); state.className = 'preset-state';
+      button.append(label, number, state); this.presetStates.push(state);
       button.addEventListener('click', () => this.loadPreset(slot), { signal: this.abort.signal });
       this.presetButtons.push(button); presets.append(button);
     }
-    const save = document.createElement('button'); save.type = 'button'; bindText(save, 'save');
+    const save = this.save; save.type = 'button'; save.className = 'preset-save'; bindText(save, 'save');
     save.addEventListener('click', () => {
       this.presets.save(this.activePreset, { petId: this.pet.config.id, outfit: this.outfit });
       bindText(this.feedback, 'presetSaved'); this.refreshPresets();
@@ -75,9 +79,11 @@ export class CharacterScene extends Scene {
     this.refreshPresets();
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = options.subscribe?.(() => this.refresh());
+    this.localeOff = onLanguageChange(() => this.refreshPresets());
     this.refresh(); this.update(0);
   }
   private refresh(): void {
+    this.refreshPresets();
     for (const [index, button] of Array.from(this.tabs.children).entries()) {
       button.setAttribute('aria-pressed', String(CHARACTER_TABS[index] === this.tab));
     }
@@ -101,6 +107,7 @@ export class CharacterScene extends Scene {
         for (const slot of Array.from(this.inventory.children)) {
           slot.setAttribute('aria-pressed', String(Number(slot.getAttribute('data-item')) === index));
         }
+        this.refreshPresets();
       });
       this.inventory.append(button);
     }
@@ -129,7 +136,7 @@ export class CharacterScene extends Scene {
       this.animation = new AnimalAnimationController(pet.config);
       this.preview.addChild(this.animation.sprite, this.animation.welcomeMark);
     }
-    this.pet = pet; this.options.onPetChanged?.(pet.config); this.notifyLook(); this.reaction = 1.5;
+    this.pet = pet; this.options.onPetChanged?.(pet.config); this.notifyLook(); this.reaction = 1.5; this.refreshPresets();
   }
   private notifyLook(): void { this.options.onLookChanged?.({ petId: this.pet.config.id, outfit: { ...this.outfit } }); }
   private loadPreset(slot: number): void {
@@ -145,9 +152,16 @@ export class CharacterScene extends Scene {
   }
   private refreshPresets(): void {
     this.presetButtons.forEach((button, slot) => {
+      const saved = this.presets.load(slot);
+      const matches = !!saved && saved.petId === this.pet.config.id && OUTFIT_TABS.every(category => saved.outfit[category] === this.outfit[category]);
       button.setAttribute('aria-pressed', String(slot === this.activePreset));
-      button.setAttribute('data-saved', String(!!this.presets.load(slot)));
+      button.setAttribute('data-saved', String(!!saved));
+      button.setAttribute('data-applied', String(slot === this.activePreset && matches));
+      const state = !saved ? 'presetSlotEmpty' : slot === this.activePreset ? matches ? 'presetSlotCurrent' : 'presetSlotEdited' : 'presetSlotStored';
+      bindText(this.presetStates[slot]!, state);
+      button.setAttribute('aria-label', `${t('preset')} ${slot + 1} · ${t(state)}`);
     });
+    this.save.setAttribute('aria-label', `${t('save')} · ${t('preset')} ${this.activePreset + 1}`);
   }
   resize(_width: number, _height: number): void {}
   override update(seconds: number): void {
@@ -156,7 +170,7 @@ export class CharacterScene extends Scene {
     this.animation.update(emote ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds);
   }
   override destroy(options?: DestroyOptions): void {
-    this.unsubscribe?.(); this.abort.abort(); this.panel.remove(); super.destroy(options);
+    this.unsubscribe?.(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options);
     this.animation.sleepMark.destroy();
   }
 }

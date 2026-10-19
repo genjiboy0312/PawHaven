@@ -793,8 +793,14 @@ test('Character opens a stationary preview, keeps category selection without equ
     presetRow.children[2].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
     assert.equal(new CharacterSelection(storage).current.outfit.Hat, 3);
     assert.equal(presets.load(2), null);
+    assert.equal(presetRow.children[2].children[2].textContent, 'Empty');
+    assert.equal(presetRow.children[3].getAttribute('aria-label'), 'Save · Preset 3');
     presetRow.children[3].dispatchEvent(new Event('click')); assert.equal(presets.load(2).outfit.Hat, 3);
+    assert.equal(presetRow.children[2].getAttribute('data-applied'), 'true');
+    assert.equal(presetRow.children[2].children[2].textContent, 'Applied');
     inventory.children[4].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 4);
+    assert.equal(presetRow.children[2].getAttribute('data-applied'), 'false');
+    assert.equal(presetRow.children[2].children[2].textContent, 'Edited');
     assert.equal(presets.load(2).outfit.Hat, 3);
     presetRow.children[2].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 3);
     assert.equal(new CharacterSelection(storage).current.outfit.Hat, 3);

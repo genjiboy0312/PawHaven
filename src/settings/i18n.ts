@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  presetSlotEmpty: 'Empty', presetSlotCurrent: 'Applied', presetSlotEdited: 'Edited', presetSlotStored: 'Stored',
   economyRetry: 'Retry', economyWorking: 'Processing…', economyRunRejected: 'Could not verify this finish. Please play again.',
   dailyServerReset: 'Resets at midnight (Korea time) · Petting counts once every 10 seconds.',
   'economy.loading': 'Connecting to your account balance…',
@@ -60,6 +61,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  presetSlotEmpty: '비어 있음', presetSlotCurrent: '적용 중', presetSlotEdited: '수정됨', presetSlotStored: '저장됨',
   economyRetry: '재시도', economyWorking: '처리 중…', economyRunRejected: '완주 기록을 확인하지 못했어요. 다시 플레이해 주세요.',
   dailyServerReset: '매일 오전 0시(한국 시간) 초기화 · 교감은 10초마다 1회 집계해요.',
   'economy.loading': '계정 재화를 연결하고 있어요…',
