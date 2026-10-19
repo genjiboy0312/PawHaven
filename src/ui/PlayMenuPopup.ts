@@ -57,7 +57,7 @@ export class PlayMenuPopup {
       else if(left||joined)this.roomEvent={key:left?'roomMemberLeft':'roomMemberJoined',name:(left??joined)!.name,until:Date.now()+6000};
     }else this.roomEvent=undefined;
     this.previousRoom=room??undefined;
-    if(this.page==='multi'&&room&&['countdown','playing'].includes(room.phase)&&!this.launching){
+    if(this.page==='multi'&&room&&!client?.reconnecting&&!client?.error&&client?.notice!=='round'&&['countdown','playing'].includes(room.phase)&&!this.launching){
       this.launching=true;this.options.race(room,client!);this.close(true);return;
     }
     if(this.page==='create'&&room)this.page='multi';
@@ -66,7 +66,7 @@ export class PlayMenuPopup {
     const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
   }
-  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error,this.roomEvent]);}
+  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error,client?.reconnecting,client?.notice,this.roomEvent]);}
   private stopPortraits(){clearInterval(this.portraitTimer);this.portraitTimer=undefined;this.portraits=[];}
   private animatePortraits(){
     if(!this.portraits.length)return;
@@ -135,6 +135,7 @@ export class PlayMenuPopup {
         start.disabled=client.busy||(host&&(room.members.length<2||room.members.some(m=>m.id!==room.host&&!m.ready)))||room.phase!=='waiting';root.append(start);
       }
       root.append(this.button('leaveRoom',()=>{void this.action(async()=>{await client.command('leave');});}));
+      if(client.notice==='round'&&['countdown','playing'].includes(room.phase))root.append(this.button('raceResume',()=>client.clearNotice()));
       if(this.roomEvent){const event=this.text(t(this.roomEvent.key).replace('{name}',this.roomEvent.name));event.className='room-event';event.setAttribute('role','status');root.append(event);}
     }else{
       root.append(this.button('createRoom',()=>{this.page='create';this.render();}));
@@ -154,13 +155,15 @@ export class PlayMenuPopup {
       navigation.append(this.button('previous',()=>pager.scrollBy({left:-pager.clientWidth,behavior:'smooth'})),status,this.button('next',()=>pager.scrollBy({left:pager.clientWidth,behavior:'smooth'})));
       pager.addEventListener('scroll',update);update();root.append(navigation);
     }
-    if(client?.error){const p=this.text(t(client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiOffline'));p.setAttribute('role','status');root.append(p,this.button('economyRetry',()=>client.start()));}
+    if(client?.error||client?.reconnecting){const p=this.text(t(client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiReconnecting'));p.setAttribute('role','status');const retry=this.button('economyRetry',()=>client.reconnect());retry.setAttribute('data-recovery-control','true');root.append(p,retry);}
+    else if(client?.notice){const p=this.text(t(client.notice==='removed'?'multiRemoved':client.notice==='round'?'multiRoundChanged':'multiRestored'));p.setAttribute('role','status');root.append(p);}
     if(this.notice)root.append(this.text(t(this.notice)));
-    if(this.page!=='mode'&&!room)root.append(this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();}));
+    if(this.page!=='mode'&&!room){const back=this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();});back.setAttribute('data-recovery-control','true');root.append(back);}
     if(this.busy||client?.busy)for(const b of Array.from(root.querySelectorAll('button')))b.disabled=true;
+    if((this.page==='multi'||this.page==='create')&&(client?.error||client?.reconnecting))for(const b of Array.from(root.querySelectorAll('button')))if(b.getAttribute('data-recovery-control')!=='true')b.disabled=true;
     this.animatePortraits();
   }
-  private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!await this.options.rooms.command('leave'))return;this.close(false);}
+  private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!this.options.rooms.error&&!this.options.rooms.reconnecting&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
     if(!this.overlay)return;this.stopPortraits();this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);

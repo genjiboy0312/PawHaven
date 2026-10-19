@@ -22,6 +22,7 @@ export class PlayScene extends Scene {
   private readonly raceMembers=new Map<string,Room['members'][number]>();
   private resultRoom?:Room;
   private resultSignature='';
+  private recoverySeen=0;
   private readonly raceRound?:string|null;
   private readonly labels: { text: Text; key: 'start' | 'finish' | 'checkpoint' }[] = [];
   private readonly localeOff: () => void;
@@ -67,6 +68,8 @@ export class PlayScene extends Scene {
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
+    this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
+    if(settings?.multiplayer?.client.room?.phase==='playing')this.restoreRacePose();
     this.localeOff = onLanguageChange(() => {this.labels.forEach(label => { label.text.text = t(label.key); });this.resultSignature='';});
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
@@ -194,14 +197,32 @@ export class PlayScene extends Scene {
     return button;
   }
   resize(_width: number, _height: number): void { this.render(0, 0); }
-  private get raceStarted(){const client=this.settings?.multiplayer?.client;return !client||!!client.room&&client.room.round===this.raceRound&&client.serverTime>=(client.room.startsAt??Infinity)&&client.room.phase!=='results';}
+  private get raceStarted(){const client=this.settings?.multiplayer?.client;return !client||!client.reconnecting&&!client.error&&!!client.room&&client.room.round===this.raceRound&&client.serverTime>=(client.room.startsAt??Infinity)&&client.room.phase!=='results';}
   private pose():Pose{
     const action=this.run.action(this.run.horizontalVelocity),progress=action==='attack'?1-this.run.attack/this.run.attackDuration:action==='skill'?1-this.run.dash/this.run.dashDuration:action==='land'?1-this.run.land/0.16:action==='jump'?Math.min(0.49,Math.max(0,(440-this.run.velocity)/880)):0;
     return {x:this.run.x,height:this.run.height,direction:this.run.direction,action,progress,vx:this.run.horizontalVelocity};
   }
-  private network(seconds:number){
-    const multi=this.settings?.multiplayer;if(!multi)return;
+  private restoreRacePose(){
+    const client=this.settings?.multiplayer?.client,room=client?.room,mine=room?.members.find(member=>member.id===client?.owner);
+    if(!client||!room||!mine||this.run.won)return;
+    this.run.x=mine.pose.x;this.run.height=mine.pose.height;this.run.direction=mine.pose.direction;
+    this.run.velocity=0;this.run.horizontalVelocity=0;this.run.dash=0;this.run.attack=0;this.run.land=0;
+    const checkpoint=COURSES[this.settings?.map??'garden'].checkpoint;
+    if(this.run.x>=checkpoint)this.run.checkpoint=checkpoint;
+    if(room.startsAt)this.run.elapsed=Math.max(0,(client.serverTime-room.startsAt)/1000);
+    if(room.racers.find(racer=>racer.id===client.owner)?.time!=null){this.run.victoryTime=0;this.completed=true;}
+  }
+  private network(seconds:number):boolean{
+    const multi=this.settings?.multiplayer;if(!multi)return false;
     const client=multi.client,room=client.room;
+    if(client.reconnecting||client.error)this.blur();
+    if(!client.reconnecting&&!client.error&&(!room||room.round!==this.raceRound)){
+      this.returned=true;this.onReturn();return true;
+    }
+    if(client.recoverySerial!==this.recoverySeen){
+      this.recoverySeen=client.recoverySerial;this.blur();
+      this.restoreRacePose();
+    }
     if(room&&room.round===this.raceRound){for(const member of room.members)this.raceMembers.set(member.id,member);this.resultRoom=room;}
     const ended=!room||room.round!==this.raceRound||room.phase==='results';
     const ids=new Set(room?.members.filter(m=>m.id!==client.owner).map(m=>m.id));
@@ -224,27 +245,28 @@ export class PlayScene extends Scene {
       if(this.settings?.preferences?.().effects===false){peer.effect.visible=false;peer.effect.ghosts.forEach(g=>{g.visible=false;});}else peer.effect.visible=true;
     }
     const startIn=room?.startsAt?Math.max(0,Math.ceil((room.startsAt-client.serverTime)/1000)):0;
-    this.countdown.textContent=client.error?t('multiOffline'):startIn?String(startIn):'';
-    this.countdown.setAttribute('data-error',String(!!client.error));
-    this.countdown.hidden=!startIn&&!client.error;
+    this.countdown.textContent=client.error||client.reconnecting?t('multiReconnecting'):startIn?String(startIn):'';
+    this.countdown.setAttribute('data-error',String(!!client.error||client.reconnecting));
+    this.countdown.hidden=!startIn&&!client.error&&!client.reconnecting;
     if(ended&&!this.run.won)this.run.victoryTime=0;
     if(this.run.won){
       this.victory.textContent=t(!room?'multiOffline':room.phase==='waiting'?'raceCancelled':ended?'raceResults':'waitingOthers');
-      this.back.disabled=!ended;
+      this.back.disabled=!ended||client.reconnecting||!!client.error;
       const results=this.resultRoom,finished=room?.phase==='results';
       const signature=JSON.stringify([results?.racers,[...this.raceMembers.values()].map(member=>[member.id,member.look.petId]),finished]);
       if(signature!==this.resultSignature){this.resultSignature=signature;this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,finished));}
       const remaining=Math.max(0,Math.ceil(((room?.endsAt??client.serverTime)-client.serverTime)/1000));
-      this.raceNote.textContent=client.error||!room?t('multiOffline'):finished?t('raceTogether'):room.phase==='waiting'?t('raceCancelled'):remaining?t('raceRemaining').replace('{seconds}',String(remaining)):t('raceChecking');
+      this.raceNote.textContent=client.error||client.reconnecting||!room?t('multiReconnecting'):finished?t('raceTogether'):room.phase==='waiting'?t('raceCancelled'):remaining?t('raceRemaining').replace('{seconds}',String(remaining)):t('raceChecking');
     }
+    return false;
   }
   override update(seconds: number): void {
     if (this.paused || this.returned) return;
+    if(this.network(seconds))return;
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
     const respawns = this.run.respawns;
     if(this.raceStarted||this.run.won)this.run.update(seconds, axis);
-    this.network(seconds);
     if (this.run.respawns !== respawns) { this.blur(); this.cameraX = cameraTarget(this.run.x, this.courseEnd); }
     this.elapsed += seconds;
     this.render(seconds, this.run.respawns === respawns ? axis : 0);

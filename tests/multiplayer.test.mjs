@@ -198,3 +198,62 @@ test('race result rows use accepted times, keep unfinished racers unranked and h
     const ended=raceResults(racers,members,'pending',[pet],true);assert.equal(ended.children[2].children[3].textContent,'DNF');
   }finally{env.restore();}
 });
+
+test('an uncertain Ready request is read back before any mutation can be retried',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);
+  const calls=[];let lose=false;const client=new RoomClient(users[1],async(a,r,p)=>{calls.push(a);const result=await cmd(1,a,r,p);if(lose){lose=false;throw Error('lost acknowledgement');}return result;});
+  try{
+    await client.command('sync');lose=true;assert.equal(await client.command('ready',{ready:true}),false);
+    assert.equal(client.reconnecting,true);assert.equal(await client.command('ready',{ready:false}),false);
+    await client.poll();assert.deepEqual(calls,['sync','ready','sync']);assert.equal(client.room.members.find(m=>m.id===users[1]).ready,true);
+    assert.equal(client.reconnecting,false);assert.equal(client.notice,'restored');assert.equal(client.recoverySerial,1);
+  }finally{client.destroy(false);}
+});
+
+test('a lost finish acknowledgement is synchronized without submitting a second finish',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});const start=(await cmd(0,'start',room.id)).room;
+  await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);
+  const calls=[];let lost=false;const client=new RoomClient(users[0],async(a,r,p)=>{calls.push(a);const result=await cmd(0,a,r,p);if(a==='finish'&&!lost){lost=true;throw Error('lost acknowledgement');}return result;});
+  try{
+    await client.command('sync');await client.finish({x:6500,height:0,direction:1,action:'idle',progress:0,vx:0});assert.equal(client.reconnecting,true);
+    await client.poll();assert.equal(calls.at(-1),'sync');assert.equal(calls.filter(a=>a==='finish').length,1);
+    assert.ok(client.room.racers.find(r=>r.id===users[0]).time>=10000);assert.equal(client.finishPose,undefined);assert.equal(client.room.round,start.round);
+  }finally{client.destroy(false);}
+});
+
+test('expired membership returns to room selection and does not replay Ready',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);const env=dom();
+  const client=new RoomClient(users[1],(a,r,p)=>cmd(1,a,r,p));let menu;
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    await db.query("update public.mp_members set seen_at=clock_timestamp()-interval '60 seconds' where user_id=$1",[users[1]]);
+    client.reconnect();await idle(client);assert.equal(client.room,null);assert.equal(client.notice,'removed');
+    assert.ok(env.host.all().some(e=>e.textContent==='Your room session has ended. Please choose a room again.'));assert.ok(env.host.querySelector('.room-pages'));
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
+
+test('race reconnection freezes movement, restores the server pose and exits an expired round',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});await cmd(0,'start',room.id);
+  await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);
+  const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let scene,returned=0;
+  try{
+    await client.command('sync');await client.command('pose',{round:client.room.round,x:400,height:0,direction:1,action:'idle',progress:0,vx:0});
+    const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+    scene=new PlayScene(config,()=>returned++,{open(){},multiplayer:{client,pets:[config],leave(){}}});
+    assert.equal(scene.run.x,400);
+    client.needsSync=true;scene.keys.add('KeyD');scene.run.x=999;scene.update(0.1);assert.equal(scene.run.x,999);assert.equal(scene.countdown.textContent,'Reconnecting… Checking the room before resuming.');
+    await client.command('sync');scene.update(0);assert.equal(scene.run.x,400);assert.equal(scene.keys.size,0);
+    await cmd(0,'leave',room.id);client.reconnect();await idle(client);scene.update(0.1);assert.equal(returned,1);scene.update(0.1);assert.equal(returned,1);
+  }finally{scene?.destroy({children:true});client.destroy(false);env.restore();}
+});
+
+test('background transitions invalidate stale responses and remove recovery listeners on shutdown',async()=>{
+  const env=dom();let calls=0,release;const gate=new Promise(resolve=>{release=resolve;});
+  const client=new RoomClient(users[0],async()=>{calls++;if(calls===1)await gate;return {room:null,rooms:[],now:calls};});
+  try{
+    client.start();document.hidden=true;document.dispatchEvent(new Event('visibilitychange'));assert.equal(client.reconnecting,true);
+    release();await idle(client);assert.equal(client.snapshot.now,0);assert.equal(client.timer,undefined);
+    document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));await idle(client);assert.equal(client.snapshot.now,2);assert.equal(client.reconnecting,false);
+    client.destroy(false);window.dispatchEvent(new Event('online'));document.dispatchEvent(new Event('visibilitychange'));assert.equal(calls,2);
+  }finally{release();client.destroy(false);env.restore();}
+});
