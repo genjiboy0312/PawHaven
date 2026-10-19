@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  raceYou:'You', raceRunning:'Racing…', raceTogether:'It was lovely running together!', raceRemaining:'Waiting for friends · {seconds}s left', raceChecking:'Checking the race results…',
   roomHostMap:'The host chooses the map', roomNeedPlayer:'Waiting for one more player…', roomNeedReady:'Everyone needs to be ready before starting.', roomCanStart:'Everyone is ready. Let’s go!', roomWaitingHost:'Ready! Waiting for the host to start…',
   roomMemberJoined:'{name} joined the room.', roomMemberLeft:'{name} left the room.', roomHostChanged:'{name} is now the host.',
   raceCancelled:'Race cancelled',
@@ -70,6 +71,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  raceYou:'나', raceRunning:'달리는 중…', raceTogether:'함께 달려서 즐거웠어요!', raceRemaining:'친구를 기다리고 있어요 · 종료까지 {seconds}초', raceChecking:'결과를 확인하고 있어요…',
   roomHostMap:'방장이 맵을 선택해요', roomNeedPlayer:'한 명 더 기다리고 있어요…', roomNeedReady:'모두 준비하면 시작할 수 있어요.', roomCanStart:'모두 준비됐어요. 출발해 볼까요?', roomWaitingHost:'준비 완료! 방장의 시작을 기다리고 있어요…',
   roomMemberJoined:'{name} 님이 입장했어요.', roomMemberLeft:'{name} 님이 퇴장했어요.', roomHostChanged:'{name} 님이 새 방장이 되었어요.',
   raceCancelled:'출발이 취소됐어요',

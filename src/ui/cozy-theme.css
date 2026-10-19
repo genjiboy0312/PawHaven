@@ -382,3 +382,14 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .room-map-options { margin: 0.7cqh 0; }
 .room-map-options > button { min-height: 6cqh; padding: 0.5cqh 1cqw; }
 .room-map-options .map-card::before, .room-map-options .map-card p { display: none; }
+.race-hud[data-results="true"] > .play-victory:not(.race-countdown) { top: 7%; font-size: 3.6cqw; }
+.race-hud .play-result { left: 18%; top: 19%; width: 64%; max-height: 76%; overflow-y: auto; padding: 2cqh 2cqw; }
+.race-hud[data-results="true"] .play-stick, .race-hud[data-results="true"] .play-actions, .race-hud[data-results="true"] .play-progress { visibility: hidden; }
+.race-results-list { display: grid; gap: 1cqh; margin: 0 0 1.5cqh; white-space: normal; }
+.race-result-row { display: flex; align-items: center; gap: 1cqw; min-height: 9cqh; padding: 0.5cqh 1cqw; border: 1px solid #e1d1ad; border-radius: 1.3cqw; background: #fff8e9; color: #79664c; }
+.race-result-row[data-self="true"] { background: #e8efcf; border-color: #a9bd7b; }
+.race-place { width: 3cqw; flex-shrink: 0; font-family: var(--font-round); font-size: 2.5cqw; color: #ad8b46; }
+.race-result-pet { display: flex; align-items: flex-end; justify-content: center; width: 8cqw; height: 7cqh; flex-shrink: 0; }
+.race-result-name { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: left; font: 400 clamp(11px,1.7cqw,23px) var(--font-round); }
+.race-result-time { font-size: clamp(10px,1.4cqw,19px); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.race-hud .play-result .race-result-note { margin: 1cqh 0 1.5cqh; font-size: clamp(10px,1.4cqw,19px); }

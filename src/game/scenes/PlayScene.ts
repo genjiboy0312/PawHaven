@@ -7,7 +7,8 @@ import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
 import { COURSE_GROUND } from '../TrainingCourse';
 import { COURSES, type CourseId } from '../CourseCatalog';
-import type { RoomClient, Pose } from '../../multiplayer/RoomClient';
+import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
+import { raceResults } from '../../ui/RaceResults';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
 import { Scene } from './Scene';
 
@@ -16,7 +17,11 @@ export class PlayScene extends Scene {
   private readonly courseEnd:number;
   private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text}>();
   private readonly countdown=document.createElement('p');
-  private readonly ranking=document.createElement('p');
+  private readonly ranking=document.createElement('div');
+  private readonly raceNote=document.createElement('p');
+  private readonly raceMembers=new Map<string,Room['members'][number]>();
+  private resultRoom?:Room;
+  private resultSignature='';
   private readonly raceRound?:string|null;
   private readonly labels: { text: Text; key: 'start' | 'finish' | 'checkpoint' }[] = [];
   private readonly localeOff: () => void;
@@ -62,7 +67,7 @@ export class PlayScene extends Scene {
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
-    this.localeOff = onLanguageChange(() => this.labels.forEach(label => { label.text.text = t(label.key); }));
+    this.localeOff = onLanguageChange(() => {this.labels.forEach(label => { label.text.text = t(label.key); });this.resultSignature='';});
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
@@ -125,9 +130,12 @@ export class PlayScene extends Scene {
     this.hud.append(this.stick, actions, settingsButton, this.victory, this.fade);
     this.hud.append(this.result, this.progress);
     if(settings?.multiplayer){
+      this.hud.classList.add('race-hud');
       settings.multiplayer.client.pose=()=>this.pose();
       this.retry.hidden=true;bindText(this.back,'returnRoom');
-      this.countdown.className='play-victory race-countdown';this.ranking.className='race-ranking';this.result.append(this.ranking);
+      this.countdown.className='play-victory race-countdown';this.ranking.className='race-ranking';this.raceNote.className='race-result-note';
+      this.raceNote.setAttribute('role','status');this.result.replaceChildren(this.ranking,this.raceNote,this.back);
+      bindAria(this.result,'raceResults');
       const leave=this.button('leaveRoom',()=>settings.multiplayer?.leave());leave.className='play-circle race-leave';
       this.hud.append(this.countdown,leave);
     }
@@ -194,6 +202,7 @@ export class PlayScene extends Scene {
   private network(seconds:number){
     const multi=this.settings?.multiplayer;if(!multi)return;
     const client=multi.client,room=client.room;
+    if(room&&room.round===this.raceRound){for(const member of room.members)this.raceMembers.set(member.id,member);this.resultRoom=room;}
     const ended=!room||room.round!==this.raceRound||room.phase==='results';
     const ids=new Set(room?.members.filter(m=>m.id!==client.owner).map(m=>m.id));
     for(const [id,peer]of this.peers)if(!ids.has(id)){peer.box.destroy({children:true});this.peers.delete(id);}
@@ -220,10 +229,13 @@ export class PlayScene extends Scene {
     this.countdown.hidden=!startIn&&!client.error;
     if(ended&&!this.run.won)this.run.victoryTime=0;
     if(this.run.won){
-      this.victory.textContent=t(room?.phase==='waiting'?'raceCancelled':ended?'raceResults':'waitingOthers');
+      this.victory.textContent=t(!room?'multiOffline':room.phase==='waiting'?'raceCancelled':ended?'raceResults':'waitingOthers');
       this.back.disabled=!ended;
-      this.ranking.textContent=(room?.racers??[]).map((r,i)=>`${i+1}. ${r.name} · ${r.time===null?t('didNotFinish'):(r.time/1000).toFixed(2)+'s'}`).join('\n');
-      if(!room)this.ranking.textContent=t('multiOffline');
+      const results=this.resultRoom,finished=room?.phase==='results';
+      const signature=JSON.stringify([results?.racers,[...this.raceMembers.values()].map(member=>[member.id,member.look.petId]),finished]);
+      if(signature!==this.resultSignature){this.resultSignature=signature;this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,finished));}
+      const remaining=Math.max(0,Math.ceil(((room?.endsAt??client.serverTime)-client.serverTime)/1000));
+      this.raceNote.textContent=client.error||!room?t('multiOffline'):finished?t('raceTogether'):room.phase==='waiting'?t('raceCancelled'):remaining?t('raceRemaining').replace('{seconds}',String(remaining)):t('raceChecking');
     }
   }
   override update(seconds: number): void {
@@ -272,6 +284,7 @@ export class PlayScene extends Scene {
     if (preferences?.effects === false) this.effect.ghosts.forEach(ghost => { ghost.visible = false; });
     this.victory.hidden = !run.won;
     this.result.hidden = !run.won;
+    if(this.settings?.multiplayer)this.hud.setAttribute('data-results',String(run.won));
     const record = `${t('runTime')} ${(run.elapsed).toFixed(2)}s · ${t('runFalls')} ${run.respawns} · ${t('runTargets')} ${run.targets.filter(target => target.broken).length}/${run.targets.length}`;
     if (!this.returned) this.stats.textContent = this.retryFailed ? t('runRetryFailed') : record;
     this.progress.textContent = `${Math.floor((run.x - run.start) / (run.finish - run.start) * 100)}% · ${t('runTime')} ${run.elapsed.toFixed(1)}s${run.checkpoint > run.start ? ' · ' + t('checkpoint') + ' ✓' : ''}`;

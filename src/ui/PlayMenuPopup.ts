@@ -2,6 +2,8 @@ import { bindAria, onLanguageChange, t, type TextKey } from '../settings/i18n';
 import { COURSES, type CourseId } from '../game/CourseCatalog';
 import type { RoomClient, Room } from '../multiplayer/RoomClient';
 import type { AnimalConfig } from '../animals/AnimalConfig';
+import { paintPetPortrait } from './PetPortrait';
+import { raceResults } from './RaceResults';
 type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
 export class PlayMenuPopup {
@@ -73,12 +75,7 @@ export class PlayMenuPopup {
       const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       for(const {element,config,thumbnail}of this.portraits){
         const idle=config.animations.idle;if(!idle?.frames.length)continue;
-        const texture=idle.frames[reduced?0:Math.floor(performance.now()/1000*idle.fps)%idle.frames.length];
-        const frame=texture.frame,height=Math.max(...idle.frames.map(item=>item.frame.height));
-        element.style.backgroundImage='url("'+thumbnail+'")';
-        element.style.width=frame.width/height*10+'cqh';element.style.height=frame.height/height*10+'cqh';
-        element.style.backgroundSize=`${texture.source.width/height*10}cqh ${texture.source.height/height*10}cqh`;
-        element.style.backgroundPosition=`${-frame.x/height*10}cqh ${-frame.y/height*10}cqh`;
+        paintPetPortrait(element,config,thumbnail,10,reduced?0:Math.floor(performance.now()/1000*idle.fps));
       }
     };
     draw();this.portraitTimer=setInterval(draw,125);
@@ -107,8 +104,7 @@ export class PlayMenuPopup {
     }else if(room){
       root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
       if(room.phase==='results'){
-        const ranks=document.createElement('ol');
-        for(const racer of room.racers){const row=document.createElement('li');row.textContent=`${racer.name} · ${racer.time===null?t('didNotFinish'):(racer.time/1000).toFixed(2)+'s'}`;ranks.append(row);}root.append(ranks);
+        root.append(raceResults(room.racers,room.members,client.owner,this.options.pets?.map(pet=>pet.config)??[],true),this.text(t('raceTogether')));
         const mine=room.members.find(m=>m.id===client.owner);
         root.append(this.button('returnRoom',()=>{void client.command('return');}));
         if(mine?.returned)root.append(this.text(t('waitingOthers')));

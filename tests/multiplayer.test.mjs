@@ -7,6 +7,7 @@ Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},config
 const {RoomClient,roomTransport}=await importTs('../src/multiplayer/RoomClient.ts',import.meta.url);
 const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.url);
 const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.url);
+const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
 const {Texture}=await import('pixi.js');
 const db = new PGlite();
 const users = [1,2,3,4,5].map(n => `${n}`.repeat(8) + '-1111-4111-8111-111111111111');
@@ -78,7 +79,7 @@ class Element extends EventTarget {
   children=[];style={};attributes=new Map();classList={add(){}};inert=false;scrollLeft=0;clientWidth=500;disabled=false;
   constructor(tag='div'){super();this.tag=tag;}
   append(...items){items.forEach(item=>{item.parent=this;this.children.push(item);});}
-  replaceChildren(){this.children.forEach(c=>{c.parent=undefined;});this.children=[];}
+  replaceChildren(...items){this.children.forEach(c=>{c.parent=undefined;});this.children=[];this.append(...items);}
   setAttribute(k,v){this.attributes.set(k,v);}getAttribute(k){return this.attributes.get(k)??null;}
   all(){return this.children.flatMap(c=>[c,...c.all()]);}
   querySelector(s){return this.all().find(c=>c.className?.split(' ').includes(s.slice(1)));}
@@ -130,8 +131,12 @@ test('race scene freezes during countdown, draws peers and returns after server 
     assert.ok(scene.peers.get(users[1]).box.x>120);
     scene.update(0.1);assert.ok(scene.peers.get(users[1]).animation.sprite.currentFrame>0);
     scene.run.x=scene.run.finish;scene.update(0.01);await idle(client);scene.update(0.01);assert.equal(scene.back.disabled,true);
+    assert.match(scene.raceNote.textContent,/Waiting for friends · \d+s left/);
+    assert.equal(scene.ranking.querySelector('.race-result-row').getAttribute('data-self'),'true');
     await db.query("update public.mp_rooms set ends_at=clock_timestamp()-interval '1 second' where id=$1",[room.id]);await client.command('sync');scene.update(0.01);
-    assert.equal(scene.back.disabled,false);scene.back.dispatchEvent(new Event('click'));scene.update(0.41);assert.equal(returned,1);
+    assert.equal(scene.back.disabled,false);assert.equal(scene.raceNote.textContent,'It was lovely running together!');
+    assert.equal(scene.ranking.querySelector('.race-results-list').children[1].children[0].textContent,'—');
+    scene.back.dispatchEvent(new Event('click'));scene.update(0.41);assert.equal(returned,1);
   }finally{scene?.destroy({children:true});await idle(client);client.destroy(false);env.restore();}
 });
 
@@ -177,4 +182,19 @@ test('waiting room shows real pets, Ready state and host transfer without leakin
     assert.equal(env.host.all().find(e=>e.textContent==='START').disabled,true);
     menu.destroy();assert.equal(menu.portraitTimer,undefined);assert.equal(menu.portraits.length,0);
   }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
+
+test('race result rows use accepted times, keep unfinished racers unranked and highlight the owner',()=>{
+  const env=dom();
+  try{
+    const racers=[{id:'pending',name:'Still running',time:null,left:false},{id:'slow',name:'Slow',time:12000,left:false},{id:'fast',name:'<Fast>',time:9000,left:false},{id:'left',name:'Left',time:null,left:true}];
+    const pet={id:'myeongrang',animations:{idle:{frames:[Texture.WHITE],fps:8}}};
+    const members=[{id:'fast',look:{petId:'myeongrang'}}];
+    const list=raceResults(racers,members,'fast',[pet],false);
+    assert.equal(racers[0].id,'pending');assert.equal(list.children.length,4);
+    assert.equal(list.children[0].children[0].textContent,'1');assert.equal(list.children[0].children[2].textContent,'<Fast> · You');assert.equal(list.children[0].children[3].textContent,'9.00s');
+    assert.equal(list.children[0].getAttribute('data-self'),'true');assert.ok(list.querySelector('.room-pet').style.backgroundImage.includes('myeongrang/idle.png'));
+    assert.equal(list.children[2].children[0].textContent,'—');assert.equal(list.children[2].children[3].textContent,'Racing…');assert.equal(list.children[3].children[3].textContent,'DNF');
+    const ended=raceResults(racers,members,'pending',[pet],true);assert.equal(ended.children[2].children[3].textContent,'DNF');
+  }finally{env.restore();}
 });
