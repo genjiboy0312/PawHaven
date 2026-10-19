@@ -1,6 +1,7 @@
 import { bindAria, onLanguageChange, t, type TextKey } from '../settings/i18n';
 import { COURSES, type CourseId } from '../game/CourseCatalog';
 import type { RoomClient, Room } from '../multiplayer/RoomClient';
+import type { AnimalConfig } from '../animals/AnimalConfig';
 type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
 export class PlayMenuPopup {
@@ -11,9 +12,14 @@ export class PlayMenuPopup {
   private name='';private map:CourseId='garden';
   private signature='';
   private notice?:TextKey;
+  private previousRoom?:Room;
+  private roomEvent?:{key:TextKey;name:string;until:number};
+  private portraits:{element:HTMLElement;config:AnimalConfig;thumbnail:string}[]=[];
+  private portraitTimer?:ReturnType<typeof setInterval>;
   constructor(private readonly pause:(value:boolean)=>void,private readonly options:{
     rooms?:RoomClient;single:(map:CourseId)=>Promise<boolean>;race:(room:Room,client:RoomClient)=>void;
     login:()=>void;dismiss:(keep:boolean)=>void;
+    pets?:{config:AnimalConfig;thumbnail:string}[];
   }){}
   open(page:Page='mode'){
     if(this.overlay)return;this.page=page;
@@ -40,13 +46,42 @@ export class PlayMenuPopup {
   private async action(run:()=>Promise<unknown>){if(this.busy)return;this.busy=true;this.render();try{await run();}catch{this.notice='multiOffline';}finally{this.busy=false;this.changed();}}
   private changed(){
     const client=this.options.rooms,room=client?.room;
+    const previous=this.previousRoom;
+    if(room&&previous?.id===room.id){
+      const left=previous.members.find(member=>!room.members.some(next=>next.id===member.id));
+      const joined=room.members.find(member=>!previous.members.some(old=>old.id===member.id));
+      const host=room.members.find(member=>member.id===room.host);
+      if(previous.host!==room.host&&host)this.roomEvent={key:'roomHostChanged',name:host.name,until:Date.now()+6000};
+      else if(left||joined)this.roomEvent={key:left?'roomMemberLeft':'roomMemberJoined',name:(left??joined)!.name,until:Date.now()+6000};
+    }else this.roomEvent=undefined;
+    this.previousRoom=room??undefined;
     if(this.page==='multi'&&room&&['countdown','playing'].includes(room.phase)&&!this.launching){
       this.launching=true;this.options.race(room,client!);this.close(true);return;
     }
     if(this.page==='create'&&room)this.page='multi';
     if(this.page==='create'&&!room&&!client?.error)return;
-    const signature=JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error]);
+    if(this.roomEvent&&this.roomEvent.until<Date.now())this.roomEvent=undefined;
+    const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
+  }
+  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error,this.roomEvent]);}
+  private stopPortraits(){clearInterval(this.portraitTimer);this.portraitTimer=undefined;this.portraits=[];}
+  private animatePortraits(){
+    if(!this.portraits.length)return;
+    const draw=()=>{
+      if(document.hidden)return;
+      const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      for(const {element,config,thumbnail}of this.portraits){
+        const idle=config.animations.idle;if(!idle?.frames.length)continue;
+        const texture=idle.frames[reduced?0:Math.floor(performance.now()/1000*idle.fps)%idle.frames.length];
+        const frame=texture.frame,height=Math.max(...idle.frames.map(item=>item.frame.height));
+        element.style.backgroundImage='url("'+thumbnail+'")';
+        element.style.width=frame.width/height*10+'cqh';element.style.height=frame.height/height*10+'cqh';
+        element.style.backgroundSize=`${texture.source.width/height*10}cqh ${texture.source.height/height*10}cqh`;
+        element.style.backgroundPosition=`${-frame.x/height*10}cqh ${-frame.y/height*10}cqh`;
+      }
+    };
+    draw();this.portraitTimer=setInterval(draw,125);
   }
   private maps(select:(map:CourseId)=>void,current?:CourseId){
     const grid=document.createElement('div');grid.className='mode-cards';
@@ -57,7 +92,7 @@ export class PlayMenuPopup {
   }
   private render(){
     if(!this.content||!this.title)return;
-    this.signature=JSON.stringify([this.page,this.busy,this.options.rooms?.snapshot.room,this.options.rooms?.snapshot.rooms,this.options.rooms?.busy,this.options.rooms?.error]);
+    this.signature=this.renderSignature();this.stopPortraits();
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
     this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'chooseMap':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
@@ -78,18 +113,33 @@ export class PlayMenuPopup {
         root.append(this.button('returnRoom',()=>{void client.command('return');}));
         if(mine?.returned)root.append(this.text(t('waitingOthers')));
       }else{
+        const preview=document.createElement('div');preview.className='room-map-preview map-card map-'+room.map;
+        preview.append(this.text(t(COURSES[room.map].title)+' · '+COURSES[room.map].seconds),this.text(t('roomHostMap')));root.append(preview);
         const host=room.host===client.owner;const slots=document.createElement('div');slots.className='room-slots';
         for(let i=0;i<4;i++){
-          const member=room.members[i],slot=document.createElement('div');slot.className='daily-quest';
-          slot.textContent=member?`${member.name} · ${member.id===room.host?t('roomHost'):member.ready?t('ready'):t('notReady')}`:t('emptySeat');slots.append(slot);
+          const member=room.members[i],slot=document.createElement('div');slot.className='daily-quest room-player';
+          if(member){
+            const isHost=member.id===room.host;slot.setAttribute('data-ready',String(member.ready||isHost));
+            const art=document.createElement('div');art.className='room-pet-stage';
+            const portrait=document.createElement('span');portrait.className='room-pet';portrait.setAttribute('aria-hidden','true');art.append(portrait);
+            const pet=this.options.pets?.find(pet=>pet.config.id===member.look.petId);if(pet)this.portraits.push({element:portrait,...pet});
+            const details=document.createElement('div');details.className='room-player-info';
+            const name=document.createElement('strong');name.textContent=member.name;
+            const status=this.text((isHost?'♛ ':member.ready?'✓ ':'')+t(isHost?'roomHost':member.ready?'ready':'notReady'));details.append(name,status);
+            slot.append(art,details);
+          }else{slot.setAttribute('data-empty','true');slot.append(this.text(t('emptySeat')));}slots.append(slot);
         }
         root.append(slots);
-        if(host)root.append(this.maps(map=>{void client.command('map',{map});},room.map));
+        const allReady=room.members.length>=2&&room.members.every(member=>member.id===room.host||member.ready);
+        const hint=this.text(t(room.members.length<2?'roomNeedPlayer':allReady?(host?'roomCanStart':'roomWaitingHost'):'roomNeedReady'));
+        hint.className='room-start-hint';hint.setAttribute('role','status');root.append(hint);
+        if(host){const maps=this.maps(map=>{void client.command('map',{map});},room.map);maps.className+=' room-map-options';root.append(maps);}
         const mine=room.members.find(m=>m.id===client.owner);
         const start=this.button(host?'start':mine?.ready?'cancelReady':'ready',()=>{void client.command(host?'start':'ready',host?{}:{ready:!mine?.ready});});
         start.disabled=client.busy||(host&&(room.members.length<2||room.members.some(m=>m.id!==room.host&&!m.ready)))||room.phase!=='waiting';root.append(start);
       }
       root.append(this.button('leaveRoom',()=>{void this.action(async()=>{await client.command('leave');});}));
+      if(this.roomEvent){const event=this.text(t(this.roomEvent.key).replace('{name}',this.roomEvent.name));event.className='room-event';event.setAttribute('role','status');root.append(event);}
     }else{
       root.append(this.button('createRoom',()=>{this.page='create';this.render();}));
       const pager=document.createElement('div');pager.className='room-pages';
@@ -112,10 +162,11 @@ export class PlayMenuPopup {
     if(this.notice)root.append(this.text(t(this.notice)));
     if(this.page!=='mode'&&!room)root.append(this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();}));
     if(this.busy||client?.busy)for(const b of Array.from(root.querySelectorAll('button')))b.disabled=true;
+    this.animatePortraits();
   }
   private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
-    if(!this.overlay)return;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
+    if(!this.overlay)return;this.stopPortraits();this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
     if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
   }

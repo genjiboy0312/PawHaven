@@ -1,5 +1,7 @@
 export type Language = 'en' | 'ko';
 const en = {
+  roomHostMap:'The host chooses the map', roomNeedPlayer:'Waiting for one more player…', roomNeedReady:'Everyone needs to be ready before starting.', roomCanStart:'Everyone is ready. Let’s go!', roomWaitingHost:'Ready! Waiting for the host to start…',
+  roomMemberJoined:'{name} joined the room.', roomMemberLeft:'{name} left the room.', roomHostChanged:'{name} is now the host.',
   raceCancelled:'Race cancelled',
   chooseMode:'Choose mode', singleplayer:'Single', multiplayer:'Multiplayer', chooseMap:'Choose map', mapGarden:'Garden Trail', mapPractice:'Practice Yard',
   createRoom:'Create room', roomName:'Room name', waitingRoom:'Waiting room', roomHost:'Host', ready:'Ready', notReady:'Not ready', cancelReady:'Cancel ready',
@@ -68,6 +70,8 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  roomHostMap:'방장이 맵을 선택해요', roomNeedPlayer:'한 명 더 기다리고 있어요…', roomNeedReady:'모두 준비하면 시작할 수 있어요.', roomCanStart:'모두 준비됐어요. 출발해 볼까요?', roomWaitingHost:'준비 완료! 방장의 시작을 기다리고 있어요…',
+  roomMemberJoined:'{name} 님이 입장했어요.', roomMemberLeft:'{name} 님이 퇴장했어요.', roomHostChanged:'{name} 님이 새 방장이 되었어요.',
   raceCancelled:'출발이 취소됐어요',
   chooseMode:'모드 선택', singleplayer:'싱글', multiplayer:'멀티플레이', chooseMap:'맵 선택', mapGarden:'정원 산책길', mapPractice:'연습 마당',
   createRoom:'방 만들기', roomName:'방 이름', waitingRoom:'대기방', roomHost:'방장', ready:'준비 완료', notReady:'준비 중', cancelReady:'준비 취소',

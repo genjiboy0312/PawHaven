@@ -158,3 +158,23 @@ test('background room refreshes never overlap while a response is pending',async
   try{client.start();client.start();assert.equal(calls,1);release();await idle(client);assert.equal(calls,1);}
   finally{release();client.destroy(false);}
 });
+
+test('waiting room shows real pets, Ready state and host transfer without leaking animation timers',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});
+  const env=dom(),client=new RoomClient(users[1],(a,r,p)=>cmd(1,a,r,p));let menu;
+  const config={id:'corgi',animations:{idle:{frames:[Texture.WHITE],fps:8}}};
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,pets:[{config,thumbnail:'./assets/characters/corgi/corgi-idle-walk.png'}],single:async()=>true,race(){},login(){},dismiss(){}});
+    menu.open('multi');await idle(client);
+    const slots=env.host.querySelector('.room-slots');assert.equal(slots.children.length,4);
+    assert.equal(slots.children[0].getAttribute('data-ready'),'true');assert.equal(slots.children[1].getAttribute('data-ready'),'true');assert.equal(slots.children[2].getAttribute('data-empty'),'true');
+    assert.equal(env.host.querySelector('.room-start-hint').textContent,'Ready! Waiting for the host to start…');
+    assert.ok(env.host.querySelector('.room-pet').style.backgroundImage.includes('corgi-idle-walk.png'));
+    assert.ok(menu.portraitTimer);assert.ok(!env.host.all().some(e=>e.tag==='button'&&e.textContent==='START'));
+    await cmd(0,'leave',room.id);await client.command('sync');
+    assert.equal(env.host.querySelector('.room-start-hint').textContent,'Waiting for one more player…');
+    assert.ok(env.host.querySelector('.room-event').textContent.endsWith('is now the host.'));
+    assert.equal(env.host.all().find(e=>e.textContent==='START').disabled,true);
+    menu.destroy();assert.equal(menu.portraitTimer,undefined);assert.equal(menu.portraits.length,0);
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
