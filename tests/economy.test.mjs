@@ -285,23 +285,34 @@ test('server Shop disables pending purchases, updates owned items and never debi
   }
   const oldDocument = globalThis.document, host = new Element('main');
   globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
-  const api = new EconomyClient(rpc(A), uuid), state = new ServerShopState(api);
+  let release; const gate = new Promise(resolve => { release = resolve; });
+  const api = new EconomyClient(async request => { await gate; return rpc(A)(request); }, uuid), state = new ServerShopState(api);
   let scene;
   try {
-    await idle(api);
     scene = new ShopScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, state, () => {}, () => {});
     const content = host.children[0].children[4];
+    assert.match(host.children[0].children[2].textContent, /—/);
+    assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'loading');
+    assert.equal(content.children[2].children[1].disabled, true);
+    assert.equal(content.children[1].children[0].getAttribute('data-owned'), 'false');
+    release(); await idle(api);
+    assert.equal(content.children[1].children[0].getAttribute('data-owned'), 'true');
+    assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'owned');
+    assert.equal(content.children[2].children[0].children[0].textContent, 'Santa Hat');
+    content.children[1].scrollTop = 77;
     content.children[1].children[1].dispatchEvent(new Event('click'));
-    const buy = content.children[2].children[1]; assert.equal(buy.disabled, false);
+    const buy = content.children[2].children[1]; assert.equal(buy.disabled, false); assert.equal(buy.getAttribute('data-purchase-state'), 'available');
     buy.dispatchEvent(new Event('click'));
-    const pendingBuy = content.children[2].children[1]; assert.equal(pendingBuy.disabled, true);
+    const pendingBuy = content.children[2].children[1]; assert.equal(pendingBuy.disabled, true); assert.equal(pendingBuy.getAttribute('data-purchase-state'), 'processing');
     pendingBuy.dispatchEvent(new Event('click'));
     await idle(api);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true);
     assert.equal(content.children[2].children[1].disabled, true);
+    assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'purchased');
+    assert.equal(content.children[1].scrollTop, 77);
     assert.match(host.children[0].children[2].textContent, /925/);
   } finally {
-    scene?.destroy({ children: true }); state.destroy();
+    release(); await idle(api); scene?.destroy({ children: true }); state.destroy();
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
 });
