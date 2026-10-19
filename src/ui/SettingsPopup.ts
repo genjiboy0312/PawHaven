@@ -22,6 +22,7 @@ export class SettingsPopup {
   private tab: 'Sound' | 'Controls' | 'Display' | 'Language' | 'Account' | 'About' = 'Sound';
   get opened(): boolean { return !!this.element; }
   constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService) {}
+  openAccount(): void { this.tab='Account'; this.open(); }
   open(playSound = true): void {
     if (this.opened) return;
     const host = document.querySelector<HTMLElement>('#app');

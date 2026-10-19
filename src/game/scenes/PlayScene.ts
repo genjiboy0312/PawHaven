@@ -6,13 +6,18 @@ import { AnimalAnimationController } from '../../animals/AnimalAnimationControll
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
 import { COURSE_GROUND } from '../TrainingCourse';
-import { ADVENTURE_COURSE, ADVENTURE_FINISH, ADVENTURE_CHECKPOINT, ADVENTURE_TARGETS } from '../AdventureCourse';
+import { COURSES, type CourseId } from '../CourseCatalog';
+import type { RoomClient, Pose } from '../../multiplayer/RoomClient';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
 import { Scene } from './Scene';
 
 export class PlayScene extends Scene {
-  private readonly run = new DummyRun(ADVENTURE_COURSE, 1 / PLAY_ZOOM, { finish: ADVENTURE_FINISH, checkpoint: ADVENTURE_CHECKPOINT, targets: ADVENTURE_TARGETS, manualReturn: true });
-  private readonly courseEnd = Math.max(...this.run.course.map(solid => solid.x + solid.width));
+  private readonly run:DummyRun;
+  private readonly courseEnd:number;
+  private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text}>();
+  private readonly countdown=document.createElement('p');
+  private readonly ranking=document.createElement('p');
+  private readonly raceRound?:string|null;
   private readonly labels: { text: Text; key: 'start' | 'finish' | 'checkpoint' }[] = [];
   private readonly localeOff: () => void;
   private readonly world = new Container();
@@ -51,8 +56,12 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; retry?: () => Promise<boolean> }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; retry?: () => Promise<boolean>; map?:CourseId; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void} }) {
     super();
+    const map=COURSES[settings?.map??'garden'];
+    this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
+    this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
+    this.raceRound=settings?.multiplayer?.client.room?.round;
     this.localeOff = onLanguageChange(() => this.labels.forEach(label => { label.text.text = t(label.key); }));
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
@@ -66,13 +75,13 @@ export class PlayScene extends Scene {
         .rect(solid.x, y, solid.width, 6).fill(solid.top ? '#a48d65' : '#78905c');
     }
     this.world.addChild(terrain);
-    for (const [x, label] of [[120, 'start'], [ADVENTURE_CHECKPOINT, 'checkpoint'], [ADVENTURE_FINISH, 'finish']] as const) {
+    for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
       const flag = new Text({ text: t(label), style: { fontFamily: 'system-ui', fontSize: 23, fontWeight: 'bold', fill: '#455b3b' } });
       this.labels.push({ text: flag, key: label });
       flag.position.set(x - 40, 240);
       this.world.addChild(new Graphics().rect(x, 275, 5, 115).fill('#657653'), flag);
     }
-    this.checkpointFlag.position.set(ADVENTURE_CHECKPOINT + 5, 275);
+    this.checkpointFlag.position.set(map.checkpoint + 5, 275);
     this.world.addChild(this.checkpointFlag);
     for (const target of this.run.targets) {
       const view = new Graphics().rect(-22, -48, 44, 48).fill('#b88958')
@@ -115,6 +124,13 @@ export class PlayScene extends Scene {
     this.progress.className = 'play-progress';
     this.hud.append(this.stick, actions, settingsButton, this.victory, this.fade);
     this.hud.append(this.result, this.progress);
+    if(settings?.multiplayer){
+      settings.multiplayer.client.pose=()=>this.pose();
+      this.retry.hidden=true;bindText(this.back,'returnRoom');
+      this.countdown.className='play-victory race-countdown';this.ranking.className='race-ranking';this.result.append(this.ranking);
+      const leave=this.button('leaveRoom',()=>settings.multiplayer?.leave());leave.className='play-circle race-leave';
+      this.hud.append(this.countdown,leave);
+    }
     document.querySelector('#app')?.append(this.hud);
     const signal = this.abort.signal;
     const move = (event: PointerEvent): void => {
@@ -154,7 +170,7 @@ export class PlayScene extends Scene {
     this.retrying = retry; this.retry.disabled = this.back.disabled = true; this.run.leave();
   }
   private act(kind: 'jump' | 'dash' | 'attack'): void {
-    if (this.paused || this.run.won) return;
+    if (this.paused || this.run.won || !this.raceStarted) return;
     const before = kind === 'jump' ? this.run.velocity : this.run[kind];
     if (kind === 'jump') this.run.jump();
     else if (kind === 'dash') this.run.startDash();
@@ -170,17 +186,61 @@ export class PlayScene extends Scene {
     return button;
   }
   resize(_width: number, _height: number): void { this.render(0, 0); }
+  private get raceStarted(){const client=this.settings?.multiplayer?.client;return !client||!!client.room&&client.room.round===this.raceRound&&client.serverTime>=(client.room.startsAt??Infinity)&&client.room.phase!=='results';}
+  private pose():Pose{
+    const action=this.run.action(this.run.horizontalVelocity),progress=action==='attack'?1-this.run.attack/this.run.attackDuration:action==='skill'?1-this.run.dash/this.run.dashDuration:action==='land'?1-this.run.land/0.16:action==='jump'?Math.min(0.49,Math.max(0,(440-this.run.velocity)/880)):0;
+    return {x:this.run.x,height:this.run.height,direction:this.run.direction,action,progress,vx:this.run.horizontalVelocity};
+  }
+  private network(seconds:number){
+    const multi=this.settings?.multiplayer;if(!multi)return;
+    const client=multi.client,room=client.room;
+    const ended=!room||room.round!==this.raceRound||room.phase==='results';
+    const ids=new Set(room?.members.filter(m=>m.id!==client.owner).map(m=>m.id));
+    for(const [id,peer]of this.peers)if(!ids.has(id)){peer.box.destroy({children:true});this.peers.delete(id);}
+    for(const member of room?.members??[]){
+      if(member.id===client.owner)continue;
+      let peer=this.peers.get(member.id);
+      if(!peer){
+        const original=multi.pets.find(p=>p.id===member.look.petId)??multi.pets[0]!;
+        const config={...original,wardrobe:original.wardrobe?{...original.wardrobe,outfit:{...member.look.outfit}}:undefined};
+        const animation=new AnimalAnimationController(config),effect=new AnimalEffects(config.effects),box=new Container(),name=new Text({text:member.name,style:{fontFamily:'Jua, sans-serif',fontSize:18,fill:'#655d50'}});
+        name.anchor.set(0.5);name.y=-155;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect,name);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
+        this.world.addChildAt(box,this.world.getChildIndex(this.pet));peer={box,animation,effect,name};this.peers.set(member.id,peer);
+      }
+      const pose=member.pose,age=Math.min(0.35,Math.max(0,(client.serverTime-client.snapshot.now)/1000));
+      const targetX=Math.max(120,Math.min(this.run.finish,pose.x+pose.vx*age));
+      const mix=1-Math.exp(-12*seconds);peer.box.x+=(targetX-peer.box.x)*mix;peer.box.y+=(COURSE_GROUND-pose.height-peer.box.y)*mix;
+      peer.animation.update('IDLE',this.elapsed,pose.direction,0,0,seconds,pose.action,['attack','skill','jump','land'].includes(pose.action)?pose.progress:undefined);
+      peer.effect.update(pose.action,pose.progress,pose.direction,peer.animation.sprite,pose.vx);
+      if(this.settings?.preferences?.().effects===false){peer.effect.visible=false;peer.effect.ghosts.forEach(g=>{g.visible=false;});}else peer.effect.visible=true;
+    }
+    const startIn=room?.startsAt?Math.max(0,Math.ceil((room.startsAt-client.serverTime)/1000)):0;
+    this.countdown.textContent=client.error?t('multiOffline'):startIn?String(startIn):'';
+    this.countdown.setAttribute('data-error',String(!!client.error));
+    this.countdown.hidden=!startIn&&!client.error;
+    if(ended&&!this.run.won)this.run.victoryTime=0;
+    if(this.run.won){
+      this.victory.textContent=t(room?.phase==='waiting'?'raceCancelled':ended?'raceResults':'waitingOthers');
+      this.back.disabled=!ended;
+      this.ranking.textContent=(room?.racers??[]).map((r,i)=>`${i+1}. ${r.name} · ${r.time===null?t('didNotFinish'):(r.time/1000).toFixed(2)+'s'}`).join('\n');
+      if(!room)this.ranking.textContent=t('multiOffline');
+    }
+  }
   override update(seconds: number): void {
     if (this.paused || this.returned) return;
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
     const respawns = this.run.respawns;
-    this.run.update(seconds, axis);
+    if(this.raceStarted||this.run.won)this.run.update(seconds, axis);
+    this.network(seconds);
     if (this.run.respawns !== respawns) { this.blur(); this.cameraX = cameraTarget(this.run.x, this.courseEnd); }
     this.elapsed += seconds;
     this.render(seconds, this.run.respawns === respawns ? axis : 0);
     if (this.run.won && !this.completed) {
-      this.completed = true; this.settings?.complete?.(); this.back.focus?.();
+      this.completed = true;
+      if(this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
+      else if(!this.settings?.multiplayer)this.settings?.complete?.();
+      this.back.focus?.();
     }
     if (this.run.returnReady && !this.returned) {
       this.returned = true;
@@ -225,6 +285,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    if(this.settings?.multiplayer)this.settings.multiplayer.client.pose=undefined;
     this.blur();
     this.localeOff(); this.abort.abort(); this.hud.remove(); super.destroy(options);
   }

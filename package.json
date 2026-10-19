@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview",
-    "test": "node --test tests/animal.test.mjs tests/account.test.mjs tests/economy.test.mjs"
+    "test": "node --test tests/animal.test.mjs tests/account.test.mjs tests/economy.test.mjs tests/multiplayer.test.mjs"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

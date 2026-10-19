@@ -1,4 +1,7 @@
 import { AccountStorage } from '../account/AccountStorage';
+import { PlayMenuPopup } from '../ui/PlayMenuPopup';
+import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
+import type { CourseId } from './CourseCatalog';
 import { AccountService } from '../account/AccountService';
 import { createAccountClient } from '../account/client';
 import { loadHome } from '../home/loadHome';
@@ -34,6 +37,8 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 export class Game {
+  private rooms?:RoomClient;
+  private playMenu?:PlayMenuPopup;
   private account?: AccountService;
   private commerce?: CommerceState;
   private homeTextures?: HomeTextures;
@@ -144,32 +149,59 @@ export class Game {
     };
     this.friends = new FriendsPopup(paused => this.scenes?.setPaused(paused));
     this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
-    const lobby = (returning = false): void => {
+    const lobby = (returning = false, initialMenu?:'mode'|'multi'): void => {
       if (this.disposed) return;
       const runCommerce = commerce;
       let starting = false;
-      const launch = async (origin: LobbyScene | PlayScene): Promise<boolean> => {
+      const launch = async (origin: LobbyScene | PlayScene, map:CourseId='garden'): Promise<boolean> => {
         if (starting || !runCommerce.ready) return false;
         starting = true;
         try {
           if (!await runCommerce.beginRun() || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
           let completion = Promise.resolve();
           const play = new PlayScene(activePet, () => lobby(true), {
-            open: openSettings, preferences: () => gameSettings.current,
+            open: openSettings, preferences: () => gameSettings.current, map,
             sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
             complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
-            retry: async () => { await completion; return launch(play); },
+            retry: async () => { await completion; return launch(play,map); },
           });
           this.scenes.show(play); return true;
         } finally { starting = false; }
       };
-      const scene = new LobbyScene(activePet, async () => { await launch(scene); }, returning, () => {
+      const openMenu=(page:'mode'|'multi'='mode'):void=>{
+        if(this.disposed)return;
+        const owner=this.account?.user?.id;
+        const rooms=this.rooms??(owner&&accountClient?new RoomClient(owner,async(action,room,payload,signal)=>{
+          if(['create','join'].includes(action)&&this.account?.pendingSave){await this.account.save();if(this.account.pendingSave)throw Error('save_pending');}
+          return roomTransport(accountClient,owner)(action,room,payload,signal);
+        }):undefined);
+        this.rooms=rooms;
+        const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
+          rooms,single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
+          race:(room,client)=>{
+            const look=room.members.find(m=>m.id===client.owner)?.look;
+            const original=look?.petId===this.myeongrang?.id?this.myeongrang!:corgi;
+            const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
+            this.scenes?.show(new PlayScene(racePet,()=>{
+              lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
+            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,
+              sound:kind=>{this.audio?.play(kind);},
+              multiplayer:{client,pets:[corgi,this.myeongrang!],leave:()=>{client.destroy();this.rooms=undefined;lobby(true);}},
+            }));
+          },
+          dismiss:keep=>{this.playMenu=undefined;if(!keep){rooms?.destroy();if(this.rooms===rooms)this.rooms=undefined;}},
+        });
+        this.playMenu=menu;menu.open(page);
+      };
+      const scene = new LobbyScene(activePet, () => openMenu(), returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index), subscribe: callback => commerce.subscribe(callback) }));
       }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } }, () => this.account?.user ? this.account.nickname : null);
       this.scenes?.show(scene);
+      if(initialMenu)openMenu(initialMenu);
     };
     this.account.onLoaded(() => {
       if (this.disposed) return;
+      this.playMenu?.destroy();this.rooms?.destroy();this.rooms=undefined;
       const reopenSettings = this.settings?.opened;
       this.settings?.close();
       this.quests?.destroy(); this.friends?.destroy();
@@ -195,6 +227,7 @@ export class Game {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.playMenu?.destroy();this.rooms?.destroy();
     this.events.abort(); this.account?.destroy(); this.commerce?.destroy();
     document.removeEventListener('visibilitychange', this.visibility);
     if (!this.initialized) return;

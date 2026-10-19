@@ -337,3 +337,31 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 @media (prefers-reduced-motion: reduce) {
   .shop-screen .commerce-primary:enabled:active, .shop-screen > .character-close:active { transform: none; }
 }
+
+.play-menu-panel { width: 84%; height: 88%; }
+.play-menu-content { position: relative; }
+.mode-cards { display: flex; gap: 1.4cqw; margin: 1.5cqh 0; }
+.play-menu-content > .mode-cards:first-child { min-height: 24cqh; }
+.mode-cards > button { flex: 1; min-height: 10cqh; white-space: normal; }
+.play-menu-content .commerce-primary {
+  border: 1px solid #d6bc88; background: linear-gradient(#fff9e9,#f0dfb6); color: #7b6748;
+  box-shadow: inset 0 0.2cqh #fffdf3, 0 0.3cqh #b69a6750; min-height: 36px;
+}
+.play-menu-content .commerce-primary[aria-pressed="true"] { background: #e0eac3; border-color: #a4ba76; }
+.play-menu-content .commerce-primary:disabled { opacity: 0.45; cursor: default; }
+.play-menu-content input { width: 100%; padding: 1cqh; border: 1px solid #d8bf91; border-radius: 1cqw; background: #fffaf0; color: #79664c; font: inherit; }
+.map-card p, .room-card p { margin: 0.5cqh 0; font-family: var(--font-body); font-size: 1.3cqw; }
+.map-garden { border-top: 0.5cqh solid #9eb784 !important; }
+.map-practice { border-top: 0.5cqh solid #c9ad87 !important; }
+.room-pages { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: thin; touch-action: pan-x; gap: 1.5cqw; margin-top: 1.5cqh; }
+.room-page { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: repeat(2,minmax(0,1fr)); gap: 1.5cqh 1.2cqw; flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; min-height: 31cqh; }
+.room-card { min-width: 0; padding: 1.5cqh 1cqw; overflow-wrap: anywhere; text-align: left; }
+.room-navigation { display: flex; justify-content: center; align-items: center; gap: 1.5cqw; }
+.room-navigation p { min-width: 5cqw; text-align: center; }
+.room-slots { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1cqh 1cqw; margin: 1.5cqh 0; }
+.race-countdown { top: 35%; color: #fff6d7; }
+.race-leave { position: absolute; top: 3cqh; right: 12cqw; width: 7cqw; height: 7cqw; font-size: 1.2cqw; }
+.race-ranking { white-space: pre-line; line-height: 1.4; }
+.map-card::before, .room-card::before { content: ''; display: block; height: 5cqh; margin-bottom: 0.7cqh; border-radius: 0.7cqw; background: url('/assets/home/garden-background.png') center 40% / cover; }
+.map-practice::before { filter: saturate(0.5); background-position: center 70%; }
+.race-countdown[data-error="true"] { top: 18%; font-size: 2cqw; }

@@ -1,0 +1,123 @@
+import { bindAria, onLanguageChange, t, type TextKey } from '../settings/i18n';
+import { COURSES, type CourseId } from '../game/CourseCatalog';
+import type { RoomClient, Room } from '../multiplayer/RoomClient';
+type Page='mode'|'single'|'multi'|'create';
+/** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
+export class PlayMenuPopup {
+  private overlay?:HTMLElement; private content?:HTMLElement; private title?:HTMLElement;
+  private page:Page='mode'; private busy=false; private launching=false;
+  private abort?:AbortController; private unsubscribe?:()=>void; private localeOff?:()=>void;
+  private blocked:{element:HTMLElement;inert:boolean}[]=[]; private previousFocus?:HTMLElement;
+  private name='';private map:CourseId='garden';
+  private signature='';
+  private notice?:TextKey;
+  constructor(private readonly pause:(value:boolean)=>void,private readonly options:{
+    rooms?:RoomClient;single:(map:CourseId)=>Promise<boolean>;race:(room:Room,client:RoomClient)=>void;
+    login:()=>void;dismiss:(keep:boolean)=>void;
+  }){}
+  open(page:Page='mode'){
+    if(this.overlay)return;this.page=page;
+    const host=document.querySelector<HTMLElement>('#app');if(!host)return;
+    this.abort=new AbortController();this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
+    this.blocked=Array.from(host.children).filter((e):e is HTMLElement=>e instanceof HTMLElement).map(element=>({element,inert:element.inert}));
+    this.blocked.forEach(b=>{b.element.inert=true;});this.pause(true);
+    const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
+    const panel=document.createElement('section');panel.className='settings-panel play-menu-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'play');
+    this.title=document.createElement('h2');const close=this.button('close',()=>{void this.exit();});close.className='settings-close';close.textContent='×';bindAria(close,'close');
+    this.content=document.createElement('div');this.content.className='settings-content play-menu-content';panel.append(this.title,close,this.content);overlay.append(panel);host.append(overlay);
+    panel.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){event.preventDefault();void this.exit();}
+      if(event.key!=='Tab')return;
+      const controls=Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)'));
+      if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
+      else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
+    },{signal:this.abort.signal});
+    this.localeOff=onLanguageChange(()=>this.render());this.unsubscribe=this.options.rooms?.subscribe(()=>this.changed());
+    if(page==='multi')this.options.rooms?.start();this.render();close.focus();
+  }
+  private button(key:TextKey,action:()=>void){const b=document.createElement('button');b.type='button';b.className='commerce-primary';b.textContent=t(key);b.addEventListener('click',action);return b;}
+  private text(value:string){const p=document.createElement('p');p.textContent=value;return p;}
+  private async action(run:()=>Promise<unknown>){if(this.busy)return;this.busy=true;this.render();try{await run();}catch{this.notice='multiOffline';}finally{this.busy=false;this.changed();}}
+  private changed(){
+    const client=this.options.rooms,room=client?.room;
+    if(this.page==='multi'&&room&&['countdown','playing'].includes(room.phase)&&!this.launching){
+      this.launching=true;this.options.race(room,client!);this.close(true);return;
+    }
+    if(this.page==='create'&&room)this.page='multi';
+    if(this.page==='create'&&!room&&!client?.error)return;
+    const signature=JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error]);
+    if(signature!==this.signature)this.render();
+  }
+  private maps(select:(map:CourseId)=>void,current?:CourseId){
+    const grid=document.createElement('div');grid.className='mode-cards';
+    for(const [id,map]of Object.entries(COURSES)){
+      const b=this.button(map.title,()=>select(id as CourseId));b.className='commerce-primary map-card map-'+id;
+      b.setAttribute('aria-pressed',String(id===current));b.append(this.text(map.seconds));b.disabled=this.busy;grid.append(b);
+    }return grid;
+  }
+  private render(){
+    if(!this.content||!this.title)return;
+    this.signature=JSON.stringify([this.page,this.busy,this.options.rooms?.snapshot.room,this.options.rooms?.snapshot.rooms,this.options.rooms?.busy,this.options.rooms?.error]);
+    const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
+    root.replaceChildren();const client=this.options.rooms,room=client?.room;
+    this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'chooseMap':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
+    if(this.page==='mode'){
+      const cards=document.createElement('div');cards.className='mode-cards';
+      cards.append(this.button('singleplayer',()=>{this.page='single';this.render();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
+    }else if(this.page==='single')root.append(this.maps(map=>{void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});}));
+    else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
+    else if(this.page==='create'){
+      const input=document.createElement('input');input.maxLength=24;input.value=this.name;input.placeholder=t('roomName');bindAria(input,'roomName');
+      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map),this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name,map:this.map}))this.page='multi';});}));
+    }else if(room){
+      root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
+      if(room.phase==='results'){
+        const ranks=document.createElement('ol');
+        for(const racer of room.racers){const row=document.createElement('li');row.textContent=`${racer.name} · ${racer.time===null?t('didNotFinish'):(racer.time/1000).toFixed(2)+'s'}`;ranks.append(row);}root.append(ranks);
+        const mine=room.members.find(m=>m.id===client.owner);
+        root.append(this.button('returnRoom',()=>{void client.command('return');}));
+        if(mine?.returned)root.append(this.text(t('waitingOthers')));
+      }else{
+        const host=room.host===client.owner;const slots=document.createElement('div');slots.className='room-slots';
+        for(let i=0;i<4;i++){
+          const member=room.members[i],slot=document.createElement('div');slot.className='daily-quest';
+          slot.textContent=member?`${member.name} · ${member.id===room.host?t('roomHost'):member.ready?t('ready'):t('notReady')}`:t('emptySeat');slots.append(slot);
+        }
+        root.append(slots);
+        if(host)root.append(this.maps(map=>{void client.command('map',{map});},room.map));
+        const mine=room.members.find(m=>m.id===client.owner);
+        const start=this.button(host?'start':mine?.ready?'cancelReady':'ready',()=>{void client.command(host?'start':'ready',host?{}:{ready:!mine?.ready});});
+        start.disabled=client.busy||(host&&(room.members.length<2||room.members.some(m=>m.id!==room.host&&!m.ready)))||room.phase!=='waiting';root.append(start);
+      }
+      root.append(this.button('leaveRoom',()=>{void this.action(async()=>{await client.command('leave');});}));
+    }else{
+      root.append(this.button('createRoom',()=>{this.page='create';this.render();}));
+      const pager=document.createElement('div');pager.className='room-pages';
+      const rooms=client.snapshot.rooms;
+      for(let offset=0;offset<rooms.length;offset+=4){
+        const page=document.createElement('div');page.className='room-page';
+        for(const item of rooms.slice(offset,offset+4)){
+          const card=this.button('joinRoom',()=>{void this.action(()=>client.command('join',{},item.id));});card.className='commerce-primary room-card map-'+item.map;
+          card.textContent=item.name;card.append(this.text(t(COURSES[item.map].title)),this.text(`${item.count} / 4 · ${t(item.phase==='waiting'?'roomWaiting':'roomPlaying')}`));
+          card.disabled=item.phase!=='waiting'||item.count>=4||client.busy||this.busy;page.append(card);
+        }pager.append(page);
+      }
+      if(!rooms.length)root.append(this.text(t('noRooms')));root.append(pager);pager.scrollLeft=oldScroll;
+      const pages=Math.max(1,Math.ceil(rooms.length/4)),navigation=document.createElement('div');navigation.className='room-navigation';
+      const status=this.text('');const update=()=>{status.textContent=`${Math.min(pages,1+Math.round(pager.scrollLeft/Math.max(1,pager.clientWidth)))} / ${pages}`;};
+      navigation.append(this.button('previous',()=>pager.scrollBy({left:-pager.clientWidth,behavior:'smooth'})),status,this.button('next',()=>pager.scrollBy({left:pager.clientWidth,behavior:'smooth'})));
+      pager.addEventListener('scroll',update);update();root.append(navigation);
+    }
+    if(client?.error){const p=this.text(t(client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiOffline'));p.setAttribute('role','status');root.append(p,this.button('economyRetry',()=>client.start()));}
+    if(this.notice)root.append(this.text(t(this.notice)));
+    if(this.page!=='mode'&&!room)root.append(this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();}));
+    if(this.busy||client?.busy)for(const b of Array.from(root.querySelectorAll('button')))b.disabled=true;
+  }
+  private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!await this.options.rooms.command('leave'))return;this.close(false);}
+  close(keep=false){
+    if(!this.overlay)return;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
+    this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
+    if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
+  }
+  destroy(){this.close(false);}
+}

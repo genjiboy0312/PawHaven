@@ -1,5 +1,11 @@
 export type Language = 'en' | 'ko';
 const en = {
+  raceCancelled:'Race cancelled',
+  chooseMode:'Choose mode', singleplayer:'Single', multiplayer:'Multiplayer', chooseMap:'Choose map', mapGarden:'Garden Trail', mapPractice:'Practice Yard',
+  createRoom:'Create room', roomName:'Room name', waitingRoom:'Waiting room', roomHost:'Host', ready:'Ready', notReady:'Not ready', cancelReady:'Cancel ready',
+  leaveRoom:'Leave', joinRoom:'Join', emptySeat:'Empty seat', noRooms:'No rooms yet. Create one to invite other players.', roomWaiting:'Waiting', roomPlaying:'In progress',
+  previous:'Previous', next:'Next', back:'Back', multiLogin:'Log in to play with other players.', returnRoom:'Return to room', waitingOthers:'Waiting for other players…',
+  didNotFinish:'DNF', raceResults:'Race results', multiSetup:'Multiplayer is being prepared. Please try again shortly.', multiRejected:'The room changed or is no longer available. Please try again.', multiOffline:'Connection lost. Retrying…',
   santaHat: 'Santa Hat', shopPurchased: 'Purchased', shopChecking: 'Checking…', shopUnavailable: 'Unavailable',
   presetSlotEmpty: 'Empty', presetSlotCurrent: 'Applied', presetSlotEdited: 'Edited', presetSlotStored: 'Stored',
   economyRetry: 'Retry', economyWorking: 'Processing…', economyRunRejected: 'Could not verify this finish. Please play again.',
@@ -62,6 +68,12 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  raceCancelled:'출발이 취소됐어요',
+  chooseMode:'모드 선택', singleplayer:'싱글', multiplayer:'멀티플레이', chooseMap:'맵 선택', mapGarden:'정원 산책길', mapPractice:'연습 마당',
+  createRoom:'방 만들기', roomName:'방 이름', waitingRoom:'대기방', roomHost:'방장', ready:'준비 완료', notReady:'준비 중', cancelReady:'준비 취소',
+  leaveRoom:'나가기', joinRoom:'입장', emptySeat:'빈자리', noRooms:'아직 방이 없어요. 새 방을 만들어 함께 플레이해 보세요.', roomWaiting:'대기 중', roomPlaying:'진행 중',
+  previous:'이전', next:'다음', back:'뒤로', multiLogin:'다른 플레이어와 함께하려면 로그인해 주세요.', returnRoom:'대기방으로', waitingOthers:'다른 플레이어를 기다리고 있어요…',
+  didNotFinish:'미완주', raceResults:'레이스 결과', multiSetup:'멀티플레이를 준비 중이에요. 잠시 후 다시 시도해 주세요.', multiRejected:'방 상태가 바뀌었거나 입장할 수 없어요. 다시 확인해 주세요.', multiOffline:'연결을 확인하고 있어요. 잠시 후 재시도해요.',
   santaHat: '산타모자', shopPurchased: '구매 완료', shopChecking: '확인 중…', shopUnavailable: '연결 확인 필요',
   presetSlotEmpty: '비어 있음', presetSlotCurrent: '적용 중', presetSlotEdited: '수정됨', presetSlotStored: '저장됨',
   economyRetry: '재시도', economyWorking: '처리 중…', economyRunRejected: '완주 기록을 확인하지 못했어요. 다시 플레이해 주세요.',
