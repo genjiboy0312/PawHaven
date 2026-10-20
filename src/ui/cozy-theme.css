@@ -419,3 +419,22 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .race-podium .commerce-primary { padding: 1cqh 3cqw; font-size: 1.8cqw; }
 .race-no-winner { padding: 5cqh 0; font-size: 2cqw; }
 .race-hud[data-podium="true"] .play-result, .race-hud[data-podium="true"] > .play-victory { visibility: hidden; }
+.race-course-progress { position: absolute; top: 2.5cqh; left: 32%; width: 36%; padding: 0.6cqh 1.5cqw 0.5cqh; border: 1px solid #e5d4ad9c; border-radius: 1.2cqw; background: #fff8e5dd; pointer-events: none; }
+.race-course-progress[hidden] { display: none; }
+.race-hud[data-results="true"]:not([data-podium="true"]) > .play-victory:not(.race-countdown) { top: 12%; font-size: 2.6cqw; }
+.race-course-labels { display: flex; justify-content: space-between; font: 400 clamp(8px,1cqw,14px) var(--font-round); color: #8b7858; }
+.race-course-track { position: relative; height: 5cqh; margin: 0 0.6cqw; }
+.race-course-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 0.65cqh; transform: translateY(-50%); border-radius: 1cqw; background: #d8c69f; }
+.race-course-marker { position: absolute; width: 1cqw; height: 1cqw; transform: translate(-50%,-50%); }
+.race-course-marker[data-self="true"] { width: 1.8cqw; height: 1.8cqw; z-index: 2; filter: drop-shadow(0 1px 1px #725c36); }
+.race-course-dot { display: block; width: 100%; height: 100%; border: 1px solid #fff8e5; border-radius: 50%; background: currentColor; box-shadow: 0 1px 1px #725c364d; }
+.race-course-paw { position: relative; display: block; width: 100%; height: 100%; }
+.race-course-paw::before { content: ''; position: absolute; left: 25%; top: 46%; width: 52%; height: 43%; border-radius: 55% 55% 40% 40%; background: currentColor; }
+.race-course-paw i { position: absolute; width: 21%; height: 28%; border-radius: 50%; background: currentColor; }
+.race-course-paw i:nth-child(1) { left: 3%; top: 30%; transform: rotate(-25deg); }
+.race-course-paw i:nth-child(2) { left: 27%; top: 8%; transform: rotate(-10deg); }
+.race-course-paw i:nth-child(3) { right: 27%; top: 8%; transform: rotate(10deg); }
+.race-course-paw i:nth-child(4) { right: 3%; top: 30%; transform: rotate(25deg); }
+.race-course-check { display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font: 700 1.6cqw var(--font-round); color: currentColor; text-shadow: 0 1px 1px #725c36; }
+.race-course-marker[data-finished="true"] > .race-course-check { display: block; }
+.race-course-marker[data-finished="true"] > .race-course-paw, .race-course-marker[data-finished="true"] > .race-course-dot { display: none; }

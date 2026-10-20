@@ -9,6 +9,7 @@ const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.ur
 const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.url);
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
 const {RacePodium}=await importTs('../src/ui/RacePodium.ts',import.meta.url);
+const {RaceProgress}=await importTs('../src/ui/RaceProgress.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
 const {raceCountdown}=await importTs('../src/multiplayer/RaceCountdown.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
@@ -197,6 +198,26 @@ test('room creation uses the host nickname for blank titles and preserves a cust
   }finally{menu?.destroy();client.destroy(false);await db.query('delete from public.player_profiles where user_id=$1',[users[0]]);env.restore();}
 });
 
+test('course markers show clamped position, stable peer colors and only server-confirmed finish checks',()=>{
+  const env=dom(),bar=new RaceProgress('self');env.host.append(bar.element);
+  try{
+    const entries=[{id:'self',name:'Me',x:120,finished:false},{id:'one',name:'One',x:620,finished:false},{id:'two',name:'Two',x:1120,finished:false},{id:'three',name:'Three',x:120,finished:false}];
+    bar.update(entries,120,1120);
+    const self=bar.markers.get('self').element,one=bar.markers.get('one').element,two=bar.markers.get('two').element;
+    assert.equal(self.style.left,'0.00%');assert.equal(one.style.left,'50.00%');assert.equal(two.style.left,'100.00%');
+    assert.equal(two.getAttribute('data-finished'),'false');assert.equal(self.children[0].className,'race-course-paw');
+    assert.equal(self.children[0].children.length,4);assert.equal(one.getAttribute('aria-label'),'One · 50%');
+    const colors=entries.filter(e=>e.id!=='self').map(e=>bar.markers.get(e.id).element.style.color);assert.equal(new Set(colors).size,3);
+    const originalColor=one.style.color;
+    bar.update([{...entries[2],x:-100,finished:true},{...entries[1],x:5000},{...entries[0],x:NaN}],120,1120);
+    assert.equal(two.style.left,'100.00%');assert.equal(two.getAttribute('data-finished'),'true');assert.match(two.getAttribute('aria-label'),/✓$/);
+    assert.equal(one.style.left,'100.00%');assert.equal(one.style.color,originalColor);assert.equal(self.style.left,'0.00%');
+    assert.equal(bar.markers.size,3);assert.equal(bar.track.children.length,3);
+    bar.update([{...entries[0],x:-1}],120,1120);assert.equal(self.style.left,'0.00%');assert.equal(bar.track.children.length,1);
+    bar.destroy();assert.equal(env.host.querySelector('.race-course-progress'),undefined);
+  }finally{env.restore();}
+});
+
 test('race scene freezes during countdown, draws peers and returns after server results',async()=>{
   const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});const start=(await cmd(0,'start',room.id)).room;
   const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let scene,returned=0;
@@ -204,6 +225,7 @@ test('race scene freezes during countdown, draws peers and returns after server 
     await client.command('sync');const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},run:{frames:Array(4).fill(Texture.WHITE),fps:8}}};
     scene=new PlayScene(config,()=>returned++,{open(){},multiplayer:{client,pets:[config],leave(){}}});
     scene.update(0.1);assert.equal(scene.run.x,120);assert.equal(scene.run.elapsed,0);assert.equal(scene.peers.size,1);
+    assert.equal(scene.courseProgress.markers.size,2);assert.equal(scene.courseProgress.markers.get(users[0]).element.style.left,'0.00%');
     assert.equal((await db.query('select loaded_round from public.mp_members where user_id=$1',[users[0]])).rows[0].loaded_round,null);
     scene.update(0.1);await idle(client);
     assert.equal((await db.query('select loaded_round from public.mp_members where user_id=$1',[users[0]])).rows[0].loaded_round,start.round);
@@ -221,12 +243,15 @@ test('race scene freezes during countdown, draws peers and returns after server 
     await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);await client.command('sync');
     await cmd(1,'pose',room.id,{round:start.round,x:400,height:0,action:'run',vx:240});await client.command('sync');await new Promise(resolve=>setTimeout(resolve,75));scene.update(0.1);
     assert.ok(scene.peers.get(users[1]).box.x>120);
+    assert.equal(scene.courseProgress.markers.get(users[1]).element.style.left,((scene.peers.get(users[1]).box.x-120)/(scene.run.finish-120)*100).toFixed(2)+'%');
     scene.update(0.1);assert.ok(scene.peers.get(users[1]).animation.sprite.currentFrame>0);
     scene.run.x=scene.run.finish;scene.update(0.01);await idle(client);scene.update(0.01);assert.equal(scene.back.disabled,true);
+    assert.equal(scene.courseProgress.element.hidden,false);assert.equal(scene.courseProgress.markers.get(users[0]).element.getAttribute('data-finished'),'true');
     assert.match(scene.raceNote.textContent,/Waiting for friends · \d+s left/);
     assert.equal(scene.ranking.querySelector('.race-result-row').getAttribute('data-self'),'true');
     await db.query("update public.mp_rooms set ends_at=clock_timestamp()-interval '1 second' where id=$1",[room.id]);await client.command('sync');scene.update(0.01);
     assert.equal(scene.back.disabled,false);assert.equal(scene.raceNote.textContent,'It was lovely running together!');
+    assert.equal(scene.courseProgress.element.hidden,true);
     assert.equal(scene.podium.element.querySelector('.race-winner-name').textContent,client.room.racers.find(r=>r.id===users[0]).name);
     assert.equal(scene.podium.element.querySelector('.race-podium-list').children[0].children[0].textContent,'DNF');
     assert.equal(scene.hud.inert,true);scene.podium.back.dispatchEvent(new Event('click'));scene.update(0.41);assert.equal(returned,1);

@@ -10,6 +10,7 @@ import { COURSES, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
 import { RacePodium } from '../../ui/RacePodium';
+import { RaceProgress } from '../../ui/RaceProgress';
 import { RemoteMotion } from '../../multiplayer/RemoteMotion';
 import { raceCountdown } from '../../multiplayer/RaceCountdown';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
@@ -27,6 +28,7 @@ export class PlayScene extends Scene {
   private resultRoom?:Room;
   private resultSignature='';
   private podium?:RacePodium;
+  private courseProgress?:RaceProgress;
   private recoverySeen=0;
   private sceneRendered=false;
   private loadAcknowledged=false;
@@ -81,7 +83,7 @@ export class PlayScene extends Scene {
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
     if(settings?.multiplayer?.client.room?.phase==='playing')this.restoreRacePose();
-    this.localeOff = onLanguageChange(() => {this.labels.forEach(label => { label.text.text = t(label.key); });this.resultSignature='';});
+    this.localeOff = onLanguageChange(() => {this.labels.forEach(label => { label.text.text = t(label.key); });this.courseProgress?.refreshLabels();this.resultSignature='';});
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
@@ -150,6 +152,7 @@ export class PlayScene extends Scene {
     this.hud.append(this.result, this.progress);
     if(settings?.multiplayer){
       this.hud.classList.add('race-hud');
+      this.courseProgress=new RaceProgress(settings.multiplayer.client.owner);this.hud.append(this.courseProgress.element);
       this.syncStatus.className='race-sync-status';this.hud.append(this.syncStatus);
       settings.multiplayer.client.pose=()=>this.pose();
       this.retry.hidden=true;bindText(this.back,'returnRoom');
@@ -306,6 +309,14 @@ export class PlayScene extends Scene {
     const respawns = this.run.respawns;
     if(this.raceStarted||this.run.won)this.run.update(seconds, axis);
     if(this.settings?.multiplayer&&!this.startPoseSent&&this.raceStarted&&!this.run.won){this.startPoseSent=true;this.settings.multiplayer.client.publishStartPose();}
+    const multi=this.settings?.multiplayer,room=multi?.client.room;
+    if(this.courseProgress&&multi&&room){
+      this.courseProgress.element.hidden=room.phase==='results';
+      this.courseProgress.update(room.racers.filter(racer=>!racer.left||racer.time!==null).map(racer=>({
+        id:racer.id,name:racer.name,finished:racer.time!==null,
+        x:racer.id===multi.client.owner?this.run.x:this.peers.get(racer.id)?.box.x??room.members.find(member=>member.id===racer.id)?.pose.x??this.run.start,
+      })),this.run.start,this.run.finish);
+    }
     if (this.run.respawns !== respawns) { this.blur(); this.cameraX = cameraTarget(this.run.x, this.courseEnd); }
     this.elapsed += seconds;
     this.render(seconds, this.run.respawns === respawns ? axis : 0);
@@ -361,6 +372,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    this.courseProgress?.destroy();
     this.podium?.destroy();
     if(this.settings?.multiplayer)this.settings.multiplayer.client.pose=undefined;
     this.blur();
