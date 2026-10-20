@@ -101,7 +101,7 @@ export class HomeScene extends Scene {
   }
   private point(event: PointerEvent): Placement {
     const host = document.querySelector<HTMLElement>('#app')!;
-    return placementPoint(event.clientX, event.clientY, host.getBoundingClientRect(), window.matchMedia('(orientation: portrait) and (any-pointer: coarse)').matches);
+    return placementPoint(event.clientX, event.clientY, host.getBoundingClientRect(), host.classList.contains('portrait-touch'));
   }
   private renderPlacements(): void {
     this.placements.replaceChildren();

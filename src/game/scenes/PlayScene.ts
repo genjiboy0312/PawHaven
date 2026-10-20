@@ -157,7 +157,7 @@ export class PlayScene extends Scene {
     const move = (event: PointerEvent): void => {
       if (this.paused || event.pointerId !== this.pointer) return;
       const rect = this.stick.getBoundingClientRect();
-      const rotated = window.matchMedia('(orientation: portrait) and (any-pointer: coarse)').matches;
+      const rotated = document.querySelector('#app')?.classList.contains('portrait-touch')??false;
       const distance = rotated ? event.clientY - rect.top - rect.height / 2 : event.clientX - rect.left - rect.width / 2;
       this.axis = Math.max(-1, Math.min(1, distance / ((rotated ? rect.height : rect.width) * 0.3)));
       if (Math.abs(this.axis) < 0.12) this.axis = 0;

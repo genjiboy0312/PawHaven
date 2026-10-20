@@ -2,6 +2,23 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Room, Pose } from './RoomClient';
 export interface StreamPose { id:string;pose:Pose;at:number;source?:'direct';session?:string }
 export type RoomStream=(room:Room,receive:(value:unknown)=>void,status:(connected:boolean)=>void,pose?:()=>Pose|undefined,fastStatus?:(ready:boolean)=>void)=>()=>void;
+export type LobbyStream=(room:Room,changed:()=>void,status:(connected:boolean)=>void)=>()=>void;
+export function lobbyStream(client:SupabaseClient,owner:string):LobbyStream{
+  return(room,changed,status)=>{
+    let closed=false,channel:ReturnType<SupabaseClient['channel']>|undefined;
+    void(async()=>{
+      try{
+        const session=await client.auth.getSession();if(closed)return;
+        if(session.error||session.data.session?.user.id!==owner)throw Error('owner_changed');
+        await client.realtime.setAuth();if(closed)return;
+        channel=client.channel('paw-lobby:'+room.id,{config:{private:true}})
+          .on('broadcast',{event:'state'},event=>{if(!closed&&event.payload?.room===room.id)changed();})
+          .subscribe(value=>{if(!closed){status(value==='SUBSCRIBED');if(value==='SUBSCRIBED')changed();}});
+      }catch{if(!closed)status(false);}
+    })();
+    return()=>{closed=true;if(channel)void client.removeChannel(channel).catch(()=>{});};
+  };
+}
 
 /** Database fallback plus actor-specific channels: RLS permits sending only as oneself. */
 export function roomStream(client:SupabaseClient,owner:string):RoomStream{

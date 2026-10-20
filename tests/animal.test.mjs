@@ -1239,7 +1239,7 @@ test('lobby body taps react independently of HUD, respect pause and release list
 
 test('joystick supports rotated multitouch and does not clear held keyboard movement on release', async () => {
   class Element extends EventTarget {
-    children = []; style = {}; attributes = new Map(); classList = { add() {} }; captured = new Set();
+    children = []; style = {}; attributes = new Map(); classList = { add() {}, contains: () => rotated }; captured = new Set();
     constructor(tag) { super(); this.tag = tag; }
     append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
     setAttribute(key, value) { this.attributes.set(key, value); }
@@ -1394,7 +1394,7 @@ test('Home stock persists, recovers on removal, validates saves and migrates old
 });
 test('Home drag/drop saves only on release, handles rotation/cancel, removal and shared lobby positions', async () => {
   class Element extends EventTarget {
-    children = []; attributes = new Map(); style = {}; classList = { add() {} }; captured = new Set();
+    children = []; attributes = new Map(); style = {}; classList = { add() {}, contains: () => rotated }; captured = new Set();
     constructor(tag) { super(); this.tag = tag; }
     append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
     replaceChildren(...items) { this.children = []; this.append(...items); }

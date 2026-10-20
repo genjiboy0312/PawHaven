@@ -398,3 +398,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .race-result-time { font-size: clamp(10px,1.4cqw,19px); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .race-hud .play-result .race-result-note { margin: 1cqh 0 1.5cqh; font-size: clamp(10px,1.4cqw,19px); }
 .race-sync-status { position: absolute; left: 3cqw; top: 9cqh; margin: 0; padding: 0.5cqh 1cqw; border-radius: 0.8cqw; background: #fff8e5df; color: #71805b; font-size: 1.15cqw; }
+.mobile-text-editor { position: fixed; left: 0; right: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: #49391eaa; }
+.mobile-text-panel { width: min(100%,520px); padding: 20px; border: 1px solid #d6bc88; border-radius: 20px; background: #fff4d8; color: #79664c; font: 18px var(--font-body); }
+.mobile-text-panel label { display: block; }
+.mobile-text-panel input { display: block; width: 100%; margin: 12px 0; padding: 12px; border: 1px solid #d6bc88; border-radius: 12px; background: #fffaf0; color: #65563f; font: 18px var(--font-body); }
+.mobile-text-panel button { padding: 10px 16px; margin-right: 8px; border: 1px solid #d6bc88; border-radius: 12px; background: #e1ecc8; color: #65563f; font: 18px var(--font-round); }

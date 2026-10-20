@@ -3,7 +3,7 @@ import type { AnimalAction } from '../animals/AnimalConfig';
 import type { CharacterPreset } from '../animals/CharacterPresets';
 import type { CourseId } from '../game/CourseCatalog';
 import { COURSES } from '../game/CourseCatalog';
-import type { RoomStream, StreamPose } from './RoomStream';
+import type { RoomStream, StreamPose, LobbyStream } from './RoomStream';
 export interface Pose { x: number; height: number; direction: number; action: AnimalAction; progress: number; vx: number }
 export interface RoomMember { id: string; name: string; look: CharacterPreset; ready: boolean; returned: boolean; pose: Pose }
 export interface RoomSummary { id: string; name: string; map: CourseId; phase: 'waiting'|'countdown'|'playing'|'results'; count: number }
@@ -41,11 +41,14 @@ export class RoomClient {
   private readonly directOffsets=new Map<string,number>();
   private revision=0;private listening=false;
   private receivedAt=0; private timer?:ReturnType<typeof setTimeout>; private work?:Promise<boolean>; private closed=false;
+  private clockSamples:{offset:number;rtt:number}[]=[];
+  private clockOffset?:number;
+  private lobbyKey='';private closeLobby?:()=>void;private lobbyConnected=false;private roomRefresh=false;
   private readonly abort=new AbortController(); private readonly listeners=new Set<()=>void>();
-  constructor(readonly owner:string,private readonly transport:Transport,private readonly stream?:RoomStream){}
+  constructor(readonly owner:string,private readonly transport:Transport,private readonly stream?:RoomStream,private readonly lobby?:LobbyStream){}
   get room(){return this.snapshot.room;}
   get reconnecting(){return this.needsSync;}
-  get serverTime(){return this.snapshot.now+(this.receivedAt ? performance.now()-this.receivedAt : 0);}
+  get serverTime(){return this.clockOffset===undefined?this.snapshot.now:performance.now()+this.clockOffset;}
   subscribe(fn:()=>void){this.listeners.add(fn);return()=>{this.listeners.delete(fn);};}
   private emit(){if(!this.closed)this.listeners.forEach(fn=>fn());}
   start(){
@@ -58,7 +61,13 @@ export class RoomClient {
     }
     void this.poll();
   }
-  reconnect(){if(this.closed)return;this.stopStream();this.needsSync=true;this.revision++;clearTimeout(this.timer);this.emit();void this.poll();}
+  reconnect(){if(this.closed)return;this.stopStream();this.stopLobby();this.needsSync=true;this.revision++;clearTimeout(this.timer);this.emit();void this.poll();}
+  private stopLobby(){this.lobbyKey='';this.closeLobby?.();this.closeLobby=undefined;this.lobbyConnected=false;this.roomRefresh=false;}
+  private syncLobby(){
+    const room=this.room;if((room?.id??'')===this.lobbyKey)return;this.stopLobby();if(!room||!this.lobby)return;
+    const key=room.id;this.lobbyKey=key;
+    this.closeLobby=this.lobby(room,()=>{if(!this.closed&&this.lobbyKey===key){this.roomRefresh=true;this.schedule();}},connected=>{if(!this.closed&&this.lobbyKey===key)this.lobbyConnected=connected;});
+  }
   peerPose(member:RoomMember):{pose:Pose;at:number;delay?:number}{
     const direct=this.streamed.get('direct:'+member.id);
     if(direct&&performance.now()-direct.receivedAt<500)return{pose:direct.pose,at:direct.at+this.directOffsets.get(member.id)!,delay:20};
@@ -94,6 +103,7 @@ export class RoomClient {
     if(typeof navigator!=='undefined'&&navigator.onLine===false){this.needsSync=true;this.error='offline';this.emit();this.schedule();return;}
     const room=this.room;
     if(this.needsSync){await this.send(room?'sync':'list');return;}
+    if(this.roomRefresh){this.roomRefresh=false;await this.send(room?'sync':'list');return;}
     if(this.finishPose&&room?.phase==='playing'&&!room.racers.find(r=>r.id===this.owner)?.time){await this.submitFinish();return;}
     const moving=room&&this.pose&&room.phase==='playing'&&!this.needsSync;
     await this.send(moving?'pose':room?'sync':'list',moving?{...this.pose!(),round:room.round}:{});
@@ -123,7 +133,9 @@ export class RoomClient {
         if(this.needsSync)this.recoverySerial++;
         if(data.room?.round!==previous?.round||data.room?.phase!=='playing'||data.room.racers.find(r=>r.id===this.owner)?.time!==null)this.finishPose=undefined;
         this.receivedAt=performance.now();this.roundTripMS=this.receivedAt-started;
-        this.snapshot=data;this.error='';this.rejection='';this.needsSync=false;this.syncStream();this.emit();return true;
+        this.clockSamples.push({rtt:this.roundTripMS,offset:data.now+this.roundTripMS/2-this.receivedAt});this.clockSamples=this.clockSamples.slice(-8);
+        this.clockOffset=this.clockSamples.reduce((best,sample)=>sample.rtt<best.rtt?sample:best).offset;
+        this.snapshot=data;this.error='';this.rejection='';this.needsSync=false;this.syncLobby();this.syncStream();this.emit();return true;
       }catch(error){
         if(this.closed||revision!==this.revision)return false;
         const code=(error as {code?:string})?.code;
@@ -140,8 +152,8 @@ export class RoomClient {
   private schedule(){
     clearTimeout(this.timer);if(this.closed||this.busy||(typeof document!=='undefined'&&document.hidden))return;
     const racing=this.pose&&['countdown','playing'].includes(this.room?.phase??'');
-    const delay=racing?Math.max(16,(this.directConnected?800:RACE_SYNC_MS)-(performance.now()-this.requestStarted)):1200;
-    this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync?0:delay);
+    const delay=racing?Math.max(16,(this.directConnected?800:RACE_SYNC_MS)-(performance.now()-this.requestStarted)):this.room?(this.lobbyConnected?600:300):1200;
+    this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync?0:this.roomRefresh?30:delay);
   }
   async finish(pose:Pose){
     this.finishPose=pose;return this.submitFinish();
@@ -155,7 +167,7 @@ export class RoomClient {
   }
   destroy(leave=true){
     if(this.closed)return;
-    const room=this.room;this.closed=true;this.stopStream();clearTimeout(this.timer);this.abort.abort();this.listeners.clear();this.pose=undefined;
+    const room=this.room;this.closed=true;this.stopStream();this.stopLobby();clearTimeout(this.timer);this.abort.abort();this.listeners.clear();this.pose=undefined;
     if(leave&&room)void this.transport('leave',room.id,{},AbortSignal.timeout(5000)).catch(()=>{});
   }
 }

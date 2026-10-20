@@ -105,3 +105,10 @@ Quest와 Shop 버튼은 프로토타입 화면에 연결했다. 기존 Quest 비
 ## Home 연결
 
 Character 오른쪽의 Home은 캐릭터 없는 별도 로비 맵 꾸미기 씬으로 연결한다. 상세: [HOME.md](HOME.md).
+
+## 2026-10-20 모바일 실제 가로 잠금·키보드 입력
+- 타이틀 터치에서 MobileViewport.enterLandscape가 documentElement 전체화면을 요청한 후 screen.orientation.lock('landscape')를 시도한다. 사용자 제스처 안에서 시작하고 오류/미지원 시에도 로비 진입을 막지 않는다. 키보드 자체의 방향을 강제하는 API를 사용하는 것은 아니다.
+- 게임의 CSS 회전 여부는 viewport 종횡비 대신 실제 screen.orientation/기기 회전값을 기준으로 portrait-touch 클래스로 유지한다. 키보드가 viewport 높이를 줄여도 가로/세로 판단이 뒤집히지 않게 한다. 조이스틱·가구 드래그도 같은 클래스를 사용한다.
+- 실제 가로 잠금이 되지 않는 세로 터치 환경에서 text/search/email/password/url/tel/number 입력에 포커스하면 #app 바깥 body의 자연 방향 입력창을 연다. 기존 크림 톤·글꼴을 재사용하며 원본 input의 type/value/최대길이를 유지한다. Done/Enter에서 원본 값과 input/change 이벤트를 전달하고 취소는 원본을 바꾸지 않는다. 한글 조합 중 Enter는 완료 처리하지 않는다.
+- 편집 중 게임 host를 inert로 막고 VisualViewport 높이/위치에 맞춰 키보드 위에 표시한다. 원래 패널이 닫히거나 전체 앱이 종료되면 편집기와 이벤트·관찰자를 정리한다. 비밀번호를 저장하거나 외부로 전송하는 새 기능은 없다.
+- 실제 전체화면/방향 잠금 지원은 브라우저별로 다르며 OS 키보드 방향을 보장할 수는 없다. 삼성 인터넷·Chrome·Safari의 실제 키보드/회전/IME 확인은 별도로 필요하다. 자동 테스트는 fullscreen→lock 호출 순서·거부 시 계속 진행·세로 자연 방향 입력·Done/취소·키보드 resize 중 방향 유지 및 기존 회전 조작을 확인한다.

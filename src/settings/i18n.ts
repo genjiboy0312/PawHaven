@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  textEntry:'Text entry', inputDone:'Done',
   raceDirectSync:'Direct live sync',
   raceLiveSync:'Live sync', raceBasicSync:'Basic sync',
   multiAlreadyJoined:'You are already in a room. Retry to show your current room.', multiRoomClosed:'This room has closed. Refresh the room list.', multiRoomFull:'This room is full or the race has started. Please choose another room.', multiAuthRetry:'Your login or room permission could not be verified. Check your account and retry.',
@@ -75,6 +76,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  textEntry:'텍스트 입력', inputDone:'입력 완료',
   raceDirectSync:'직접 실시간 동기화',
   raceLiveSync:'실시간 동기화', raceBasicSync:'기본 동기화',
   multiAlreadyJoined:'이미 참가 중인 방이 있어요. 재시도하면 현재 방을 확인해요.', multiRoomClosed:'종료된 방이에요. 방 목록을 다시 확인해 주세요.', multiRoomFull:'방이 가득 찼거나 경기가 시작됐어요. 다른 방을 선택해 주세요.', multiAuthRetry:'로그인 또는 방 접근 권한을 확인하지 못했어요. 계정을 확인하고 재시도해 주세요.',

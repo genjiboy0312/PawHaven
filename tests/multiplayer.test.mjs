@@ -10,6 +10,8 @@ const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.u
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
+const {lobbyStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
+const {enterLandscape,portraitTouch,installMobileViewport}=await importTs('../src/ui/MobileViewport.ts',import.meta.url);
 const {Texture}=await import('pixi.js');
 const db = new PGlite();
 const users = [1,2,3,4,5].map(n => `${n}`.repeat(8) + '-1111-4111-8111-111111111111');
@@ -23,6 +25,7 @@ create function realtime.topic() returns text language sql stable as $$select cu
 create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages(payload,event,topic,private) values($1,$2,$3,$4)$$;`);
 await db.exec(await readFile(new URL('../supabase/migrations/202610200004_room_stream.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/202610200005_direct_motion.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/202610200006_lobby_state.sql',import.meta.url),'utf8'));
 async function as(user,query,args=[],role='authenticated') {
   await db.exec('set role '+role);
   try { await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??'']); return await db.query(query,args); }
@@ -85,8 +88,15 @@ test('a departing player cancels a countdown before the remaining host can race 
 });
 
 class Element extends EventTarget {
-  children=[];style={};attributes=new Map();classList={add(){}};inert=false;scrollLeft=0;clientWidth=500;disabled=false;
+  children=[];style={};attributes=new Map();classList={
+    add:(name)=>{this.className=((this.className??'')+' '+name).trim();},
+    remove:(name)=>{this.className=(this.className??'').split(' ').filter(n=>n!==name).join(' ');},
+    contains:(name)=>(this.className??'').split(' ').includes(name),
+    toggle:(name,on)=>{if(on&&!this.classList.contains(name))this.classList.add(name);if(!on)this.classList.remove(name);},
+  };inert=false;scrollLeft=0;clientWidth=500;disabled=false;
   constructor(tag='div'){super();this.tag=tag;}
+  get tagName(){return this.tag.toUpperCase();}
+  contains(element){return element===this||this.all().includes(element);}
   append(...items){items.forEach(item=>{item.parent=this;this.children.push(item);});}
   replaceChildren(...items){this.children.forEach(c=>{c.parent=undefined;});this.children=[];this.append(...items);}
   setAttribute(k,v){this.attributes.set(k,v);}getAttribute(k){return this.attributes.get(k)??null;}
@@ -95,6 +105,7 @@ class Element extends EventTarget {
   querySelectorAll(){return this.all().filter(c=>c.tag==='button'&&!c.disabled);}
   remove(){if(this.parent)this.parent.children=this.parent.children.filter(c=>c!==this);}
   focus(){document.activeElement=this;}get isConnected(){return this.tag==='main'||!!this.parent?.isConnected;}
+  blur(){if(document.activeElement===this)document.activeElement=undefined;}
   scrollBy({left}){this.scrollLeft+=left;this.dispatchEvent(new Event('scroll'));}
 }
 function dom(){
@@ -315,11 +326,11 @@ test('database broadcasts accepted poses privately and room topics reject outsid
   const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});const start=(await cmd(0,'start',room.id)).room;
   await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);
   const pose={round:start.round,x:350,height:0,direction:1,action:'run',progress:0,vx:240};await cmd(0,'pose',room.id,pose);
-  const message=(await db.query('select * from realtime.messages')).rows[0],topic=`paw-room:${room.id}:${start.round}`;
+  const message=(await db.query("select * from realtime.messages where event='pose'")).rows[0],topic=`paw-room:${room.id}:${start.round}`;
   assert.equal(message.topic,topic);assert.equal(message.private,true);assert.equal(message.payload.id,users[0]);assert.equal(message.payload.pose.x,350);
-  await cmd(0,'pose',room.id,pose);assert.equal((await db.query('select count(*) n from realtime.messages')).rows[0].n,1);
+  await cmd(0,'pose',room.id,pose);assert.equal((await db.query("select count(*) n from realtime.messages where event='pose'")).rows[0].n,1);
   await db.query("select set_config('test.realtime.topic',$1,false)",[topic]);
-  assert.equal((await as(users[1],'select * from realtime.messages')).rows.length,1);
+  assert.equal((await as(users[1],"select * from realtime.messages where event='pose'")).rows.length,1);
   assert.equal((await as(users[2],'select * from realtime.messages')).rows.length,0);
   await db.exec("grant insert on realtime.messages to authenticated;create policy test_broad_send on realtime.messages for insert to authenticated with check(true);create policy test_broad_receive on realtime.messages for select to authenticated using(true);");
   try{
@@ -364,7 +375,7 @@ test('direct motion can be published only on the authenticated actor topic and r
   const topic=`paw-room:${room.id}:${start.round}:${users[0]}`;
   await db.query("select set_config('test.realtime.topic',$1,false)",[topic]);
   await as(users[0],"insert into realtime.messages(payload,event,topic,private) values('{}','motion',$1,true)",[topic]);
-  assert.equal((await as(users[1],'select * from realtime.messages')).rows.length,1);
+  assert.equal((await as(users[1],"select * from realtime.messages where event='motion'")).rows.length,1);
   await assert.rejects(()=>as(users[1],"insert into realtime.messages(payload,event,topic,private) values('{}','motion',$1,true)",[topic]),e=>e.code==='42501');
   assert.equal((await as(users[2],'select * from realtime.messages')).rows.length,0);
   assert.equal((await as(users[0],'select public.can_send_paw_motion($1) allowed',[topic])).rows[0].allowed,true);
@@ -395,4 +406,65 @@ test('actor channels bind remote identity to the subscribed topic and publish wi
     channels[2].receive({payload:{id:users[0],pose,at:10,session:'peer'}});assert.equal(received[0].id,users[1]);assert.equal(received[0].source,'direct');
     await new Promise(resolve=>setTimeout(resolve,80));assert.ok(sent>=1);
   }finally{stop();}
+});
+
+test('lobby broadcasts Ready and countdown changes, excludes heartbeat noise and denies outsider reads and client writes',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await db.exec('truncate realtime.messages');
+  await cmd(1,'sync',room.id);assert.equal((await db.query("select count(*) n from realtime.messages where event='state'")).rows[0].n,0);
+  await cmd(1,'ready',room.id,{ready:true});const messages=(await db.query("select * from realtime.messages where event='state'")).rows;assert.equal(messages.length,1);assert.equal(messages[0].payload.room,room.id);
+  const topic='paw-lobby:'+room.id;await db.query("select set_config('test.realtime.topic',$1,false)",[topic]);
+  assert.ok((await as(users[0],"select * from realtime.messages where event='state'")).rows.length>0);assert.equal((await as(users[2],'select * from realtime.messages')).rows.length,0);
+  await assert.rejects(()=>as(users[1],"insert into realtime.messages(payload,event,topic,private) values('{}','state',$1,true)",[topic]),e=>e.code==='42501');
+  await cmd(0,'start',room.id);assert.ok((await db.query("select count(*) n from realtime.messages where event='state'")).rows[0].n>1);
+});
+
+test('room notifications refresh Ready and start without waiting for the lobby polling interval',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);
+  const signals=new Map();let queue=Promise.resolve();
+  const transport=n=>(a,r,p)=>{const work=queue.then(()=>cmd(n,a,r,p));queue=work.catch(()=>{});return work;};
+  const state=n=>(r,changed,status)=>{signals.set(n,changed);status(true);return()=>signals.delete(n);};
+  const host=new RoomClient(users[0],transport(0),undefined,state(0)),guest=new RoomClient(users[1],transport(1),undefined,state(1));
+  try{
+    await host.command('sync');await guest.command('sync');await guest.command('ready',{ready:true});signals.get(0)();
+    await new Promise(resolve=>setTimeout(resolve,70));await idle(host);assert.equal(host.room.members.find(m=>m.id===users[1]).ready,true);
+    await host.command('start');signals.get(1)();await new Promise(resolve=>setTimeout(resolve,70));await idle(guest);
+    assert.equal(guest.room.phase,'countdown');assert.equal(guest.room.round,host.room.round);assert.equal(guest.room.startsAt,host.room.startsAt);
+  }finally{host.destroy(false);guest.destroy(false);}
+});
+
+test('server clock estimates compensate different request round trips',async()=>{
+  const make=delay=>new RoomClient(users[0],async()=>{const start=performance.now();await new Promise(resolve=>setTimeout(resolve,delay));return {room:null,rooms:[],now:Date.now()-(performance.now()-start)/2};});
+  const a=make(20),b=make(80);
+  try{await a.command('list');await b.command('list');assert.ok(Math.abs(a.serverTime-b.serverTime)<15);assert.ok(Math.abs(a.serverTime-Date.now())<15);}
+  finally{a.destroy(false);b.destroy(false);}
+});
+
+function mobileDom(){
+  const env=dom();document.body=new Element('body');document.documentElement=new Element('html');document.documentElement.append(document.body);document.body.append(env.host);
+  window.matchMedia=q=>({matches:q.includes('coarse')});window.innerHeight=844;
+  const orientation=Object.assign(new EventTarget(),{type:'portrait-primary'});window.screen={orientation,width:390,height:844};
+  window.visualViewport=Object.assign(new EventTarget(),{height:844,offsetTop:0});return {...env,orientation};
+}
+function inputFocus(input){const event=new Event('focusin');Object.defineProperty(event,'target',{value:input});document.dispatchEvent(event);}
+
+test('mobile start requests fullscreen before landscape lock and tolerates unsupported browsers',async()=>{
+  const env=mobileDom(),calls=[];
+  try{
+    document.documentElement.requestFullscreen=async()=>{calls.push('fullscreen');document.fullscreenElement=document.documentElement;};
+    env.orientation.lock=async value=>{calls.push(value);};await enterLandscape();assert.deepEqual(calls,['fullscreen','landscape']);
+    document.fullscreenElement=null;document.documentElement.requestFullscreen=async()=>{throw Error('denied');};await enterLandscape();assert.equal(calls.length,2);
+  }finally{env.restore();}
+});
+
+test('portrait keyboard fallback edits room text outside the rotated game and commits with the input event',()=>{
+  const env=mobileDom();let cleanup,changes=0;
+  try{
+    const input=new Element('input');input.type='text';input.value='Room';input.maxLength=24;input.placeholder='Room name';input.addEventListener('input',()=>changes++);env.host.append(input);
+    cleanup=installMobileViewport(env.host);assert.equal(portraitTouch(),true);inputFocus(input);
+    const editor=document.body.querySelector('.mobile-text-editor'),copy=editor.children[0].children[0].children[0];
+    assert.equal(env.host.contains(copy),false);assert.equal(env.host.inert,true);assert.equal(copy.maxLength,24);
+    window.visualViewport.height=300;window.visualViewport.dispatchEvent(new Event('resize'));assert.equal(env.host.classList.contains('portrait-touch'),true);assert.equal(editor.style.height,'300px');
+    copy.value='New Room';editor.children[0].children[1].dispatchEvent(new Event('click'));assert.equal(input.value,'New Room');assert.equal(changes,1);assert.equal(env.host.inert,false);assert.equal(document.body.querySelector('.mobile-text-editor'),undefined);
+    inputFocus(input);document.body.querySelector('.mobile-text-editor').children[0].children[2].dispatchEvent(new Event('click'));assert.equal(changes,1);
+  }finally{cleanup?.();env.restore();}
 });

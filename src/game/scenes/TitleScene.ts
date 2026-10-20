@@ -1,6 +1,7 @@
 import { bindAria, bindText } from '../../settings/i18n';
 import { Graphics, type DestroyOptions } from 'pixi.js';
 import { Scene } from './Scene';
+import { enterLandscape } from '../../ui/MobileViewport';
 
 export class TitleScene extends Scene {
   private readonly backdrop = new Graphics();
@@ -11,6 +12,7 @@ export class TitleScene extends Scene {
     if (this.activated || this.destroyed) return;
     this.activated = true;
     this.button.disabled = true;
+    void enterLandscape();
     this.onStart();
   };
 
