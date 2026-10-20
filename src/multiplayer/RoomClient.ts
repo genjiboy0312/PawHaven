@@ -7,6 +7,7 @@ export interface RoomMember { id: string; name: string; look: CharacterPreset; r
 export interface RoomSummary { id: string; name: string; map: CourseId; phase: 'waiting'|'countdown'|'playing'|'results'; count: number }
 export interface Room extends Omit<RoomSummary,'count'> { host: string; round: string|null; startsAt: number|null; endsAt: number|null; members: RoomMember[]; racers: { id:string;name:string;time:number|null;left:boolean }[] }
 export interface RoomSnapshot { room:Room|null; rooms:RoomSummary[]; now:number }
+export const RACE_SYNC_MS=100;
 type Transport = (action:string,room:string|null,payload:Record<string,unknown>,signal:AbortSignal)=>Promise<unknown>;
 export function roomTransport(client: SupabaseClient, owner:string):Transport {
   return async(action,room,payload,signal)=>{
@@ -25,6 +26,8 @@ export class RoomClient {
   private needsSync=false;
   notice:''|'restored'|'removed'|'round'='';
   recoverySerial=0;
+  roundTripMS=0;
+  private requestStarted=0;
   private revision=0;private listening=false;
   private receivedAt=0; private timer?:ReturnType<typeof setTimeout>; private work?:Promise<boolean>; private closed=false;
   private readonly abort=new AbortController(); private readonly listeners=new Set<()=>void>();
@@ -65,6 +68,7 @@ export class RoomClient {
   private async send(action:string,payload:Record<string,unknown>={},roomId?:string):Promise<boolean>{
     clearTimeout(this.timer);if(this.closed)return false;
     const revision=this.revision;
+    const started=performance.now();this.requestStarted=started;
     const task=(async()=>{
       try{
         const signal=AbortSignal.any([this.abort.signal,AbortSignal.timeout(12000)]);
@@ -79,7 +83,8 @@ export class RoomClient {
         if(['create','join','leave'].includes(action))this.notice='';
         if(this.needsSync)this.recoverySerial++;
         if(data.room?.round!==previous?.round||data.room?.phase!=='playing'||data.room.racers.find(r=>r.id===this.owner)?.time!==null)this.finishPose=undefined;
-        this.snapshot=data;this.receivedAt=performance.now();this.error='';this.needsSync=false;this.emit();return true;
+        this.receivedAt=performance.now();this.roundTripMS=this.receivedAt-started;
+        this.snapshot=data;this.error='';this.needsSync=false;this.emit();return true;
       }catch(error){
         if(this.closed||revision!==this.revision)return false;
         const code=(error as {code?:string})?.code;
@@ -93,7 +98,9 @@ export class RoomClient {
   }
   private schedule(){
     clearTimeout(this.timer);if(this.closed||this.busy||(typeof document!=='undefined'&&document.hidden))return;
-    this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync?0:this.pose&&['countdown','playing'].includes(this.room?.phase??'')?300:1200);
+    const racing=this.pose&&['countdown','playing'].includes(this.room?.phase??'');
+    const delay=racing?Math.max(16,RACE_SYNC_MS-(performance.now()-this.requestStarted)):1200;
+    this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync?0:delay);
   }
   async finish(pose:Pose){
     this.finishPose=pose;return this.submitFinish();

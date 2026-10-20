@@ -126,14 +126,14 @@ test('race scene freezes during countdown, draws peers and returns after server 
     await client.command('sync');const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},run:{frames:Array(4).fill(Texture.WHITE),fps:8}}};
     scene=new PlayScene(config,()=>returned++,{open(){},multiplayer:{client,pets:[config],leave(){}}});
     scene.update(0.1);assert.equal(scene.run.x,120);assert.equal(scene.run.elapsed,0);assert.equal(scene.peers.size,1);
-    const peer=scene.peers.get(users[1]);assert.equal(peer.box.alpha,0.8);assert.equal(scene.pet.alpha,1);
+    const peer=scene.peers.get(users[1]);assert.equal(peer.box.alpha,1);assert.equal(peer.box.tint,0xd9d9d9);assert.equal(scene.pet.alpha,1);assert.equal(scene.pet.tint,0xffffff);
     assert.equal(peer.name.alpha,1);assert.equal(peer.name.parent,scene.nameLayer);assert.equal(peer.name.y,peer.box.y-155);
     assert.equal(scene.localName.text,client.room.members.find(m=>m.id===users[0]).name);assert.equal(scene.localName.alpha,1);
     assert.equal(scene.localName.y,scene.pet.y-155);
     await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);await client.command('sync');
     await cmd(1,'pose',room.id,{round:start.round,x:400,height:0,action:'run',vx:240});await client.command('sync');scene.update(0.1);
     assert.ok(scene.peers.get(users[1]).box.x>120);
-    scene.update(0.1);assert.ok(scene.peers.get(users[1]).animation.sprite.currentFrame>0);
+    scene.update(0.1);assert.ok(scene.peers.get(users[1]).animation.sprite.currentFrame>0);assert.ok(peer.box.x>=400);
     scene.run.x=scene.run.finish;scene.update(0.01);await idle(client);scene.update(0.01);assert.equal(scene.back.disabled,true);
     assert.match(scene.raceNote.textContent,/Waiting for friends · \d+s left/);
     assert.equal(scene.ranking.querySelector('.race-result-row').getAttribute('data-self'),'true');
@@ -260,4 +260,20 @@ test('background transitions invalidate stale responses and remove recovery list
     document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));await idle(client);assert.equal(client.snapshot.now,2);assert.equal(client.reconnecting,false);
     client.destroy(false);window.dispatchEvent(new Event('online'));document.dispatchEvent(new Event('visibilitychange'));assert.equal(calls,2);
   }finally{release();client.destroy(false);env.restore();}
+});
+
+test('host selects maps in a separate popup, resetting Ready and restoring the room focus surface',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});
+  const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let menu;
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    assert.equal(env.host.querySelector('.room-map-choices'),undefined);
+    env.host.querySelector('.room-change-map').dispatchEvent(new Event('click'));
+    assert.ok(env.host.querySelector('.room-map-picker'));assert.equal(env.host.querySelector('.play-menu-panel').inert,true);
+    const practice=env.host.querySelector('.room-map-choices').children.find(b=>b.getAttribute('data-map')==='practice');practice.dispatchEvent(new Event('click'));await idle(client);
+    assert.equal(client.room.map,'practice');assert.equal(client.room.members.find(m=>m.id===users[1]).ready,false);
+    assert.equal(env.host.querySelector('.room-map-picker'),undefined);assert.equal(env.host.querySelector('.play-menu-panel').inert,false);
+    env.host.querySelector('.room-change-map').dispatchEvent(new Event('click'));const event=new Event('keydown');Object.defineProperty(event,'key',{value:'Escape'});env.host.querySelector('.room-map-picker').dispatchEvent(event);
+    assert.equal(env.host.querySelector('.room-map-picker'),undefined);assert.ok(client.room);
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
 });

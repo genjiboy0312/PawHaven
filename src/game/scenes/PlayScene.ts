@@ -15,7 +15,7 @@ import { Scene } from './Scene';
 export class PlayScene extends Scene {
   private readonly run:DummyRun;
   private readonly courseEnd:number;
-  private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text}>();
+  private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text;sample?:string;sampleAt:number}>();
   private readonly countdown=document.createElement('p');
   private readonly ranking=document.createElement('div');
   private readonly raceNote=document.createElement('p');
@@ -245,13 +245,17 @@ export class PlayScene extends Scene {
         const original=multi.pets.find(p=>p.id===member.look.petId)??multi.pets[0]!;
         const config={...original,wardrobe:original.wardrobe?{...original.wardrobe,outfit:{...member.look.outfit}}:undefined};
         const animation=new AnimalAnimationController(config),effect=new AnimalEffects(config.effects),box=new Container(),name=this.playerName(member.name);
-        box.alpha=0.8;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
+        box.tint=0xd9d9d9;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
         this.nameLayer.addChild(name);
-        this.world.addChildAt(box,this.world.getChildIndex(this.pet));peer={box,animation,effect,name};this.peers.set(member.id,peer);
+        this.world.addChildAt(box,this.world.getChildIndex(this.pet));peer={box,animation,effect,name,sampleAt:performance.now()};this.peers.set(member.id,peer);
       }
-      const pose=member.pose,age=Math.min(0.35,Math.max(0,(client.serverTime-client.snapshot.now)/1000));
+      const pose=member.pose,sample=JSON.stringify(pose);
+      if(peer.sample!==sample){peer.sample=sample;peer.sampleAt=performance.now();}
+      const age=client.error||client.reconnecting?0:Math.min(0.2,Math.max(0,(performance.now()-peer.sampleAt+Math.min(150,client.roundTripMS)*0.5+50)/1000));
       const targetX=Math.max(120,Math.min(this.run.finish,pose.x+pose.vx*age));
-      const mix=1-Math.exp(-12*seconds);peer.box.x+=(targetX-peer.box.x)*mix;peer.box.y+=(COURSE_GROUND-pose.height-peer.box.y)*mix;
+      const mix=1-Math.exp(-24*seconds);
+      if(Math.abs(targetX-peer.box.x)>240){peer.box.x=targetX;peer.box.y=COURSE_GROUND-pose.height;}
+      else {peer.box.x+=(targetX-peer.box.x)*mix;peer.box.y+=(COURSE_GROUND-pose.height-peer.box.y)*mix;}
       peer.name.text=member.name;peer.name.position.set(peer.box.x,peer.box.y-155);
       peer.animation.update('IDLE',this.elapsed,pose.direction,0,0,seconds,pose.action,['attack','skill','jump','land'].includes(pose.action)?pose.progress:undefined);
       peer.effect.update(pose.action,pose.progress,pose.direction,peer.animation.sprite,pose.vx);

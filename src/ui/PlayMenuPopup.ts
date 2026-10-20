@@ -18,6 +18,8 @@ export class PlayMenuPopup {
   private roomEvent?:{key:TextKey;name:string;until:number};
   private portraits:{element:HTMLElement;config:AnimalConfig;thumbnail:string}[]=[];
   private portraitTimer?:ReturnType<typeof setInterval>;
+  private mapPicker?:HTMLElement;private mapPickerAbort?:AbortController;
+  private pickerBlocked?:{element:HTMLElement;inert:boolean};private pickerFocus?:HTMLElement;
   constructor(private readonly pause:(value:boolean)=>void,private readonly options:{
     rooms?:RoomClient;single:(map:CourseId)=>Promise<boolean>;race:(room:Room,client:RoomClient)=>void;
     login:()=>void;dismiss:(keep:boolean)=>void;
@@ -40,7 +42,7 @@ export class PlayMenuPopup {
       if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
       else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
     },{signal:this.abort.signal});
-    this.localeOff=onLanguageChange(()=>this.render());this.unsubscribe=this.options.rooms?.subscribe(()=>this.changed());
+    this.localeOff=onLanguageChange(()=>{this.closeMapPicker();this.render();});this.unsubscribe=this.options.rooms?.subscribe(()=>this.changed());
     if(page==='multi')this.options.rooms?.start();this.render();close.focus();
   }
   private button(key:TextKey,action:()=>void){const b=document.createElement('button');b.type='button';b.className='commerce-primary';b.textContent=t(key);b.addEventListener('click',action);return b;}
@@ -87,6 +89,38 @@ export class PlayMenuPopup {
       b.setAttribute('aria-pressed',String(id===current));b.append(this.text(map.seconds));b.disabled=this.busy;grid.append(b);
     }return grid;
   }
+  private openMapPicker(){
+    const client=this.options.rooms,room=client?.room;
+    if(!this.overlay||this.mapPicker||!room||room.host!==client?.owner||room.phase!=='waiting'||client.reconnecting||client.error)return;
+    this.pickerFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
+    const parent=this.overlay.querySelector<HTMLElement>('.play-menu-panel');
+    if(parent){this.pickerBlocked={element:parent,inert:parent.inert};parent.inert=true;}
+    this.mapPickerAbort=new AbortController();const overlay=document.createElement('div');overlay.className='room-map-backdrop';
+    const panel=document.createElement('section');panel.className='settings-panel room-map-picker';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'chooseMap');
+    const heading=document.createElement('h2');heading.textContent=t('chooseMap');
+    const close=this.button('close',()=>this.closeMapPicker());close.className='settings-close';close.textContent='×';bindAria(close,'close');
+    const choices=this.maps(map=>{void client.command('map',{map}).then(ok=>{if(ok)this.closeMapPicker();else this.refreshMapPicker();});},room.map);choices.className='mode-cards room-map-choices';
+    Array.from(choices.children).forEach((button,index)=>button.setAttribute('data-map',Object.keys(COURSES)[index]!));
+    const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close,choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;
+    panel.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.closeMapPicker();return;}
+      if(event.key!=='Tab')return;
+      const buttons=Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled)'));
+      if(event.shiftKey&&document.activeElement===buttons[0]){event.preventDefault();buttons.at(-1)?.focus();}
+      else if(!event.shiftKey&&document.activeElement===buttons.at(-1)){event.preventDefault();buttons[0]?.focus();}
+    },{signal:this.mapPickerAbort.signal});this.refreshMapPicker();close.focus();
+  }
+  private refreshMapPicker(){
+    if(!this.mapPicker)return;const client=this.options.rooms,room=client?.room;
+    if(!room||room.host!==client?.owner||room.phase!=='waiting'){this.closeMapPicker();return;}
+    for(const button of Array.from(this.mapPicker.querySelectorAll<HTMLButtonElement>('button'))){const map=button.getAttribute('data-map');if(map){button.disabled=client.busy||client.reconnecting||!!client.error;button.setAttribute('aria-pressed',String(map===room.map));}}
+    const status=this.mapPicker.querySelector<HTMLElement>('.room-map-status');if(status)status.textContent=client.error?t('multiRejected'):client.reconnecting?t('multiReconnecting'):'';
+  }
+  private closeMapPicker(){
+    if(!this.mapPicker)return;this.mapPickerAbort?.abort();this.mapPicker.remove();this.mapPicker=undefined;
+    if(this.pickerBlocked){this.pickerBlocked.element.inert=this.pickerBlocked.inert;this.pickerBlocked=undefined;}
+    if(this.pickerFocus?.isConnected)this.pickerFocus.focus();else this.content?.querySelector<HTMLElement>('.room-change-map')?.focus();
+  }
   private render(){
     if(!this.content||!this.title)return;
     this.signature=this.renderSignature();this.stopPortraits();
@@ -110,7 +144,8 @@ export class PlayMenuPopup {
         if(mine?.returned)root.append(this.text(t('waitingOthers')));
       }else{
         const preview=document.createElement('div');preview.className='room-map-preview map-card map-'+room.map;
-        preview.append(this.text(t(COURSES[room.map].title)+' · '+COURSES[room.map].seconds),this.text(t('roomHostMap')));root.append(preview);
+        preview.append(this.text(t(COURSES[room.map].title)+' · '+COURSES[room.map].seconds));
+        if(room.host===client.owner){const change=this.button('chooseMap',()=>this.openMapPicker());change.className+=' room-change-map';preview.append(change);}else preview.append(this.text(t('roomHostMap')));root.append(preview);
         const host=room.host===client.owner;const slots=document.createElement('div');slots.className='room-slots';
         for(let i=0;i<4;i++){
           const member=room.members[i],slot=document.createElement('div');slot.className='daily-quest room-player';
@@ -129,7 +164,6 @@ export class PlayMenuPopup {
         const allReady=room.members.length>=2&&room.members.every(member=>member.id===room.host||member.ready);
         const hint=this.text(t(room.members.length<2?'roomNeedPlayer':allReady?(host?'roomCanStart':'roomWaitingHost'):'roomNeedReady'));
         hint.className='room-start-hint';hint.setAttribute('role','status');root.append(hint);
-        if(host){const maps=this.maps(map=>{void client.command('map',{map});},room.map);maps.className+=' room-map-options';root.append(maps);}
         const mine=room.members.find(m=>m.id===client.owner);
         const start=this.button(host?'start':mine?.ready?'cancelReady':'ready',()=>{void client.command(host?'start':'ready',host?{}:{ready:!mine?.ready});});
         start.disabled=client.busy||(host&&(room.members.length<2||room.members.some(m=>m.id!==room.host&&!m.ready)))||room.phase!=='waiting';root.append(start);
@@ -162,10 +196,11 @@ export class PlayMenuPopup {
     if(this.busy||client?.busy)for(const b of Array.from(root.querySelectorAll('button')))b.disabled=true;
     if((this.page==='multi'||this.page==='create')&&(client?.error||client?.reconnecting))for(const b of Array.from(root.querySelectorAll('button')))if(b.getAttribute('data-recovery-control')!=='true')b.disabled=true;
     this.animatePortraits();
+    this.refreshMapPicker();
   }
   private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!this.options.rooms.error&&!this.options.rooms.reconnecting&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
-    if(!this.overlay)return;this.stopPortraits();this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
+    if(!this.overlay)return;this.closeMapPicker();this.stopPortraits();this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
     if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
   }
