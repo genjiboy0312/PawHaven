@@ -10,6 +10,7 @@ import { COURSES, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
 import { RemoteMotion } from '../../multiplayer/RemoteMotion';
+import { raceCountdown } from '../../multiplayer/RaceCountdown';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
 import { Scene } from './Scene';
 
@@ -25,6 +26,9 @@ export class PlayScene extends Scene {
   private resultRoom?:Room;
   private resultSignature='';
   private recoverySeen=0;
+  private sceneRendered=false;
+  private loadAcknowledged=false;
+  private loadPending=false;
   private readonly raceRound?:string|null;
   private readonly labels: { text: Text; key: 'start' | 'finish' | 'checkpoint' }[] = [];
   private readonly localeOff: () => void;
@@ -238,6 +242,10 @@ export class PlayScene extends Scene {
       this.restoreRacePose();
     }
     if(room&&room.round===this.raceRound){for(const member of room.members)this.raceMembers.set(member.id,member);this.resultRoom=room;}
+    if(this.sceneRendered&&!this.loadAcknowledged&&!this.loadPending&&!client.busy&&!client.reconnecting&&!client.error&&room?.round===this.raceRound&&room?.phase==='countdown'&&room.startsAt===null){
+      this.loadPending=true;
+      void client.command('loaded',{round:this.raceRound}).then(ok=>{if(ok)this.loadAcknowledged=true;}).finally(()=>{this.loadPending=false;});
+    }
     const ended=!room||room.round!==this.raceRound||room.phase==='results';
     const ids=new Set(room?.members.filter(m=>m.id!==client.owner).map(m=>m.id));
     for(const [id,peer]of this.peers)if(!ids.has(id)){peer.name.destroy();peer.box.destroy({children:true});this.peers.delete(id);}
@@ -260,11 +268,13 @@ export class PlayScene extends Scene {
       peer.effect.update(pose.action,pose.progress,pose.direction,peer.animation.sprite,pose.vx);
       if(this.settings?.preferences?.().effects===false){peer.effect.visible=false;peer.effect.ghosts.forEach(g=>{g.visible=false;});}else peer.effect.visible=true;
     }
-    const startIn=room?.startsAt?Math.max(0,Math.ceil((room.startsAt-client.serverTime)/1000)):0;
+    const starting=room?.round===this.raceRound&&['countdown','playing'].includes(room?.phase??'');
+    const cue=starting?raceCountdown(room?.startsAt??null,client.serverTime):'';
+    const waiting=starting&&room?.startsAt===null;
     this.syncStatus.textContent=t(client.directConnected?'raceDirectSync':client.streamConnected?'raceLiveSync':'raceBasicSync');this.syncStatus.hidden=this.run.won;
-    this.countdown.textContent=client.error||client.reconnecting?t('multiReconnecting'):startIn?String(startIn):'';
+    this.countdown.textContent=client.error||client.reconnecting?t('multiReconnecting'):waiting?t('raceLoading'):cue;
     this.countdown.setAttribute('data-error',String(!!client.error||client.reconnecting));
-    this.countdown.hidden=!startIn&&!client.error&&!client.reconnecting;
+    this.countdown.hidden=!waiting&&!cue&&!client.error&&!client.reconnecting;
     if(ended&&!this.run.won)this.run.victoryTime=0;
     if(this.run.won){
       this.victory.textContent=t(!room?'multiOffline':room.phase==='waiting'?'raceCancelled':ended?'raceResults':'waitingOthers');
@@ -287,6 +297,7 @@ export class PlayScene extends Scene {
     if (this.run.respawns !== respawns) { this.blur(); this.cameraX = cameraTarget(this.run.x, this.courseEnd); }
     this.elapsed += seconds;
     this.render(seconds, this.run.respawns === respawns ? axis : 0);
+    this.sceneRendered=true;
     if (this.run.won && !this.completed) {
       this.completed = true;
       if(this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());

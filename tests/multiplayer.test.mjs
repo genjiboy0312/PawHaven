@@ -9,6 +9,7 @@ const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.ur
 const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.url);
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
+const {raceCountdown}=await importTs('../src/multiplayer/RaceCountdown.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
 const {lobbyStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
 const {enterLandscape,portraitTouch,installMobileViewport}=await importTs('../src/ui/MobileViewport.ts',import.meta.url);
@@ -26,6 +27,7 @@ create function realtime.send(payload jsonb,event text,topic text,private boolea
 await db.exec(await readFile(new URL('../supabase/migrations/202610200004_room_stream.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/202610200005_direct_motion.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/202610200006_lobby_state.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/202610200007_race_countdown.sql',import.meta.url),'utf8'));
 async function as(user,query,args=[],role='authenticated') {
   await db.exec('set role '+role);
   try { await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??'']); return await db.query(query,args); }
@@ -52,7 +54,7 @@ test('only the host selects maps, map changes reset ready and start requires all
   assert.equal((await cmd(0,'map',r.id,{map:'practice'})).room.members[1].ready,false);
   await cmd(1,'ready',r.id,{ready:true});
   const start=(await cmd(0,'start',r.id)).room;
-  assert.equal(start.phase,'countdown'); assert.ok(start.startsAt>Date.now()-2000); assert.ok(start.round);
+  assert.equal(start.phase,'countdown'); assert.equal(start.startsAt,null); assert.ok(start.round);
   await assert.rejects(()=>cmd(2,'join',r.id),e=>e.code==='P0001');
   await assert.rejects(()=>cmd(0,'map',r.id,{map:'garden'}),e=>e.code==='42501');
 });
@@ -64,6 +66,43 @@ test('leaving transfers host and stale connections free seats',async()=>{
   const next=(await cmd(2,'sync',r.id)).room;
   assert.equal(next.host,users[2]); assert.equal(next.members.length,1);
   await cmd(2,'leave',r.id); assert.equal((await cmd(0,'list')).rooms.length,0);
+});
+
+test('a late scene holds all players at the loading barrier, then schedules one full countdown',async()=>{
+  const room=(await cmd(0,'create')).room;
+  for(const n of [1,2,3]){await cmd(n,'join',room.id);await cmd(n,'ready',room.id,{ready:true});}
+  const start=(await cmd(0,'start',room.id)).room;
+  for(const n of [0,1,2]){
+    assert.equal((await cmd(n,'loaded',room.id,{round:start.round,user_id:users[3]})).room.startsAt,null);
+  }
+  assert.equal((await db.query('select loaded_round from public.mp_members where user_id=$1',[users[3]])).rows[0].loaded_round,null);
+  await assert.rejects(()=>cmd(4,'loaded',room.id,{round:start.round}),e=>e.code==='42501');
+  await assert.rejects(()=>cmd(3,'loaded',room.id,{round:'old'}),e=>e.code==='P0001');
+  // An old host-start timestamp must not consume the guest's five digits.
+  await db.query("update public.mp_rooms set ends_at=clock_timestamp()+interval '3 seconds' where id=$1",[room.id]);
+  assert.equal((await cmd(0,'sync',room.id)).room.startsAt,null);
+  const last=await cmd(3,'loaded',room.id,{round:start.round});
+  assert.ok(last.room.startsAt-last.now>=7990);assert.equal(last.room.endsAt-last.room.startsAt,120000);
+  for(const n of [0,1,2,3])assert.equal((await cmd(n,'loaded',room.id,{round:start.round})).room.startsAt,last.room.startsAt);
+  assert.equal((await cmd(0,'sync',room.id)).room.startsAt,last.room.startsAt);
+});
+
+test('a missing scene cancels preparation instead of leaving the room stuck',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});
+  const start=(await cmd(0,'start',room.id)).room;await cmd(0,'loaded',room.id,{round:start.round});
+  await db.query("update public.mp_rooms set ends_at=clock_timestamp()-interval '1 second' where id=$1",[room.id]);
+  const cancelled=(await cmd(0,'sync',room.id)).room;
+  assert.equal(cancelled.phase,'waiting');assert.equal(cancelled.round,null);assert.equal(cancelled.startsAt,null);
+  assert.ok(cancelled.members.every(m=>!m.ready));
+  await assert.rejects(()=>cmd(1,'loaded',room.id,{round:start.round}),e=>e.code==='P0001');
+});
+
+test('countdown uses the shared clock for five digits, Ready and the Start movement boundary',()=>{
+  const start=100000;
+  assert.equal(raceCountdown(null,0),'');assert.equal(raceCountdown(start,start-8000),'');
+  assert.deepEqual([6000,5000,4000,3000,2000,1000,0].map(ms=>raceCountdown(start,start-ms)),['5','4','3','2','1','Ready~','Start!']);
+  assert.equal(raceCountdown(start,start-1),'Ready~');assert.equal(raceCountdown(start,start+799),'Start!');
+  assert.equal(raceCountdown(start,start+800),'');
 });
 test('poses belong to the authenticated racer, stale rounds fail and finish times cannot be overwritten',async()=>{
   const r=(await cmd(0,'create')).room; await cmd(1,'join',r.id); await cmd(1,'ready',r.id,{ready:true});
@@ -146,6 +185,16 @@ test('race scene freezes during countdown, draws peers and returns after server 
     await client.command('sync');const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},run:{frames:Array(4).fill(Texture.WHITE),fps:8}}};
     scene=new PlayScene(config,()=>returned++,{open(){},multiplayer:{client,pets:[config],leave(){}}});
     scene.update(0.1);assert.equal(scene.run.x,120);assert.equal(scene.run.elapsed,0);assert.equal(scene.peers.size,1);
+    assert.equal((await db.query('select loaded_round from public.mp_members where user_id=$1',[users[0]])).rows[0].loaded_round,null);
+    scene.update(0.1);await idle(client);
+    assert.equal((await db.query('select loaded_round from public.mp_members where user_id=$1',[users[0]])).rows[0].loaded_round,start.round);
+    assert.equal(client.room.startsAt,null);assert.equal(scene.countdown.textContent,'Waiting for players…');
+    await cmd(1,'loaded',room.id,{round:start.round});await client.command('sync');
+    for(const [remaining,label]of [[6000,'5'],[5000,'4'],[4000,'3'],[3000,'2'],[2000,'1'],[1000,'Ready~'],[0,'Start!']]){
+      const now=performance.now();client.clockOffset=client.room.startsAt-remaining-now;scene.keys.add('KeyD');scene.update(0.01);
+      assert.equal(scene.countdown.textContent,label);if(remaining>0)assert.equal(scene.run.x,120);
+    }
+    scene.keys.clear();client.clockOffset=undefined;
     const peer=scene.peers.get(users[1]);assert.equal(peer.box.alpha,1);assert.equal(peer.box.tint,0xb0b0b0);assert.equal(scene.pet.alpha,1);assert.equal(scene.pet.tint,0xffffff);
     assert.equal(peer.name.alpha,1);assert.equal(peer.name.parent,scene.nameLayer);assert.equal(peer.name.y,peer.box.y-155);
     assert.equal(scene.localName.text,client.room.members.find(m=>m.id===users[0]).name);assert.equal(scene.localName.alpha,1);

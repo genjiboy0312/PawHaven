@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  raceLoading:'Waiting for players…',
   textEntry:'Text entry', inputDone:'Done',
   raceDirectSync:'Direct live sync',
   raceLiveSync:'Live sync', raceBasicSync:'Basic sync',
@@ -76,6 +77,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  raceLoading:'모두의 출발을 준비하고 있어요…',
   textEntry:'텍스트 입력', inputDone:'입력 완료',
   raceDirectSync:'직접 실시간 동기화',
   raceLiveSync:'실시간 동기화', raceBasicSync:'기본 동기화',
