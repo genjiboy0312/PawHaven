@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  multiAlreadyJoined:'You are already in a room. Retry to show your current room.', multiRoomClosed:'This room has closed. Refresh the room list.', multiRoomFull:'This room is full or the race has started. Please choose another room.', multiAuthRetry:'Your login or room permission could not be verified. Check your account and retry.',
   multiReconnecting:'Reconnecting… Checking the room before resuming.', multiRemoved:'Your room session has ended. Please choose a room again.', multiRoundChanged:'The previous race has ended or changed. Please check the current room.', multiRestored:'Connection restored. Your room is up to date.', raceResume:'Resume current race',
   raceYou:'You', raceRunning:'Racing…', raceTogether:'It was lovely running together!', raceRemaining:'Waiting for friends · {seconds}s left', raceChecking:'Checking the race results…',
   roomHostMap:'The host chooses the map', roomNeedPlayer:'Waiting for one more player…', roomNeedReady:'Everyone needs to be ready before starting.', roomCanStart:'Everyone is ready. Let’s go!', roomWaitingHost:'Ready! Waiting for the host to start…',
@@ -72,6 +73,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  multiAlreadyJoined:'이미 참가 중인 방이 있어요. 재시도하면 현재 방을 확인해요.', multiRoomClosed:'종료된 방이에요. 방 목록을 다시 확인해 주세요.', multiRoomFull:'방이 가득 찼거나 경기가 시작됐어요. 다른 방을 선택해 주세요.', multiAuthRetry:'로그인 또는 방 접근 권한을 확인하지 못했어요. 계정을 확인하고 재시도해 주세요.',
   multiReconnecting:'다시 연결하고 있어요… 방 상태를 확인한 뒤 이어갈게요.', multiRemoved:'방 참가가 종료되었어요. 방을 다시 선택해 주세요.', multiRoundChanged:'이전 경기가 끝났거나 변경되었어요. 현재 방 상태를 확인해 주세요.', multiRestored:'다시 연결되었어요. 현재 방 상태를 확인했어요.', raceResume:'현재 경기 이어가기',
   raceYou:'나', raceRunning:'달리는 중…', raceTogether:'함께 달려서 즐거웠어요!', raceRemaining:'친구를 기다리고 있어요 · 종료까지 {seconds}초', raceChecking:'결과를 확인하고 있어요…',
   roomHostMap:'방장이 맵을 선택해요', roomNeedPlayer:'한 명 더 기다리고 있어요…', roomNeedReady:'모두 준비하면 시작할 수 있어요.', roomCanStart:'모두 준비됐어요. 출발해 볼까요?', roomWaitingHost:'준비 완료! 방장의 시작을 기다리고 있어요…',

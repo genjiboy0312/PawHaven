@@ -171,10 +171,9 @@ export class Game {
       const openMenu=(page:'mode'|'multi'='mode'):void=>{
         if(this.disposed)return;
         const owner=this.account?.user?.id;
-        const rooms=this.rooms??(owner&&accountClient?new RoomClient(owner,async(action,room,payload,signal)=>{
-          if(['create','join'].includes(action)&&this.account?.pendingSave){await this.account.save();if(this.account.pendingSave)throw Error('save_pending');}
-          return roomTransport(accountClient,owner)(action,room,payload,signal);
-        }):undefined);
+        const rooms=this.rooms??(owner&&accountClient?new RoomClient(owner,roomTransport(accountClient,owner,async()=>{
+          if(this.account?.pendingSave&&this.account.canSave)await this.account.save();
+        })):undefined);
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
           rooms,pets,single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),

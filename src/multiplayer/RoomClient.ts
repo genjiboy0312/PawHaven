@@ -9,8 +9,10 @@ export interface Room extends Omit<RoomSummary,'count'> { host: string; round: s
 export interface RoomSnapshot { room:Room|null; rooms:RoomSummary[]; now:number }
 export const RACE_SYNC_MS=100;
 type Transport = (action:string,room:string|null,payload:Record<string,unknown>,signal:AbortSignal)=>Promise<unknown>;
-export function roomTransport(client: SupabaseClient, owner:string):Transport {
+export function roomTransport(client: SupabaseClient, owner:string,saveLook?:()=>Promise<void>):Transport {
   return async(action,room,payload,signal)=>{
+    // Cosmetic sync is best effort; room admission must not depend on cloud-save health.
+    if(['create','join'].includes(action)&&saveLook){try{void saveLook().catch(()=>{});}catch{/* Use the last server-confirmed appearance. */}}
     const {data,error}=await client.auth.getSession();
     if(error) throw error;
     if(signal.aborted || data.session?.user.id!==owner) throw {code:'42501'};
@@ -21,6 +23,7 @@ export function roomTransport(client: SupabaseClient, owner:string):Transport {
 }
 export class RoomClient {
   snapshot:RoomSnapshot={room:null,rooms:[],now:0}; busy=false; error:''|'setup'|'offline'|'rejected'='';
+  rejection:''|'already_in_room'|'room_closed'|'room_unavailable'|'auth'='';
   pose?:()=>Pose;
   private finishPose?:Pose;
   private needsSync=false;
@@ -84,10 +87,12 @@ export class RoomClient {
         if(this.needsSync)this.recoverySerial++;
         if(data.room?.round!==previous?.round||data.room?.phase!=='playing'||data.room.racers.find(r=>r.id===this.owner)?.time!==null)this.finishPose=undefined;
         this.receivedAt=performance.now();this.roundTripMS=this.receivedAt-started;
-        this.snapshot=data;this.error='';this.needsSync=false;this.emit();return true;
+        this.snapshot=data;this.error='';this.rejection='';this.needsSync=false;this.emit();return true;
       }catch(error){
         if(this.closed||revision!==this.revision)return false;
         const code=(error as {code?:string})?.code;
+        const message=(error as {message?:string})?.message;
+        this.rejection=code==='42501'?'auth':['already_in_room','room_closed','room_unavailable'].includes(message??'')?message as 'already_in_room'|'room_closed'|'room_unavailable':'';
         this.needsSync=true;
         this.error=['PGRST202','PGRST205','42883'].includes(code??'')?'setup': ['P0001','42501','23514'].includes(code??'')?'rejected':'offline';
         this.emit();return false;

@@ -277,3 +277,27 @@ test('host selects maps in a separate popup, resetting Ready and restoring the r
     assert.equal(env.host.querySelector('.room-map-picker'),undefined);assert.ok(client.room);
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
+
+test('a second account joins from the room card and stays in the shared room with guest map controls disabled',async()=>{
+  const room=(await cmd(0,'create',null,{name:'Second account test'})).room,env=dom();
+  const client=new RoomClient(users[1],(a,r,p)=>cmd(1,a,r,p));let menu;
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    const card=env.host.querySelector('.room-card');assert.equal(card.disabled,false);card.dispatchEvent(new Event('click'));await idle(client);
+    assert.equal(client.room.id,room.id);assert.equal(client.room.members.length,2);assert.equal(client.room.host,users[0]);
+    assert.equal(env.host.querySelector('.room-change-map').disabled,true);assert.equal(env.host.querySelector('.mode-cards'),undefined);
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Ready').dispatchEvent(new Event('click'));await idle(client);
+    assert.equal((await cmd(0,'sync',room.id)).room.members.find(m=>m.id===users[1]).ready,true);
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
+
+test('cloud cosmetic save failure cannot block room admission and auth is checked after the save attempt',{timeout:5000},async()=>{
+  let rpcCalls=0,saves=0,active=users[1];
+  const client={auth:{getSession:async()=>({data:{session:{user:{id:active},access_token:'token'}}})},rpc(name,args){rpcCalls++;assert.equal(args.p_action,'join');return {setHeader(){return this;},abortSignal(){return Promise.resolve({data:{room:null,rooms:[],now:1},error:null});}};}};
+  const send=roomTransport(client,users[1],async()=>{saves++;throw Error('cloud conflict');});
+  await send('join','room',{},new AbortController().signal);assert.equal(saves,1);assert.equal(rpcCalls,1);
+  let release;const saving=new Promise(resolve=>{release=resolve;});const pending=roomTransport(client,users[1],()=>saving);
+  try{await pending('join','room',{},new AbortController().signal);assert.equal(rpcCalls,2);}finally{release();}
+  const changed=roomTransport(client,users[1],async()=>{active=users[0];});
+  await assert.rejects(()=>changed('join','room',{},new AbortController().signal));assert.equal(rpcCalls,2);
+});

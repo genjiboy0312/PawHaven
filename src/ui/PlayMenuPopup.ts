@@ -68,7 +68,7 @@ export class PlayMenuPopup {
     const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
   }
-  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error,client?.reconnecting,client?.notice,this.roomEvent]);}
+  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent]);}
   private stopPortraits(){clearInterval(this.portraitTimer);this.portraitTimer=undefined;this.portraits=[];}
   private animatePortraits(){
     if(!this.portraits.length)return;
@@ -145,7 +145,7 @@ export class PlayMenuPopup {
       }else{
         const preview=document.createElement('div');preview.className='room-map-preview map-card map-'+room.map;
         preview.append(this.text(t(COURSES[room.map].title)+' · '+COURSES[room.map].seconds));
-        if(room.host===client.owner){const change=this.button('chooseMap',()=>this.openMapPicker());change.className+=' room-change-map';preview.append(change);}else preview.append(this.text(t('roomHostMap')));root.append(preview);
+        const change=this.button('chooseMap',()=>this.openMapPicker());change.className+=' room-change-map';change.disabled=room.host!==client.owner||room.phase!=='waiting';change.setAttribute('title',t('roomHostMap'));preview.append(change);root.append(preview);
         const host=room.host===client.owner;const slots=document.createElement('div');slots.className='room-slots';
         for(let i=0;i<4;i++){
           const member=room.members[i],slot=document.createElement('div');slot.className='daily-quest room-player';
@@ -189,7 +189,10 @@ export class PlayMenuPopup {
       navigation.append(this.button('previous',()=>pager.scrollBy({left:-pager.clientWidth,behavior:'smooth'})),status,this.button('next',()=>pager.scrollBy({left:pager.clientWidth,behavior:'smooth'})));
       pager.addEventListener('scroll',update);update();root.append(navigation);
     }
-    if(client?.error||client?.reconnecting){const p=this.text(t(client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiReconnecting'));p.setAttribute('role','status');const retry=this.button('economyRetry',()=>client.reconnect());retry.setAttribute('data-recovery-control','true');root.append(p,retry);}
+    if(client?.error||client?.reconnecting){
+      const key:TextKey=client.rejection==='already_in_room'?'multiAlreadyJoined':client.rejection==='room_closed'?'multiRoomClosed':client.rejection==='room_unavailable'?'multiRoomFull':client.rejection==='auth'?'multiAuthRetry':client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiReconnecting';
+      const p=this.text(t(key));p.setAttribute('role','status');const retry=this.button('economyRetry',()=>client.reconnect());retry.setAttribute('data-recovery-control','true');root.append(p,retry);
+    }
     else if(client?.notice){const p=this.text(t(client.notice==='removed'?'multiRemoved':client.notice==='round'?'multiRoundChanged':'multiRestored'));p.setAttribute('role','status');root.append(p);}
     if(this.notice)root.append(this.text(t(this.notice)));
     if(this.page!=='mode'&&!room){const back=this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();});back.setAttribute('data-recovery-control','true');root.append(back);}
