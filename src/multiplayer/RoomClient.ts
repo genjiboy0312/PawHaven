@@ -34,9 +34,11 @@ export class RoomClient {
   roundTripMS=0;
   private requestStarted=0;
   streamConnected=false;
+  directConnected=false;
   private streamKey='';private closeStream?:()=>void;
   private streamOffset?:number;
   private readonly streamed=new Map<string,StreamPose&{receivedAt:number}>();
+  private readonly directOffsets=new Map<string,number>();
   private revision=0;private listening=false;
   private receivedAt=0; private timer?:ReturnType<typeof setTimeout>; private work?:Promise<boolean>; private closed=false;
   private readonly abort=new AbortController(); private readonly listeners=new Set<()=>void>();
@@ -57,11 +59,13 @@ export class RoomClient {
     void this.poll();
   }
   reconnect(){if(this.closed)return;this.stopStream();this.needsSync=true;this.revision++;clearTimeout(this.timer);this.emit();void this.poll();}
-  peerPose(member:RoomMember):{pose:Pose;at:number}{
+  peerPose(member:RoomMember):{pose:Pose;at:number;delay?:number}{
+    const direct=this.streamed.get('direct:'+member.id);
+    if(direct&&performance.now()-direct.receivedAt<500)return{pose:direct.pose,at:direct.at+this.directOffsets.get(member.id)!,delay:20};
     const sample=this.streamed.get(member.id);
     return this.streamConnected&&sample&&performance.now()-sample.receivedAt<1000?{pose:sample.pose,at:sample.at+this.streamOffset!}:{pose:member.pose,at:this.receivedAt};
   }
-  private stopStream(){this.streamKey='';this.closeStream?.();this.closeStream=undefined;this.streamConnected=false;this.streamed.clear();this.streamOffset=undefined;}
+  private stopStream(){this.streamKey='';this.closeStream?.();this.closeStream=undefined;this.streamConnected=this.directConnected=false;this.streamed.clear();this.directOffsets.clear();this.streamOffset=undefined;}
   private syncStream(){
     const room=this.room,key=room?.round&&['countdown','playing'].includes(room.phase)?room.id+':'+room.round:'';
     if(key===this.streamKey)return;this.stopStream();if(!key||!room||!this.stream)return;
@@ -71,10 +75,17 @@ export class RoomClient {
       const sample=value as StreamPose,pose=sample?.pose;
       if(!sample||!Number.isFinite(sample.at)||sample.id===this.owner||!this.room?.members.some(member=>member.id===sample.id)||!pose)return;
       if(![pose.x,pose.height,pose.vx,pose.progress].every(Number.isFinite)||pose.x<120||pose.x>COURSES[room.map].finish||pose.height< -200||pose.height>300||Math.abs(pose.vx)>1800||pose.progress<0||pose.progress>1||![1,-1].includes(pose.direction)||!['idle','run','jump','fall','land','attack','skill'].includes(pose.action))return;
-      if(sample.at<=(this.streamed.get(sample.id)?.at??-Infinity))return;
-      const receivedAt=performance.now();this.streamOffset=Math.min(this.streamOffset??Infinity,receivedAt-sample.at);
-      this.streamed.set(sample.id,{id:sample.id,pose:{...pose},at:sample.at,receivedAt});
-    },connected=>{if(!this.closed&&this.streamKey===key){this.streamConnected=connected;}});
+      const direct=sample.source==='direct',id=direct?'direct:'+sample.id:sample.id,previous=this.streamed.get(id);
+      if(direct&&(typeof sample.session!=='string'||sample.session.length>64))return;
+      const sameSession=!direct||sample.session===previous?.session;
+      if(sameSession&&sample.at<=(previous?.at??-Infinity))return;
+      const receivedAt=performance.now();
+      if(direct)this.directOffsets.set(sample.id,Math.min(sameSession?(this.directOffsets.get(sample.id)??Infinity):Infinity,receivedAt-sample.at));
+      else this.streamOffset=Math.min(this.streamOffset??Infinity,receivedAt-sample.at);
+      this.streamed.set(id,{...sample,pose:{...pose},receivedAt});
+    },connected=>{if(!this.closed&&this.streamKey===key){this.streamConnected=connected;}},
+    ()=>!this.closed&&!this.needsSync&&this.room?.phase==='playing'?this.pose?.():undefined,
+    connected=>{if(!this.closed&&this.streamKey===key&&this.directConnected!==connected){this.directConnected=connected;this.schedule();}});
   }
   clearNotice(){this.notice='';this.emit();}
   private async poll(){
@@ -129,7 +140,7 @@ export class RoomClient {
   private schedule(){
     clearTimeout(this.timer);if(this.closed||this.busy||(typeof document!=='undefined'&&document.hidden))return;
     const racing=this.pose&&['countdown','playing'].includes(this.room?.phase??'');
-    const delay=racing?Math.max(16,RACE_SYNC_MS-(performance.now()-this.requestStarted)):1200;
+    const delay=racing?Math.max(16,(this.directConnected?800:RACE_SYNC_MS)-(performance.now()-this.requestStarted)):1200;
     this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync?0:delay);
   }
   async finish(pose:Pose){

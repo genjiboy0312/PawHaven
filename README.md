@@ -95,9 +95,9 @@ flowchart LR
 
 ### 방과 레이스 프로토타입
 
-로그인한 사용자끼리 방을 만들고, 방원 전원 Ready 후 서버 시각에 맞춰 출발합니다. 입장 정원·방장 권한·라운드·완주 순위는 서버 RPC에서 검증합니다. 위치 업로드는 목표 100ms 간격의 RPC이며, 서버가 확인한 위치를 라운드별 private Realtime 채널로 수신하고 짧은 스냅샷 보간으로 표시합니다. 실시간 SQL 미적용 또는 연결 장애 시 RPC 수신으로 동작합니다. 전역 잠금을 쓰는 소규모 검증용 구현이며, 서비스 규모의 전송 구조·서버 권위 물리는 후속 범위입니다. 멀티 보상은 이번 버전에서 추가하지 않았습니다.
+로그인한 사용자끼리 방을 만들고, 방원 전원 Ready 후 서버 시각에 맞춰 출발합니다. 입장 정원·방장 권한·라운드·완주 순위는 서버 RPC에서 검증합니다. 표시용 위치는 본인만 송신 가능한 actor별 private WebSocket으로 전달하고 짧은 스냅샷 보간으로 표시합니다. 방·완주 검증은 RPC에 유지하며 직접 연결 실패 시 서버 Broadcast/RPC로 동작합니다. 전역 잠금을 쓰는 소규모 검증용 구현이며, 서비스 규모의 전송 구조·서버 권위 물리는 후속 범위입니다. 멀티 보상은 이번 버전에서 추가하지 않았습니다.
 
-서버 적용/검증 범위: [멀티 레이스 문서](MyAIAgent/MULTIPLAYER.md) · [멀티 SQL](supabase/migrations/202610190003_multiplayer.sql) · [실시간 수신 SQL](supabase/migrations/202610200004_room_stream.sql)
+서버 적용/검증 범위: [멀티 레이스 문서](MyAIAgent/MULTIPLAYER.md) · [멀티 SQL](supabase/migrations/202610190003_multiplayer.sql) · [실시간 수신 SQL](supabase/migrations/202610200004_room_stream.sql) · [직접 위치 전송 SQL](supabase/migrations/202610200005_direct_motion.sql)
 
 ## 로컬 실행
 
@@ -123,7 +123,7 @@ npm run build      # 타입 검사 + 프로덕션 빌드
 npm run preview    # 빌드 결과 로컬 확인
 ```
 
-현재 자동 테스트 **139개**를 운영합니다. 이동·점프·대시 충돌, 체크포인트·결과창, 씬 복귀 후 입력, 계정 분리·저장 충돌, 구매·보상의 재시도를 검증합니다. PGlite에서는 실제 migration을 실행해 PostgreSQL 함수와 RLS를 테스트합니다. 모의 DOM/DB 테스트가 실제 Google 로그인이나 모바일 브라우저의 시각 검증을 대체하지는 않습니다.
+현재 자동 테스트 **142개**를 운영합니다. 이동·점프·대시 충돌, 체크포인트·결과창, 씬 복귀 후 입력, 계정 분리·저장 충돌, 구매·보상의 재시도를 검증합니다. PGlite에서는 실제 migration을 실행해 PostgreSQL 함수와 RLS를 테스트합니다. 모의 DOM/DB 테스트가 실제 Google 로그인이나 모바일 브라우저의 시각 검증을 대체하지는 않습니다.
 
 main 브랜치에 푸시하면 GitHub Actions가 의존성 설치 → 테스트 → 타입 검사·빌드 → GitHub Pages 배포를 실행합니다.
 

@@ -22,6 +22,7 @@ alter table realtime.messages enable row level security;grant usage on schema re
 create function realtime.topic() returns text language sql stable as $$select current_setting('test.realtime.topic',true)$$;
 create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages(payload,event,topic,private) values($1,$2,$3,$4)$$;`);
 await db.exec(await readFile(new URL('../supabase/migrations/202610200004_room_stream.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/202610200005_direct_motion.sql',import.meta.url),'utf8'));
 async function as(user,query,args=[],role='authenticated') {
   await db.exec('set role '+role);
   try { await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??'']); return await db.query(query,args); }
@@ -134,7 +135,7 @@ test('race scene freezes during countdown, draws peers and returns after server 
     await client.command('sync');const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},run:{frames:Array(4).fill(Texture.WHITE),fps:8}}};
     scene=new PlayScene(config,()=>returned++,{open(){},multiplayer:{client,pets:[config],leave(){}}});
     scene.update(0.1);assert.equal(scene.run.x,120);assert.equal(scene.run.elapsed,0);assert.equal(scene.peers.size,1);
-    const peer=scene.peers.get(users[1]);assert.equal(peer.box.alpha,1);assert.equal(peer.box.tint,0xd9d9d9);assert.equal(scene.pet.alpha,1);assert.equal(scene.pet.tint,0xffffff);
+    const peer=scene.peers.get(users[1]);assert.equal(peer.box.alpha,1);assert.equal(peer.box.tint,0xb0b0b0);assert.equal(scene.pet.alpha,1);assert.equal(scene.pet.tint,0xffffff);
     assert.equal(peer.name.alpha,1);assert.equal(peer.name.parent,scene.nameLayer);assert.equal(peer.name.y,peer.box.y-155);
     assert.equal(scene.localName.text,client.room.members.find(m=>m.id===users[0]).name);assert.equal(scene.localName.alpha,1);
     assert.equal(scene.localName.y,scene.pet.y-155);
@@ -324,7 +325,7 @@ test('database broadcasts accepted poses privately and room topics reject outsid
   try{
     assert.equal((await as(users[2],'select * from realtime.messages')).rows.length,0);
     await assert.rejects(()=>as(users[1],"insert into realtime.messages(payload,event,topic,private) values('{}','pose',$1,true)",[topic]),e=>e.code==='42501');
-  }finally{await db.exec('drop policy test_broad_send on realtime.messages;drop policy test_broad_receive on realtime.messages;revoke insert on realtime.messages from authenticated');}
+  }finally{await db.exec('drop policy test_broad_send on realtime.messages;drop policy test_broad_receive on realtime.messages;grant insert on realtime.messages to authenticated');}
 });
 
 test('live poses cannot be overwritten by an older RPC snapshot, replay or another round',async()=>{
@@ -356,4 +357,42 @@ test('private stream checks its owner, delivers payloads and unsubscribes withou
   const stop=roomStream(client,users[0])({id:'room',round:'round'},()=>{delivered++;},()=>{});await new Promise(resolve=>setImmediate(resolve));
   status('SUBSCRIBED');handler({payload:{id:users[1]}});assert.equal(delivered,1);stop();handler({payload:{}});assert.equal(delivered,1);assert.equal(removed,1);
   roomStream(client,users[1])({id:'room',round:'round'},()=>{},()=>{});await new Promise(resolve=>setImmediate(resolve));assert.equal(channels,1);
+});
+
+test('direct motion can be published only on the authenticated actor topic and received by current room members',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});const start=(await cmd(0,'start',room.id)).room;
+  const topic=`paw-room:${room.id}:${start.round}:${users[0]}`;
+  await db.query("select set_config('test.realtime.topic',$1,false)",[topic]);
+  await as(users[0],"insert into realtime.messages(payload,event,topic,private) values('{}','motion',$1,true)",[topic]);
+  assert.equal((await as(users[1],'select * from realtime.messages')).rows.length,1);
+  await assert.rejects(()=>as(users[1],"insert into realtime.messages(payload,event,topic,private) values('{}','motion',$1,true)",[topic]),e=>e.code==='42501');
+  assert.equal((await as(users[2],'select * from realtime.messages')).rows.length,0);
+  assert.equal((await as(users[0],'select public.can_send_paw_motion($1) allowed',[topic])).rows[0].allowed,true);
+  await cmd(0,'leave',room.id);assert.equal((await as(users[0],'select public.can_send_paw_motion($1) allowed',[topic])).rows[0].allowed,false);
+});
+
+test('direct motion has priority over database motion and rejects stale sequence numbers',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});await cmd(0,'start',room.id);
+  let receive,fast;const client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p),(r,callback,status,pose,direct)=>{receive=callback;fast=direct;status(true);return()=>{};});
+  try{
+    await client.command('sync');fast(true);const member=client.room.members.find(m=>m.id===users[1]);
+    const pose={x:600,height:0,direction:1,action:'run',progress:0,vx:240};
+    receive({id:users[1],pose,at:100,source:'direct',session:'first'});assert.equal(client.peerPose(member).pose.x,600);assert.equal(client.peerPose(member).delay,20);
+    receive({id:users[1],pose:{...pose,x:300},at:Date.now()});receive({id:users[1],pose:{...pose,x:400},at:90,source:'direct',session:'first'});assert.equal(client.peerPose(member).pose.x,600);
+    receive({id:users[1],pose:{...pose,x:650},at:1,source:'direct',session:'reload'});assert.equal(client.peerPose(member).pose.x,650);
+    client.destroy(false);assert.equal(client.directConnected,false);assert.equal(client.streamed.size,0);
+  }finally{client.destroy(false);}
+});
+
+test('actor channels bind remote identity to the subscribed topic and publish without an RPC round trip',async()=>{
+  const channels=[],received=[];let fast=false,sent=0;
+  const pose={x:300,height:0,direction:1,action:'run',progress:0,vx:240};
+  const client={auth:{getSession:async()=>({data:{session:{user:{id:users[0]}}}})},realtime:{setAuth:async()=>{}},
+    channel(topic,options){const c={topic,on(kind,filter,fn){this.receive=fn;return this;},subscribe(fn){this.status=fn;return this;},async send(message){sent++;assert.equal(message.payload.pose.x,300);return 'ok';}};channels.push(c);return c;},removeChannel:async()=>{}};
+  const stop=roomStream(client,users[0])({id:'room',round:'round',members:[{id:users[0]},{id:users[1]}]},value=>received.push(value),()=>{},()=>pose,value=>{fast=value;});
+  try{
+    await new Promise(resolve=>setImmediate(resolve));assert.equal(channels.length,3);channels.forEach(c=>c.status('SUBSCRIBED'));assert.equal(fast,true);
+    channels[2].receive({payload:{id:users[0],pose,at:10,session:'peer'}});assert.equal(received[0].id,users[1]);assert.equal(received[0].source,'direct');
+    await new Promise(resolve=>setTimeout(resolve,80));assert.ok(sent>=1);
+  }finally{stop();}
 });

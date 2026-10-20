@@ -11,9 +11,9 @@ export class RemoteMotion {
     if(!this.samples.length){this.x=pose.x;this.height=pose.height;}
     this.samples.push({pose:{...pose},at});this.samples=this.samples.slice(-6);
   }
-  update(now:number,seconds:number,predict=true){
+  update(now:number,seconds:number,predict=true,delay=60){
     const samples=this.samples,last=samples.at(-1);if(!last)return;
-    const time=now-60;
+    const time=now-delay;
     let x=last.pose.x,height=last.pose.height;
     const upper=samples.findIndex(sample=>sample.at>=time);
     if(upper>0){

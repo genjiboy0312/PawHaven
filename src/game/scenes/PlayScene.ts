@@ -248,12 +248,12 @@ export class PlayScene extends Scene {
         const original=multi.pets.find(p=>p.id===member.look.petId)??multi.pets[0]!;
         const config={...original,wardrobe:original.wardrobe?{...original.wardrobe,outfit:{...member.look.outfit}}:undefined};
         const animation=new AnimalAnimationController(config),effect=new AnimalEffects(config.effects),box=new Container(),name=this.playerName(member.name);
-        box.tint=0xd9d9d9;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
+        box.tint=0xb0b0b0;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
         this.nameLayer.addChild(name);
         this.world.addChildAt(box,this.world.getChildIndex(this.pet));peer={box,animation,effect,name,motion:new RemoteMotion()};this.peers.set(member.id,peer);
       }
       const sample=client.peerPose(member),pose=sample.pose;
-      peer.motion.push(pose,sample.at);peer.motion.update(performance.now(),seconds,!client.error&&!client.reconnecting);
+      peer.motion.push(pose,sample.at);peer.motion.update(performance.now(),seconds,!client.error&&!client.reconnecting,sample.delay);
       peer.box.x=Math.max(120,Math.min(this.run.finish,peer.motion.x));peer.box.y=COURSE_GROUND-peer.motion.height;
       peer.name.text=member.name;peer.name.position.set(peer.box.x,peer.box.y-155);
       peer.animation.update('IDLE',this.elapsed,pose.direction,0,0,seconds,pose.action,['attack','skill','jump','land'].includes(pose.action)?pose.progress:undefined);
@@ -261,7 +261,7 @@ export class PlayScene extends Scene {
       if(this.settings?.preferences?.().effects===false){peer.effect.visible=false;peer.effect.ghosts.forEach(g=>{g.visible=false;});}else peer.effect.visible=true;
     }
     const startIn=room?.startsAt?Math.max(0,Math.ceil((room.startsAt-client.serverTime)/1000)):0;
-    this.syncStatus.textContent=t(client.streamConnected?'raceLiveSync':'raceBasicSync');this.syncStatus.hidden=this.run.won;
+    this.syncStatus.textContent=t(client.directConnected?'raceDirectSync':client.streamConnected?'raceLiveSync':'raceBasicSync');this.syncStatus.hidden=this.run.won;
     this.countdown.textContent=client.error||client.reconnecting?t('multiReconnecting'):startIn?String(startIn):'';
     this.countdown.setAttribute('data-error',String(!!client.error||client.reconnecting));
     this.countdown.hidden=!startIn&&!client.error&&!client.reconnecting;
