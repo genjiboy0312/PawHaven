@@ -27,6 +27,8 @@ export class PlayScene extends Scene {
   private readonly labels: { text: Text; key: 'start' | 'finish' | 'checkpoint' }[] = [];
   private readonly localeOff: () => void;
   private readonly world = new Container();
+  private readonly nameLayer = new Container();
+  private localName?:Text;
   private readonly pet = new Container();
   private readonly effect: AnimalEffects;
   private readonly animation: AnimalAnimationController;
@@ -100,6 +102,11 @@ export class PlayScene extends Scene {
     }
     this.world.addChild(this.pet);
     this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
+    if(settings?.multiplayer){
+      const mine=settings.multiplayer.client.room?.members.find(member=>member.id===settings.multiplayer?.client.owner);
+      this.localName=this.playerName(mine?.name??'',true);this.nameLayer.addChild(this.localName);
+      this.world.addChild(this.nameLayer);
+    }
     this.hud.className = 'play-hud';
     bindAria(this.hud, 'gameControls');
     this.stick.className = 'play-stick';
@@ -202,6 +209,10 @@ export class PlayScene extends Scene {
     const action=this.run.action(this.run.horizontalVelocity),progress=action==='attack'?1-this.run.attack/this.run.attackDuration:action==='skill'?1-this.run.dash/this.run.dashDuration:action==='land'?1-this.run.land/0.16:action==='jump'?Math.min(0.49,Math.max(0,(440-this.run.velocity)/880)):0;
     return {x:this.run.x,height:this.run.height,direction:this.run.direction,action,progress,vx:this.run.horizontalVelocity};
   }
+  private playerName(value:string,self=false):Text{
+    const name=new Text({text:value,style:{fontFamily:'Jua, sans-serif',fontSize:22,fill:self?'#d7f4a8':'#fff9e5',stroke:{color:'#47513d',width:3,join:'round'}}});
+    name.anchor.set(0.5,1);return name;
+  }
   private restoreRacePose(){
     const client=this.settings?.multiplayer?.client,room=client?.room,mine=room?.members.find(member=>member.id===client?.owner);
     if(!client||!room||!mine||this.run.won)return;
@@ -226,20 +237,22 @@ export class PlayScene extends Scene {
     if(room&&room.round===this.raceRound){for(const member of room.members)this.raceMembers.set(member.id,member);this.resultRoom=room;}
     const ended=!room||room.round!==this.raceRound||room.phase==='results';
     const ids=new Set(room?.members.filter(m=>m.id!==client.owner).map(m=>m.id));
-    for(const [id,peer]of this.peers)if(!ids.has(id)){peer.box.destroy({children:true});this.peers.delete(id);}
+    for(const [id,peer]of this.peers)if(!ids.has(id)){peer.name.destroy();peer.box.destroy({children:true});this.peers.delete(id);}
     for(const member of room?.members??[]){
-      if(member.id===client.owner)continue;
+      if(member.id===client.owner){if(this.localName)this.localName.text=member.name;continue;}
       let peer=this.peers.get(member.id);
       if(!peer){
         const original=multi.pets.find(p=>p.id===member.look.petId)??multi.pets[0]!;
         const config={...original,wardrobe:original.wardrobe?{...original.wardrobe,outfit:{...member.look.outfit}}:undefined};
-        const animation=new AnimalAnimationController(config),effect=new AnimalEffects(config.effects),box=new Container(),name=new Text({text:member.name,style:{fontFamily:'Jua, sans-serif',fontSize:18,fill:'#655d50'}});
-        name.anchor.set(0.5);name.y=-155;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect,name);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
+        const animation=new AnimalAnimationController(config),effect=new AnimalEffects(config.effects),box=new Container(),name=this.playerName(member.name);
+        box.alpha=0.8;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
+        this.nameLayer.addChild(name);
         this.world.addChildAt(box,this.world.getChildIndex(this.pet));peer={box,animation,effect,name};this.peers.set(member.id,peer);
       }
       const pose=member.pose,age=Math.min(0.35,Math.max(0,(client.serverTime-client.snapshot.now)/1000));
       const targetX=Math.max(120,Math.min(this.run.finish,pose.x+pose.vx*age));
       const mix=1-Math.exp(-12*seconds);peer.box.x+=(targetX-peer.box.x)*mix;peer.box.y+=(COURSE_GROUND-pose.height-peer.box.y)*mix;
+      peer.name.text=member.name;peer.name.position.set(peer.box.x,peer.box.y-155);
       peer.animation.update('IDLE',this.elapsed,pose.direction,0,0,seconds,pose.action,['attack','skill','jump','land'].includes(pose.action)?pose.progress:undefined);
       peer.effect.update(pose.action,pose.progress,pose.direction,peer.animation.sprite,pose.vx);
       if(this.settings?.preferences?.().effects===false){peer.effect.visible=false;peer.effect.ghosts.forEach(g=>{g.visible=false;});}else peer.effect.visible=true;
@@ -295,6 +308,7 @@ export class PlayScene extends Scene {
     else this.cameraX += (target - this.cameraX) * (1 - Math.exp(-9 * seconds));
     this.world.x = -this.cameraX * PLAY_ZOOM;
     this.pet.position.set(run.x, COURSE_GROUND - run.height);
+    this.localName?.position.set(this.pet.x,this.pet.y-155);
     const action = run.action(axis);
     const progress = action === 'attack' ? 1 - run.attack / run.attackDuration
       : action === 'skill' ? 1 - run.dash / run.dashDuration

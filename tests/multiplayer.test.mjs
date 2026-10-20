@@ -126,6 +126,10 @@ test('race scene freezes during countdown, draws peers and returns after server 
     await client.command('sync');const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},run:{frames:Array(4).fill(Texture.WHITE),fps:8}}};
     scene=new PlayScene(config,()=>returned++,{open(){},multiplayer:{client,pets:[config],leave(){}}});
     scene.update(0.1);assert.equal(scene.run.x,120);assert.equal(scene.run.elapsed,0);assert.equal(scene.peers.size,1);
+    const peer=scene.peers.get(users[1]);assert.equal(peer.box.alpha,0.8);assert.equal(scene.pet.alpha,1);
+    assert.equal(peer.name.alpha,1);assert.equal(peer.name.parent,scene.nameLayer);assert.equal(peer.name.y,peer.box.y-155);
+    assert.equal(scene.localName.text,client.room.members.find(m=>m.id===users[0]).name);assert.equal(scene.localName.alpha,1);
+    assert.equal(scene.localName.y,scene.pet.y-155);
     await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);await client.command('sync');
     await cmd(1,'pose',room.id,{round:start.round,x:400,height:0,action:'run',vx:240});await client.command('sync');scene.update(0.1);
     assert.ok(scene.peers.get(users[1]).box.x>120);
