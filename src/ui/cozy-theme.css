@@ -365,6 +365,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .map-card::before, .room-card::before { content: ''; display: block; height: 5cqh; margin-bottom: 0.7cqh; border-radius: 0.7cqw; background: url('/assets/home/garden-background.png') center 40% / cover; }
 .map-practice::before { filter: saturate(0.5); background-position: center 70%; }
 .race-countdown[data-error="true"] { top: 18%; font-size: 2cqw; }
+.race-countdown[data-waiting="true"] { top: 50%; transform: translateY(-50%); padding: 0 4cqw; font-size: 1.8cqw; line-height: 1.5; color: #fff9e5; text-shadow: 0 1px 3px #47513d; }
 .room-map-preview { display: flex; align-items: center; gap: 1.5cqw; padding: 1cqh 1cqw; border-radius: 1.2cqw; background: #f3e6c7; }
 .room-map-preview::before { width: 12cqw; flex-shrink: 0; margin: 0; height: 8cqh; }
 .room-map-preview p { margin: 0; }

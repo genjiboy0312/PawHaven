@@ -24,6 +24,7 @@ export class PlayMenuPopup {
     rooms?:RoomClient;single:(map:CourseId)=>Promise<boolean>;race:(room:Room,client:RoomClient)=>void;
     login:()=>void;dismiss:(keep:boolean)=>void;
     pets?:{config:AnimalConfig;thumbnail:string}[];
+    nickname?:()=>string|null|undefined;
   }){}
   open(page:Page='mode'){
     if(this.overlay)return;this.page=page;
@@ -133,8 +134,9 @@ export class PlayMenuPopup {
     }else if(this.page==='single')root.append(this.maps(map=>{void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});}));
     else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
     else if(this.page==='create'){
-      const input=document.createElement('input');input.maxLength=24;input.value=this.name;input.placeholder=t('roomName');bindAria(input,'roomName');
-      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map),this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name,map:this.map}))this.page='multi';});}));
+      const defaultName=()=>`${this.options.nickname?.()?.trim()||'Player '+client.owner.slice(0,4)}님의 방`;
+      const input=document.createElement('input');input.maxLength=24;input.value=this.name;input.placeholder=defaultName();bindAria(input,'roomName');
+      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map),this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name.trim()||defaultName(),map:this.map}))this.page='multi';});}));
     }else if(room){
       root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
       if(room.phase==='results'){

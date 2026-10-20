@@ -277,6 +277,7 @@ export class PlayScene extends Scene {
     this.syncStatus.textContent=t(client.directConnected?'raceDirectSync':client.streamConnected?'raceLiveSync':'raceBasicSync');this.syncStatus.hidden=this.run.won;
     this.countdown.textContent=client.error||client.reconnecting?t('multiReconnecting'):waiting?t('raceLoading'):cue;
     this.countdown.setAttribute('data-error',String(!!client.error||client.reconnecting));
+    this.countdown.setAttribute('data-waiting',String(!!waiting&&!client.error&&!client.reconnecting));
     this.countdown.hidden=!waiting&&!cue&&!client.error&&!client.reconnecting;
     if(ended&&!this.run.won)this.run.victoryTime=0;
     if(this.run.won){

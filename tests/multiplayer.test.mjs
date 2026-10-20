@@ -179,6 +179,24 @@ test('real room snapshots drive host Ready gating, countdown and popup cleanup',
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
 
+test('room creation uses the host nickname for blank titles and preserves a custom title',async()=>{
+  await db.query("insert into public.player_profiles(user_id,nickname) values($1,'명랑집사') on conflict(user_id) do update set nickname=excluded.nickname",[users[0]]);
+  const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let menu;
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,nickname:()=> '명랑집사',single:async()=>true,race(){},login(){},dismiss(){}});
+    menu.open('create');
+    let input=env.host.all().find(e=>e.tag==='input');assert.equal(input.placeholder,'명랑집사님의 방');
+    input.value='   ';input.dispatchEvent(new Event('input'));
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);
+    assert.equal(client.room.name,'명랑집사님의 방');assert.equal(client.room.members[0].name,'명랑집사');
+    await client.command('leave');menu.destroy();
+    menu=new PlayMenuPopup(()=>{},{rooms:client,nickname:()=> '명랑집사',single:async()=>true,race(){},login(){},dismiss(){}});menu.open('create');
+    input=env.host.all().find(e=>e.tag==='input');input.value='  함께 달려요  ';input.dispatchEvent(new Event('input'));
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);
+    assert.equal(client.room.name,'함께 달려요');
+  }finally{menu?.destroy();client.destroy(false);await db.query('delete from public.player_profiles where user_id=$1',[users[0]]);env.restore();}
+});
+
 test('race scene freezes during countdown, draws peers and returns after server results',async()=>{
   const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});const start=(await cmd(0,'start',room.id)).room;
   const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let scene,returned=0;

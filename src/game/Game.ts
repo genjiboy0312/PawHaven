@@ -177,7 +177,7 @@ export class Game {
         }),roomStream(accountClient,owner),lobbyStream(accountClient,owner)):undefined);
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
-          rooms,pets,single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
+          rooms,pets,nickname:()=>this.account?.nickname,single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           race:(room,client)=>{
             const look=room.members.find(m=>m.id===client.owner)?.look;
             const original=look?.petId===this.myeongrang?.id?this.myeongrang!:corgi;
