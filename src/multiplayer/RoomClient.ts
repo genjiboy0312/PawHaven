@@ -35,7 +35,7 @@ export class RoomClient {
   private requestStarted=0;
   streamConnected=false;
   directConnected=false;
-  private streamKey='';private closeStream?:()=>void;
+  private streamKey='';private closeStream?:ReturnType<RoomStream>;private startPosePending=false;
   private streamOffset?:number;
   private readonly streamed=new Map<string,StreamPose&{receivedAt:number}>();
   private readonly directOffsets=new Map<string,number>();
@@ -74,7 +74,7 @@ export class RoomClient {
     const sample=this.streamed.get(member.id);
     return this.streamConnected&&sample&&performance.now()-sample.receivedAt<1000?{pose:sample.pose,at:sample.at+this.streamOffset!}:{pose:member.pose,at:this.receivedAt};
   }
-  private stopStream(){this.streamKey='';this.closeStream?.();this.closeStream=undefined;this.streamConnected=this.directConnected=false;this.streamed.clear();this.directOffsets.clear();this.streamOffset=undefined;}
+  private stopStream(){this.streamKey='';this.closeStream?.();this.closeStream=undefined;this.startPosePending=false;this.streamConnected=this.directConnected=false;this.streamed.clear();this.directOffsets.clear();this.streamOffset=undefined;}
   private syncStream(){
     const room=this.room,key=room?.round&&['countdown','playing'].includes(room.phase)?room.id+':'+room.round:'';
     if(key===this.streamKey)return;this.stopStream();if(!key||!room||!this.stream)return;
@@ -93,10 +93,14 @@ export class RoomClient {
       else this.streamOffset=Math.min(this.streamOffset??Infinity,receivedAt-sample.at);
       this.streamed.set(id,{...sample,pose:{...pose},receivedAt});
     },connected=>{if(!this.closed&&this.streamKey===key){this.streamConnected=connected;}},
-    ()=>!this.closed&&!this.needsSync&&this.room?.phase==='playing'?this.pose?.():undefined,
+    ()=>!this.closed&&!this.needsSync&&!this.error&&['countdown','playing'].includes(this.room?.phase??'')?this.pose?.():undefined,
     connected=>{if(!this.closed&&this.streamKey===key&&this.directConnected!==connected){this.directConnected=connected;this.schedule();}});
   }
   clearNotice(){this.notice='';this.emit();}
+  publishStartPose(){
+    if(this.closed||this.needsSync||this.error||!this.room?.startsAt||this.serverTime<this.room.startsAt||!['countdown','playing'].includes(this.room.phase))return;
+    this.closeStream?.flush?.();this.startPosePending=true;this.schedule();
+  }
   private async poll(){
     if(this.closed||this.busy||this.work)return;
     if(typeof document!=='undefined'&&document.hidden)return;
@@ -105,7 +109,8 @@ export class RoomClient {
     if(this.needsSync){await this.send(room?'sync':'list');return;}
     if(this.roomRefresh){this.roomRefresh=false;await this.send(room?'sync':'list');return;}
     if(this.finishPose&&room?.phase==='playing'&&!room.racers.find(r=>r.id===this.owner)?.time){await this.submitFinish();return;}
-    const moving=room&&this.pose&&room.phase==='playing'&&!this.needsSync;
+    const moving=room&&this.pose&&(room.phase==='playing'||room.phase==='countdown'&&room.startsAt!==null&&this.serverTime>=room.startsAt)&&!this.needsSync;
+    this.startPosePending=false;
     await this.send(moving?'pose':room?'sync':'list',moving?{...this.pose!(),round:room.round}:{});
   }
   async command(action:string,payload:Record<string,unknown>={},roomId?:string):Promise<boolean>{
@@ -153,7 +158,7 @@ export class RoomClient {
     clearTimeout(this.timer);if(this.closed||this.busy||(typeof document!=='undefined'&&document.hidden))return;
     const racing=this.pose&&['countdown','playing'].includes(this.room?.phase??'');
     const delay=racing?Math.max(16,(this.directConnected?800:RACE_SYNC_MS)-(performance.now()-this.requestStarted)):this.room?(this.lobbyConnected?600:300):1200;
-    this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync?0:this.roomRefresh?30:delay);
+    this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync||this.startPosePending?0:this.roomRefresh?30:delay);
   }
   async finish(pose:Pose){
     this.finishPose=pose;return this.submitFinish();

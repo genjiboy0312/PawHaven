@@ -8,6 +8,7 @@ const {RoomClient,roomTransport}=await importTs('../src/multiplayer/RoomClient.t
 const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.url);
 const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.url);
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
+const {RacePodium}=await importTs('../src/ui/RacePodium.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
 const {raceCountdown}=await importTs('../src/multiplayer/RaceCountdown.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
@@ -208,8 +209,9 @@ test('race scene freezes during countdown, draws peers and returns after server 
     assert.equal(scene.ranking.querySelector('.race-result-row').getAttribute('data-self'),'true');
     await db.query("update public.mp_rooms set ends_at=clock_timestamp()-interval '1 second' where id=$1",[room.id]);await client.command('sync');scene.update(0.01);
     assert.equal(scene.back.disabled,false);assert.equal(scene.raceNote.textContent,'It was lovely running together!');
-    assert.equal(scene.ranking.querySelector('.race-results-list').children[1].children[0].textContent,'—');
-    scene.back.dispatchEvent(new Event('click'));scene.update(0.41);assert.equal(returned,1);
+    assert.equal(scene.podium.element.querySelector('.race-winner-name').textContent,client.room.racers.find(r=>r.id===users[0]).name);
+    assert.equal(scene.podium.element.querySelector('.race-podium-list').children[0].children[0].textContent,'DNF');
+    assert.equal(scene.hud.inert,true);scene.podium.back.dispatchEvent(new Event('click'));scene.update(0.41);assert.equal(returned,1);
   }finally{scene?.destroy({children:true});await idle(client);client.destroy(false);env.restore();}
 });
 
@@ -270,6 +272,54 @@ test('race result rows use accepted times, keep unfinished racers unranked and h
     assert.equal(list.children[2].children[0].textContent,'—');assert.equal(list.children[2].children[3].textContent,'Racing…');assert.equal(list.children[3].children[3].textContent,'DNF');
     const ended=raceResults(racers,members,'pending',[pet],true);assert.equal(ended.children[2].children[3].textContent,'DNF');
   }finally{env.restore();}
+});
+
+test('final podium centers the winner with the chosen pet and hat, animates existing emote frames and lists other names only',()=>{
+  const env=dom(),hud=new Element();env.host.append(hud);let podium,returned=0;
+  const draws=[];const context={setTransform(){},clearRect(){},save(){},restore(){},translate(){},rotate(){},scale(){},drawImage(...args){draws.push(args);}};
+  const create=document.createElement;document.createElement=tag=>{const e=create(tag);if(tag==='canvas')e.getContext=()=>context;return e;};
+  const config={id:'myeongrang',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},emote:{frames:[Texture.WHITE,Texture.WHITE,Texture.WHITE],fps:8,head:Array(3).fill({x:0,y:-1,width:20})}},wardrobe:{santaHat:Texture.WHITE,outfit:{Hat:0}}};
+  const racers=[{id:'slow',name:'Second',time:9000},{id:'win',name:'<Winner>',time:8000},{id:'third',name:'Third',time:10000},{id:'left',name:'Last',time:null}];
+  try{
+    podium=new RacePodium(racers,[{id:'win',look:{petId:'myeongrang',outfit:{Hat:1}}}],'slow',[config],hud,()=>returned++);
+    assert.equal(hud.inert,true);assert.equal(podium.element.querySelector('.race-winner-name').textContent,'<Winner>');
+    assert.equal(podium.element.querySelector('.race-winner-place').textContent,'1st');
+    const rows=podium.element.querySelector('.race-podium-list').children;
+    assert.deepEqual(rows.map(row=>row.children.map(cell=>cell.textContent)),[['2','Second'],['3','Third'],['DNF','Last']]);
+    assert.equal(rows[0].getAttribute('data-self'),'true');assert.equal(rows[0].children.length,2);
+    podium.update(0.01);const first=podium.animation.sprite.currentFrame;podium.update(0.14);
+    assert.notEqual(podium.animation.sprite.currentFrame,first);assert.equal(podium.animation.hat.visible,true);assert.equal(config.wardrobe.outfit.Hat,0);
+    assert.ok(draws.length>=4);assert.equal(document.activeElement,podium.back);
+    podium.back.dispatchEvent(new Event('click'));assert.equal(returned,1);
+    podium.destroy();assert.equal(hud.inert,false);assert.equal(env.host.querySelector('.race-podium-overlay'),undefined);
+  }finally{if(hud.inert)podium?.destroy();env.restore();}
+});
+
+test('all-DNF podium does not invent a winner and preserves an already inert background on cleanup',()=>{
+  const env=dom(),hud=new Element();hud.inert=true;let podium;
+  try{
+    podium=new RacePodium([{id:'one',name:'One',time:null},{id:'two',name:'Two',time:null}],[],'one',[],hud,()=>{});
+    assert.equal(podium.element.querySelector('.race-winner'),undefined);
+    assert.equal(podium.element.querySelector('.race-podium-list').children.length,2);
+    assert.equal(podium.element.querySelector('.race-no-winner').textContent,'No finishers this time');
+    podium.destroy();assert.equal(hud.inert,true);
+  }finally{env.restore();}
+});
+
+test('start sends the first moved pose immediately while the last server snapshot still says countdown',async()=>{
+  const env=dom();let provide,flushes=0,poseCalls=0,scene;
+  const room={id:'room',map:'garden',host:'one',phase:'countdown',round:'round',startsAt:10000,endsAt:130000,members:[{id:'one',name:'One',look:{petId:'corgi',outfit:{}},pose:{x:120,height:0,direction:1,action:'idle',progress:0,vx:0}}],racers:[{id:'one',name:'One',time:null,left:false}]};
+  const client=new RoomClient('one',async(action)=>{if(action==='pose')poseCalls++;return{room:structuredClone(room),rooms:[],now:9000};},(r,receive,status,pose)=>{provide=pose;return Object.assign(()=>{},{flush(){flushes++;assert.ok(provide().x>120);}});});
+  try{
+    await client.command('sync');const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},run:{frames:[Texture.WHITE],fps:8}}};
+    scene=new PlayScene(config,()=>{},{open(){},multiplayer:{client,pets:[config],leave(){}}});
+    client.clockOffset=9000-performance.now();assert.equal(provide().x,120);
+    client.clockOffset=10001-performance.now();scene.keys.add('KeyD');scene.update(0.016);
+    assert.equal(flushes,1);assert.ok(provide().vx>0);assert.equal(client.room.phase,'countdown');
+    await new Promise(resolve=>setTimeout(resolve,20));await idle(client);assert.ok(poseCalls>=1);
+    scene.update(0.016);assert.equal(flushes,1);
+    client.reconnect();assert.equal(provide(),undefined);
+  }finally{scene?.destroy({children:true});client.destroy(false);env.restore();}
 });
 
 test('an uncertain Ready request is read back before any mutation can be retried',async()=>{
@@ -453,6 +503,7 @@ test('actor channels bind remote identity to the subscribed topic and publish wi
   try{
     await new Promise(resolve=>setImmediate(resolve));assert.equal(channels.length,3);channels.forEach(c=>c.status('SUBSCRIBED'));assert.equal(fast,true);
     channels[2].receive({payload:{id:users[0],pose,at:10,session:'peer'}});assert.equal(received[0].id,users[1]);assert.equal(received[0].source,'direct');
+    const before=sent;stop.flush();assert.equal(sent,before+1);stop.flush();assert.equal(sent,before+2);
     await new Promise(resolve=>setTimeout(resolve,80));assert.ok(sent>=1);
   }finally{stop();}
 });

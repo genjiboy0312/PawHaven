@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Room, Pose } from './RoomClient';
 export interface StreamPose { id:string;pose:Pose;at:number;source?:'direct';session?:string }
-export type RoomStream=(room:Room,receive:(value:unknown)=>void,status:(connected:boolean)=>void,pose?:()=>Pose|undefined,fastStatus?:(ready:boolean)=>void)=>()=>void;
+export type RoomStream=(room:Room,receive:(value:unknown)=>void,status:(connected:boolean)=>void,pose?:()=>Pose|undefined,fastStatus?:(ready:boolean)=>void)=>(()=>void)&{flush?:()=>void};
 export type LobbyStream=(room:Room,changed:()=>void,status:(connected:boolean)=>void)=>()=>void;
 export function lobbyStream(client:SupabaseClient,owner:string):LobbyStream{
   return(room,changed,status)=>{
@@ -24,6 +24,7 @@ export function lobbyStream(client:SupabaseClient,owner:string):LobbyStream{
 export function roomStream(client:SupabaseClient,owner:string):RoomStream{
   return(room,receive,status,pose,fastStatus)=>{
     let closed=false,timer:ReturnType<typeof setInterval>|undefined;
+    let publish:((force?:boolean)=>void)|undefined;
     const channels:ReturnType<SupabaseClient['channel']>[]=[],ready=new Set<string>();
     void(async()=>{
       try{
@@ -50,16 +51,17 @@ export function roomStream(client:SupabaseClient,owner:string):RoomStream{
               });
             channels.push(actor);if(member.id===owner)sender=actor;
           }
-          timer=setInterval(()=>{
+          publish=(force=false)=>{
             if(closed||ready.size!==members.length||!ready.has(owner)||!sender)return;
             const value=pose();if(!value)return;const now=performance.now(),encoded=JSON.stringify(value);
-            if(encoded===last&&now-sentAt<300)return;last=encoded;sentAt=now;
+            if(!force&&encoded===last&&now-sentAt<300)return;last=encoded;sentAt=now;
             void sender.send({type:'broadcast',event:'motion',payload:{pose:value,at:now,session}})
               .then(result=>{if(!closed)fastStatus?.(result==='ok'&&ready.size===members.length&&ready.has(owner));}).catch(()=>{if(!closed)fastStatus?.(false);});
-          },members.length<=2?50:100);
+          };
+          timer=setInterval(()=>publish?.(),members.length<=2?50:100);
         }
       }catch{if(!closed){status(false);fastStatus?.(false);}}
     })();
-    return()=>{closed=true;clearInterval(timer);for(const channel of channels)void client.removeChannel(channel).catch(()=>{});};
+    return Object.assign(()=>{closed=true;clearInterval(timer);for(const channel of channels)void client.removeChannel(channel).catch(()=>{});},{flush:()=>publish?.(true)});
   };
 }

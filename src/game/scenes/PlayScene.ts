@@ -9,6 +9,7 @@ import { COURSE_GROUND } from '../TrainingCourse';
 import { COURSES, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
+import { RacePodium } from '../../ui/RacePodium';
 import { RemoteMotion } from '../../multiplayer/RemoteMotion';
 import { raceCountdown } from '../../multiplayer/RaceCountdown';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
@@ -25,10 +26,12 @@ export class PlayScene extends Scene {
   private readonly raceMembers=new Map<string,Room['members'][number]>();
   private resultRoom?:Room;
   private resultSignature='';
+  private podium?:RacePodium;
   private recoverySeen=0;
   private sceneRendered=false;
   private loadAcknowledged=false;
   private loadPending=false;
+  private startPoseSent=false;
   private readonly raceRound?:string|null;
   private readonly labels: { text: Text; key: 'start' | 'finish' | 'checkpoint' }[] = [];
   private readonly localeOff: () => void;
@@ -179,7 +182,7 @@ export class PlayScene extends Scene {
     window.addEventListener('resize', this.blur, { signal });
     document.addEventListener('visibilitychange', this.blur, { signal });
     window.addEventListener('keydown', (event) => {
-      if (this.paused) return;
+      if (this.paused || this.podium) return;
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', 'KeyA', 'KeyD', 'KeyW', 'ShiftLeft', 'ShiftRight', 'KeyJ'].includes(event.code)) return;
       event.preventDefault(); this.keys.add(event.code);
       if (event.repeat) return;
@@ -281,7 +284,14 @@ export class PlayScene extends Scene {
       this.back.disabled=!ended||client.reconnecting||!!client.error;
       const results=this.resultRoom,finished=room?.phase==='results';
       const signature=JSON.stringify([results?.racers,[...this.raceMembers.values()].map(member=>[member.id,member.look.petId]),finished]);
-      if(signature!==this.resultSignature){this.resultSignature=signature;this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,finished));}
+      if(signature!==this.resultSignature){
+        this.resultSignature=signature;
+        this.podium?.destroy();this.podium=undefined;
+        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false));
+        else this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,false));
+        this.hud.setAttribute('data-podium',String(!!this.podium));
+      }
+      if(this.podium){this.podium.back.disabled=this.back.disabled;this.podium.update(seconds,this.settings?.preferences?.().effects===false);this.podium.element.style.opacity=String(1-this.run.fade);}
       const remaining=Math.max(0,Math.ceil(((room?.endsAt??client.serverTime)-client.serverTime)/1000));
       this.raceNote.textContent=client.error||client.reconnecting||!room?t('multiReconnecting'):finished?t('raceTogether'):room.phase==='waiting'?t('raceCancelled'):remaining?t('raceRemaining').replace('{seconds}',String(remaining)):t('raceChecking');
     }
@@ -294,6 +304,7 @@ export class PlayScene extends Scene {
     const axis = this.axis || keyboard;
     const respawns = this.run.respawns;
     if(this.raceStarted||this.run.won)this.run.update(seconds, axis);
+    if(this.settings?.multiplayer&&!this.startPoseSent&&this.raceStarted&&!this.run.won){this.startPoseSent=true;this.settings.multiplayer.client.publishStartPose();}
     if (this.run.respawns !== respawns) { this.blur(); this.cameraX = cameraTarget(this.run.x, this.courseEnd); }
     this.elapsed += seconds;
     this.render(seconds, this.run.respawns === respawns ? axis : 0);
@@ -349,6 +360,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    this.podium?.destroy();
     if(this.settings?.multiplayer)this.settings.multiplayer.client.pose=undefined;
     this.blur();
     this.localeOff(); this.abort.abort(); this.hud.remove(); super.destroy(options);
