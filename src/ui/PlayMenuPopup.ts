@@ -145,7 +145,7 @@ export class PlayMenuPopup {
       }else{
         const preview=document.createElement('div');preview.className='room-map-preview map-card map-'+room.map;
         preview.append(this.text(t(COURSES[room.map].title)+' · '+COURSES[room.map].seconds));
-        const change=this.button('chooseMap',()=>this.openMapPicker());change.className+=' room-change-map';change.disabled=room.host!==client.owner||room.phase!=='waiting';change.setAttribute('title',t('roomHostMap'));preview.append(change);root.append(preview);
+        if(room.host===client.owner){const change=this.button('chooseMap',()=>this.openMapPicker());change.className+=' room-change-map';change.disabled=room.phase!=='waiting';preview.append(change);}root.append(preview);
         const host=room.host===client.owner;const slots=document.createElement('div');slots.className='room-slots';
         for(let i=0;i<4;i++){
           const member=room.members[i],slot=document.createElement('div');slot.className='daily-quest room-player';

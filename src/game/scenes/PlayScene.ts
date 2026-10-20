@@ -9,13 +9,15 @@ import { COURSE_GROUND } from '../TrainingCourse';
 import { COURSES, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
+import { RemoteMotion } from '../../multiplayer/RemoteMotion';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
 import { Scene } from './Scene';
 
 export class PlayScene extends Scene {
   private readonly run:DummyRun;
   private readonly courseEnd:number;
-  private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text;sample?:string;sampleAt:number}>();
+  private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text;motion:RemoteMotion}>();
+  private readonly syncStatus=document.createElement('p');
   private readonly countdown=document.createElement('p');
   private readonly ranking=document.createElement('div');
   private readonly raceNote=document.createElement('p');
@@ -141,6 +143,7 @@ export class PlayScene extends Scene {
     this.hud.append(this.result, this.progress);
     if(settings?.multiplayer){
       this.hud.classList.add('race-hud');
+      this.syncStatus.className='race-sync-status';this.hud.append(this.syncStatus);
       settings.multiplayer.client.pose=()=>this.pose();
       this.retry.hidden=true;bindText(this.back,'returnRoom');
       this.countdown.className='play-victory race-countdown';this.ranking.className='race-ranking';this.raceNote.className='race-result-note';
@@ -247,21 +250,18 @@ export class PlayScene extends Scene {
         const animation=new AnimalAnimationController(config),effect=new AnimalEffects(config.effects),box=new Container(),name=this.playerName(member.name);
         box.tint=0xd9d9d9;box.addChild(...effect.ghosts,animation.sprite,animation.sleepMark,animation.welcomeMark,effect);box.position.set(member.pose.x,COURSE_GROUND-member.pose.height);
         this.nameLayer.addChild(name);
-        this.world.addChildAt(box,this.world.getChildIndex(this.pet));peer={box,animation,effect,name,sampleAt:performance.now()};this.peers.set(member.id,peer);
+        this.world.addChildAt(box,this.world.getChildIndex(this.pet));peer={box,animation,effect,name,motion:new RemoteMotion()};this.peers.set(member.id,peer);
       }
-      const pose=member.pose,sample=JSON.stringify(pose);
-      if(peer.sample!==sample){peer.sample=sample;peer.sampleAt=performance.now();}
-      const age=client.error||client.reconnecting?0:Math.min(0.2,Math.max(0,(performance.now()-peer.sampleAt+Math.min(150,client.roundTripMS)*0.5+50)/1000));
-      const targetX=Math.max(120,Math.min(this.run.finish,pose.x+pose.vx*age));
-      const mix=1-Math.exp(-24*seconds);
-      if(Math.abs(targetX-peer.box.x)>240){peer.box.x=targetX;peer.box.y=COURSE_GROUND-pose.height;}
-      else {peer.box.x+=(targetX-peer.box.x)*mix;peer.box.y+=(COURSE_GROUND-pose.height-peer.box.y)*mix;}
+      const sample=client.peerPose(member),pose=sample.pose;
+      peer.motion.push(pose,sample.at);peer.motion.update(performance.now(),seconds,!client.error&&!client.reconnecting);
+      peer.box.x=Math.max(120,Math.min(this.run.finish,peer.motion.x));peer.box.y=COURSE_GROUND-peer.motion.height;
       peer.name.text=member.name;peer.name.position.set(peer.box.x,peer.box.y-155);
       peer.animation.update('IDLE',this.elapsed,pose.direction,0,0,seconds,pose.action,['attack','skill','jump','land'].includes(pose.action)?pose.progress:undefined);
       peer.effect.update(pose.action,pose.progress,pose.direction,peer.animation.sprite,pose.vx);
       if(this.settings?.preferences?.().effects===false){peer.effect.visible=false;peer.effect.ghosts.forEach(g=>{g.visible=false;});}else peer.effect.visible=true;
     }
     const startIn=room?.startsAt?Math.max(0,Math.ceil((room.startsAt-client.serverTime)/1000)):0;
+    this.syncStatus.textContent=t(client.streamConnected?'raceLiveSync':'raceBasicSync');this.syncStatus.hidden=this.run.won;
     this.countdown.textContent=client.error||client.reconnecting?t('multiReconnecting'):startIn?String(startIn):'';
     this.countdown.setAttribute('data-error',String(!!client.error||client.reconnecting));
     this.countdown.hidden=!startIn&&!client.error&&!client.reconnecting;

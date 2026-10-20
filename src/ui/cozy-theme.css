@@ -397,3 +397,4 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .race-result-name { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: left; font: 400 clamp(11px,1.7cqw,23px) var(--font-round); }
 .race-result-time { font-size: clamp(10px,1.4cqw,19px); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .race-hud .play-result .race-result-note { margin: 1cqh 0 1.5cqh; font-size: clamp(10px,1.4cqw,19px); }
+.race-sync-status { position: absolute; left: 3cqw; top: 9cqh; margin: 0; padding: 0.5cqh 1cqw; border-radius: 0.8cqw; background: #fff8e5df; color: #71805b; font-size: 1.15cqw; }

@@ -8,19 +8,27 @@ const {RoomClient,roomTransport}=await importTs('../src/multiplayer/RoomClient.t
 const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.url);
 const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.url);
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
+const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
+const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
 const {Texture}=await import('pixi.js');
 const db = new PGlite();
 const users = [1,2,3,4,5].map(n => `${n}`.repeat(8) + '-1111-4111-8111-111111111111');
 await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema auth to authenticated,anon;");
 for (const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql']) await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
 for (const user of users) await db.query('insert into auth.users values($1)',[user]);
+// Supabase-owned Realtime primitives are replaced only in this local SQL harness.
+await db.exec(`create schema realtime;create table realtime.messages(payload jsonb,event text,topic text,private boolean,extension text default 'broadcast');
+alter table realtime.messages enable row level security;grant usage on schema realtime to authenticated;
+create function realtime.topic() returns text language sql stable as $$select current_setting('test.realtime.topic',true)$$;
+create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages(payload,event,topic,private) values($1,$2,$3,$4)$$;`);
+await db.exec(await readFile(new URL('../supabase/migrations/202610200004_room_stream.sql',import.meta.url),'utf8'));
 async function as(user,query,args=[],role='authenticated') {
   await db.exec('set role '+role);
   try { await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??'']); return await db.query(query,args); }
   finally { await db.exec('reset role'); }
 }
 async function cmd(n,action,room=null,payload={}) { return (await as(users[n], 'select public.multiplayer_command($1,$2,$3) as result',[action,room,JSON.stringify(payload)])).rows[0].result; }
-beforeEach(async()=>{await db.exec('truncate public.mp_rooms cascade');});
+beforeEach(async()=>{await db.exec('truncate public.mp_rooms cascade;truncate realtime.messages');});
 after(async()=>{await db.close();});
 test('rooms expose counts, serialize the fourth seat, isolate members and deny direct table access',async()=>{
   const room=(await cmd(0,'create',null,{name:'Friends',map:'garden'})).room;
@@ -131,9 +139,9 @@ test('race scene freezes during countdown, draws peers and returns after server 
     assert.equal(scene.localName.text,client.room.members.find(m=>m.id===users[0]).name);assert.equal(scene.localName.alpha,1);
     assert.equal(scene.localName.y,scene.pet.y-155);
     await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);await client.command('sync');
-    await cmd(1,'pose',room.id,{round:start.round,x:400,height:0,action:'run',vx:240});await client.command('sync');scene.update(0.1);
+    await cmd(1,'pose',room.id,{round:start.round,x:400,height:0,action:'run',vx:240});await client.command('sync');await new Promise(resolve=>setTimeout(resolve,75));scene.update(0.1);
     assert.ok(scene.peers.get(users[1]).box.x>120);
-    scene.update(0.1);assert.ok(scene.peers.get(users[1]).animation.sprite.currentFrame>0);assert.ok(peer.box.x>=400);
+    scene.update(0.1);assert.ok(scene.peers.get(users[1]).animation.sprite.currentFrame>0);
     scene.run.x=scene.run.finish;scene.update(0.01);await idle(client);scene.update(0.01);assert.equal(scene.back.disabled,true);
     assert.match(scene.raceNote.textContent,/Waiting for friends · \d+s left/);
     assert.equal(scene.ranking.querySelector('.race-result-row').getAttribute('data-self'),'true');
@@ -285,7 +293,7 @@ test('a second account joins from the room card and stays in the shared room wit
     menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
     const card=env.host.querySelector('.room-card');assert.equal(card.disabled,false);card.dispatchEvent(new Event('click'));await idle(client);
     assert.equal(client.room.id,room.id);assert.equal(client.room.members.length,2);assert.equal(client.room.host,users[0]);
-    assert.equal(env.host.querySelector('.room-change-map').disabled,true);assert.equal(env.host.querySelector('.mode-cards'),undefined);
+    assert.equal(env.host.querySelector('.room-change-map'),undefined);assert.equal(env.host.querySelector('.mode-cards'),undefined);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Ready').dispatchEvent(new Event('click'));await idle(client);
     assert.equal((await cmd(0,'sync',room.id)).room.members.find(m=>m.id===users[1]).ready,true);
   }finally{menu?.destroy();client.destroy(false);env.restore();}
@@ -300,4 +308,52 @@ test('cloud cosmetic save failure cannot block room admission and auth is checke
   try{await pending('join','room',{},new AbortController().signal);assert.equal(rpcCalls,2);}finally{release();}
   const changed=roomTransport(client,users[1],async()=>{active=users[0];});
   await assert.rejects(()=>changed('join','room',{},new AbortController().signal));assert.equal(rpcCalls,2);
+});
+
+test('database broadcasts accepted poses privately and room topics reject outsiders and client writes',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});const start=(await cmd(0,'start',room.id)).room;
+  await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[room.id]);
+  const pose={round:start.round,x:350,height:0,direction:1,action:'run',progress:0,vx:240};await cmd(0,'pose',room.id,pose);
+  const message=(await db.query('select * from realtime.messages')).rows[0],topic=`paw-room:${room.id}:${start.round}`;
+  assert.equal(message.topic,topic);assert.equal(message.private,true);assert.equal(message.payload.id,users[0]);assert.equal(message.payload.pose.x,350);
+  await cmd(0,'pose',room.id,pose);assert.equal((await db.query('select count(*) n from realtime.messages')).rows[0].n,1);
+  await db.query("select set_config('test.realtime.topic',$1,false)",[topic]);
+  assert.equal((await as(users[1],'select * from realtime.messages')).rows.length,1);
+  assert.equal((await as(users[2],'select * from realtime.messages')).rows.length,0);
+  await db.exec("grant insert on realtime.messages to authenticated;create policy test_broad_send on realtime.messages for insert to authenticated with check(true);create policy test_broad_receive on realtime.messages for select to authenticated using(true);");
+  try{
+    assert.equal((await as(users[2],'select * from realtime.messages')).rows.length,0);
+    await assert.rejects(()=>as(users[1],"insert into realtime.messages(payload,event,topic,private) values('{}','pose',$1,true)",[topic]),e=>e.code==='42501');
+  }finally{await db.exec('drop policy test_broad_send on realtime.messages;drop policy test_broad_receive on realtime.messages;revoke insert on realtime.messages from authenticated');}
+});
+
+test('live poses cannot be overwritten by an older RPC snapshot, replay or another round',async()=>{
+  const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});await cmd(0,'start',room.id);
+  let receive,stopped=0;const client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p),(r,callback,status)=>{receive=callback;status(true);return()=>{stopped++;};});
+  try{
+    await client.command('sync');const member=client.room.members.find(m=>m.id===users[1]);
+    const pose={x:500,height:80,direction:1,action:'jump',progress:0.2,vx:240};
+    receive({id:users[1],pose,at:1000});assert.equal(client.peerPose(member).pose.x,500);
+    receive({id:users[1],pose:{...pose,x:700},at:999});receive({id:users[1],pose:{...pose,x:9000},at:2000});assert.equal(client.peerPose(member).pose.x,500);
+    await client.command('sync');assert.equal(client.room.members.find(m=>m.id===users[1]).pose.x,120);assert.equal(client.peerPose(member).pose.x,500);
+    await client.command('leave');assert.equal(stopped,1);assert.equal(client.streamConnected,false);receive({id:users[1],pose,at:3000});assert.equal(client.streamed.size,0);
+  }finally{client.destroy(false);}
+});
+
+test('snapshot correction stays continuous after delayed dash packets and prediction stops after 80ms',()=>{
+  const pose={x:120,height:0,direction:1,action:'run',progress:0,vx:1000};
+  const motion=new RemoteMotion();motion.push(pose,0);motion.push({...pose,x:220,height:60},100);
+  motion.update(110,1/60);assert.ok(motion.x>120&&motion.x<220);assert.ok(motion.height>0&&motion.height<=15);
+  motion.push({...pose,x:1500,height:200},500);const before=motion.x;motion.update(700,1/60);assert.ok(motion.x-before<=2200/60+0.001);assert.ok(motion.x<1500);
+  for(let n=0;n<200;n++)motion.update(2000+n*16,1/60);assert.ok(motion.x<=1580.001);
+  motion.push({...pose,x:1500,height:0,vx:0,action:'idle'},6000);for(let n=0;n<100;n++)motion.update(7000+n*16,1/60);assert.ok(Math.abs(motion.x-1500)<0.001);
+});
+
+test('private stream checks its owner, delivers payloads and unsubscribes without leaking late events',async()=>{
+  let handler,status,removed=0,channels=0,delivered=0;
+  const channel={on(kind,filter,fn){handler=fn;return this;},subscribe(fn){status=fn;return this;}};
+  const client={auth:{getSession:async()=>({data:{session:{user:{id:users[0]}}}})},realtime:{setAuth:async()=>{}},channel(topic,options){channels++;assert.equal(options.config.private,true);assert.match(topic,/^paw-room:/);return channel;},removeChannel:async()=>{removed++;}};
+  const stop=roomStream(client,users[0])({id:'room',round:'round'},()=>{delivered++;},()=>{});await new Promise(resolve=>setImmediate(resolve));
+  status('SUBSCRIBED');handler({payload:{id:users[1]}});assert.equal(delivered,1);stop();handler({payload:{}});assert.equal(delivered,1);assert.equal(removed,1);
+  roomStream(client,users[1])({id:'room',round:'round'},()=>{},()=>{});await new Promise(resolve=>setImmediate(resolve));assert.equal(channels,1);
 });

@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AnimalAction } from '../animals/AnimalConfig';
 import type { CharacterPreset } from '../animals/CharacterPresets';
 import type { CourseId } from '../game/CourseCatalog';
+import { COURSES } from '../game/CourseCatalog';
+import type { RoomStream, StreamPose } from './RoomStream';
 export interface Pose { x: number; height: number; direction: number; action: AnimalAction; progress: number; vx: number }
 export interface RoomMember { id: string; name: string; look: CharacterPreset; ready: boolean; returned: boolean; pose: Pose }
 export interface RoomSummary { id: string; name: string; map: CourseId; phase: 'waiting'|'countdown'|'playing'|'results'; count: number }
@@ -31,10 +33,14 @@ export class RoomClient {
   recoverySerial=0;
   roundTripMS=0;
   private requestStarted=0;
+  streamConnected=false;
+  private streamKey='';private closeStream?:()=>void;
+  private streamOffset?:number;
+  private readonly streamed=new Map<string,StreamPose&{receivedAt:number}>();
   private revision=0;private listening=false;
   private receivedAt=0; private timer?:ReturnType<typeof setTimeout>; private work?:Promise<boolean>; private closed=false;
   private readonly abort=new AbortController(); private readonly listeners=new Set<()=>void>();
-  constructor(readonly owner:string,private readonly transport:Transport){}
+  constructor(readonly owner:string,private readonly transport:Transport,private readonly stream?:RoomStream){}
   get room(){return this.snapshot.room;}
   get reconnecting(){return this.needsSync;}
   get serverTime(){return this.snapshot.now+(this.receivedAt ? performance.now()-this.receivedAt : 0);}
@@ -50,7 +56,26 @@ export class RoomClient {
     }
     void this.poll();
   }
-  reconnect(){if(this.closed)return;this.needsSync=true;this.revision++;clearTimeout(this.timer);this.emit();void this.poll();}
+  reconnect(){if(this.closed)return;this.stopStream();this.needsSync=true;this.revision++;clearTimeout(this.timer);this.emit();void this.poll();}
+  peerPose(member:RoomMember):{pose:Pose;at:number}{
+    const sample=this.streamed.get(member.id);
+    return this.streamConnected&&sample&&performance.now()-sample.receivedAt<1000?{pose:sample.pose,at:sample.at+this.streamOffset!}:{pose:member.pose,at:this.receivedAt};
+  }
+  private stopStream(){this.streamKey='';this.closeStream?.();this.closeStream=undefined;this.streamConnected=false;this.streamed.clear();this.streamOffset=undefined;}
+  private syncStream(){
+    const room=this.room,key=room?.round&&['countdown','playing'].includes(room.phase)?room.id+':'+room.round:'';
+    if(key===this.streamKey)return;this.stopStream();if(!key||!room||!this.stream)return;
+    this.streamKey=key;
+    this.closeStream=this.stream(room,value=>{
+      if(this.closed||this.needsSync||this.streamKey!==key)return;
+      const sample=value as StreamPose,pose=sample?.pose;
+      if(!sample||!Number.isFinite(sample.at)||sample.id===this.owner||!this.room?.members.some(member=>member.id===sample.id)||!pose)return;
+      if(![pose.x,pose.height,pose.vx,pose.progress].every(Number.isFinite)||pose.x<120||pose.x>COURSES[room.map].finish||pose.height< -200||pose.height>300||Math.abs(pose.vx)>1800||pose.progress<0||pose.progress>1||![1,-1].includes(pose.direction)||!['idle','run','jump','fall','land','attack','skill'].includes(pose.action))return;
+      if(sample.at<=(this.streamed.get(sample.id)?.at??-Infinity))return;
+      const receivedAt=performance.now();this.streamOffset=Math.min(this.streamOffset??Infinity,receivedAt-sample.at);
+      this.streamed.set(sample.id,{id:sample.id,pose:{...pose},at:sample.at,receivedAt});
+    },connected=>{if(!this.closed&&this.streamKey===key){this.streamConnected=connected;}});
+  }
   clearNotice(){this.notice='';this.emit();}
   private async poll(){
     if(this.closed||this.busy||this.work)return;
@@ -87,7 +112,7 @@ export class RoomClient {
         if(this.needsSync)this.recoverySerial++;
         if(data.room?.round!==previous?.round||data.room?.phase!=='playing'||data.room.racers.find(r=>r.id===this.owner)?.time!==null)this.finishPose=undefined;
         this.receivedAt=performance.now();this.roundTripMS=this.receivedAt-started;
-        this.snapshot=data;this.error='';this.rejection='';this.needsSync=false;this.emit();return true;
+        this.snapshot=data;this.error='';this.rejection='';this.needsSync=false;this.syncStream();this.emit();return true;
       }catch(error){
         if(this.closed||revision!==this.revision)return false;
         const code=(error as {code?:string})?.code;
@@ -119,7 +144,7 @@ export class RoomClient {
   }
   destroy(leave=true){
     if(this.closed)return;
-    const room=this.room;this.closed=true;clearTimeout(this.timer);this.abort.abort();this.listeners.clear();this.pose=undefined;
+    const room=this.room;this.closed=true;this.stopStream();clearTimeout(this.timer);this.abort.abort();this.listeners.clear();this.pose=undefined;
     if(leave&&room)void this.transport('leave',room.id,{},AbortSignal.timeout(5000)).catch(()=>{});
   }
 }

@@ -1,6 +1,7 @@
 import { AccountStorage } from '../account/AccountStorage';
 import { PlayMenuPopup } from '../ui/PlayMenuPopup';
 import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
+import { roomStream } from '../multiplayer/RoomStream';
 import type { CourseId } from './CourseCatalog';
 import { AccountService } from '../account/AccountService';
 import { createAccountClient } from '../account/client';
@@ -173,7 +174,7 @@ export class Game {
         const owner=this.account?.user?.id;
         const rooms=this.rooms??(owner&&accountClient?new RoomClient(owner,roomTransport(accountClient,owner,async()=>{
           if(this.account?.pendingSave&&this.account.canSave)await this.account.save();
-        })):undefined);
+        }),roomStream(accountClient,owner)):undefined);
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
           rooms,pets,single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
