@@ -6,6 +6,7 @@ import { AnimalAnimationController } from '../../animals/AnimalAnimationControll
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
 import { COURSE_GROUND } from '../TrainingCourse';
+import { courseTerrain, courseMarker, type CourseArt } from '../CourseArt';
 import { COURSES, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
@@ -56,6 +57,7 @@ export class PlayScene extends Scene {
   private readonly targetViews: Graphics[] = [];
   private readonly checkpointFlag = new Graphics();
   private checkpointLit?: boolean;
+  private checkpointMarker?:ReturnType<typeof courseMarker>;
   private completed = false;
   private retrying = false;
   private retryFailed = false;
@@ -77,7 +79,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number)=>boolean; retry?: () => Promise<boolean>; map?:CourseId; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number)=>boolean; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
@@ -92,7 +94,7 @@ export class PlayScene extends Scene {
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill(forest?'#dae7d9':'#dcebdc'), this.world);
     this.world.scale.set(PLAY_ZOOM);
     this.world.y = PLAY_GROUND_Y - COURSE_GROUND * PLAY_ZOOM;
-    const terrain = new Graphics();
+    const terrain = settings?.art?courseTerrain(this.run.course,settings.art):new Graphics();
     if(forest){
       const trees=new Graphics();trees.label='forest-scenery';
       for(let x=180;x<this.courseEnd;x+=640){
@@ -104,7 +106,7 @@ export class PlayScene extends Scene {
       }
       this.world.addChild(trees);
     }
-    for (const solid of this.run.course) {
+    if(terrain instanceof Graphics)for (const solid of this.run.course) {
       const y = COURSE_GROUND - solid.top;
       terrain.rect(solid.x, y, solid.width, solid.top - solid.bottom).fill(forest?(solid.top?'#b9ad85':'#a9c39b'):(solid.top ? '#c8b38a' : '#b5cd99'))
         .rect(solid.x, y, solid.width, 6).fill(forest?'#6f936e':(solid.top ? '#a48d65' : '#78905c'));
@@ -114,10 +116,11 @@ export class PlayScene extends Scene {
       const flag = new Text({ text: t(label), style: { fontFamily: 'system-ui', fontSize: 23, fontWeight: 'bold', fill: '#455b3b' } });
       this.labels.push({ text: flag, key: label });
       flag.position.set(x - 40, 240);
-      this.world.addChild(new Graphics().rect(x, 275, 5, 115).fill('#657653'), flag);
+      if(settings?.art){const marker=courseMarker(label,settings.art,x);this.world.addChild(marker,flag);if(label==='checkpoint')this.checkpointMarker=marker;}
+      else this.world.addChild(new Graphics().rect(x, 275, 5, 115).fill('#657653'), flag);
     }
     this.checkpointFlag.position.set(map.checkpoint + 5, 275);
-    this.world.addChild(this.checkpointFlag);
+    this.checkpointFlag.visible=!settings?.art;this.world.addChild(this.checkpointFlag);
     for (const target of this.run.targets) {
       const view = new Graphics().rect(-22, -48, 44, 48).fill('#b88958')
         .rect(-18, -44, 36, 6).fill('#dbc198').rect(-3, -38, 6, 33).fill('#e8d7b2')
@@ -381,7 +384,8 @@ export class PlayScene extends Scene {
     const active = run.checkpoint > run.start;
     if (this.checkpointLit !== active) {
       this.checkpointLit = active;
-      this.checkpointFlag.clear().rect(0, 0, 45, 28).fill(active ? '#7dba79' : '#d7c392');
+      if(this.checkpointMarker){this.checkpointMarker.alpha=active?1:.6;this.checkpointMarker.tint=active?0xffffff:0xaaa79e;}
+      else this.checkpointFlag.clear().rect(0, 0, 45, 28).fill(active ? '#7dba79' : '#d7c392');
     }
     this.fade.style.opacity = String(Math.max(run.fade, 1 - Math.min(1, this.elapsed / 0.35)));
     if (run.won) this.blur();

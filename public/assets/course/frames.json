@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "tileWorldSize": 96,
+  "tiles": {
+    "grass": {
+      "file": "grass-soil.png",
+      "width": 1295,
+      "height": 1215
+    },
+    "soil": {
+      "file": "soil-fill.png",
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  "markers": {
+    "start": {
+      "file": "start-flag.png",
+      "width": 1215,
+      "height": 1295,
+      "frame": {
+        "x": 458,
+        "y": 306,
+        "width": 429,
+        "height": 742
+      },
+      "foot": {
+        "x": 503.88,
+        "y": 1046
+      },
+      "visibleHeight": 738
+    },
+    "checkpoint": {
+      "file": "checkpoint-flag.png",
+      "width": 1215,
+      "height": 1295,
+      "frame": {
+        "x": 465,
+        "y": 247,
+        "width": 480,
+        "height": 853
+      },
+      "foot": {
+        "x": 508.51,
+        "y": 1098
+      },
+      "visibleHeight": 849
+    },
+    "finish": {
+      "file": "finish-flag.png",
+      "width": 1215,
+      "height": 1295,
+      "frame": {
+        "x": 432,
+        "y": 273,
+        "width": 460,
+        "height": 819
+      },
+      "foot": {
+        "x": 482.0,
+        "y": 1090
+      },
+      "visibleHeight": 815
+    }
+  }
+}

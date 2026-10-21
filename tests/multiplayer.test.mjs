@@ -14,12 +14,13 @@ const {SingleRecords,SINGLE_RECORDS_KEY}=await importTs('../src/game/SingleRecor
 const {AccountStorage}=await importTs('../src/account/AccountStorage.ts',import.meta.url);
 const {DummyRun}=await importTs('../src/game/DummyRun.ts',import.meta.url);
 const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
+const {createCourseArt,courseTerrain,courseMarker}=await importTs('../src/game/CourseArt.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
 const {raceCountdown}=await importTs('../src/multiplayer/RaceCountdown.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
 const {lobbyStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
 const {enterLandscape,portraitTouch,installMobileViewport}=await importTs('../src/ui/MobileViewport.ts',import.meta.url);
-const {Texture}=await import('pixi.js');
+const {Texture,TextureSource}=await import('pixi.js');
 const db = new PGlite();
 const users = [1,2,3,4,5].map(n => `${n}`.repeat(8) + '-1111-4111-8111-111111111111');
 await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema auth to authenticated,anon;");
@@ -42,6 +43,58 @@ async function as(user,query,args=[],role='authenticated') {
 async function cmd(n,action,room=null,payload={}) { return (await as(users[n], 'select public.multiplayer_command($1,$2,$3) as result',[action,room,JSON.stringify(payload)])).rows[0].result; }
 beforeEach(async()=>{await db.exec('truncate public.mp_rooms cascade;truncate realtime.messages');});
 after(async()=>{await db.close();});
+
+const artManifest=JSON.parse(await readFile(new URL('../public/assets/course/frames.json',import.meta.url),'utf8'));
+function testCourseArt(){
+  const images=Object.fromEntries(['grass','soil','start','checkpoint','finish'].map(id=>{const spec=artManifest.tiles[id]??artManifest.markers[id];return[id,new Texture({source:new TextureSource({width:spec.width,height:spec.height})})];}));
+  return{images,art:createCourseArt(images,artManifest)};
+}
+function destroyCourseArt({images,art}){Object.values(art.markers).forEach(marker=>marker.texture.destroy(false));Object.values(images).forEach(texture=>texture.destroy(true));}
+
+test('course PNGs preserve the generated Resources originals and match runtime frames',async()=>{
+  const files={grass:'Terrain_Grass_Soil_Tile.png',soil:'Terrain_Soil_Fill_Tile.png',start:'Course_Start_Flag.png',checkpoint:'Course_Checkpoint_Flag.png',finish:'Course_Finish_Flag.png'};
+  for(const [id,name]of Object.entries(files)){
+    const spec=artManifest.tiles[id]??artManifest.markers[id];
+    const original=await readFile(new URL('../Resources/'+name,import.meta.url)),runtime=await readFile(new URL('../public/assets/course/'+spec.file,import.meta.url));
+    assert.ok(original.equals(runtime));assert.equal(runtime.readUInt32BE(16),spec.width);assert.equal(runtime.readUInt32BE(20),spec.height);
+    if(spec.frame){assert.ok(spec.frame.x>=0&&spec.frame.y>=0);assert.ok(spec.frame.x+spec.frame.width<=spec.width);assert.ok(spec.frame.y+spec.frame.height<=spec.height);}
+  }
+});
+
+test('textured terrain stays inside every collision solid and marker feet share the exact ground baseline',()=>{
+  const bundle=testCourseArt(),{art}=bundle;
+  try{
+    for(const map of Object.values(COURSES)){
+      const view=courseTerrain(map.solids,art);assert.equal(view.children.length,map.solids.length*2);
+      map.solids.forEach((solid,index)=>{
+        const [soil,grass]=view.children.slice(index*2,index*2+2);
+        for(const sprite of [soil,grass]){assert.equal(sprite.x,solid.x);assert.equal(sprite.y,390-solid.top);assert.equal(sprite.width,solid.width);}
+        assert.equal(soil.height,solid.top-solid.bottom);assert.equal(grass.height,Math.min(96,solid.top-solid.bottom));assert.equal(grass.texture,art.grass);
+      });view.destroy({children:true});
+    }
+    for(const id of ['start','checkpoint','finish']){
+      const sprite=courseMarker(id,art,5100),spec=artManifest.markers[id];
+      assert.ok(Math.abs(sprite.x+(spec.foot.x-spec.frame.x-sprite.anchor.x*spec.frame.width)*sprite.scale.x-5100)<.0001);
+      assert.ok(Math.abs(sprite.y+(spec.foot.y-spec.frame.y-sprite.anchor.y*spec.frame.height)*sprite.scale.y-390)<.0001);
+      assert.ok(Math.abs(spec.visibleHeight*sprite.scale.y-110)<.0001);sprite.destroy();
+    }
+    const bad=structuredClone(artManifest);bad.markers.finish.frame.width=99999;assert.throws(()=>createCourseArt(bundle.images,bad),/invalid_course_marker/);
+  }finally{destroyCourseArt(bundle);}
+});
+
+test('every playable map uses shared terrain art and brightens its checkpoint after crossing without destroying shared textures',()=>{
+  const env=dom(),bundle=testCourseArt();let scene;
+  const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  try{
+    for(const [id,map]of Object.entries(COURSES)){
+      scene=new PlayScene(config,()=>{},{open(){},map:id,art:bundle.art});scene.update(.01);
+      assert.equal(scene.world.children.find(c=>c.label==='course-terrain').children.length,map.solids.length*2);
+      for(const [key,x]of [['start',120],['checkpoint',map.checkpoint],['finish',map.finish]]){const marker=scene.world.children.find(c=>c.label==='course-'+key);assert.equal(marker.x,x);assert.equal(marker.y,390);}
+      assert.equal(scene.checkpointMarker.alpha,.6);scene.run.x=map.checkpoint+10;scene.update(.02);assert.equal(scene.checkpointMarker.alpha,1);assert.equal(scene.checkpointMarker.tint,0xffffff);
+      scene.destroy({children:true});scene=undefined;assert.equal(bundle.art.markers.checkpoint.texture.destroyed,false);
+    }
+  }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
+});
 test('rooms expose counts, serialize the fourth seat, isolate members and deny direct table access',async()=>{
   const room=(await cmd(0,'create',null,{name:'Friends',map:'garden'})).room;
   for (const n of [1,2,3]) await cmd(n,'join',room.id);

@@ -4,6 +4,7 @@ import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
 import { roomStream, lobbyStream } from '../multiplayer/RoomStream';
 import type { CourseId } from './CourseCatalog';
 import { SingleRecords } from './SingleRecords';
+import { loadCourseArt, type CourseArt } from './CourseArt';
 import { AccountService } from '../account/AccountService';
 import { createAccountClient } from '../account/client';
 import { loadHome } from '../home/loadHome';
@@ -44,6 +45,7 @@ export class Game {
   private account?: AccountService;
   private commerce?: CommerceState;
   private homeTextures?: HomeTextures;
+  private courseArt?:CourseArt;
   private settings?: SettingsPopup;
   private quests?: QuestPopup;
   private friends?: FriendsPopup;
@@ -56,6 +58,7 @@ export class Game {
   private corgi: AnimalConfig | undefined;
   private myeongrang: AnimalConfig | undefined;
   private releaseFrames(): void {
+    if(this.courseArt){[this.courseArt.grass,this.courseArt.soil,...Object.values(this.courseArt.markers).map(marker=>marker.texture)].forEach(texture=>{if(!texture.destroyed)texture.destroy(false);});this.courseArt=undefined;}
     if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => texture.destroy(false)); this.homeTextures = undefined; }
     const configs = [this.corgi, this.myeongrang].filter((config): config is AnimalConfig => !!config);
     const textures = new Set(configs.flatMap(config => [...Object.values(config.animations).flatMap(animation => animation.frames),
@@ -140,6 +143,7 @@ export class Game {
     if (!this.disposed) this.myeongrang = await loadMyeongrang(corgi);
     if (!this.disposed) preload.setProgress(0.9);
     if (!this.disposed) this.homeTextures = await loadHome();
+    if (!this.disposed) this.courseArt = await loadCourseArt();
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
@@ -164,7 +168,7 @@ export class Game {
           let completion = Promise.resolve();
           const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
-            open: openSettings, preferences: () => gameSettings.current, map,
+            open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,
             sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
             complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
             record:seconds=>runRecords.record(map,seconds),
@@ -188,7 +192,7 @@ export class Game {
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
             this.scenes?.show(new PlayScene(racePet,()=>{
               lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
-            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,
+            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,
               sound:kind=>{this.audio?.play(kind);},
               multiplayer:{client,pets:[corgi,this.myeongrang!],leave:()=>{client.destroy();this.rooms=undefined;lobby(true);}},
             }));
