@@ -22,8 +22,9 @@ export class Animal extends Container {
   setHome(width: number, height: number, items: readonly HomeItem[]): void {
     this.inHome = true;
     this.behavior.setFloor(width, height, this.y || height * 0.72);
-    this.behavior.setCushions(items.filter(item => item.tab === 'Furniture' && item.option === 4)
-      .map(item => ({ id: item.id, x: width * item.x, y: height * item.y - 8, depth: height * item.y })));
+    // Both seats share the approach/rest/sleep lifecycle and touch interruption.
+    this.behavior.setCushions(items.filter(item => item.tab === 'Furniture' && (item.option === 4 || item.option === 5))
+      .map(item => ({ id: item.id, x: width * item.x, y: height * item.y - (item.option === 5 ? 14 : 8), depth: height * item.y })));
     this.y = this.behavior.y;
   }
   private viewport = { width: 960, height: 540 };

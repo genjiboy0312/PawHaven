@@ -1866,6 +1866,53 @@ test('both pets wake on touch and refresh dialogue and the internal reaction tog
     } finally { animal.destroy({ children: true }); }
   }
 });
+test('both pets use the nearest sofa, sleep, wake for dialogue and resume without immediately returning', () => {
+  for (const id of ['corgi', 'myeongrang']) for (const fps of [30, 60, 120]) {
+    const animal = new Animal({ id, speed: 90, scale: 0.62, behavior: cushionProfile, animations: {
+      idle: { frames: [Texture.WHITE], fps: 3 }, walk: { frames: [Texture.WHITE], fps: 8 }, emote: { frames: [Texture.WHITE], fps: 4 },
+    } }, () => 0.5);
+    try {
+      animal.setBounds(960, 388.8, 540);
+      animal.setHome(960, 540, [
+        { id: 1, tab: 'Furniture', option: 4, x: 0.25, y: 0.75 },
+        { id: 2, tab: 'Furniture', option: 5, x: 0.65, y: 0.75 },
+        { id: 3, tab: 'Furniture', option: 5, x: 0.52, y: 0.75 },
+        { id: 4, tab: 'Furniture', option: 3, x: 0.5, y: 0.72 },
+      ]);
+      advanceUntil(animal, () => animal.state === 'REST', 20, fps);
+      assert.equal(animal.cushionId, 3); assert.equal(animal.x, 960 * 0.52); assert.equal(animal.y, 540 * 0.75 - 14);
+      assert.equal(animal.floorDepth, 405.5);
+      advanceUntil(animal, () => animal.state === 'SLEEP', 2, fps);
+      assert.equal(animal.children[1].visible, true);
+      const position = [animal.x, animal.y]; assert.equal(animal.pet(), true);
+      assert.equal(animal.state, 'EMOTE'); assert.equal(animal.cushionId, undefined);
+      assert.deepEqual([animal.x, animal.y], position); assert.equal(animal.children[1].visible, false);
+      assert.ok(animal.speechBubble.text.length > 1);
+      for (let i = 0; i < 12 * fps; i++) { animal.update(1 / fps); assert.equal(animal.cushionId, undefined); }
+      advanceUntil(animal, () => animal.cushionId !== undefined, 20, fps);
+    } finally { animal.destroy({ children: true }); }
+  }
+});
+
+test('sofa movement and removal interrupt approach/rest/sleep without teleporting or orphaned sleep effects', () => {
+  for (const phase of ['approach', 'REST', 'SLEEP']) for (const change of ['move', 'remove']) {
+    const animal = new Animal({ id: 'myeongrang', speed: 90, scale: 0.62, behavior: cushionProfile,
+      animations: { idle: { frames: [Texture.WHITE], fps: 3 }, walk: { frames: [Texture.WHITE], fps: 8 } } }, () => 0.5);
+    try {
+      animal.setBounds(960, 388.8, 540);
+      const sofa = { id: 9, tab: 'Furniture', option: 5, x: 0.3, y: 0.75 };
+      animal.setHome(960, 540, [sofa]);
+      advanceUntil(animal, () => phase === 'approach' ? animal.cushionId === 9 && animal.state === 'WANDER' : animal.state === phase);
+      const position = [animal.x, animal.y];
+      animal.setHome(960, 540, change === 'move' ? [{ ...sofa, x: 0.6 }] : []); animal.update(0);
+      assert.deepEqual([animal.x, animal.y], position); assert.equal(animal.children[1].visible, false);
+      if (change === 'move' && phase === 'approach') {
+        advanceUntil(animal, () => animal.state === 'REST'); assert.equal(animal.x, 576); assert.equal(animal.cushionId, 9);
+      } else { assert.equal(animal.cushionId, undefined); assert.equal(animal.state, 'IDLE'); }
+    } finally { animal.destroy({ children: true }); }
+  }
+});
+
 test('lobby depth layers share furniture/animal ordering, keep speech above objects and track Home edits', async () => {
   class Element extends EventTarget {
     children = []; attributes = new Map(); classList = { add() {} };
@@ -1876,7 +1923,7 @@ test('lobby depth layers share furniture/animal ordering, keep speech above obje
   const oldDocument = globalThis.document, host = new Element();
   globalThis.document = { createElement: () => new Element(), querySelector: () => host };
   const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
-  const home = new HomeState(), id = home.place('Furniture', 4); home.move(id, 0.4, 0.75);
+  const home = new HomeState(undefined, () => 1), id = home.place('Furniture', 5); home.move(id, 0.4, 0.75);
   const scene = new LobbyScene({ id: 'myeongrang', speed: 90, scale: 0.62, behavior: cushionProfile,
     animations: { idle: { frames: [Texture.WHITE], fps: 3 }, walk: { frames: [Texture.WHITE], fps: 8 } } },
     undefined, true, undefined, undefined, undefined, { state: home, open() {} });
