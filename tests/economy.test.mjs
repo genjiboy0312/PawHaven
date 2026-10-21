@@ -142,6 +142,11 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
   const textures = { background: Texture.WHITE, floor: Texture.WHITE, cushion: Texture.WHITE, sofa };
   try {
     await idle(api);
+    editor = new HomeScene(home, () => {}, textures);
+    host.children[0].children[3].children[2].dispatchEvent(new Event('click'));
+    assert.equal(host.children[0].children[4].children.length, 4);
+    assert.equal(host.children[0].children[4].children.some(item => item.getAttribute('aria-label')?.includes('Black & White Pet Sofa')), false);
+    editor.destroy({ children: true });
     shop = new ShopScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, state, () => {}, () => {});
     const panel = host.children[0];
     assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Style', 'Furniture', 'Pass']);
@@ -162,6 +167,12 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     assert.equal(rendered.texture, sofa); assert.equal(rendered.width, 170); assert.ok(rendered.height < 67);
     home.move(home.items[0].id, 0.75, 0.82);
     editor.destroy({ children: true }); assert.equal(sofa.destroyed, false);
+    editor = new HomeScene(home, () => {}, textures);
+    host.children[0].children[3].children[2].dispatchEvent(new Event('click'));
+    assert.equal(host.children[0].children[4].children.length, 5);
+    assert.equal(host.children[0].children[4].children[4].disabled, true);
+    assert.equal(host.children[0].children[4].children[4].children[1].textContent, '0');
+    editor.destroy({ children: true });
     lobby = new LobbyMap(textures); lobby.draw(960, 540, home.current, home.items);
     assert.equal(lobby.objects.children[0].x, 720); assert.equal(lobby.objects.children[0].children[1].texture, sofa);
     home.remove(home.items[0].id); assert.equal(home.remaining('Furniture', 5), 1); assert.equal(state.homeOwned('Furniture', 5), 1);

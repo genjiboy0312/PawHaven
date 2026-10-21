@@ -29,9 +29,11 @@ export class HomeState {
       return count <= (this.stock?.(item.tab, item.option) ?? (this.stock ? HOME_MAX_STOCK : homeInitialStock(item.tab, item.option)));
     }).map(item => ({ ...item }));
   }
+  owned(tab: PlaceableTab, option: number): number {
+    return validItem(tab, option) ? this.stock ? this.stock(tab, option) ?? 0 : homeInitialStock(tab, option) : 0;
+  }
   remaining(tab: PlaceableTab, option: number): number {
-    const owned = this.stock ? this.stock(tab, option) ?? 0 : homeInitialStock(tab, option);
-    return validItem(tab, option) ? Math.max(0, owned - this.objects.filter(item => item.tab === tab && item.option === option).length) : 0;
+    return Math.max(0, this.owned(tab, option) - this.objects.filter(item => item.tab === tab && item.option === option).length);
   }
   constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>, private readonly stock?: (tab: PlaceableTab, option: number) => number | undefined) {
     try {

@@ -53,8 +53,9 @@ export class HomeScene extends Scene {
     Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(HOME_TABS[index] === this.tab)));
     this.inventory.replaceChildren(); this.inventory.scrollTop = 0; this.inventory.scrollLeft = 0;
     for (let index = this.tab === 'Furniture' || this.tab === 'Etc' ? 1 : 0; index < homeOptions[this.tab]; index++) {
-      const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot';
       const placeable = this.tab === 'Furniture' || this.tab === 'Etc';
+      if (placeable && this.state.owned(this.tab as PlaceableTab, index) === 0) continue;
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot';
       const count = placeable ? this.state.remaining(this.tab as PlaceableTab, index) : undefined;
       button.setAttribute('aria-label', (placeable ? homeItemName(this.tab as PlaceableTab, index) : t(this.tab) + ' ' + (index + 1)) + (count === undefined ? '' : ` · ${t('remaining')}: ${count}`));
       const active = placeable ? this.state.items.some(item => item.id === this.selected && item.tab === this.tab && item.option === index) : look[this.tab as 'Background' | 'Floor'] === index;
