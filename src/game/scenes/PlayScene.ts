@@ -88,14 +88,26 @@ export class PlayScene extends Scene {
     this.localeOff = onLanguageChange(() => {this.labels.forEach(label => { label.text.text = t(label.key); });this.courseProgress?.refreshLabels();this.resultSignature='';});
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
-    this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#dcebdc'), this.world);
+    const forest=settings?.map==='forest';
+    this.addChild(new Graphics().rect(0, 0, 960, 540).fill(forest?'#dae7d9':'#dcebdc'), this.world);
     this.world.scale.set(PLAY_ZOOM);
     this.world.y = PLAY_GROUND_Y - COURSE_GROUND * PLAY_ZOOM;
     const terrain = new Graphics();
+    if(forest){
+      const trees=new Graphics();trees.label='forest-scenery';
+      for(let x=180;x<this.courseEnd;x+=640){
+        const height=210+(Math.floor(x/640)%3)*24;
+        trees.rect(x-8,COURSE_GROUND-height+70,16,height-70).fill('#bbc7ac')
+          .rect(x-34,COURSE_GROUND-height,68,44).fill('#bdd0b8')
+          .rect(x-58,COURSE_GROUND-height+32,116,48).fill('#bdd0b8')
+          .rect(x-78,COURSE_GROUND-height+68,156,44).fill('#bdd0b8');
+      }
+      this.world.addChild(trees);
+    }
     for (const solid of this.run.course) {
       const y = COURSE_GROUND - solid.top;
-      terrain.rect(solid.x, y, solid.width, solid.top - solid.bottom).fill(solid.top ? '#c8b38a' : '#b5cd99')
-        .rect(solid.x, y, solid.width, 6).fill(solid.top ? '#a48d65' : '#78905c');
+      terrain.rect(solid.x, y, solid.width, solid.top - solid.bottom).fill(forest?(solid.top?'#b9ad85':'#a9c39b'):(solid.top ? '#c8b38a' : '#b5cd99'))
+        .rect(solid.x, y, solid.width, 6).fill(forest?'#6f936e':(solid.top ? '#a48d65' : '#78905c'));
     }
     this.world.addChild(terrain);
     for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {

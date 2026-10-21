@@ -12,6 +12,8 @@ const {RacePodium}=await importTs('../src/ui/RacePodium.ts',import.meta.url);
 const {RaceProgress}=await importTs('../src/ui/RaceProgress.ts',import.meta.url);
 const {SingleRecords,SINGLE_RECORDS_KEY}=await importTs('../src/game/SingleRecords.ts',import.meta.url);
 const {AccountStorage}=await importTs('../src/account/AccountStorage.ts',import.meta.url);
+const {DummyRun}=await importTs('../src/game/DummyRun.ts',import.meta.url);
+const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
 const {raceCountdown}=await importTs('../src/multiplayer/RaceCountdown.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
@@ -273,7 +275,7 @@ test('single map choice launches without an account and restores the lobby input
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     env.host.all().find(e=>e.textContent==='Practice Yard').dispatchEvent(new Event('click'));
-    assert.equal(chosen,undefined);assert.equal(env.host.querySelector('.single-map-cards').children.length,2);
+    assert.equal(chosen,undefined);assert.equal(env.host.querySelector('.single-map-cards').children.length,3);
     assert.equal(env.host.querySelector('.single-map-practice').getAttribute('aria-pressed'),'true');
     assert.equal(env.host.querySelector('.single-map-practice').querySelector('.single-map-best').textContent,'Personal best 12.35s');
     assert.equal(env.host.querySelector('.single-map-garden').querySelector('.single-map-best').textContent,'Set your first record');
@@ -287,13 +289,57 @@ test('single personal records keep the faster valid completion and survive a loc
   let records=new SingleRecords(disk);assert.equal(records.best('garden'),null);
   assert.equal(records.record('garden',30.1234),true);assert.equal(records.record('garden',30.1234),false);assert.equal(records.record('garden',40),false);
   assert.equal(records.record('garden',25.5),true);assert.equal(records.record('practice',10),true);
+  assert.equal(records.record('forest',35),true);
   for(const invalid of [NaN,Infinity,-1,0])assert.equal(records.record('garden',invalid),false);
   assert.equal(records.record('__proto__',1),false);
   records=new SingleRecords(disk);assert.equal(records.best('garden'),25500);assert.equal(records.best('practice'),10000);
+  assert.equal(records.best('forest'),35000);
   values.set(SINGLE_RECORDS_KEY,'{broken');assert.equal(new SingleRecords(disk).best('garden'),null);
   values.set(SINGLE_RECORDS_KEY,JSON.stringify({version:1,times:{garden:-1,practice:'123'}}));assert.equal(new SingleRecords(disk).best('practice'),null);
   const blocked=new SingleRecords({getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}});
   assert.equal(blocked.record('garden',12),true);assert.equal(blocked.best('garden'),12000);
+});
+
+test('forest stepping route completes at 30/60/120 FPS with optional ground dashes and no forced fall',()=>{
+  const map=COURSES.forest,jumps=[520,1170,2320,2820,4140,4450,4760,5470,6480,7020,7620,8130,8720,9280],times=[];
+  for(const fps of [30,60,120])for(const dash of [false,true]){
+    const run=new DummyRun(map.solids,1/.78,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
+    let next=0,burst=0;const dashes=[3300,6000,9800];
+    for(let frame=0;frame<fps*45&&!run.won;frame++){
+      if(next<jumps.length&&run.x>=jumps[next]&&run.grounded){run.jump();next++;}
+      if(dash&&burst<dashes.length&&run.x>=dashes[burst]&&run.grounded){run.startDash();burst++;}
+      run.update(1/fps,1);
+    }
+    assert.equal(run.won,true,JSON.stringify({fps,dash,x:run.x,next}));assert.equal(run.respawns,0);assert.equal(run.checkpoint,5100);assert.equal(run.height,0);
+    assert.ok(map.solids.some(s=>s.top===0&&s.x<run.finish-100&&s.x+s.width>run.finish+100));
+    if(!dash){assert.ok(run.elapsed>=30&&run.elapsed<=40);times.push(run.elapsed);}else assert.equal(burst,3);
+  }
+  assert.ok(Math.max(...times)-Math.min(...times)<.05);
+});
+
+test('forest misses return to the start before the checkpoint and the safe middle clearing afterwards',()=>{
+  const map=COURSES.forest,run=new DummyRun(map.solids,1/.78,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
+  run.x=4150;for(let i=0;i<300&&run.respawns===0;i++)run.update(1/60,1);
+  assert.equal(run.respawns,1);assert.equal(run.x,120);assert.equal(run.checkpoint,120);
+  run.x=5200;run.update(.01,0);assert.equal(run.checkpoint,5100);const before=run.elapsed;
+  run.x=6500;for(let i=0;i<300&&run.respawns===1;i++)run.update(1/60,1);
+  assert.equal(run.respawns,2);assert.equal(run.x,5100);assert.equal(run.height,0);assert.equal(run.grounded,true);assert.ok(run.elapsed>before);
+  run.x=3300;run.startDash();run.update(.32,1);assert.ok(run.x>3500&&run.x<4200);assert.equal(run.respawns,2);assert.equal(run.grounded,true);
+});
+
+test('forest can launch as single but never leaks into room creation after switching modes',async()=>{
+  const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let menu,chosen;
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,single:async map=>{chosen=map;return false;},race(){},login(){},dismiss(){}});menu.open('single');
+    const cards=env.host.querySelector('.single-map-cards');cards.scrollLeft=300;
+    env.host.querySelector('.single-map-forest').dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.single-map-cards').scrollLeft,300);
+    env.host.querySelector('.single-map-play').dispatchEvent(new Event('click'));await new Promise(resolve=>setImmediate(resolve));assert.equal(chosen,'forest');
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Back').dispatchEvent(new Event('click'));
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Multiplayer').dispatchEvent(new Event('click'));await idle(client);
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));
+    const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice']);
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);assert.equal(client.room.map,'garden');
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
 
 test('single records are local to each guest or account without marking cloud saves dirty',()=>{

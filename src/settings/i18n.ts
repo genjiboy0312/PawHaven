@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  mapForest:'Forest Stepping Trail', mapForestDescription:'Hop across woodland stones, then dash along the clear paths.',
   mapGardenDescription:'Cross the garden with jumps, gaps and a checkpoint.', mapPracticeDescription:'A short course to try jumping, dashing and attacking.',
   singleExpected:'Approx. {time}', singleBest:'Personal best', singleChallenge:'Set your first record', singleLocalRecords:'Records are saved on this device.', singleNewBest:'New personal best!',
   raceProgress:'Course progress',
@@ -81,6 +82,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  mapForest:'숲속 징검길', mapForestDescription:'숲속 징검 발판을 넘고 탁 트인 길을 달려 보세요.',
   mapGardenDescription:'발판과 틈을 넘어 체크포인트를 지나 달려 보세요.', mapPracticeDescription:'점프·대시·공격을 연습하기 좋은 짧은 코스예요.',
   singleExpected:'예상 시간 {time}', singleBest:'내 최고 기록', singleChallenge:'도전해 보세요', singleLocalRecords:'기록은 이 기기에 저장돼요.', singleNewBest:'최고 기록 갱신!',
   raceProgress:'코스 진행 상황',
