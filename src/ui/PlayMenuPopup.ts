@@ -8,6 +8,7 @@ type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
 export class PlayMenuPopup {
   private overlay?:HTMLElement; private content?:HTMLElement; private title?:HTMLElement;
+  private panel?:HTMLElement;private closeButton?:HTMLButtonElement;
   private page:Page='mode'; private busy=false; private launching=false;
   private abort?:AbortController; private unsubscribe?:()=>void; private localeOff?:()=>void;
   private blocked:{element:HTMLElement;inert:boolean}[]=[]; private previousFocus?:HTMLElement;
@@ -36,11 +37,11 @@ export class PlayMenuPopup {
     this.blocked=Array.from(host.children).filter((e):e is HTMLElement=>e instanceof HTMLElement).map(element=>({element,inert:element.inert}));
     this.blocked.forEach(b=>{b.element.inert=true;});this.pause(true);
     const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
-    const panel=document.createElement('section');panel.className='settings-panel play-menu-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'play');
-    this.title=document.createElement('h2');const close=this.button('close',()=>{void this.exit();});close.className='settings-close';close.textContent='×';bindAria(close,'close');
+    const panel=document.createElement('section');this.panel=panel;panel.className='settings-panel play-menu-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'play');
+    this.title=document.createElement('h2');const close=this.button('close',()=>{if(this.page==='single')this.backToModes();else void this.exit();});this.closeButton=close;close.className='settings-close';close.textContent='×';bindAria(close,'close');
     this.content=document.createElement('div');this.content.className='settings-content play-menu-content';panel.append(this.title,close,this.content);overlay.append(panel);host.append(overlay);
     panel.addEventListener('keydown',event=>{
-      if(event.key==='Escape'){event.preventDefault();void this.exit();}
+      if(event.key==='Escape'){event.preventDefault();if(this.page==='single')this.backToModes();else void this.exit();}
       if(event.key!=='Tab')return;
       const controls=Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)'));
       if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
@@ -50,6 +51,7 @@ export class PlayMenuPopup {
     if(page==='multi')this.options.rooms?.start();this.render();close.focus();
   }
   private button(key:TextKey,action:()=>void){const b=document.createElement('button');b.type='button';b.className='commerce-primary';b.textContent=t(key);b.addEventListener('click',action);return b;}
+  private backToModes(){if(this.busy)return;this.page='mode';this.notice=undefined;this.render();this.content?.querySelectorAll<HTMLElement>('button:not(:disabled)')[0]?.focus();}
   private text(value:string){const p=document.createElement('p');p.textContent=value;return p;}
   private async action(run:()=>Promise<unknown>){if(this.busy)return;this.busy=true;this.render();try{await run();}catch{this.notice='multiOffline';}finally{this.busy=false;this.changed();}}
   private changed(){
@@ -99,11 +101,17 @@ export class PlayMenuPopup {
     const map=COURSES[id],card=select?this.button(map.title,select):document.createElement('section');
     card.className='map-card single-map-card map-'+id+' single-map-'+id+(select?' commerce-primary':' single-map-summary');card.setAttribute('data-map',id);
     if(select)card.setAttribute('aria-pressed',String(this.singleMap===id));
-    else{const name=document.createElement('strong');name.textContent=t(map.title);card.append(name);}
+    const name=document.createElement('strong');name.textContent=t(map.title);
     const description=this.text(t(map.description));description.className='single-map-description';
     const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
     const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';
-    card.append(description,duration,record);return card;
+    if(select)card.append(description,duration,record);
+    else{
+      const info=document.createElement('div');info.className='single-map-info';
+      const heading=document.createElement('div');heading.className='single-map-heading';heading.append(name);
+      const stats=document.createElement('div');stats.className='single-map-stats';stats.append(duration,record);
+      info.append(heading,description,stats);card.append(info);
+    }return card;
   }
   private singleMaps(){
     const change=this.button('chooseMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
@@ -111,7 +119,8 @@ export class PlayMenuPopup {
     const actions=document.createElement('div');actions.className='single-map-actions';
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
-    actions.append(this.text(t('singleLocalRecords')),play);return[change,this.singleCard(this.singleMap),actions];
+    const card=this.singleCard(this.singleMap);card.querySelector('.single-map-heading')?.append(change);
+    actions.append(play,this.text(t('singleLocalRecords')));return[card,actions];
   }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;
@@ -159,11 +168,13 @@ export class PlayMenuPopup {
     if(!this.content||!this.title)return;
     this.signature=this.renderSignature();this.stopPortraits();
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
+    this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
+    if(this.closeButton){this.closeButton.className='settings-close'+(this.page==='single'?' play-menu-back':'');this.closeButton.textContent=this.page==='single'?'←':'×';bindAria(this.closeButton,this.page==='single'?'back':'close');this.closeButton.disabled=this.page==='single'&&this.busy;}
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
     this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'singleplayer':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
     if(this.page==='mode'){
       const cards=document.createElement('div');cards.className='mode-cards';
-      cards.append(this.button('singleplayer',()=>{this.page='single';this.render();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
+      cards.append(this.button('singleplayer',()=>{this.page='single';this.render();this.closeButton?.focus();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
     }else if(this.page==='single')root.append(...this.singleMaps());
     else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
     else if(this.page==='create'){
@@ -230,7 +241,7 @@ export class PlayMenuPopup {
     }
     else if(client?.notice){const p=this.text(t(client.notice==='removed'?'multiRemoved':client.notice==='round'?'multiRoundChanged':'multiRestored'));p.setAttribute('role','status');root.append(p);}
     if(this.notice)root.append(this.text(t(this.notice)));
-    if(this.page!=='mode'&&!room){const back=this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();});back.setAttribute('data-recovery-control','true');root.append(back);}
+    if(this.page!=='mode'&&this.page!=='single'&&!room){const back=this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();});back.setAttribute('data-recovery-control','true');root.append(back);}
     if(this.busy||client?.busy)for(const b of Array.from(root.querySelectorAll('button')))b.disabled=true;
     if((this.page==='multi'||this.page==='create')&&(client?.error||client?.reconnecting))for(const b of Array.from(root.querySelectorAll('button')))if(b.getAttribute('data-recovery-control')!=='true')b.disabled=true;
     this.animatePortraits();

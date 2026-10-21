@@ -392,7 +392,9 @@ test('forest can launch as single but never leaks into room creation after switc
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
     env.host.querySelector('.single-map-forest').dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'forest');
     env.host.querySelector('.single-map-play').dispatchEvent(new Event('click'));await new Promise(resolve=>setImmediate(resolve));assert.equal(chosen,'forest');
-    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Back').dispatchEvent(new Event('click'));
+    const back=env.host.querySelector('.play-menu-back');assert.equal(back.textContent,'←');assert.equal(back.getAttribute('aria-label'),'Back');
+    back.dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'mode');
+    assert.equal(env.host.querySelector('.play-menu-back'),undefined);assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Multiplayer').dispatchEvent(new Event('click'));await idle(client);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));
     const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice']);
