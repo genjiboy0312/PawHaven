@@ -358,6 +358,21 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 }
 
 .play-menu-panel { width: 84%; height: 88%; }
+.purchase-overlay { z-index: 12; }
+.purchase-panel { width: min(60%, 620px); height: auto; max-height: 88%; gap: 2cqh; overflow-y: auto; }
+.purchase-panel h2 { text-align: center; padding: 0; font-size: 2.8cqw; }
+.purchase-details { padding: 1cqh 1cqw; text-align: center; }
+.purchase-art { position: relative; height: 18cqh; }
+.purchase-art > .outfit-object { width: 16cqw; height: 16cqh; bottom: 1cqh; }
+.purchase-art > .pet-sofa-icon { width: 18cqw; height: 7.03cqw; bottom: 1cqh; }
+.purchase-name { display: block; font: 400 2cqw var(--font-round); color: #816746; }
+.purchase-details p { margin: 0.7cqh 0; font-size: clamp(10px, 1.5cqw, 19px); }
+.purchase-after { color: #6f804b; }
+.purchase-actions { display: flex; justify-content: center; gap: 1.5cqw; }
+.purchase-actions .commerce-primary { min-width: 12cqw; min-height: 36px; border: 1px solid #d6bc88; font: 400 1.7cqw var(--font-round); background: #fff7e4; color: #80684a; }
+.purchase-actions .purchase-confirm { background: #dce9b6; border-color: #a8ba7d; color: #617641; }
+.purchase-panel button:focus-visible { outline: 2px solid #b67b3f; outline-offset: 2px; }
+.purchase-status { font-size: clamp(10px, 1.3cqw, 17px); }
 .play-menu-content { position: relative; }
 .mode-cards { display: flex; gap: 1.4cqw; margin: 1.5cqh 0; }
 .play-menu-content > .mode-cards:first-child { min-height: 24cqh; }

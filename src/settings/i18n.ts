@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  purchaseTitle: 'Confirm purchase', purchaseQuantity: 'Quantity', purchaseAfter: 'Balance after purchase', purchaseConfirm: 'Buy', purchaseCancel: 'Cancel',
   shopComingSoon: 'Coming soon',
   petSofa: 'Black & White Pet Sofa', homeBench: 'Bench', homePlant: 'Potted Plant', homeTable: 'Table', homeCushion: 'Cushion',
   homeFlowers: 'Flowers', homeStones: 'Garden Stones', homeLamp: 'Garden Lamp', homeFence: 'Fence',
@@ -86,6 +87,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  purchaseTitle: '구매 확인', purchaseQuantity: '수량', purchaseAfter: '구매 후 잔액', purchaseConfirm: '구매', purchaseCancel: '취소',
   shopComingSoon: '준비 중',
   petSofa: '검정·화이트 펫 소파', homeBench: '벤치', homePlant: '화분', homeTable: '테이블', homeCushion: '쿠션',
   homeFlowers: '꽃', homeStones: '정원 돌', homeLamp: '정원 조명', homeFence: '울타리',

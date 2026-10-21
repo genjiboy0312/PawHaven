@@ -11,6 +11,7 @@ import { itemIcon } from '../../ui/itemIcon';
 import { passPanel } from '../../ui/PassPanel';
 import { homeOptions, homePrice, HOME_MAX_STOCK, type PlaceableTab } from '../../home/HomeCatalog';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
+import { PurchasePopup } from '../../ui/PurchasePopup';
 import { Scene } from './Scene';
 
 const PURCHASE_LABELS = { owned: 'owned', purchased: 'shopPurchased', processing: 'economyWorking', loading: 'shopChecking', unavailable: 'shopUnavailable', available: 'buy', insufficient: 'notEnoughCoins', comingSoon: 'shopComingSoon' } as const;
@@ -28,6 +29,7 @@ export class ShopScene extends Scene {
   private readonly abort = new AbortController();
   private readonly unsubscribe: () => void;
   private readonly localeOff: () => void;
+  private readonly purchase: PurchasePopup;
   private grid?: HTMLDivElement;
   private lastPurchase?: { category: OutfitTab; index: number };
   private category: OutfitTab = 'Hat';
@@ -39,6 +41,7 @@ export class ShopScene extends Scene {
   private tab: 'Style' | 'Furniture' | 'Pass';
   constructor(config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Style' | 'Pass' = 'Style') {
     super(); this.tab = initial;
+    this.purchase = new PurchasePopup(state, this.panel);
     this.animation = new AnimalAnimationController(config);
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#edf0df'), this.platform, this.preview);
     this.preview.position.set(235, 385); this.preview.scale.set(1.45);
@@ -119,9 +122,9 @@ export class ShopScene extends Scene {
     buy.addEventListener('click', () => {
       const category = this.category, index = this.selected;
       if (this.destroyed || buy.disabled || !outfitReady(category, index) || !this.state.ready || this.state.owns(category, index)) return;
-      const result = this.state.buy(category, index);
-      if (result instanceof Promise) void result.then(value => this.purchased(category, index, value));
-      else this.purchased(category, index, result);
+      this.purchase.open({ name: () => this.itemName(category, index), icon: () => itemIcon(category, index), price: itemPrice(index),
+        available: () => outfitReady(category, index) && !this.state.owns(category, index), fulfilled: () => this.state.owns(category, index),
+        buy: () => this.state.buy(category, index), purchased: () => this.purchased(category, index, 'purchased') });
     });
     footer.append(detail, buy); this.content.append(categories, grid, footer);
     grid.scrollTop = scroll;
@@ -161,11 +164,11 @@ export class ShopScene extends Scene {
     buy.disabled = status !== 'available';
     buy.addEventListener('click', () => {
       if (this.destroyed || buy.disabled || !this.state.ready || !this.state.homeShopReady) return;
-      // Disable this actual DOM button as well as the rerendered server button.
-      buy.disabled = true;
-      const result = this.state.buyHome(category, selected);
-      const done = (): void => { if (!this.destroyed) this.render(); };
-      if (result instanceof Promise) void result.then(done); else done();
+      const owned = this.state.homeOwned(category, selected);
+      this.purchase.open({ name: () => homeItemName(category, selected), icon: () => homeIcon(category, selected), price,
+        available: () => this.state.homeShopReady && this.state.homeOwned(category, selected) < HOME_MAX_STOCK,
+        fulfilled: () => this.state.homeOwned(category, selected) > owned,
+        buy: () => this.state.buyHome(category, selected), purchased: () => { if (!this.destroyed) { this.reaction = 1.5; this.render(); } } });
     });
     footer.append(detail, buy); this.content.append(categories, grid, footer); grid.scrollTop = scroll;
     if (known && !this.state.homeShopReady) { const hint = document.createElement('p'); bindText(hint, 'homeShopSetup'); this.homePreview.append(hint); }
@@ -183,6 +186,6 @@ export class ShopScene extends Scene {
     this.animation.update(this.reaction > 0 ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds);
   }
   override destroy(options?: DestroyOptions): void {
-    this.unsubscribe(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); this.animation.sleepMark.destroy();
+    this.purchase.destroy(); this.unsubscribe(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); this.animation.sleepMark.destroy();
   }
 }

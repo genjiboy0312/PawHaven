@@ -131,9 +131,15 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     replaceChildren(...items) { this.children = []; this.append(...items); }
     setAttribute(key,value) { this.attributes.set(key,value); }
     getAttribute(key) { return this.attributes.get(key) ?? null; }
+    all() { return this.children.flatMap(item => [item, ...item.all()]); }
+    querySelector(selector) { return this.all().find(item => item.className?.split(' ').includes(selector.slice(1))); }
+    querySelectorAll() { return this.all().filter(item => item.tag === 'button' && !item.disabled); }
+    focus() { document.activeElement = this; }
+    get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
     remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
   }
-  const oldDocument = globalThis.document, host = new Element('main');
+  const oldDocument = globalThis.document, oldHTMLElement = globalThis.HTMLElement, host = new Element('main');
+  globalThis.HTMLElement = Element;
   globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
   const api = new EconomyClient(rpc(A), uuid), state = new ServerShopState(api);
   const values = new Map(), home = new HomeState({ getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }, (tab, index) => state.homeOwned(tab, index));
@@ -154,7 +160,14 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     const content = panel.children[4]; assert.equal(content.children[1].children.length, 5);
     assert.equal(content.children[1].children[4].children[0].children[0].src, './assets/home/pet-sofa-black-white.png');
     const buy = content.children[2].children[1]; buy.dispatchEvent(new Event('click')); buy.dispatchEvent(new Event('click'));
-    await idle(api); assert.equal(state.coins, 750); assert.equal(state.homeOwned('Furniture', 5), 1);
+    assert.equal(state.coins, 1000); assert.equal(host.children.length, 2); assert.equal(panel.inert, true);
+    assert.match(host.querySelector('.purchase-after').textContent, /750/);
+    host.querySelector('.purchase-cancel').dispatchEvent(new Event('click'));
+    assert.equal(state.coins, 1000); assert.equal(state.homeOwned('Furniture', 5), 0); assert.equal(panel.inert, undefined);
+    buy.dispatchEvent(new Event('click'));
+    const confirm = host.querySelector('.purchase-confirm'); confirm.dispatchEvent(new Event('click')); confirm.dispatchEvent(new Event('click'));
+    await new Promise(resolve => setImmediate(resolve)); await idle(api); assert.equal(state.coins, 750); assert.equal(state.homeOwned('Furniture', 5), 1);
+    assert.equal(host.children.length, 1);
     assert.equal(content.children[2].children[1].disabled, false); assert.match(content.children[2].children[0].children[1].textContent, /1\/20/);
     shop.destroy({ children: true });
     editor = new HomeScene(home, () => {}, textures); editor.resize(960, 540);
@@ -183,6 +196,7 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     if (shop && !shop.destroyed) shop.destroy({ children: true }); if (editor && !editor.destroyed) editor.destroy({ children: true });
     lobby?.destroy({ children: true }); sofa.destroy(true); state.destroy();
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
   }
 });
 
@@ -301,6 +315,86 @@ async function idle(api) {
   assert.equal(api.busy, false);
 }
 const rpc = user => request => command(user, request.p_action, request.p_payload, request.p_request_id);
+
+function purchaseDom() {
+  class Element extends EventTarget {
+    children = []; className = ''; attributes = new Map(); inert = false; style = {};
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { for (const item of items) { item.parent = this; this.children.push(item); } }
+    replaceChildren(...items) { this.children = []; this.append(...items); }
+    setAttribute(key, value) { this.attributes.set(key, value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    all() { return this.children.flatMap(item => [item, ...item.all()]); }
+    querySelector(selector) { return this.all().find(item => item.className.split(' ').includes(selector.slice(1))); }
+    querySelectorAll() { return this.all().filter(item => item.tag === 'button' && !item.disabled); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); this.parent = undefined; }
+    focus() { document.activeElement = this; }
+    get isConnected() { return this.tag === 'main' || !!this.parent?.isConnected; }
+  }
+  const oldDocument = globalThis.document, oldHTMLElement = globalThis.HTMLElement;
+  const host = new Element('main'), shop = new Element('section'), opener = new Element('button'); shop.append(opener); host.append(shop);
+  globalThis.HTMLElement = Element;
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host, querySelectorAll: () => [], activeElement: opener };
+  return { host, shop, opener, restore() {
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
+  } };
+}
+
+test('purchase confirmation cancels safely, tracks live balance and language, and removes its input lock and subscriptions', async () => {
+  const { PurchasePopup } = await importTs('../src/ui/PurchasePopup.ts', import.meta.url);
+  const { ShopState } = await importTs('../src/shop/ShopState.ts', import.meta.url);
+  const { setLanguage } = await importTs('../src/settings/i18n.ts', import.meta.url);
+  const env = purchaseDom(), state = new ShopState(), popup = new PurchasePopup(state, env.shop);
+  let bought = 0;
+  const item = { name: () => 'Sofa', icon: () => document.createElement('img'), price: 250,
+    available: () => state.homeOwned('Furniture', 5) < 20, fulfilled: () => state.homeOwned('Furniture', 5) > 0,
+    buy: () => { bought++; return state.buyHome('Furniture', 5); }, purchased() {} };
+  try {
+    popup.open(item); assert.equal(state.coins, 1000); assert.equal(env.shop.inert, true);
+    const cancel = env.host.querySelector('.purchase-cancel'); assert.equal(document.activeElement, cancel);
+    const escape = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Escape' });
+    env.host.querySelector('.purchase-panel').dispatchEvent(escape);
+    assert.equal(escape.defaultPrevented, true); assert.equal(env.host.children.length, 1); assert.equal(env.shop.inert, false); assert.equal(document.activeElement, env.opener);
+    popup.open(item); state.buyHome('Etc', 1); assert.match(env.host.querySelector('.purchase-after').textContent, /625/);
+    setLanguage('ko'); assert.equal(env.host.querySelector('.purchase-confirm').textContent, '구매');
+    assert.match(env.host.querySelector('.purchase-after').textContent, /구매 후 잔액/);
+    for (let i = 0; i < 3; i++) state.buyHome('Furniture', 5);
+    const confirm = env.host.querySelector('.purchase-confirm'); assert.equal(confirm.disabled, true);
+    confirm.dispatchEvent(new Event('click')); await new Promise(resolve => setImmediate(resolve)); assert.equal(bought, 0); assert.equal(state.coins, 125);
+    popup.destroy(); assert.equal(env.shop.inert, false); assert.equal(env.host.children.length, 1);
+    state.completeRun(); assert.equal(env.host.children.length, 1);
+    const original = await readFile(new URL('../Resources/PawHaven_Myeongrang_Icon.png', import.meta.url));
+    assert.deepEqual(await readFile(new URL('../public/assets/icons/myeongrang.png', import.meta.url)), original);
+    assert.equal(original.readUInt32BE(16), original.readUInt32BE(20));
+    const html = await readFile(new URL('../index.html', import.meta.url), 'utf8'); assert.match(html, /rel="icon"[^>]*myeongrang/); assert.match(html, /rel="apple-touch-icon"[^>]*myeongrang/);
+  } finally { popup.destroy(); setLanguage('en'); state.destroy(); env.restore(); }
+});
+
+test('purchase confirmation reconciles a lost server response once and ignores confirmation destroyed before dispatch', async () => {
+  const { PurchasePopup } = await importTs('../src/ui/PurchasePopup.ts', import.meta.url);
+  const env = purchaseDom(), requests = []; let lose = true, purchased = 0;
+  const api = new EconomyClient(async request => {
+    const result = await rpc(A)(request);
+    if (request.p_action === 'buy_home') { requests.push(request); if (lose) { lose = false; throw Error('lost response'); } }
+    return result;
+  }, uuid), state = new ServerShopState(api), popup = new PurchasePopup(state, env.shop);
+  const item = initial => ({ name: () => 'Sofa', icon: () => document.createElement('img'), price: 250,
+    available: () => state.homeShopReady && state.homeOwned('Furniture', 5) < 20,
+    fulfilled: () => state.homeOwned('Furniture', 5) > initial, buy: () => state.buyHome('Furniture', 5), purchased: () => { purchased++; } });
+  try {
+    await idle(api); popup.open(item(0));
+    const confirm = env.host.querySelector('.purchase-confirm'); confirm.dispatchEvent(new Event('click')); confirm.dispatchEvent(new Event('click'));
+    assert.equal(confirm.disabled, true);
+    await new Promise(resolve => setImmediate(resolve)); await idle(api); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(api.connection, 'offline'); assert.equal(purchased, 0); assert.equal(state.coins, 1000); assert.equal(env.host.querySelector('.purchase-confirm').disabled, true);
+    await api.retry(); await idle(api); assert.equal(state.coins, 750); assert.equal(state.homeOwned('Furniture', 5), 1);
+    assert.equal(purchased, 1); assert.equal(env.host.children.length, 1); assert.equal(env.shop.inert, false);
+    assert.equal(requests.length, 2); assert.equal(requests[0].p_request_id, requests[1].p_request_id);
+    popup.open(item(1)); env.host.querySelector('.purchase-confirm').dispatchEvent(new Event('click')); popup.destroy();
+    await new Promise(resolve => setImmediate(resolve)); await idle(api); assert.equal(requests.length, 2); assert.equal(state.homeOwned('Furniture', 5), 1);
+  } finally { popup.destroy(); await idle(api); state.destroy(); env.restore(); }
+});
 
 test('lost purchase responses retry with the same id and restore the latest server balance', async () => {
   const calls = []; let lose = true;
