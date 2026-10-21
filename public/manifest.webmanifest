@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Paw Haven",
+  "short_name": "PawHaven",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#edf0df",
+  "theme_color": "#dce8ce",
+  "icons": [
+    {
+      "src": "./assets/icons/myeongrang.png?v=20261022",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
