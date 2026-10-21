@@ -14,6 +14,7 @@ await db.exec("create role anon; create role authenticated; create schema auth; 
 await db.exec(await readFile(new URL('../supabase/migrations/202610170001_player_accounts.sql', import.meta.url), 'utf8'));
 await db.query('insert into auth.users values($1),($2)', [A, B]);
 await db.exec(await readFile(new URL('../supabase/migrations/202610170002_server_economy.sql', import.meta.url), 'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/202610210008_home_shop.sql', import.meta.url), 'utf8'));
 let sequence = 0;
 const uuid = () => '00000000-0000-4000-8000-' + String(++sequence).padStart(12, '0');
 async function as(user, query, params = [], role = 'authenticated') {
@@ -33,8 +34,145 @@ async function finish(user = A) {
   await db.query("update public.economy_runs set started_at = clock_timestamp() - interval '6 seconds' where id=$1", [start.run_id]);
   return command(user, 'run_finish', { run_id: start.run_id });
 }
-beforeEach(async () => { await db.exec('truncate public.player_profiles, public.player_saves, public.economy_requests, public.economy_runs, public.economy_claims, public.economy_items, public.economy_wallets'); });
+beforeEach(async () => { await db.exec('truncate public.player_profiles, public.player_saves, public.economy_requests, public.economy_runs, public.economy_claims, public.economy_items, public.economy_home_items, public.economy_wallets'); });
 after(async () => { await db.close(); });
+
+test('furniture buys derive price and quantity on the server, isolate accounts and replay only once', async () => {
+  const initial = await load(A); assert.equal(initial.snapshot.homeShopReady, true); assert.deepEqual(initial.snapshot.homeItems, {});
+  const payload = { category: 'Furniture', index: 5, price: 0, quantity: 99, user_id: B }, id = uuid();
+  const first = await command(A, 'buy_home', payload, id);
+  assert.equal(first.snapshot.coins, 750); assert.equal(first.snapshot.homeItems['Furniture:5'], 1);
+  await command(A, 'buy_home', { category: 'Furniture', index: 5 });
+  const replay = await command(A, 'buy_home', payload, id);
+  assert.equal(replay.snapshot.coins, 500); assert.equal(replay.snapshot.homeItems['Furniture:5'], 2);
+  await assert.rejects(() => command(A, 'buy_home', { category: 'Furniture', index: 4 }, id), /request_id_reused/);
+  const legacy = await command(A, 'buy_home', { category: 'Etc', index: 1 });
+  assert.equal(legacy.snapshot.coins, 375); assert.equal(legacy.snapshot.homeItems['Etc:1'], 4);
+  assert.deepEqual((await load(B)).snapshot.homeItems, {});
+  const otherRows = await as(B, 'select * from public.economy_home_items'); assert.equal(otherRows.rows.length, 0);
+  await assert.rejects(() => as(A, 'update public.economy_home_items set quantity=20'), /permission denied/);
+  await assert.rejects(() => command(null, 'buy_home', { category: 'Furniture', index: 5 }));
+  await db.exec(await readFile(new URL('../supabase/migrations/202610210008_home_shop.sql', import.meta.url), 'utf8'));
+  assert.equal((await load(A)).snapshot.homeItems['Furniture:5'], 2);
+});
+
+test('invalid furniture, insufficient coins, full storage and rate limits cannot debit or grant stock', async () => {
+  await load(A);
+  for (const payload of [{ category: 'Hat', index: 5 }, { category: 'Furniture', index: 6 }, { category: 'Etc', index: 5 }, { category: 'Furniture', index: 0 }, { category: 'Furniture', index: 1.5 }]) {
+    await assert.rejects(() => command(A, 'buy_home', payload));
+  }
+  await db.query('update public.economy_wallets set coins=10 where user_id=$1', [A]);
+  const poor = await command(A, 'buy_home', { category: 'Furniture', index: 5 });
+  assert.equal(poor.outcome, 'insufficient'); assert.equal(poor.snapshot.coins, 10); assert.deepEqual(poor.snapshot.homeItems, {});
+  await db.query("insert into public.economy_home_items values($1,'Furniture',5,20)", [A]);
+  const full = await command(A, 'buy_home', { category: 'Furniture', index: 5 });
+  assert.equal(full.outcome, 'limit'); assert.equal(full.snapshot.coins, 10); assert.equal(full.snapshot.homeItems['Furniture:5'], 20);
+  await db.query('update public.economy_wallets set request_count=120 where user_id=$1', [A]);
+  await assert.rejects(() => command(A, 'buy_home', { category: 'Etc', index: 1 }), /rate_limited/);
+  for (const homeItems of [{ 'Furniture:5': 21 }, { 'Furniture:1': 1 }, { 'Etc:5': 3 }, { 'Furniture:05': 1 }, []]) {
+    assert.throws(() => parseEconomyResult({ ...poor, snapshot: { ...poor.snapshot, homeItems } }), /invalid_economy_response/);
+  }
+});
+
+test('guest furniture purchases persist independently from placements and cloud normalization preserves purchased copies', async () => {
+  const { ShopState } = await importTs('../src/shop/ShopState.ts', import.meta.url);
+  const { HomeState } = await importTs('../src/home/HomeState.ts', import.meta.url);
+  const { AccountStorage, normalizeSnapshot } = await importTs('../src/account/AccountStorage.ts', import.meta.url);
+  const values = new Map(), storage = new AccountStorage({ getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) });
+  let shop = new ShopState(storage);
+  const home = new HomeState(storage, (tab, index) => shop.homeOwned(tab, index));
+  assert.equal(home.place('Furniture', 5), undefined);
+  assert.equal(shop.buyHome('Furniture', 5), 'purchased'); assert.equal(shop.buyHome('Furniture', 5), 'purchased');
+  assert.equal(shop.coins, 500); assert.equal(home.remaining('Furniture', 5), 2);
+  const first = home.place('Furniture', 5), second = home.place('Furniture', 5);
+  assert.equal(home.place('Furniture', 5), undefined); assert.equal(home.remaining('Furniture', 5), 0);
+  home.move(second, 0.75, 0.8); home.remove(first); assert.equal(home.remaining('Furniture', 5), 1);
+  shop = new ShopState(storage); assert.equal(shop.homeOwned('Furniture', 5), 2); assert.equal(shop.coins, 500);
+  assert.equal(normalizeSnapshot(storage.snapshot()).home.items[0].option, 5);
+  const reloaded = new HomeState(storage, (tab, index) => shop.homeOwned(tab, index)); assert.equal(reloaded.items[0].x, 0.75);
+  storage.owner = B; assert.equal(new ShopState(storage).homeOwned('Furniture', 5), 0);
+  assert.equal(new HomeState(storage, () => 0).items.length, 0);
+  assert.equal(shop.buyHome('Furniture', 99), 'invalid');
+});
+
+test('lost furniture purchase responses retry with the same key and keep existing outfits available before the new SQL', async () => {
+  let lose = true;
+  const api = new EconomyClient(async request => {
+    const result = await rpc(A)(request);
+    if (request.p_action === 'buy_home' && lose) { lose = false; throw Error('lost response'); }
+    return result;
+  }, uuid);
+  const state = new ServerShopState(api);
+  try {
+    await idle(api); assert.equal(state.homeOwned('Furniture', 4), 3);
+    assert.equal(await state.buyHome('Furniture', 5), 'invalid'); await idle(api);
+    assert.equal(state.homeOwned('Furniture', 5), 0); await api.retry();
+    assert.equal(state.homeOwned('Furniture', 5), 1); assert.equal(state.coins, 750);
+  } finally { state.destroy(); }
+  const old = await load(B); delete old.snapshot.homeShopReady; delete old.snapshot.homeItems;
+  const oldApi = new EconomyClient(async () => old, uuid), legacy = new ServerShopState(oldApi);
+  try {
+    await idle(oldApi); assert.equal(legacy.ready, true); assert.equal(legacy.homeShopReady, false);
+    assert.equal(legacy.owns('Hat', 1), true); assert.equal(await legacy.buyHome('Furniture', 5), 'invalid');
+  } finally { legacy.destroy(); }
+});
+
+test('Furniture shop purchases update the Home sofa inventory and its shared lobby sprite without destroying the resource', async () => {
+  Object.defineProperty(globalThis, 'navigator', { value: { userAgent: 'Node.js' }, configurable: true });
+  const { Texture, TextureSource } = await import('pixi.js');
+  const { ShopScene } = await importTs('../src/game/scenes/ShopScene.ts', import.meta.url);
+  const { HomeScene } = await importTs('../src/game/scenes/HomeScene.ts', import.meta.url);
+  const { HomeState } = await importTs('../src/home/HomeState.ts', import.meta.url);
+  const { LobbyMap } = await importTs('../src/home/LobbyMap.ts', import.meta.url);
+  class Element extends EventTarget {
+    children = []; attributes = new Map(); style = {}; classList = { add() {} };
+    constructor(tag) { super(); this.tag = tag; }
+    append(...items) { items.forEach(item => { item.parent = this; this.children.push(item); }); }
+    replaceChildren(...items) { this.children = []; this.append(...items); }
+    setAttribute(key,value) { this.attributes.set(key,value); }
+    getAttribute(key) { return this.attributes.get(key) ?? null; }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter(item => item !== this); }
+  }
+  const oldDocument = globalThis.document, host = new Element('main');
+  globalThis.document = { createElement: tag => new Element(tag), querySelector: () => host };
+  const api = new EconomyClient(rpc(A), uuid), state = new ServerShopState(api);
+  const values = new Map(), home = new HomeState({ getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }, (tab, index) => state.homeOwned(tab, index));
+  let shop, editor, lobby;
+  const sofa = new Texture({ source: new TextureSource({ width: 1042, height: 407 }) });
+  const textures = { background: Texture.WHITE, floor: Texture.WHITE, cushion: Texture.WHITE, sofa };
+  try {
+    await idle(api);
+    shop = new ShopScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, state, () => {}, () => {});
+    const panel = host.children[0];
+    assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Style', 'Furniture', 'Pass']);
+    panel.children[3].children[1].dispatchEvent(new Event('click'));
+    const content = panel.children[4]; assert.equal(content.children[1].children.length, 5);
+    assert.equal(content.children[1].children[4].children[0].children[0].src, './assets/home/pet-sofa-black-white.png');
+    const buy = content.children[2].children[1]; buy.dispatchEvent(new Event('click')); buy.dispatchEvent(new Event('click'));
+    await idle(api); assert.equal(state.coins, 750); assert.equal(state.homeOwned('Furniture', 5), 1);
+    assert.equal(content.children[2].children[1].disabled, false); assert.match(content.children[2].children[0].children[1].textContent, /1\/20/);
+    shop.destroy({ children: true });
+    editor = new HomeScene(home, () => {}, textures); editor.resize(960, 540);
+    const homePanel = host.children[0], tabs = homePanel.children[3], inventory = homePanel.children[4];
+    tabs.children[2].dispatchEvent(new Event('click'));
+    assert.match(inventory.children[4].getAttribute('aria-label'), /Black & White Pet Sofa/);
+    assert.equal(inventory.children[4].disabled, false); inventory.children[4].dispatchEvent(new Event('click'));
+    assert.equal(home.items.length, 1); assert.equal(inventory.children[4].disabled, true); assert.equal(inventory.children[4].children[1].textContent, '0');
+    const rendered = editor.children[0].objects.children[0].children[1];
+    assert.equal(rendered.texture, sofa); assert.equal(rendered.width, 170); assert.ok(rendered.height < 67);
+    home.move(home.items[0].id, 0.75, 0.82);
+    editor.destroy({ children: true }); assert.equal(sofa.destroyed, false);
+    lobby = new LobbyMap(textures); lobby.draw(960, 540, home.current, home.items);
+    assert.equal(lobby.objects.children[0].x, 720); assert.equal(lobby.objects.children[0].children[1].texture, sofa);
+    home.remove(home.items[0].id); assert.equal(home.remaining('Furniture', 5), 1); assert.equal(state.homeOwned('Furniture', 5), 1);
+    const original = await readFile(new URL('../Resources/Pet_Sofa_Black_White_Prototype.png', import.meta.url));
+    assert.deepEqual(await readFile(new URL('../public/assets/home/pet-sofa-black-white.png', import.meta.url)), original);
+  } finally {
+    if (shop && !shop.destroyed) shop.destroy({ children: true }); if (editor && !editor.destroyed) editor.destroy({ children: true });
+    lobby?.destroy({ children: true }); sofa.destroy(true); state.destroy();
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+  }
+});
 
 test('server initializes each account once and derives prices without accepting a supplied balance', async () => {
   assert.equal((await load(A)).snapshot.coins, 1000);

@@ -1,6 +1,7 @@
 import { CharacterSelection, CHARACTER_STORAGE_KEY } from '../animals/CharacterSelection';
 import { CharacterPresets, PRESET_STORAGE_KEY, type CharacterPreset } from '../animals/CharacterPresets';
 import { HomeState, HOME_STORAGE_KEY } from '../home/HomeState';
+import { HOME_MAX_STOCK } from '../home/HomeCatalog';
 
 const KEYS = [CHARACTER_STORAGE_KEY, PRESET_STORAGE_KEY, HOME_STORAGE_KEY] as const;
 export interface PlayerSnapshot {
@@ -49,7 +50,8 @@ export class AccountStorage {
 
   snapshot(owner = this.owner): PlayerSnapshot {
     const source = { getItem: (key: string) => this.read(this.key(key, owner)), setItem() {} };
-    const home = new HomeState(source), presets = new CharacterPresets(source);
+    // Preserve purchased placements while their separate server inventory is loading.
+    const home = new HomeState(source, () => HOME_MAX_STOCK), presets = new CharacterPresets(source);
     return { version: 1, character: new CharacterSelection(source).current,
       presets: [0, 1, 2].map(index => presets.load(index)), home: { version: 2, ...home.current, items: home.items } };
   }

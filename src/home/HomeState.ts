@@ -1,16 +1,13 @@
+import { homeOptions, HOME_MAX_STOCK, homeInitialStock, validHomeItem as validItem, type PlaceableTab } from './HomeCatalog';
+export { homeOptions, HOME_STOCK, type PlaceableTab } from './HomeCatalog';
 export const HOME_TABS = ['Background', 'Floor', 'Furniture', 'Etc'] as const;
 export type HomeTab = typeof HOME_TABS[number];
 export type HomeLook = Record<'Background' | 'Floor', number>;
 export const HOME_STORAGE_KEY = 'pawhaven.home.v1';
-export const homeOptions: Record<HomeTab, number> = { Background: 4, Floor: 4, Furniture: 5, Etc: 5 };
 export const SKY_COLORS = ['#edf0df', '#dce8ef', '#f0ded5', '#e4dff0'];
 export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#b8ced0', '#cfc3d8'];
-export type PlaceableTab = 'Furniture' | 'Etc';
 export interface Placement { x: number; y: number }
 export interface HomeItem extends Placement { id: number; tab: PlaceableTab; option: number }
-export const HOME_STOCK = 3;
-const validItem = (tab: unknown, option: unknown): tab is PlaceableTab =>
-  (tab === 'Furniture' || tab === 'Etc') && Number.isInteger(option) && Number(option) > 0 && Number(option) < homeOptions[tab];
 export function clampPlacement(x: number, y: number): Placement {
   return { x: Math.max(0.10, Math.min(0.90, x)), y: Math.max(0.62, Math.min(0.87, y)) };
 }
@@ -25,11 +22,18 @@ export class HomeState {
   private nextId = 1;
   revision = 0;
   get current(): HomeLook { return { ...this.value }; }
-  get items(): HomeItem[] { return this.objects.map(item => ({ ...item })); }
-  remaining(tab: PlaceableTab, option: number): number {
-    return validItem(tab, option) ? HOME_STOCK - this.objects.filter(item => item.tab === tab && item.option === option).length : 0;
+  get items(): HomeItem[] {
+    const counts = new Map<string, number>();
+    return this.objects.filter(item => {
+      const key = item.tab + ':' + item.option, count = (counts.get(key) ?? 0) + 1; counts.set(key, count);
+      return count <= (this.stock?.(item.tab, item.option) ?? (this.stock ? HOME_MAX_STOCK : homeInitialStock(item.tab, item.option)));
+    }).map(item => ({ ...item }));
   }
-  constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>) {
+  remaining(tab: PlaceableTab, option: number): number {
+    const owned = this.stock ? this.stock(tab, option) ?? 0 : homeInitialStock(tab, option);
+    return validItem(tab, option) ? Math.max(0, owned - this.objects.filter(item => item.tab === tab && item.option === option).length) : 0;
+  }
+  constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>, private readonly stock?: (tab: PlaceableTab, option: number) => number | undefined) {
     try {
       const saved = JSON.parse(storage?.getItem(HOME_STORAGE_KEY) ?? 'null');
       for (const tab of ['Background', 'Floor'] as const) {
@@ -37,7 +41,7 @@ export class HomeState {
       }
       if (saved?.version === 2) {
         if (Array.isArray(saved.items)) for (const item of saved.items.slice(0, 200)) {
-          if (!item || !validItem(item.tab, item.option) || !this.remaining(item.tab, item.option) ||
+          if (!item || !validItem(item.tab, item.option) || this.objects.filter(existing => existing.tab === item.tab && existing.option === item.option).length >= (stock ? HOME_MAX_STOCK : homeInitialStock(item.tab, item.option)) ||
               !Number.isSafeInteger(item.id) || item.id <= 0 || item.id > 1000000000 || this.objects.some(existing => existing.id === item.id) ||
               !Number.isFinite(item.x) || !Number.isFinite(item.y)) continue;
           this.objects.push({ id: item.id, tab: item.tab, option: item.option, ...clampPlacement(item.x, item.y) });

@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import { SKY_COLORS, FLOOR_COLORS, type HomeItem, type HomeLook } from './HomeState';
-export interface HomeTextures { background: Texture; floor: Texture; cushion: Texture }
+export interface HomeTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture }
 /** Shared map renderer; every placed object owns its own view and persistent ID. */
 export class LobbyMap extends Container {
   private readonly paint = new Graphics();
@@ -37,6 +37,10 @@ export class LobbyMap extends Container {
             const sprite = new Sprite(this.textures!.cushion); sprite.anchor.set(0.5, 0.75);
             sprite.width = 195; sprite.scale.y = sprite.scale.x; view.addChild(sprite);
           }
+          if (item.option === 5 && this.textures?.sofa) {
+            const sprite = new Sprite(this.textures.sofa); sprite.anchor.set(0.5, 0.9);
+            sprite.width = 170; sprite.scale.y = sprite.scale.x; view.addChild(sprite);
+          }
           this.drawFurniture(item.option, shape, cushion);
         } else this.drawEtc(item.option, shape);
         this.views.set(item.id, view); this.objects.addChild(view);
@@ -57,6 +61,8 @@ export class LobbyMap extends Container {
       g.ellipse(x, y - 35, 68, 18).fill('#b79d77').rect(x - 48, y - 28, 10, 40).fill('#8e795f').rect(x + 38, y - 28, 10, 40).fill('#8e795f');
     } else if (option === 4 && !cushion) {
       g.roundRect(x - 67, y - 30, 134, 48, 20).fill('#ad9da8').ellipse(x, y - 8, 52, 17).fill('#dfd4d9');
+    } else if (option === 5 && !this.textures?.sofa) {
+      g.roundRect(-82, -45, 164, 51, 22).fill('#36363c').ellipse(0, -19, 58, 20).fill('#f4f0e9');
     }
   }
   private drawEtc(option: number, g: Graphics): void {

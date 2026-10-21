@@ -278,7 +278,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
   box-shadow: inset 0 0.2cqh 0 #fff9e5;
 }
 .shop-screen .shop-balance[data-loading="true"] { color: #998767; background: #f3ecd9; }
-.shop-screen .shop-tabs { left: 52%; right: 13%; top: 11cqh; }
+.shop-screen .shop-tabs { left: 52%; right: 3%; top: 11cqh; }
 .shop-screen .outfit-tabs {
   gap: 0.4cqw; padding: 0.45cqw; border-radius: 1.5cqw; background: #e9d5a14d;
 }
@@ -295,6 +295,16 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 1.4cqh;
 }
 .shop-style .shop-categories { position: static; flex: none; pointer-events: auto; }
+.outfit-object.pet-sofa-icon { display: block; width: 7cqw; height: 2.74cqw; overflow: hidden; bottom: 3cqh; }
+.pet-sofa-icon > img { position: absolute; width: 120.35%; height: 308.1%; max-width: none; left: -10.27%; top: -112.78%; image-rendering: pixelated; }
+.home-inventory .outfit-object.pet-sofa-icon { width: 7cqw; height: 2.74cqw; bottom: 4cqh; }
+.shop-grid .outfit-object.pet-sofa-icon { height: 2.74cqw; }
+.shop-grid .home-count { top: 0; bottom: auto; right: 4%; font-size: clamp(9px, 1.1cqw, 15px); color: #87704c; }
+.shop-home-preview { position: absolute; left: 5%; width: 40%; top: 42cqh; height: 32cqh; text-align: center; color: #846d4b; font-size: clamp(11px, 1.8cqw, 23px); }
+.shop-home-preview[hidden] { display: none; }
+.shop-home-preview > .outfit-object { position: relative; display: block; left: auto; bottom: auto; width: 24cqw; height: 20cqh; margin: 0 auto 3cqh; transform: none; object-fit: contain; }
+.shop-home-preview > .outfit-object.pet-sofa-icon { height: 9.37cqw; }
+.shop-home-preview p { margin: 1cqh 0; }
 .shop-style .shop-grid {
   position: static; height: 100%; min-height: 0;
   grid-auto-rows: max(36px, calc((100% - 6cqh) / 4));

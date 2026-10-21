@@ -1,4 +1,5 @@
 import { OUTFIT_TABS, type OutfitTab } from '../animals/OutfitState';
+import { HOME_MAX_STOCK, homeInitialStock, homeKey, homePrice, validHomeItem, type PlaceableTab } from '../home/HomeCatalog';
 export const SHOP_STORAGE_KEY = 'pawhaven.shop.prototype.v1';
 export const PASS_TIERS = 5;
 export const DAILY_QUESTS = [
@@ -18,6 +19,7 @@ export class ShopState {
   readonly connection = 'local';
   readonly ready = true;
   readonly entitlementsKnown = true;
+  readonly homeShopReady = true;
   readonly busy = false;
   readonly message = '';
   retry(): void {}
@@ -28,6 +30,7 @@ export class ShopState {
   private premium = false;
   private items = new Set<string>(OUTFIT_TABS.map(tab => itemKey(tab, 1)));
   private claimed = new Set<string>();
+  private homeItems: Record<string, number> = {};
   private readonly listeners = new Set<() => void>();
   private daily: DailyState;
   constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>, private readonly now: () => number = Date.now) {
@@ -38,6 +41,10 @@ export class ShopState {
         if (Number.isSafeInteger(saved.coins) && saved.coins >= 0 && saved.coins <= 1000000) this.balance = saved.coins;
         if (Number.isSafeInteger(saved.xp) && saved.xp >= 0 && saved.xp <= 400) this.experience = saved.xp;
         if (typeof saved.premium === 'boolean') this.premium = saved.premium;
+        if (saved.homeItems && typeof saved.homeItems === 'object') for (const [key, count] of Object.entries(saved.homeItems)) {
+          const [tab, index] = key.split(':');
+          if (validHomeItem(tab, Number(index)) && key === homeKey(tab, Number(index)) && Number.isInteger(count) && Number(count) >= homeInitialStock(tab, Number(index)) && Number(count) <= HOME_MAX_STOCK) this.homeItems[key] = Number(count);
+        }
         const day = saved.daily;
         if (day && typeof day.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day.day) &&
             localDay(new Date(day.day + 'T00:00:00').getTime()) === day.day) {
@@ -93,6 +100,14 @@ export class ShopState {
   get xp(): number { return this.experience; }
   get level(): number { return Math.min(PASS_TIERS, 1 + Math.floor(this.experience / 100)); }
   get hasPass(): boolean { return this.premium; }
+  homeOwned(tab: PlaceableTab, index: number): number { return validHomeItem(tab, index) ? this.homeItems[homeKey(tab, index)] ?? homeInitialStock(tab, index) : 0; }
+  buyHome(tab: PlaceableTab, index: number): 'purchased' | 'limit' | 'insufficient' | 'invalid' {
+    if (!validHomeItem(tab, index)) return 'invalid';
+    const count = this.homeOwned(tab, index), price = homePrice(tab, index);
+    if (count >= HOME_MAX_STOCK) return 'limit';
+    if (this.balance < price) return 'insufficient';
+    this.balance -= price; this.homeItems[homeKey(tab, index)] = count + 1; this.save(); return 'purchased';
+  }
   owns(category: OutfitTab, index: number): boolean { return index === 0 || this.items.has(itemKey(category, index)); }
   buy(category: OutfitTab, index: number): 'purchased' | 'owned' | 'insufficient' | 'invalid' {
     if (!OUTFIT_TABS.includes(category) || !Number.isInteger(index) || index < 1 || index > 20) return 'invalid';
@@ -118,7 +133,7 @@ export class ShopState {
   }
   subscribe(callback: () => void): () => void { this.listeners.add(callback); return () => { this.listeners.delete(callback); }; }
   private save(notify = true): void {
-    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
+    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], homeItems: this.homeItems, claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
     if (notify) this.listeners.forEach(callback => callback());
   }
 }

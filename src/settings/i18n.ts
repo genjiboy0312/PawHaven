@@ -1,5 +1,8 @@
 export type Language = 'en' | 'ko';
 const en = {
+  petSofa: 'Black & White Pet Sofa', homeBench: 'Bench', homePlant: 'Potted Plant', homeTable: 'Table', homeCushion: 'Cushion',
+  homeFlowers: 'Flowers', homeStones: 'Garden Stones', homeLamp: 'Garden Lamp', homeFence: 'Fence',
+  homeShopSetup: 'Furniture purchases are being prepared. Please try again later.', homeStockLimit: 'Storage full', buyOne: 'Buy 1',
   mapForest:'Forest Stepping Trail', mapForestDescription:'Hop across woodland stones, then dash along the clear paths.',
   mapGardenDescription:'Cross the garden with jumps, gaps and a checkpoint.', mapPracticeDescription:'A short course to try jumping, dashing and attacking.',
   singleExpected:'Approx. {time}', singleBest:'Personal best', singleChallenge:'Set your first record', singleLocalRecords:'Records are saved on this device.', singleNewBest:'New personal best!',
@@ -82,6 +85,9 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  petSofa: '검정·화이트 펫 소파', homeBench: '벤치', homePlant: '화분', homeTable: '테이블', homeCushion: '쿠션',
+  homeFlowers: '꽃', homeStones: '정원 돌', homeLamp: '정원 조명', homeFence: '울타리',
+  homeShopSetup: '가구 구매를 준비 중이에요. 잠시 후 다시 시도해 주세요.', homeStockLimit: '보관 한도 도달', buyOne: '1개 구매',
   mapForest:'숲속 징검길', mapForestDescription:'숲속 징검 발판을 넘고 탁 트인 길을 달려 보세요.',
   mapGardenDescription:'발판과 틈을 넘어 체크포인트를 지나 달려 보세요.', mapPracticeDescription:'점프·대시·공격을 연습하기 좋은 짧은 코스예요.',
   singleExpected:'예상 시간 {time}', singleBest:'내 최고 기록', singleChallenge:'도전해 보세요', singleLocalRecords:'기록은 이 기기에 저장돼요.', singleNewBest:'최고 기록 갱신!',

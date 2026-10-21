@@ -1,5 +1,7 @@
 import type { DestroyOptions } from 'pixi.js';
-import { HOME_TABS, homeOptions, SKY_COLORS, FLOOR_COLORS, HomeState, clampPlacement, placementPoint, type PlaceableTab, type Placement, type HomeTab } from '../../home/HomeState';
+import { HOME_TABS, homeOptions, HomeState, clampPlacement, placementPoint, type PlaceableTab, type Placement, type HomeTab } from '../../home/HomeState';
+import { homeIcon, homeItemName } from '../../ui/homeIcon';
+import { onLanguageChange } from '../../settings/i18n';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
 import { bindAria, bindText, t } from '../../settings/i18n';
 import { Scene } from './Scene';
@@ -14,10 +16,12 @@ export class HomeScene extends Scene {
   private readonly tabs = document.createElement('nav');
   private readonly inventory = document.createElement('div');
   private readonly abort = new AbortController();
+  private readonly unsubscribe?: () => void;
+  private readonly localeOff: () => void;
   private tab: HomeTab = 'Background';
   private viewWidth = 960;
   private viewHeight = 540;
-  constructor(private readonly state: HomeState, onClose: () => void, textures?: HomeTextures) {
+  constructor(private readonly state: HomeState, onClose: () => void, textures?: HomeTextures, subscribe?: (callback: () => void) => () => void) {
     super(); this.map = new LobbyMap(textures); this.addChild(this.map);
     this.panel.className = 'home-screen'; bindAria(this.panel, 'home');
     const title = document.createElement('h2'); title.className = 'shop-title'; bindText(title, 'home');
@@ -39,7 +43,9 @@ export class HomeScene extends Scene {
       window.addEventListener('blur', () => this.cancelDrag(), { signal: this.abort.signal });
       window.addEventListener('resize', () => this.cancelDrag(), { signal: this.abort.signal });
     }
-    document.querySelector('#app')?.append(this.panel); this.render();
+    document.querySelector('#app')?.append(this.panel);
+    this.unsubscribe = subscribe?.(() => { this.cancelDrag(false); this.render(); });
+    this.localeOff = onLanguageChange(() => this.render()); this.render();
   }
   private render(): void {
     const look = this.state.current;
@@ -50,24 +56,11 @@ export class HomeScene extends Scene {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot';
       const placeable = this.tab === 'Furniture' || this.tab === 'Etc';
       const count = placeable ? this.state.remaining(this.tab as PlaceableTab, index) : undefined;
-      button.setAttribute('aria-label', t(this.tab) + ' ' + (placeable ? index : index + 1) + (count === undefined ? '' : ` · ${t('remaining')}: ${count}`));
+      button.setAttribute('aria-label', (placeable ? homeItemName(this.tab as PlaceableTab, index) : t(this.tab) + ' ' + (index + 1)) + (count === undefined ? '' : ` · ${t('remaining')}: ${count}`));
       const active = placeable ? this.state.items.some(item => item.id === this.selected && item.tab === this.tab && item.option === index) : look[this.tab as 'Background' | 'Floor'] === index;
       button.setAttribute('aria-pressed', String(active));
       button.disabled = count === 0;
-      if (index === 0 && (this.tab === 'Furniture' || this.tab === 'Etc')) bindText(button, 'none');
-      else {
-        const image = document.createElement('img'); image.className = 'outfit-object'; image.alt = '';
-        const color = this.tab === 'Background' ? SKY_COLORS[index] : this.tab === 'Floor' ? FLOOR_COLORS[index] : ['#a99884', '#ad9478', '#92a382', '#b6a083', '#b8a0ac'][index];
-        const shape = this.tab === 'Background' ? '<rect x="6" y="10" width="52" height="40" rx="8"/><circle cx="43" cy="22" r="6" fill="#fff8df"/>'
-          : this.tab === 'Floor' ? '<ellipse cx="32" cy="37" rx="27" ry="12"/>'
-          : this.tab === 'Furniture' ? '<rect x="11" y="19" width="42" height="17" rx="4"/><path d="M8 40h48M16 40v12m32-12v12"/>'
-          : '<path d="M32 47V19m-7 34h14"/><circle cx="32" cy="22" r="13"/>';
-        image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="${color}" stroke="#858d7e" stroke-width="2.5" stroke-linecap="round">${shape}</svg>`);
-        const resource = this.tab === 'Background' && index === 0 ? 'garden-background.png'
-          : this.tab === 'Floor' && index === 0 ? 'garden-floor.png' : this.tab === 'Furniture' && index === 4 ? 'cushion.png' : undefined;
-        if (resource) { image.src = './assets/home/' + resource; image.classList.add('home-pixel-icon'); }
-        button.append(image);
-      }
+      button.append(homeIcon(this.tab, index));
       if (count !== undefined) {
         const quantity = document.createElement('span'); quantity.className = 'home-count'; quantity.textContent = String(count); button.append(quantity);
       }
@@ -88,7 +81,7 @@ export class HomeScene extends Scene {
       const point = items.find(item => item.id === Number(element.getAttribute('data-placement'))); if (!point) continue;
       const tab = point.tab;
       const box = tab === 'Furniture'
-        ? [[80, 110, 30], [78, 70, 30], [45, 100, 20], [70, 55, 20], [80, 65, 8]][point.option]
+        ? [[80, 110, 30], [78, 70, 30], [45, 100, 20], [70, 55, 20], [80, 65, 8], [85, 60, 8]][point.option]
         : [[80, 110, 30], [50, 40, 20], [65, 5, 30], [25, 100, 20], [70, 50, 20]][point.option];
       element.style.left = `${(point.x - box[0] / 960) * 100}%`;
       element.style.width = `${box[0] * 2 / 960 * 100}%`;
@@ -150,5 +143,5 @@ export class HomeScene extends Scene {
     if (redraw) this.drawMap();
   }
   resize(width: number, height: number): void { this.cancelDrag(false); this.viewWidth = width; this.viewHeight = height; this.drawMap(); }
-  override destroy(options?: DestroyOptions): void { this.cancelDrag(false); this.abort.abort(); this.panel.remove(); super.destroy(options); }
+  override destroy(options?: DestroyOptions): void { this.cancelDrag(false); this.unsubscribe?.(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); }
 }

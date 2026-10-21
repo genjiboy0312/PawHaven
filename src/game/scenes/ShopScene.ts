@@ -8,6 +8,8 @@ import type { CommerceState } from '../../shop/CommerceState';
 import { commerceStatus } from '../../ui/CommerceStatus';
 import { itemIcon } from '../../ui/itemIcon';
 import { passPanel } from '../../ui/PassPanel';
+import { homeOptions, homePrice, HOME_MAX_STOCK, type PlaceableTab } from '../../home/HomeCatalog';
+import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { Scene } from './Scene';
 
 const PURCHASE_LABELS = { owned: 'owned', purchased: 'shopPurchased', processing: 'economyWorking', loading: 'shopChecking', unavailable: 'shopUnavailable', available: 'buy', insufficient: 'notEnoughCoins' } as const;
@@ -21,6 +23,7 @@ export class ShopScene extends Scene {
   private readonly connection = document.createElement('div');
   private readonly content = document.createElement('div');
   private readonly tabs = document.createElement('nav');
+  private readonly homePreview = document.createElement('div');
   private readonly abort = new AbortController();
   private readonly unsubscribe: () => void;
   private readonly localeOff: () => void;
@@ -30,7 +33,9 @@ export class ShopScene extends Scene {
   private selected = 1;
   private elapsed = 0;
   private reaction = 0;
-  private tab: 'Style' | 'Pass';
+  private homeCategory: PlaceableTab = 'Furniture';
+  private homeSelected = 5;
+  private tab: 'Style' | 'Furniture' | 'Pass';
   constructor(config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Style' | 'Pass' = 'Style') {
     super(); this.tab = initial;
     this.animation = new AnimalAnimationController(config);
@@ -45,12 +50,13 @@ export class ShopScene extends Scene {
     this.balance.className = 'shop-balance';
     this.tabs.className = 'outfit-tabs shop-tabs';
     bindAria(this.tabs, 'shop');
-    for (const tab of ['Style', 'Pass'] as const) {
+    for (const tab of ['Style', 'Furniture', 'Pass'] as const) {
       const button = document.createElement('button'); button.type = 'button'; bindText(button, tab);
       button.addEventListener('click', () => { this.tab = tab; this.grid = undefined; this.render(); }, { signal: this.abort.signal }); this.tabs.append(button);
     }
     this.connection.className = 'shop-connection';
-    this.panel.append(title, close, this.balance, this.tabs, this.content, this.connection);
+    this.homePreview.className = 'shop-home-preview';
+    this.panel.append(title, close, this.balance, this.tabs, this.content, this.connection, this.homePreview);
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = state.subscribe(() => this.render());
     this.localeOff = onLanguageChange(() => this.render()); this.render(); this.update(0);
@@ -61,8 +67,10 @@ export class ShopScene extends Scene {
     this.balance.setAttribute('data-loading', String(!this.state.entitlementsKnown));
     this.connection.replaceChildren(); const connection = commerceStatus(this.state); if (connection) this.connection.append(connection);
     this.preview.visible = this.platform.visible = this.tab === 'Style';
-    Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String((index === 0 ? 'Style' : 'Pass') === this.tab)));
+    this.homePreview.hidden = this.tab !== 'Furniture';
+    Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(['Style', 'Furniture', 'Pass'][index] === this.tab)));
     this.content.replaceChildren(); this.content.className = this.tab === 'Pass' ? 'shop-pass' : 'shop-style';
+    if (this.tab === 'Furniture') { this.renderFurniture(scroll); return; }
     if (this.tab === 'Pass') {
       this.content.append(passPanel(this.state, 'shop', this.onQuest));
       const quest = document.createElement('button'); quest.type = 'button'; quest.className = 'commerce-primary'; bindText(quest, 'viewPass');
@@ -110,6 +118,50 @@ export class ShopScene extends Scene {
     });
     footer.append(detail, buy); this.content.append(categories, grid, footer);
     grid.scrollTop = scroll;
+  }
+  private renderFurniture(scroll: number): void {
+    const category = this.homeCategory, selected = this.homeSelected;
+    this.homePreview.replaceChildren(homeIcon(category, selected));
+    const heading = document.createElement('p'); heading.textContent = homeItemName(category, selected); this.homePreview.append(heading);
+    const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories'; bindAria(categories, 'categories');
+    for (const tab of ['Furniture', 'Etc'] as const) {
+      const button = document.createElement('button'); button.type = 'button'; bindText(button, tab); button.setAttribute('aria-pressed', String(category === tab));
+      button.addEventListener('click', () => { this.homeCategory = tab; this.homeSelected = tab === 'Furniture' ? 5 : 1; this.grid = undefined; this.render(); }); categories.append(button);
+    }
+    const grid = document.createElement('div'); grid.className = 'outfit-inventory shop-grid'; this.grid = grid; bindAria(grid, 'items');
+    for (let index = 1; index < homeOptions[category]; index++) {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot shop-slot';
+      const count = this.state.entitlementsKnown ? this.state.homeOwned(category, index) : '—';
+      button.append(homeIcon(category, index)); button.setAttribute('aria-pressed', String(selected === index));
+      button.setAttribute('aria-label', `${homeItemName(category, index)} · ${t('owned')}: ${count} · ${homePrice(category, index)} ${t('coins')}`);
+      const price = document.createElement('span'); price.className = 'shop-price'; price.textContent = `${homePrice(category, index)} ${t('coins')}`;
+      const quantity = document.createElement('span'); quantity.className = 'home-count'; quantity.textContent = `×${count}`;
+      button.append(price, quantity); button.addEventListener('click', () => { this.homeSelected = index; this.render(); }); grid.append(button);
+    }
+    const footer = document.createElement('div'); footer.className = 'shop-purchase';
+    const detail = document.createElement('span'); detail.className = 'shop-detail';
+    const name = document.createElement('strong'); name.textContent = homeItemName(category, selected);
+    const cost = document.createElement('span'); cost.className = 'shop-cost'; cost.setAttribute('role', 'status');
+    const known = this.state.entitlementsKnown, count = this.state.homeOwned(category, selected), price = homePrice(category, selected);
+    cost.textContent = `${price} ${t('coins')} · ${t('owned')}: ${known ? count : '—'}/${HOME_MAX_STOCK}`;
+    detail.append(name, cost);
+    const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
+    const status = !known ? this.state.connection === 'loading' ? 'loading' : 'unavailable'
+      : this.state.busy || this.state.connection === 'loading' ? 'processing'
+      : !this.state.ready || !this.state.homeShopReady ? 'unavailable' : count >= HOME_MAX_STOCK ? 'limit' : this.state.coins < price ? 'insufficient' : 'available';
+    buy.setAttribute('data-purchase-state', status); footer.setAttribute('data-purchase-state', status);
+    buy.textContent = status === 'available' ? t('buyOne') : status === 'limit' ? t('homeStockLimit') : t(PURCHASE_LABELS[status]);
+    buy.disabled = status !== 'available';
+    buy.addEventListener('click', () => {
+      if (this.destroyed || buy.disabled || !this.state.ready || !this.state.homeShopReady) return;
+      // Disable this actual DOM button as well as the rerendered server button.
+      buy.disabled = true;
+      const result = this.state.buyHome(category, selected);
+      const done = (): void => { if (!this.destroyed) this.render(); };
+      if (result instanceof Promise) void result.then(done); else done();
+    });
+    footer.append(detail, buy); this.content.append(categories, grid, footer); grid.scrollTop = scroll;
+    if (known && !this.state.homeShopReady) { const hint = document.createElement('p'); bindText(hint, 'homeShopSetup'); this.homePreview.append(hint); }
   }
   private itemName(category: OutfitTab, index: number): string {
     return category === 'Hat' && index === 1 ? t('santaHat') : `${t(category)} ${String(index).padStart(2, '0')}`;

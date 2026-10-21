@@ -110,13 +110,14 @@ export class Game {
       this.commerce = state;
       releaseOwnership = state.subscribe(() => {
         if (!state.entitlementsKnown || this.commerce !== state) return;
+        home.revision++;
         const look = character.restore(['corgi', 'myeongrang'], (category, index) => state.owns(category, index));
         Object.assign(this.outfit, look.outfit);
       });
       return state;
     };
     let commerce = makeCommerce();
-    let home = new HomeState(playerStorage);
+    let home = new HomeState(playerStorage, (tab, index) => commerce.entitlementsKnown ? commerce.homeOwned(tab, index) : undefined);
     let records = new SingleRecords(playerStorage);
 
     const savedCharacter = character.restore(['corgi', 'myeongrang'], (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
@@ -203,7 +204,7 @@ export class Game {
       };
       const scene = new LobbyScene(activePet, () => openMenu(), returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index), subscribe: callback => commerce.subscribe(callback) }));
-      }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures)); } }, () => this.account?.user ? this.account.nickname : null);
+      }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback))); } }, () => this.account?.user ? this.account.nickname : null);
       this.scenes?.show(scene);
       if(initialMenu)openMenu(initialMenu);
     };
@@ -214,7 +215,7 @@ export class Game {
       this.settings?.close();
       this.quests?.destroy(); this.friends?.destroy();
       presets = new CharacterPresets(playerStorage);
-      home = new HomeState(playerStorage);
+      home = new HomeState(playerStorage, (tab, index) => commerce.entitlementsKnown ? commerce.homeOwned(tab, index) : undefined);
       records = new SingleRecords(playerStorage);
       commerce.destroy(); commerce = makeCommerce();
       character = new CharacterSelection(playerStorage);
