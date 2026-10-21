@@ -6,6 +6,7 @@ import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { itemPrice } from '../../shop/ShopState';
 import type { CommerceState } from '../../shop/CommerceState';
 import { commerceStatus } from '../../ui/CommerceStatus';
+import { coinAmount } from '../../ui/CoinAmount';
 import { itemIcon } from '../../ui/itemIcon';
 import { passPanel } from '../../ui/PassPanel';
 import { homeOptions, homePrice, HOME_MAX_STOCK, type PlaceableTab } from '../../home/HomeCatalog';
@@ -63,7 +64,7 @@ export class ShopScene extends Scene {
   }
   private render(): void {
     const scroll = this.grid?.scrollTop ?? 0; this.grid = undefined;
-    this.balance.textContent = `${t('coins')}: ${this.state.entitlementsKnown ? this.state.coins : '—'}`;
+    coinAmount(this.balance, this.state.entitlementsKnown ? this.state.coins : '—', { balance: true });
     this.balance.setAttribute('data-loading', String(!this.state.entitlementsKnown));
     this.connection.replaceChildren(); const connection = commerceStatus(this.state); if (connection) this.connection.append(connection);
     this.preview.visible = this.platform.visible = this.tab === 'Style';
@@ -91,13 +92,14 @@ export class ShopScene extends Scene {
       button.setAttribute('aria-label', `${this.itemName(this.category, index)} · ${owned ? t('owned') : `${itemPrice(index)} ${t('coins')}`}`);
       button.setAttribute('data-owned', String(owned));
       button.setAttribute('aria-pressed', String(this.selected === index));
-      const price = document.createElement('span'); price.className = 'shop-price'; price.textContent = owned ? t('owned') : `${itemPrice(index)} ${t('coins')}`; button.append(price);
+      const price = document.createElement('span'); price.className = 'shop-price';
+      if (owned) price.textContent = t('owned'); else coinAmount(price, itemPrice(index)); button.append(price);
       button.addEventListener('click', () => { this.selected = index; this.reaction = 1.5; this.render(); }); grid.append(button);
     }
     const footer = document.createElement('div'); footer.className = 'shop-purchase';
     const detail = document.createElement('span'); detail.className = 'shop-detail';
     const name = document.createElement('strong'); name.textContent = this.itemName(this.category, this.selected);
-    const cost = document.createElement('span'); cost.className = 'shop-cost'; cost.textContent = `${itemPrice(this.selected)} ${t('coins')}`;
+    const cost = document.createElement('span'); cost.className = 'shop-cost'; coinAmount(cost, itemPrice(this.selected));
     detail.append(name, cost);
     const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
     const owned = this.state.entitlementsKnown && this.state.owns(this.category, this.selected), enough = this.state.coins >= itemPrice(this.selected);
@@ -134,7 +136,7 @@ export class ShopScene extends Scene {
       const count = this.state.entitlementsKnown ? this.state.homeOwned(category, index) : '—';
       button.append(homeIcon(category, index)); button.setAttribute('aria-pressed', String(selected === index));
       button.setAttribute('aria-label', `${homeItemName(category, index)} · ${t('owned')}: ${count} · ${homePrice(category, index)} ${t('coins')}`);
-      const price = document.createElement('span'); price.className = 'shop-price'; price.textContent = `${homePrice(category, index)} ${t('coins')}`;
+      const price = document.createElement('span'); price.className = 'shop-price'; coinAmount(price, homePrice(category, index));
       const quantity = document.createElement('span'); quantity.className = 'home-count'; quantity.textContent = `×${count}`;
       button.append(price, quantity); button.addEventListener('click', () => { this.homeSelected = index; this.render(); }); grid.append(button);
     }
@@ -143,7 +145,7 @@ export class ShopScene extends Scene {
     const name = document.createElement('strong'); name.textContent = homeItemName(category, selected);
     const cost = document.createElement('span'); cost.className = 'shop-cost'; cost.setAttribute('role', 'status');
     const known = this.state.entitlementsKnown, count = this.state.homeOwned(category, selected), price = homePrice(category, selected);
-    cost.textContent = `${price} ${t('coins')} · ${t('owned')}: ${known ? count : '—'}/${HOME_MAX_STOCK}`;
+    coinAmount(cost, price, { suffix: ` · ${t('owned')}: ${known ? count : '—'}/${HOME_MAX_STOCK}` });
     detail.append(name, cost);
     const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
     const status = !known ? this.state.connection === 'loading' ? 'loading' : 'unavailable'

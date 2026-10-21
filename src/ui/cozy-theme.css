@@ -278,6 +278,11 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
   box-shadow: inset 0 0.2cqh 0 #fff9e5;
 }
 .shop-screen .shop-balance[data-loading="true"] { color: #998767; background: #f3ecd9; }
+.coin-amount::before {
+  content: ''; display: inline-block; width: 1.2em; height: 1.2em; margin-inline-end: 0.3em; vertical-align: -0.2em;
+  background: url('/assets/items/gold-coin.png') 50.07% 56.66% / 231.79% 231.79% no-repeat;
+  image-rendering: pixelated; pointer-events: none;
+}
 .shop-screen .shop-tabs { left: 52%; right: 3%; top: 11cqh; }
 .shop-screen .outfit-tabs {
   gap: 0.4cqw; padding: 0.45cqw; border-radius: 1.5cqw; background: #e9d5a14d;

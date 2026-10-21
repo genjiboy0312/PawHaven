@@ -178,6 +178,7 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     home.remove(home.items[0].id); assert.equal(home.remaining('Furniture', 5), 1); assert.equal(state.homeOwned('Furniture', 5), 1);
     const original = await readFile(new URL('../Resources/Pet_Sofa_Black_White_Prototype.png', import.meta.url));
     assert.deepEqual(await readFile(new URL('../public/assets/home/pet-sofa-black-white.png', import.meta.url)), original);
+    assert.deepEqual(await readFile(new URL('../public/assets/items/gold-coin.png', import.meta.url)), await readFile(new URL('../Resources/Gold_Coin_Prototype.png', import.meta.url)));
   } finally {
     if (shop && !shop.destroyed) shop.destroy({ children: true }); if (editor && !editor.destroyed) editor.destroy({ children: true });
     lobby?.destroy({ children: true }); sofa.destroy(true); state.destroy();
@@ -441,6 +442,7 @@ test('server Shop disables pending purchases, updates owned items and never debi
     scene = new ShopScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, state, () => {}, () => {});
     const content = host.children[0].children[4];
     assert.match(host.children[0].children[2].textContent, /—/);
+    assert.ok(host.children[0].children[2].className.split(' ').includes('coin-amount'));
     assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'loading');
     assert.equal(content.children[2].children[1].disabled, true);
     assert.equal(content.children[1].children[0].getAttribute('data-owned'), 'false');

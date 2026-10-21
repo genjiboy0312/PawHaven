@@ -1,6 +1,7 @@
 import { PASS_TIERS } from '../shop/ShopState';
 import type { CommerceState } from '../shop/CommerceState';
 import { t } from '../settings/i18n';
+import { coinAmount } from './CoinAmount';
 export function passPanel(state: CommerceState, mode: 'shop' | 'quest', navigate: () => void): HTMLElement {
   const root = document.createElement('section'); root.className = 'pass-panel';
   const title = document.createElement('h3'); title.textContent = t('seasonName');
@@ -18,7 +19,7 @@ export function passPanel(state: CommerceState, mode: 'shop' | 'quest', navigate
     for (const premium of [false, true]) {
       const reward = document.createElement('button'); reward.type = 'button'; reward.className = 'pass-reward';
       const status = state.isClaimed(tier, premium) ? t('claimed') : mode === 'quest' && state.canClaim(tier, premium) ? t('claim') : t('rewardPreview');
-      reward.textContent = `${premium ? t('premiumTrack') : t('freeTrack')} · ${state.reward(tier, premium)} ${t('coins')}\n${status}`;
+      coinAmount(reward, state.reward(tier, premium), { prefix: `${premium ? t('premiumTrack') : t('freeTrack')} · `, suffix: `\n${status}` });
       reward.setAttribute('data-reward-ready', String(mode === 'quest' && state.canClaim(tier, premium)));
       reward.disabled = mode === 'shop' || !state.canClaim(tier, premium);
       reward.addEventListener('click', () => state.claim(tier, premium)); column.append(reward);

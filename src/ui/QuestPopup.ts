@@ -2,6 +2,7 @@ import { bindText, onLanguageChange, t } from '../settings/i18n';
 import type { CommerceState } from '../shop/CommerceState';
 import { commerceStatus } from './CommerceStatus';
 import { passPanel } from './PassPanel';
+import { coinAmount } from './CoinAmount';
 
 export class QuestPopup {
   private overlay?: HTMLElement;
@@ -63,7 +64,7 @@ export class QuestPopup {
     this.content.replaceChildren();
     if (this.tab === 'seasonPass') this.content.append(passPanel(this.state, 'quest', () => { this.close(); this.openShop(); }));
     else if (this.tab === 'Daily') {
-      const balance = document.createElement('p'); balance.textContent = t('coins') + ': ' + this.state.coins;
+      const balance = document.createElement('p'); coinAmount(balance, this.state.entitlementsKnown ? this.state.coins : '—', { balance: true });
       const hint = document.createElement('p'); hint.className = 'daily-hint'; hint.textContent = t(this.state.connection === 'local' ? 'dailyReset' : 'dailyServerReset');
       this.content.append(balance, hint);
       for (const quest of this.state.dailyQuests) {
@@ -71,7 +72,7 @@ export class QuestPopup {
         const detail = document.createElement('div');
         const name = document.createElement('h3'); name.textContent = t(quest.title);
         const description = document.createElement('p'); description.textContent = t(quest.id === 'pet' ? 'dailyPetHint' : 'dailyRunHint');
-        const progress = document.createElement('p'); progress.textContent = quest.progress + '/' + quest.target + ' · ' + quest.reward + ' ' + t('coins');
+        const progress = document.createElement('p'); coinAmount(progress, quest.reward, { prefix: `${quest.progress}/${quest.target} · ` });
         detail.append(name, description, progress);
         const claim = document.createElement('button'); claim.type = 'button'; claim.className = 'commerce-primary';
         claim.textContent = t(quest.claimed ? 'claimed' : 'claim'); claim.disabled = !quest.canClaim;
