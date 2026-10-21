@@ -274,11 +274,16 @@ test('single map choice launches without an account and restores the lobby input
   try{
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
-    env.host.all().find(e=>e.textContent==='Practice Yard').dispatchEvent(new Event('click'));
-    assert.equal(chosen,undefined);assert.equal(env.host.querySelector('.single-map-cards').children.length,3);
-    assert.equal(env.host.querySelector('.single-map-practice').getAttribute('aria-pressed'),'true');
+    assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
+    assert.equal(env.host.querySelector('.single-map-change').textContent,'Choose map (3)');
+    env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
+    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,3);
+    assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
+    assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='forest').getAttribute('data-map'),'forest');
+    choices.children.find(c=>c.getAttribute('data-map')==='practice').dispatchEvent(new Event('click'));
+    assert.equal(chosen,undefined);assert.equal(env.host.querySelector('.single-map-choices'),undefined);
+    assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'practice');
     assert.equal(env.host.querySelector('.single-map-practice').querySelector('.single-map-best').textContent,'Personal best 12.35s');
-    assert.equal(env.host.querySelector('.single-map-garden').querySelector('.single-map-best').textContent,'Set your first record');
     env.host.querySelector('.single-map-play').dispatchEvent(new Event('click'));
     await new Promise(r=>setImmediate(r));assert.equal(chosen,'practice');assert.equal(closed,1);assert.equal(hud.inert,false);assert.equal(pauses.at(-1),false);
   }finally{menu?.destroy();env.restore();}
@@ -331,8 +336,8 @@ test('forest can launch as single but never leaks into room creation after switc
   const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let menu,chosen;
   try{
     menu=new PlayMenuPopup(()=>{},{rooms:client,single:async map=>{chosen=map;return false;},race(){},login(){},dismiss(){}});menu.open('single');
-    const cards=env.host.querySelector('.single-map-cards');cards.scrollLeft=300;
-    env.host.querySelector('.single-map-forest').dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.single-map-cards').scrollLeft,300);
+    env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
+    env.host.querySelector('.single-map-forest').dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'forest');
     env.host.querySelector('.single-map-play').dispatchEvent(new Event('click'));await new Promise(resolve=>setImmediate(resolve));assert.equal(chosen,'forest');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Back').dispatchEvent(new Event('click'));
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Multiplayer').dispatchEvent(new Event('click'));await idle(client);
@@ -340,6 +345,20 @@ test('forest can launch as single but never leaks into room creation after switc
     const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice']);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);assert.equal(client.room.map,'garden');
   }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
+
+test('single map dialog cancels with Escape without leaving Single or starting a run and restores opener focus',()=>{
+  const env=dom(),hud=new Element();env.host.append(hud);let menu,launches=0;
+  try{
+    menu=new PlayMenuPopup(()=>{},{single:async()=>{launches++;return true;},race(){},login(){},dismiss(){}});menu.open('single');
+    const opener=env.host.querySelector('.single-map-change');opener.dispatchEvent(new Event('click'));
+    assert.equal(env.host.querySelector('.play-menu-panel').inert,true);assert.equal(opener.getAttribute('aria-expanded'),'true');
+    const event=Object.assign(new Event('keydown',{cancelable:true}),{key:'Escape'});env.host.querySelector('.single-map-picker').dispatchEvent(event);
+    assert.equal(event.defaultPrevented,true);assert.equal(env.host.querySelector('.single-map-picker'),undefined);assert.equal(launches,0);
+    assert.equal(env.host.querySelector('.play-menu-panel').inert,false);assert.equal(opener.getAttribute('aria-expanded'),'false');assert.equal(document.activeElement,opener);
+    assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');assert.equal(hud.inert,true);
+    opener.dispatchEvent(new Event('click'));menu.destroy();assert.equal(env.host.querySelector('.single-map-picker'),undefined);assert.equal(hud.inert,false);
+  }finally{menu?.destroy();env.restore();}
 });
 
 test('single records are local to each guest or account without marking cloud saves dirty',()=>{

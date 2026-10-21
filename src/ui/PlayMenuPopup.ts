@@ -20,6 +20,7 @@ export class PlayMenuPopup {
   private portraits:{element:HTMLElement;config:AnimalConfig;thumbnail:string}[]=[];
   private portraitTimer?:ReturnType<typeof setInterval>;
   private mapPicker?:HTMLElement;private mapPickerAbort?:AbortController;
+  private pickerSingle=false;
   private pickerBlocked?:{element:HTMLElement;inert:boolean};private pickerFocus?:HTMLElement;
   constructor(private readonly pause:(value:boolean)=>void,private readonly options:{
     rooms?:RoomClient;single:(map:CourseId)=>Promise<boolean>;race:(room:Room,client:RoomClient)=>void;
@@ -94,34 +95,44 @@ export class PlayMenuPopup {
       b.setAttribute('aria-pressed',String(id===current));b.append(this.text(map.seconds));b.disabled=this.busy;grid.append(b);
     }return grid;
   }
+  private singleCard(id:CourseId,select?:()=>void){
+    const map=COURSES[id],card=select?this.button(map.title,select):document.createElement('section');
+    card.className='map-card single-map-card map-'+id+' single-map-'+id+(select?' commerce-primary':' single-map-summary');card.setAttribute('data-map',id);
+    if(select)card.setAttribute('aria-pressed',String(this.singleMap===id));
+    else{const name=document.createElement('strong');name.textContent=t(map.title);card.append(name);}
+    const description=this.text(t(map.description));description.className='single-map-description';
+    const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
+    const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';
+    card.append(description,duration,record);return card;
+  }
   private singleMaps(){
-    const grid=document.createElement('div');grid.className='single-map-cards';
-    for(const [key,map]of Object.entries(COURSES)){
-      const id=key as CourseId;
-      const card=this.button(map.title,()=>{this.singleMap=id;this.notice=undefined;this.render();this.content?.querySelector<HTMLElement>('.single-map-'+id)?.focus();});
-      card.className='commerce-primary map-card single-map-card map-'+id+' single-map-'+id;
-      card.setAttribute('data-map',id);card.setAttribute('aria-pressed',String(this.singleMap===id));card.disabled=this.busy;
-      const description=this.text(t(map.description));description.className='single-map-description';
-      const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
-      const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';
-      card.append(description,duration,record);grid.append(card);
-    }
+    const change=this.button('chooseMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
+    change.textContent=t('chooseMap')+' ('+Object.keys(COURSES).length+')';change.setAttribute('aria-haspopup','dialog');change.setAttribute('aria-expanded','false');
     const actions=document.createElement('div');actions.className='single-map-actions';
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
-    actions.append(this.text(t('singleLocalRecords')),play);return[grid,actions];
+    actions.append(this.text(t('singleLocalRecords')),play);return[change,this.singleCard(this.singleMap),actions];
   }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;
-    if(!this.overlay||this.mapPicker||!room||room.host!==client?.owner||room.phase!=='waiting'||client.reconnecting||client.error)return;
-    this.pickerFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
+    const single=this.page==='single';
+    if(!this.overlay||this.mapPicker||this.busy||(!single&&(!room||room.host!==client?.owner||room.phase!=='waiting'||client.reconnecting||client.error)))return;
+    this.pickerSingle=single;this.content?.querySelector('.single-map-change')?.setAttribute('aria-expanded','true');
+    this.pickerFocus=this.content?.querySelector<HTMLElement>(single?'.single-map-change':'.room-change-map')??(document.activeElement instanceof HTMLElement?document.activeElement:undefined);
     const parent=this.overlay.querySelector<HTMLElement>('.play-menu-panel');
     if(parent){this.pickerBlocked={element:parent,inert:parent.inert};parent.inert=true;}
     this.mapPickerAbort=new AbortController();const overlay=document.createElement('div');overlay.className='room-map-backdrop';
-    const panel=document.createElement('section');panel.className='settings-panel room-map-picker';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'chooseMap');
+    const panel=document.createElement('section');panel.className='settings-panel room-map-picker'+(single?' single-map-picker':'');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'chooseMap');
     const heading=document.createElement('h2');heading.textContent=t('chooseMap');
     const close=this.button('close',()=>this.closeMapPicker());close.className='settings-close';close.textContent='×';bindAria(close,'close');
-    const choices=this.maps(map=>{void client.command('map',{map}).then(ok=>{if(ok)this.closeMapPicker();else this.refreshMapPicker();});},room.map);choices.className='mode-cards room-map-choices';
+    let choices:HTMLElement;
+    if(single){
+      choices=document.createElement('div');
+      for(const id of Object.keys(COURSES) as CourseId[])choices.append(this.singleCard(id,()=>{
+        this.singleMap=id;this.notice=undefined;this.closeMapPicker();this.render();this.content?.querySelector<HTMLElement>('.single-map-change')?.focus();
+      }));
+    }else choices=this.maps(map=>{void client!.command('map',{map}).then(ok=>{if(ok)this.closeMapPicker();else this.refreshMapPicker();});},room!.map);
+    choices.className='mode-cards room-map-choices'+(single?' single-map-choices':'');
     const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close,choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;
     panel.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.closeMapPicker();return;}
@@ -133,26 +144,27 @@ export class PlayMenuPopup {
   }
   private refreshMapPicker(){
     if(!this.mapPicker)return;const client=this.options.rooms,room=client?.room;
+    if(this.pickerSingle){if(this.page!=='single'||this.busy)this.closeMapPicker();return;}
     if(!room||room.host!==client?.owner||room.phase!=='waiting'){this.closeMapPicker();return;}
     for(const button of Array.from(this.mapPicker.querySelectorAll<HTMLButtonElement>('button'))){const map=button.getAttribute('data-map');if(map){button.disabled=client.busy||client.reconnecting||!!client.error;button.setAttribute('aria-pressed',String(map===room.map));}}
     const status=this.mapPicker.querySelector<HTMLElement>('.room-map-status');if(status)status.textContent=client.error?t('multiRejected'):client.reconnecting?t('multiReconnecting'):'';
   }
   private closeMapPicker(){
     if(!this.mapPicker)return;this.mapPickerAbort?.abort();this.mapPicker.remove();this.mapPicker=undefined;
+    this.pickerSingle=false;this.content?.querySelector('.single-map-change')?.setAttribute('aria-expanded','false');
     if(this.pickerBlocked){this.pickerBlocked.element.inert=this.pickerBlocked.inert;this.pickerBlocked=undefined;}
-    if(this.pickerFocus?.isConnected)this.pickerFocus.focus();else this.content?.querySelector<HTMLElement>('.room-change-map')?.focus();
+    if(this.pickerFocus?.isConnected)this.pickerFocus.focus();else this.content?.querySelector<HTMLElement>(this.page==='single'?'.single-map-change':'.room-change-map')?.focus();
   }
   private render(){
     if(!this.content||!this.title)return;
     this.signature=this.renderSignature();this.stopPortraits();
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
-    const singleScroll=root.querySelector<HTMLElement>('.single-map-cards')?.scrollLeft??0;
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
-    this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'chooseMap':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
+    this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'singleplayer':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
     if(this.page==='mode'){
       const cards=document.createElement('div');cards.className='mode-cards';
       cards.append(this.button('singleplayer',()=>{this.page='single';this.render();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
-    }else if(this.page==='single'){root.append(...this.singleMaps());const cards=root.querySelector<HTMLElement>('.single-map-cards');if(cards)cards.scrollLeft=singleScroll;}
+    }else if(this.page==='single')root.append(...this.singleMaps());
     else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
     else if(this.page==='create'){
       const defaultName=()=>`${this.options.nickname?.()?.trim()||'Player '+client.owner.slice(0,4)}님의 방`;
