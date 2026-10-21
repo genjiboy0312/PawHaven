@@ -3,6 +3,7 @@ import { PlayMenuPopup } from '../ui/PlayMenuPopup';
 import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
 import { roomStream, lobbyStream } from '../multiplayer/RoomStream';
 import type { CourseId } from './CourseCatalog';
+import { SingleRecords } from './SingleRecords';
 import { AccountService } from '../account/AccountService';
 import { createAccountClient } from '../account/client';
 import { loadHome } from '../home/loadHome';
@@ -113,6 +114,7 @@ export class Game {
     };
     let commerce = makeCommerce();
     let home = new HomeState(playerStorage);
+    let records = new SingleRecords(playerStorage);
 
     const savedCharacter = character.restore(['corgi', 'myeongrang'], (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
     Object.assign(this.outfit, savedCharacter.outfit);
@@ -160,10 +162,12 @@ export class Game {
         try {
           if (!await runCommerce.beginRun() || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
           let completion = Promise.resolve();
+          const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
             open: openSettings, preferences: () => gameSettings.current, map,
             sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
             complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
+            record:seconds=>runRecords.record(map,seconds),
             retry: async () => { await completion; return launch(play,map); },
           });
           this.scenes.show(play); return true;
@@ -177,7 +181,7 @@ export class Game {
         }),roomStream(accountClient,owner),lobbyStream(accountClient,owner)):undefined);
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
-          rooms,pets,nickname:()=>this.account?.nickname,single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
+          rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           race:(room,client)=>{
             const look=room.members.find(m=>m.id===client.owner)?.look;
             const original=look?.petId===this.myeongrang?.id?this.myeongrang!:corgi;
@@ -207,6 +211,7 @@ export class Game {
       this.quests?.destroy(); this.friends?.destroy();
       presets = new CharacterPresets(playerStorage);
       home = new HomeState(playerStorage);
+      records = new SingleRecords(playerStorage);
       commerce.destroy(); commerce = makeCommerce();
       character = new CharacterSelection(playerStorage);
       const look = character.restore(['corgi', 'myeongrang'], (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));

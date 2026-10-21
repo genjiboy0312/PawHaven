@@ -579,7 +579,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
     }
     assert.equal(runHud.children[3].hidden, false);
     assert.equal(world.scale.x, 0.78); assert.equal(world.scale.y, 0.78);
-    runHud.children[5].children[2].dispatchEvent(new Event('click'));
+    app.stage.children[0].back.dispatchEvent(new Event('click'));
     for (let i = 0; i < 120; i++) manager.update(1 / 60);
     assert.equal(returns, 1);
     assert.equal(daily.dailyQuests[1].progress, 1);
@@ -2181,7 +2181,7 @@ test('both pets accept DOM body taps after Play victory returns to Lobby, includ
       host.children[0].children[2].children[0].dispatchEvent(new Event('click'));
       const play = app.stage.children[0];
       play.run.x = play.run.finish; manager.update(0.05); assert.equal(play.run.won, true);
-      host.children[0].children[5].children[2].dispatchEvent(new Event('click'));
+      play.back.dispatchEvent(new Event('click'));
       manager.update(2); assert.equal(play.destroyed, true); assert.equal(host.children.length, 1);
       const pet = scene.children.find(child => child.label === id), target = host.children[0].children.at(-1);
       assert.notEqual(target, oldTarget); assert.equal(target.disabled, false);

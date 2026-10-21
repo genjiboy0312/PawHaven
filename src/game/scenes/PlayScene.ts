@@ -48,6 +48,8 @@ export class PlayScene extends Scene {
   private readonly fade = document.createElement('div');
   private readonly result = document.createElement('section');
   private readonly stats = document.createElement('p');
+  private readonly bestNote=document.createElement('p');
+  private newBest=false;
   private readonly progress = document.createElement('p');
   private readonly retry = document.createElement('button');
   private readonly back = document.createElement('button');
@@ -75,7 +77,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; retry?: () => Promise<boolean>; map?:CourseId; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number)=>boolean; retry?: () => Promise<boolean>; map?:CourseId; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
@@ -146,7 +148,8 @@ export class PlayScene extends Scene {
     this.retry.disabled = !this.settings?.retry;
     this.retry.addEventListener('click', () => this.leave(true), { signal: this.abort.signal });
     this.back.addEventListener('click', () => this.leave(false), { signal: this.abort.signal });
-    this.result.append(this.stats, this.retry, this.back);
+    this.bestNote.className='single-new-best';bindText(this.bestNote,'singleNewBest');this.bestNote.hidden=true;
+    this.result.append(this.stats, this.bestNote, this.retry, this.back);
     this.progress.className = 'play-progress';
     this.hud.append(this.stick, actions, settingsButton, this.victory, this.fade);
     this.hud.append(this.result, this.progress);
@@ -324,7 +327,7 @@ export class PlayScene extends Scene {
     if (this.run.won && !this.completed) {
       this.completed = true;
       if(this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
-      else if(!this.settings?.multiplayer)this.settings?.complete?.();
+      else if(!this.settings?.multiplayer){this.newBest=this.settings?.record?.(this.run.elapsed)===true;this.bestNote.hidden=!this.newBest;this.settings?.complete?.();}
       this.back.focus?.();
     }
     if (this.run.returnReady && !this.returned) {

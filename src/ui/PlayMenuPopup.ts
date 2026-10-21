@@ -25,6 +25,7 @@ export class PlayMenuPopup {
     login:()=>void;dismiss:(keep:boolean)=>void;
     pets?:{config:AnimalConfig;thumbnail:string}[];
     nickname?:()=>string|null|undefined;
+    best?:(map:CourseId)=>number|null;
   }){}
   open(page:Page='mode'){
     if(this.overlay)return;this.page=page;
@@ -90,6 +91,23 @@ export class PlayMenuPopup {
       b.setAttribute('aria-pressed',String(id===current));b.append(this.text(map.seconds));b.disabled=this.busy;grid.append(b);
     }return grid;
   }
+  private singleMaps(){
+    const grid=document.createElement('div');grid.className='single-map-cards';
+    for(const [key,map]of Object.entries(COURSES)){
+      const id=key as CourseId;
+      const card=this.button(map.title,()=>{this.map=id;this.notice=undefined;this.render();this.content?.querySelector<HTMLElement>('.single-map-'+id)?.focus();});
+      card.className='commerce-primary map-card single-map-card map-'+id+' single-map-'+id;
+      card.setAttribute('data-map',id);card.setAttribute('aria-pressed',String(this.map===id));card.disabled=this.busy;
+      const description=this.text(t(map.description));description.className='single-map-description';
+      const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
+      const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';
+      card.append(description,duration,record);grid.append(card);
+    }
+    const actions=document.createElement('div');actions.className='single-map-actions';
+    const play=this.button('play',()=>{const map=this.map;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
+    play.classList.add('single-map-play');play.disabled=this.busy;
+    actions.append(this.text(t('singleLocalRecords')),play);return[grid,actions];
+  }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;
     if(!this.overlay||this.mapPicker||!room||room.host!==client?.owner||room.phase!=='waiting'||client.reconnecting||client.error)return;
@@ -131,7 +149,7 @@ export class PlayMenuPopup {
     if(this.page==='mode'){
       const cards=document.createElement('div');cards.className='mode-cards';
       cards.append(this.button('singleplayer',()=>{this.page='single';this.render();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
-    }else if(this.page==='single')root.append(this.maps(map=>{void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});}));
+    }else if(this.page==='single')root.append(...this.singleMaps());
     else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
     else if(this.page==='create'){
       const defaultName=()=>`${this.options.nickname?.()?.trim()||'Player '+client.owner.slice(0,4)}님의 방`;

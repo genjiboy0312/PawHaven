@@ -10,6 +10,8 @@ const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.u
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
 const {RacePodium}=await importTs('../src/ui/RacePodium.ts',import.meta.url);
 const {RaceProgress}=await importTs('../src/ui/RaceProgress.ts',import.meta.url);
+const {SingleRecords,SINGLE_RECORDS_KEY}=await importTs('../src/game/SingleRecords.ts',import.meta.url);
+const {AccountStorage}=await importTs('../src/account/AccountStorage.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
 const {raceCountdown}=await importTs('../src/multiplayer/RaceCountdown.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
@@ -268,11 +270,54 @@ test('room requests pin the session owner and destroyed clients ignore late resp
 test('single map choice launches without an account and restores the lobby input surface',async()=>{
   const env=dom(),hud=new Element();env.host.append(hud);let chosen,closed=0;const pauses=[];let menu;
   try{
-    menu=new PlayMenuPopup(v=>pauses.push(v),{single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
+    menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     env.host.all().find(e=>e.textContent==='Practice Yard').dispatchEvent(new Event('click'));
+    assert.equal(chosen,undefined);assert.equal(env.host.querySelector('.single-map-cards').children.length,2);
+    assert.equal(env.host.querySelector('.single-map-practice').getAttribute('aria-pressed'),'true');
+    assert.equal(env.host.querySelector('.single-map-practice').querySelector('.single-map-best').textContent,'Personal best 12.35s');
+    assert.equal(env.host.querySelector('.single-map-garden').querySelector('.single-map-best').textContent,'Set your first record');
+    env.host.querySelector('.single-map-play').dispatchEvent(new Event('click'));
     await new Promise(r=>setImmediate(r));assert.equal(chosen,'practice');assert.equal(closed,1);assert.equal(hud.inert,false);assert.equal(pauses.at(-1),false);
   }finally{menu?.destroy();env.restore();}
+});
+
+test('single personal records keep the faster valid completion and survive a local reload',()=>{
+  const values=new Map(),disk={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+  let records=new SingleRecords(disk);assert.equal(records.best('garden'),null);
+  assert.equal(records.record('garden',30.1234),true);assert.equal(records.record('garden',30.1234),false);assert.equal(records.record('garden',40),false);
+  assert.equal(records.record('garden',25.5),true);assert.equal(records.record('practice',10),true);
+  for(const invalid of [NaN,Infinity,-1,0])assert.equal(records.record('garden',invalid),false);
+  assert.equal(records.record('__proto__',1),false);
+  records=new SingleRecords(disk);assert.equal(records.best('garden'),25500);assert.equal(records.best('practice'),10000);
+  values.set(SINGLE_RECORDS_KEY,'{broken');assert.equal(new SingleRecords(disk).best('garden'),null);
+  values.set(SINGLE_RECORDS_KEY,JSON.stringify({version:1,times:{garden:-1,practice:'123'}}));assert.equal(new SingleRecords(disk).best('practice'),null);
+  const blocked=new SingleRecords({getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}});
+  assert.equal(blocked.record('garden',12),true);assert.equal(blocked.best('garden'),12000);
+});
+
+test('single records are local to each guest or account without marking cloud saves dirty',()=>{
+  const values=new Map(),storage=new AccountStorage({getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)});
+  new SingleRecords(storage).record('garden',20);
+  storage.owner='first';let records=new SingleRecords(storage);assert.equal(records.best('garden'),null);records.record('garden',15);
+  assert.equal(storage.meta.dirty,false);
+  storage.owner='second';records=new SingleRecords(storage);assert.equal(records.best('garden'),null);records.record('practice',11);
+  storage.owner='first';assert.equal(new SingleRecords(storage).best('garden'),15000);assert.equal(new SingleRecords(storage).best('practice'),null);
+  storage.owner=null;assert.equal(new SingleRecords(storage).best('garden'),20000);
+});
+
+test('single scene records only a completed run once and highlights only an improved personal best',()=>{
+  const env=dom(),records=new SingleRecords();let scene,completions=0,submissions=0;
+  const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  const settings={open(){},map:'practice',record(seconds){submissions++;return records.record('practice',seconds);},complete(){completions++;}};
+  try{
+    scene=new PlayScene(config,()=>{},settings);scene.update(.2);assert.equal(submissions,0);assert.equal(records.best('practice'),null);
+    scene.run.elapsed=10;scene.run.x=scene.run.finish;scene.update(.1);scene.update(.5);
+    assert.equal(submissions,1);assert.equal(completions,1);assert.equal(records.best('practice'),Math.round(scene.run.elapsed*1000));assert.equal(scene.bestNote.hidden,false);
+    const best=records.best('practice');scene.destroy({children:true});
+    scene=new PlayScene(config,()=>{},settings);scene.run.elapsed=12;scene.run.x=scene.run.finish;scene.update(.1);
+    assert.equal(submissions,2);assert.equal(records.best('practice'),best);assert.equal(scene.bestNote.hidden,true);assert.equal(records.best('garden'),null);
+  }finally{scene?.destroy({children:true});env.restore();}
 });
 
 test('background room refreshes never overlap while a response is pending',async()=>{

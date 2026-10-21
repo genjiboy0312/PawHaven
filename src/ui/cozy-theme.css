@@ -438,3 +438,13 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .race-course-check { display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font: 700 1.6cqw var(--font-round); color: currentColor; text-shadow: 0 1px 1px #725c36; }
 .race-course-marker[data-finished="true"] > .race-course-check { display: block; }
 .race-course-marker[data-finished="true"] > .race-course-paw, .race-course-marker[data-finished="true"] > .race-course-dot { display: none; }
+.single-map-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.5cqw; margin: 1.5cqh 0; }
+.single-map-card { padding: 1.5cqh 1.4cqw; text-align: left; border-radius: 1.8cqw; font: 400 2.3cqw var(--font-round); }
+.single-map-card::before { height: 15cqh; margin-bottom: 1.5cqh; border-radius: 1cqw; }
+.single-map-card p { font-size: clamp(10px,1.25cqw,18px); line-height: 1.5; }
+.single-map-card .single-map-description { min-height: 4.5cqh; color: #8b795e; }
+.single-map-card .single-map-best { margin-top: 1cqh; font-family: var(--font-round); color: #73854b; }
+.single-map-actions { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; margin-bottom: 1.5cqh; }
+.single-map-actions p { margin: 0; color: #948264; font-size: clamp(9px,1.15cqw,16px); }
+.single-map-actions .single-map-play { min-width: 15cqw; font: 400 2.2cqw var(--font-round); }
+.play-result .single-new-best { color: #728648; font-family: var(--font-round); }

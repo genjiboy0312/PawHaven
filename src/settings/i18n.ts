@@ -1,5 +1,7 @@
 export type Language = 'en' | 'ko';
 const en = {
+  mapGardenDescription:'Cross the garden with jumps, gaps and a checkpoint.', mapPracticeDescription:'A short course to try jumping, dashing and attacking.',
+  singleExpected:'Approx. {time}', singleBest:'Personal best', singleChallenge:'Set your first record', singleLocalRecords:'Records are saved on this device.', singleNewBest:'New personal best!',
   raceProgress:'Course progress',
   racePodiumTitle:'RESULTS', raceNoWinner:'No finishers this time',
   raceLoading:'Waiting for players…',
@@ -79,6 +81,8 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  mapGardenDescription:'발판과 틈을 넘어 체크포인트를 지나 달려 보세요.', mapPracticeDescription:'점프·대시·공격을 연습하기 좋은 짧은 코스예요.',
+  singleExpected:'예상 시간 {time}', singleBest:'내 최고 기록', singleChallenge:'도전해 보세요', singleLocalRecords:'기록은 이 기기에 저장돼요.', singleNewBest:'최고 기록 갱신!',
   raceProgress:'코스 진행 상황',
   racePodiumTitle:'레이스 결과', raceNoWinner:'이번 경기는 완주자가 없어요',
   raceLoading:'모두의 출발을 준비하고 있어요…',
