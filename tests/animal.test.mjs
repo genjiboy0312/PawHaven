@@ -895,7 +895,9 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
   const app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
   const store = new SoundSettings(), applied = [], sounds = [];
   const gamePreferences = new GameSettings(), gameApplied = [];
-  const popup = new SettingsPopup(store, { apply: value => applied.push(value), play: value => sounds.push(value) }, paused => manager.setPaused(paused), gamePreferences, value => gameApplied.push(value));
+  const { AppInstall } = await importTs('../src/ui/AppInstall.ts', import.meta.url);
+  const installation = new AppInstall({ target: window, standalone: () => false });
+  const popup = new SettingsPopup(store, { apply: value => applied.push(value), play: value => sounds.push(value) }, paused => manager.setPaused(paused), gamePreferences, value => gameApplied.push(value), undefined, installation);
   const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, walk: { frames: Array(8).fill(Texture.WHITE), fps: 8 } } };
   const key = code => { const event = new Event('keydown', { cancelable: true }); Object.defineProperty(event, 'code', { value: code }); window.dispatchEvent(event); return event; };
   try {
@@ -932,6 +934,14 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     assert.equal(gamePreferences.current.effects, false);
     const camera = content.children[1].children[0]; camera.checked = false; camera.dispatchEvent(new Event('change'));
     assert.equal(gamePreferences.current.smoothCamera, false);
+    const installSection = content.children[2]; assert.equal(installSection.hidden, true);
+    let prompts = 0;
+    const offer = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt: async () => { prompts++; }, userChoice: Promise.resolve({ outcome: 'dismissed' }) });
+    window.dispatchEvent(offer); assert.equal(offer.defaultPrevented, true); assert.equal(installSection.hidden, false);
+    const installButton = installSection.children[0]; assert.equal(installButton.textContent, 'Install app'); installButton.dispatchEvent(new Event('click'));
+    assert.equal(prompts, 1); assert.equal(installButton.disabled, true);
+    await new Promise(resolve => setImmediate(resolve)); assert.equal(installSection.hidden, true);
+    assert.equal(content.children[0].children[0], effects);
     tabs.children[3].dispatchEvent(new Event('click'));
     content.children[0].dispatchEvent(new Event('click'));
     assert.equal(gamePreferences.current.language, 'ko'); assert.equal(t('settings'), '설정');
@@ -971,7 +981,7 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     popup.open(); popup.destroy(); assert.equal(hud.inert, false);
     manager.destroy(); assert.equal(host.children.length, 0);
   } finally {
-    popup.destroy(); manager.destroy(); app.stage.destroy(); setLanguage('en');
+    popup.destroy(); installation.destroy(); manager.destroy(); app.stage.destroy(); setLanguage('en');
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
     if (oldHTMLElement === undefined) delete globalThis.HTMLElement; else globalThis.HTMLElement = oldHTMLElement;
@@ -2378,6 +2388,33 @@ test('healing dialogue personalizes selected lines, uses a separate name line an
     }
     const beforeUpdate = dialogue.remainingTime; dialogue.update(0.5); assert.equal(dialogue.remainingTime, beforeUpdate - 0.5);
   } finally { setLanguage('en'); }
+});
+
+test('app installation consumes each Chrome offer once, hides on install and cleans up unsupported/disposed states', async () => {
+  const { AppInstall } = await importTs('../src/ui/AppInstall.ts', import.meta.url);
+  const target = new EventTarget(), mode = new EventTarget(); let standalone = false, prompts = 0, updates = 0;
+  const state = new AppInstall({ target, mode, standalone: () => standalone }); state.subscribe(() => updates++);
+  const offer = (choice, prompt = async () => { prompts++; }) => {
+    const event = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt, userChoice: Promise.resolve({ outcome: choice }) });
+    target.dispatchEvent(event); return event;
+  };
+  try {
+    assert.equal(state.available, false); await state.install(); assert.equal(prompts, 0);
+    assert.equal(offer('dismissed').defaultPrevented, true); assert.equal(state.visible, true);
+    const pending = state.install(); assert.equal(state.busy, true); await state.install(); await pending;
+    assert.equal(prompts, 1); assert.equal(state.available, false); assert.equal(state.visible, false);
+    offer('dismissed', async () => { throw Error('blocked'); }); await state.install(); assert.equal(state.failed, true);
+    offer('accepted'); assert.equal(state.failed, false); await state.install(); assert.equal(prompts, 2); assert.equal(state.visible, false);
+    assert.equal(offer('dismissed').defaultPrevented, false); assert.equal(state.available, false);
+  } finally { state.destroy(); }
+  const other = new AppInstall({ target, mode, standalone: () => standalone });
+  try {
+    offer('dismissed'); assert.equal(other.available, true); target.dispatchEvent(new Event('appinstalled')); assert.equal(other.visible, false);
+  } finally { other.destroy(); }
+  const desktop = new AppInstall({ target, mode, standalone: () => standalone });
+  offer('dismissed'); assert.equal(desktop.available, true); standalone = true; mode.dispatchEvent(new Event('change')); assert.equal(desktop.available, false); desktop.destroy();
+  const installed = new AppInstall({ target, standalone: () => true }); assert.equal(offer('dismissed').defaultPrevented, false); assert.equal(installed.visible, false); installed.destroy();
+  const before = updates; standalone = false; offer('dismissed'); assert.equal(updates, before);
 });
 
 test('both animals render the current nickname, retain long Korean names and keep touch cooldowns', () => {

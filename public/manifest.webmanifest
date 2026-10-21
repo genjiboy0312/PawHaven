@@ -10,8 +10,14 @@
   "theme_color": "#dce8ce",
   "icons": [
     {
-      "src": "./assets/icons/myeongrang.png?v=20261022",
-      "sizes": "1254x1254",
+      "src": "./assets/icons/myeongrang-192.png?v=20261022",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/myeongrang-512.png?v=20261022",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }

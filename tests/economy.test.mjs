@@ -368,6 +368,13 @@ test('purchase confirmation cancels safely, tracks live balance and language, an
     assert.deepEqual(await readFile(new URL('../public/assets/icons/myeongrang.png', import.meta.url)), original);
     assert.equal(original.readUInt32BE(16), original.readUInt32BE(20));
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8'); assert.match(html, /rel="icon"[^>]*myeongrang/); assert.match(html, /rel="apple-touch-icon"[^>]*myeongrang/);
+    const manifest = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+    assert.deepEqual(manifest.icons.map(icon => icon.sizes), ['192x192', '512x512']);
+    for (const size of [192, 512]) {
+      const packaged = await readFile(new URL(`../public/assets/icons/myeongrang-${size}.png`, import.meta.url));
+      assert.deepEqual(packaged, await readFile(new URL(`../Resources/PawHaven_Myeongrang_Icon_${size}.png`, import.meta.url)));
+      assert.equal(packaged.readUInt32BE(16), size); assert.equal(packaged.readUInt32BE(20), size);
+    }
   } finally { popup.destroy(); setLanguage('en'); state.destroy(); env.restore(); }
 });
 

@@ -4,6 +4,8 @@ import { bindAria, bindText, setLanguage, t, type TextKey } from '../settings/i1
 import { GameSettings } from '../settings/GameSettings';
 import type { GamePreferences } from '../settings/GameSettings';
 import { type SoundPreferences, SoundSettings } from '../settings/SoundSettings';
+import type { AppInstall } from './AppInstall';
+import { InstallAppButton } from './InstallAppButton';
 
 interface SettingsAudio {
   apply(preferences: SoundPreferences): void;
@@ -11,6 +13,7 @@ interface SettingsAudio {
 }
 export class SettingsPopup {
   private accountPanel?: AccountPanel;
+  private installButton?: InstallAppButton;
   private element?: HTMLElement;
   private panel?: HTMLElement;
   private content?: HTMLElement;
@@ -21,7 +24,7 @@ export class SettingsPopup {
   private blocked: { element: HTMLElement; inert: boolean }[] = [];
   private tab: 'Sound' | 'Controls' | 'Display' | 'Language' | 'Account' | 'About' = 'Sound';
   get opened(): boolean { return !!this.element; }
-  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService) {}
+  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService, private readonly installation?: AppInstall) {}
   openAccount(): void { this.tab='Account'; this.open(); }
   open(playSound = true): void {
     if (this.opened) return;
@@ -65,6 +68,7 @@ export class SettingsPopup {
     for (const button of Array.from(this.tabs.children)) button.setAttribute('aria-pressed', String(button.textContent === t(this.tab)));
     this.pageAbort?.abort(); this.pageAbort = new AbortController();
     this.accountPanel?.destroy(); this.accountPanel = undefined;
+    this.installButton?.destroy(); this.installButton = undefined;
     this.content.replaceChildren();
     if (this.tab === 'Account' && this.account) { this.accountPanel = new AccountPanel(this.content, this.account); return; }
     if (this.tab === 'Account') {
@@ -82,7 +86,8 @@ export class SettingsPopup {
     }
     if (this.tab === 'Display') {
       this.toggle('effects', options.effects, value => this.changeGame({ effects: value }));
-      this.toggle('camera', options.smoothCamera, value => this.changeGame({ smoothCamera: value })); return;
+      this.toggle('camera', options.smoothCamera, value => this.changeGame({ smoothCamera: value }));
+      if (this.installation) this.installButton = new InstallAppButton(this.content, this.installation); return;
     }
     if (this.tab === 'Language') {
       for (const [code, label] of [['ko', '한국어'], ['en', 'English']] as const) {
@@ -136,6 +141,7 @@ export class SettingsPopup {
   }
   close(): void {
     if (!this.opened) return;
+    this.installButton?.destroy(); this.installButton = undefined;
     this.accountPanel?.destroy(); this.accountPanel = undefined; this.pageAbort?.abort(); this.abort?.abort(); this.element?.remove(); this.element = undefined; this.panel = undefined; this.content = undefined; this.tabs = undefined;
     for (const item of this.blocked) item.element.inert = item.inert;
     this.blocked = []; this.pause(false);

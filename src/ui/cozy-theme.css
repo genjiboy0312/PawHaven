@@ -70,6 +70,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
   box-shadow: inset 0 0.1cqh 0 #fffdf5;
 }
 .settings-content > p:first-child { margin-top: 0; }
+.settings-install { margin-top: 2cqh; padding-top: 1.5cqh; border-top: 1px solid #dfcea9; }
+.settings-install[hidden], .settings-install [hidden] { display: none; }
 .settings-volume { grid-template-columns: 8cqw 1fr 5cqw; margin-bottom: 2cqh; gap: 1cqw; }
 .settings-volume input, .settings-option input, .settings-mute input { accent-color: #9dbd69; }
 .settings-preview { margin-top: 2cqh; }

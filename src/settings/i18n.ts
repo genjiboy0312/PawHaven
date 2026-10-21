@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  installApp: 'Install app', installWorking: 'Opening installer…', installFailed: 'Could not open the installer. Try Chrome’s Install app menu.',
   purchaseTitle: 'Confirm purchase', purchaseQuantity: 'Quantity', purchaseAfter: 'Balance after purchase', purchaseConfirm: 'Buy', purchaseCancel: 'Cancel',
   shopComingSoon: 'Coming soon',
   petSofa: 'Black & White Pet Sofa', homeBench: 'Bench', homePlant: 'Potted Plant', homeTable: 'Table', homeCushion: 'Cushion',
@@ -87,6 +88,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  installApp: '앱 설치', installWorking: '설치창 여는 중…', installFailed: '설치창을 열지 못했어요. 크롬 메뉴에서 앱 설치를 확인해 주세요.',
   purchaseTitle: '구매 확인', purchaseQuantity: '수량', purchaseAfter: '구매 후 잔액', purchaseConfirm: '구매', purchaseCancel: '취소',
   shopComingSoon: '준비 중',
   petSofa: '검정·화이트 펫 소파', homeBench: '벤치', homePlant: '화분', homeTable: '테이블', homeCushion: '쿠션',

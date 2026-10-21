@@ -12,7 +12,7 @@
 - 생성 원본: `C:/Users/zxo99/.codex/generated_images/01a141eb-5f3e-78b3-b731-c48c014baa1c/exec-de6cf706-832b-4848-8c07-4323707e7279.png`.
 - 프로젝트 보관: `Resources/PawHaven_Myeongrang_Icon.png`.
 - 배포 복사: `public/assets/icons/myeongrang.png`. 같은 PNG를 그대로 복사하며 별도 픽셀 편집/재생성/리사이즈를 하지 않았다.
-- `index.html`의 PNG favicon과 apple-touch-icon, `public/manifest.webmanifest`의 웹앱 아이콘이 같은 파일을 참조한다. 매니페스트는 실제 1254×1254 크기를 명시하고 하위 경로에서도 시작 URL/아이콘이 유지되도록 상대 경로를 사용한다. 아이콘의 실제 축소 표시는 브라우저/OS가 처리한다. 브라우저 캐시 또는 기존 홈 화면 바로가기에 이전 아이콘이 남으면 다시 추가해야 할 수 있다.
+- `index.html`의 PNG favicon과 apple-touch-icon은 원본을 참조하며, `public/manifest.webmanifest`에는 동일 원본에서 축소한 192/512 규격을 사용한다. 하위 경로에서도 시작 URL/아이콘이 유지되도록 상대 경로를 사용한다. 설치 버튼·규격 파일·검증은 [PWA_INSTALL.md](PWA_INSTALL.md)를 참고한다. 브라우저 캐시 또는 기존 홈 화면 바로가기에 이전 아이콘이 남으면 다시 추가해야 할 수 있다.
 
 ## 검증
 전체 174개 테스트, 타입 검사·빌드 통과. 확인 전/취소 후 잔액·수량 불변, 서버 확인 1회 지급, 한영·실시간 잔액 갱신/잔액 부족, 유실 응답 재시도와 중복 차감 방지, 파괴된 팝업의 지연 요청 방지, 입력 잠금 해제, 기존 홈 배치/로비 표시 회귀를 검증했다. 아이콘 보관/배포 PNG 동일성과 정사각형 및 HTML 아이콘 링크도 확인했다. 실제 모바일 팝업 배치·OS 홈 화면 아이콘 외형은 별도 확인 대상이다.

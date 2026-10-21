@@ -25,6 +25,7 @@ import { GameSettings, type GamePreferences } from '../settings/GameSettings';
 import { setLanguage } from '../settings/i18n';
 import { SoundSettings } from '../settings/SoundSettings';
 import { SettingsPopup } from '../ui/SettingsPopup';
+import { AppInstall } from '../ui/AppInstall';
 import { AudioSystem } from '../systems/AudioSystem';
 import { createOutfit } from '../animals/OutfitState';
 import { CharacterScene } from './scenes/CharacterScene';
@@ -40,6 +41,7 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 export class Game {
+  private readonly installation = new AppInstall();
   private rooms?:RoomClient;
   private playMenu?:PlayMenuPopup;
   private account?: AccountService;
@@ -128,7 +130,7 @@ export class Game {
     };
     setLanguage(gameSettings.current.language); applyGame(gameSettings.current);
     this.audio = new AudioSystem(preferences.current);
-    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused), gameSettings, applyGame, this.account);
+    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused), gameSettings, applyGame, this.account, this.installation);
     const openSettings = (): void => this.settings?.open();
     this.app.renderer.on('resize', this.resize);
     this.app.ticker.add(this.tick);
@@ -237,6 +239,7 @@ export class Game {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.installation.destroy();
     this.playMenu?.destroy();this.rooms?.destroy();
     this.events.abort(); this.account?.destroy(); this.commerce?.destroy();
     document.removeEventListener('visibilitychange', this.visibility);
