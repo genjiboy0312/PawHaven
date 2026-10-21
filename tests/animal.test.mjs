@@ -1045,7 +1045,7 @@ test('pass eligibility, XP cap and claimed rewards stay shared and survive reloa
   assert.equal(restored.xp, 400); assert.equal(restored.coins, 1060);
 });
 
-test('Shop and Quest link pass purchase and rewards, and bought items appear in Character inventory', async () => {
+test('Shop blocks unfinished listings, preserves legacy items and links pass rewards with Character inventory', async () => {
   class Element extends EventTarget {
     children = []; attributes = new Map(); style = {}; inert = false; scrollTop = 0; classList = { add() {} };
     constructor(tag) { super(); this.tag = tag; }
@@ -1070,6 +1070,7 @@ test('Shop and Quest link pass purchase and rewards, and bought items appear in 
   const { CharacterScene } = await importTs('../src/game/scenes/CharacterScene.ts', import.meta.url);
   const { QuestPopup } = await importTs('../src/ui/QuestPopup.ts', import.meta.url);
   const state = new ShopState(), app = { stage: new Container(), screen: { width: 960, height: 540 } }, manager = new SceneManager(app);
+  state.buy('Hat', 2); // Previously bought prototype item remains in the account.
   const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: Array(8).fill(Texture.WHITE), fps: 3 }, emote: { frames: Array(8).fill(Texture.WHITE), fps: 4 } } };
   const showShop = (tab = 'Style') => manager.show(new ShopScene(config, state, lobby, () => { lobby(); quest.open('seasonPass'); }, tab));
   const lobby = () => manager.show(new LobbyScene(config, undefined, true, undefined, undefined, { shop: () => showShop(), quest: () => quest.open() }));
@@ -1079,10 +1080,13 @@ test('Shop and Quest link pass purchase and rewards, and bought items appear in 
     lobby(); const utilities = host.children[0].children[1]; assert.equal(utilities.children[0].disabled, false); assert.equal(utilities.children[2].disabled, false);
     click(utilities.children[2]);
     let panel = host.children[0], content = panel.children[4];
-    assert.equal(panel.children[2].textContent, 'Coins: 1000');
+    assert.equal(panel.children[2].textContent, 'Coins: 925');
     assert.equal(content.children[1].children.length, 20);
     click(content.children[1].children[1]); click(content.children[2].children[1]);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true); assert.equal(content.children[2].children[1].disabled, true);
+    assert.equal(content.children[2].children[1].textContent, 'Coming soon');
+    click(content.children[1].children[2]); click(content.children[2].children[1]);
+    assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 3), false);
     click(panel.children[3].children[2]);
     assert.equal(content.children[0].children[3].textContent, 'Test unlock · Free');
     click(content.children[1]); // Shop -> Quest pass

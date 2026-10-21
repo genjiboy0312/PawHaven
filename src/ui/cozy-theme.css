@@ -318,6 +318,10 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .shop-screen .shop-slot { font-size: clamp(9px, 1.2cqw, 15px); }
 .shop-screen .shop-slot[aria-pressed="true"] { border-radius: 1.2cqw; box-shadow: inset 0 0 0 max(1px, 0.14cqw) #d7b47399; }
 .shop-screen .shop-slot:focus-visible { outline: 2px dashed #b18b51; outline-offset: -3px; border-radius: 1.2cqw; }
+.shop-screen .shop-slot[data-coming-soon="true"] .outfit-object { opacity: 0.45; }
+.shop-screen .shop-slot[data-coming-soon="true"] .shop-price { color: #9b8f7e; }
+.shop-screen .shop-slot[data-coming-soon="true"] .shop-price::before { content: none; }
+.shop-screen .commerce-primary[data-purchase-state="comingSoon"] { background: #e9e5db; border-color: #cdc2ae; color: #938674; opacity: 1; box-shadow: none; }
 .shop-screen .shop-price {
   left: 5%; right: 5%; bottom: 0.1cqh; font-family: var(--font-round); font-variant-numeric: tabular-nums;
   color: #967b44; font-size: clamp(9px, 1.1cqw, 15px);

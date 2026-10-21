@@ -419,7 +419,7 @@ test('missing economy SQL reports setup failure, keeps local prototype coins unt
   } finally { state.destroy(); }
 });
 
-test('server Shop disables pending purchases, updates owned items and never debits on a double click', async () => {
+test('server Shop blocks unfinished listings and preserves existing ownership without sending a purchase', async () => {
   Object.defineProperty(globalThis, 'navigator', { value: { userAgent: 'Node.js' }, configurable: true });
   const { Texture } = await import('pixi.js');
   const { ShopScene } = await importTs('../src/game/scenes/ShopScene.ts', import.meta.url);
@@ -452,14 +452,16 @@ test('server Shop disables pending purchases, updates owned items and never debi
     assert.equal(content.children[2].children[0].children[0].textContent, 'Santa Hat');
     content.children[1].scrollTop = 77;
     content.children[1].children[1].dispatchEvent(new Event('click'));
-    const buy = content.children[2].children[1]; assert.equal(buy.disabled, false); assert.equal(buy.getAttribute('data-purchase-state'), 'available');
+    const buy = content.children[2].children[1]; assert.equal(buy.disabled, true); assert.equal(buy.getAttribute('data-purchase-state'), 'comingSoon');
     buy.dispatchEvent(new Event('click'));
-    const pendingBuy = content.children[2].children[1]; assert.equal(pendingBuy.disabled, true); assert.equal(pendingBuy.getAttribute('data-purchase-state'), 'processing');
-    pendingBuy.dispatchEvent(new Event('click'));
     await idle(api);
+    assert.equal(state.coins, 1000); assert.equal(state.owns('Hat', 2), false);
+    assert.equal((await db.query("select count(*) as n from public.economy_requests where command='buy'")).rows[0].n, 0);
+    await command(A, 'buy', { category: 'Hat', index: 2 }); // Pre-existing entitlement loaded from another session.
+    await api.execute('load'); await idle(api);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true);
     assert.equal(content.children[2].children[1].disabled, true);
-    assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'purchased');
+    assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'comingSoon');
     assert.equal(content.children[1].scrollTop, 77);
     assert.match(host.children[0].children[2].textContent, /925/);
   } finally {

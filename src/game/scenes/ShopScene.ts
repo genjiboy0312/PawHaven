@@ -1,7 +1,7 @@
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
-import { OUTFIT_TABS, type OutfitTab } from '../../animals/OutfitState';
+import { OUTFIT_TABS, outfitReady, type OutfitTab } from '../../animals/OutfitState';
 import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { itemPrice } from '../../shop/ShopState';
 import type { CommerceState } from '../../shop/CommerceState';
@@ -13,7 +13,7 @@ import { homeOptions, homePrice, HOME_MAX_STOCK, type PlaceableTab } from '../..
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { Scene } from './Scene';
 
-const PURCHASE_LABELS = { owned: 'owned', purchased: 'shopPurchased', processing: 'economyWorking', loading: 'shopChecking', unavailable: 'shopUnavailable', available: 'buy', insufficient: 'notEnoughCoins' } as const;
+const PURCHASE_LABELS = { owned: 'owned', purchased: 'shopPurchased', processing: 'economyWorking', loading: 'shopChecking', unavailable: 'shopUnavailable', available: 'buy', insufficient: 'notEnoughCoins', comingSoon: 'shopComingSoon' } as const;
 
 export class ShopScene extends Scene {
   private readonly preview = new Container();
@@ -88,32 +88,37 @@ export class ShopScene extends Scene {
     for (let index = 1; index <= 20; index++) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot shop-slot';
       const owned = this.state.entitlementsKnown && this.state.owns(this.category, index);
+      const ready = outfitReady(this.category, index);
       button.append(itemIcon(this.category, index));
-      button.setAttribute('aria-label', `${this.itemName(this.category, index)} · ${owned ? t('owned') : `${itemPrice(index)} ${t('coins')}`}`);
+      button.setAttribute('aria-label', `${this.itemName(this.category, index)} · ${!ready ? t('shopComingSoon') + (owned ? ' · ' + t('owned') : '') : owned ? t('owned') : `${itemPrice(index)} ${t('coins')}`}`);
+      button.setAttribute('data-coming-soon', String(!ready));
       button.setAttribute('data-owned', String(owned));
       button.setAttribute('aria-pressed', String(this.selected === index));
       const price = document.createElement('span'); price.className = 'shop-price';
-      if (owned) price.textContent = t('owned'); else coinAmount(price, itemPrice(index)); button.append(price);
+      if (!ready) price.textContent = t('shopComingSoon'); else if (owned) price.textContent = t('owned'); else coinAmount(price, itemPrice(index)); button.append(price);
       button.addEventListener('click', () => { this.selected = index; this.reaction = 1.5; this.render(); }); grid.append(button);
     }
     const footer = document.createElement('div'); footer.className = 'shop-purchase';
     const detail = document.createElement('span'); detail.className = 'shop-detail';
     const name = document.createElement('strong'); name.textContent = this.itemName(this.category, this.selected);
-    const cost = document.createElement('span'); cost.className = 'shop-cost'; coinAmount(cost, itemPrice(this.selected));
+    const ready = outfitReady(this.category, this.selected);
+    const cost = document.createElement('span'); cost.className = 'shop-cost';
+    if (ready) coinAmount(cost, itemPrice(this.selected));
+    else cost.textContent = t('shopComingSoon') + (this.state.entitlementsKnown && this.state.owns(this.category, this.selected) ? ' · ' + t('owned') : '');
     detail.append(name, cost);
     const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
     const owned = this.state.entitlementsKnown && this.state.owns(this.category, this.selected), enough = this.state.coins >= itemPrice(this.selected);
     const purchased = owned && this.lastPurchase?.category === this.category && this.lastPurchase.index === this.selected;
-    const status = !this.state.entitlementsKnown ? this.state.connection === 'loading' ? 'loading' : 'unavailable'
+    const status = !ready ? 'comingSoon' : !this.state.entitlementsKnown ? this.state.connection === 'loading' ? 'loading' : 'unavailable'
       : owned ? purchased ? 'purchased' : 'owned' : this.state.busy || this.state.connection === 'loading' ? 'processing'
       : !this.state.ready ? 'unavailable' : enough ? 'available' : 'insufficient';
     buy.setAttribute('data-purchase-state', status);
     footer.setAttribute('data-purchase-state', status);
     buy.textContent = t(PURCHASE_LABELS[status]);
-    buy.disabled = owned || !enough || !this.state.ready;
+    buy.disabled = !ready || owned || !enough || !this.state.ready;
     buy.addEventListener('click', () => {
       const category = this.category, index = this.selected;
-      if (this.destroyed || buy.disabled || !this.state.ready || this.state.owns(category, index)) return;
+      if (this.destroyed || buy.disabled || !outfitReady(category, index) || !this.state.ready || this.state.owns(category, index)) return;
       const result = this.state.buy(category, index);
       if (result instanceof Promise) void result.then(value => this.purchased(category, index, value));
       else this.purchased(category, index, result);
