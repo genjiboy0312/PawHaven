@@ -12,6 +12,7 @@ const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.u
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
 const {RacePodium}=await importTs('../src/ui/RacePodium.ts',import.meta.url);
 const {RaceProgress}=await importTs('../src/ui/RaceProgress.ts',import.meta.url);
+const {RaceStandings}=await importTs('../src/ui/RaceStandings.ts',import.meta.url);
 const {SingleRecords,SINGLE_RECORDS_KEY}=await importTs('../src/game/SingleRecords.ts',import.meta.url);
 const {AccountStorage}=await importTs('../src/account/AccountStorage.ts',import.meta.url);
 const {DummyRun}=await importTs('../src/game/DummyRun.ts',import.meta.url);
@@ -355,6 +356,35 @@ test('course markers show clamped position, stable peer colors and only server-c
   }finally{env.restore();}
 });
 
+test('live places throttle distance changes, preserve equal positions and prioritize server finishes with shared ties',()=>{
+  const env=dom(),board=new RaceStandings('self');env.host.append(board.element);
+  const ids=()=>board.list.children.map(row=>row.getAttribute('data-id'));
+  try{
+    const entries=[{id:'self',name:'Me',x:400,time:null},{id:'peer',name:'<Friend>',x:500,time:null},{id:'third',name:'Third',x:120,time:null}];
+    board.update(entries,120,1000,0);assert.deepEqual(ids(),['peer','self','third']);assert.equal(board.list.children[1].getAttribute('data-self'),'true');
+    assert.equal(board.list.children[0].children[1].textContent,'<Friend>');assert.equal(board.list.children[0].children[2].textContent,'');
+    const original=board.list.children[0];entries[0].x=700;board.update(entries,120,1000,.1);assert.equal(board.list.children[0],original);
+    board.update(entries,120,1000,.1);assert.deepEqual(ids(),['self','peer','third']);
+    entries[1].x=700;board.update([...entries].reverse(),120,1000,.2);assert.deepEqual(ids(),['self','peer','third']);
+    entries[2].time=10000;entries[0].x=2000;board.update(entries,120,1000,.2);assert.deepEqual(ids(),['third','self','peer']);assert.equal(board.list.children[0].children[2].textContent,'✓');
+    entries[1].time=10000;board.update(entries,120,1000,.2);assert.deepEqual(board.list.children.map(row=>row.children[0].textContent),['1','1','3']);
+    entries[0].x=NaN;board.update([entries[0]],120,1000,.2);assert.equal(board.list.children.length,1);assert.equal(board.list.children[0].children[2].textContent,'');
+    board.destroy();assert.equal(env.host.querySelector('.race-live-standings'),undefined);
+  }finally{board.destroy();env.restore();}
+});
+
+test('live places retain the last known order during reconnection and translate without extra requests or timers',async()=>{
+  const env=dom(),board=new RaceStandings('self');const {setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
+  try{
+    const entries=[{id:'self',name:'Me',x:500,time:null},{id:'peer',name:'Friend',x:200,time:10000}];
+    board.update(entries,120,1000,0);assert.equal(board.list.children[0].getAttribute('data-id'),'peer');
+    entries[0].x=1000;entries[1].time=null;board.update(entries,120,1000,3,false);
+    assert.equal(board.list.children[0].getAttribute('data-id'),'peer');assert.equal(board.element.getAttribute('data-stale'),'true');
+    setLanguage('ko');board.refreshLabels();assert.equal(board.heading.textContent,'순위 확인 중…');assert.match(board.list.children[0].getAttribute('aria-label'),/도착$/);
+    board.update(entries,120,1000,0,true);assert.equal(board.list.children[0].getAttribute('data-id'),'self');assert.equal(board.element.getAttribute('data-stale'),'false');assert.equal(board.heading.textContent,'실시간 순위 · 잠정');
+  }finally{board.destroy();setLanguage('en');env.restore();}
+});
+
 test('race scene freezes during countdown, draws peers and returns after server results',async()=>{
   const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});const start=(await cmd(0,'start',room.id)).room;
   const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let scene,returned=0;
@@ -362,6 +392,7 @@ test('race scene freezes during countdown, draws peers and returns after server 
     await client.command('sync');const config={id:'corgi',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},run:{frames:Array(4).fill(Texture.WHITE),fps:8}}};
     scene=new PlayScene(config,()=>returned++,{open(){},multiplayer:{client,pets:[config],leave(){}}});
     scene.update(0.1);assert.equal(scene.run.x,120);assert.equal(scene.run.elapsed,0);assert.equal(scene.peers.size,1);
+    assert.equal(scene.standings.element.hidden,true);
     assert.equal(scene.courseProgress.markers.size,2);assert.equal(scene.courseProgress.markers.get(users[0]).element.style.left,'0.00%');
     assert.equal((await db.query('select loaded_round from public.mp_members where user_id=$1',[users[0]])).rows[0].loaded_round,null);
     scene.update(0.1);await idle(client);
@@ -382,13 +413,16 @@ test('race scene freezes during countdown, draws peers and returns after server 
     assert.ok(scene.peers.get(users[1]).box.x>120);
     assert.equal(scene.courseProgress.markers.get(users[1]).element.style.left,((scene.peers.get(users[1]).box.x-120)/(scene.run.finish-120)*100).toFixed(2)+'%');
     scene.update(0.1);assert.ok(scene.peers.get(users[1]).animation.sprite.currentFrame>0);
+    scene.update(.2);assert.equal(scene.standings.element.hidden,false);assert.equal(scene.standings.list.children[0].getAttribute('data-id'),users[1]);
     scene.run.x=scene.run.finish;scene.update(0.01);await idle(client);scene.update(0.01);assert.equal(scene.back.disabled,true);
     assert.equal(scene.courseProgress.element.hidden,false);assert.equal(scene.courseProgress.markers.get(users[0]).element.getAttribute('data-finished'),'true');
+    scene.update(.2);assert.equal(scene.standings.list.children[0].getAttribute('data-id'),users[0]);assert.equal(scene.standings.list.children[0].getAttribute('data-finished'),'true');
     assert.match(scene.raceNote.textContent,/Waiting for friends · \d+s left/);
     assert.equal(scene.ranking.querySelector('.race-result-row').getAttribute('data-self'),'true');
     await db.query("update public.mp_rooms set ends_at=clock_timestamp()-interval '1 second' where id=$1",[room.id]);await client.command('sync');scene.update(0.01);
     assert.equal(scene.back.disabled,false);assert.equal(scene.raceNote.textContent,'It was lovely running together!');
     assert.equal(scene.courseProgress.element.hidden,true);
+    assert.equal(scene.standings.element.hidden,true);
     assert.equal(scene.podium.element.querySelector('.race-winner-name').textContent,client.room.racers.find(r=>r.id===users[0]).name);
     assert.equal(scene.podium.element.querySelector('.race-podium-list').children[0].children[0].textContent,'DNF');
     assert.equal(scene.hud.inert,true);scene.podium.back.dispatchEvent(new Event('click'));scene.update(0.41);assert.equal(returned,1);

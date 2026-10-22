@@ -12,6 +12,7 @@ import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
 import { RacePodium } from '../../ui/RacePodium';
 import { RaceProgress } from '../../ui/RaceProgress';
+import { RaceStandings } from '../../ui/RaceStandings';
 import { RunRecoveryPopup } from '../../ui/RunRecoveryPopup';
 import { singleGoals } from '../../ui/SingleGoals';
 import type { SingleCompletion, SingleGoal } from '../SingleRecords';
@@ -33,6 +34,7 @@ export class PlayScene extends Scene {
   private resultSignature='';
   private podium?:RacePodium;
   private courseProgress?:RaceProgress;
+  private standings?:RaceStandings;
   private recoverySeen=0;
   private sceneRendered=false;
   private loadAcknowledged=false;
@@ -111,7 +113,7 @@ export class PlayScene extends Scene {
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
     if(settings?.multiplayer?.client.room?.phase==='playing')this.restoreRacePose();
-    this.localeOff = onLanguageChange(() => {this.labels.forEach(label => { label.text.text = t(label.key); });this.courseProgress?.refreshLabels();this.resultSignature='';this.refreshGoals();});
+    this.localeOff = onLanguageChange(() => {this.labels.forEach(label => { label.text.text = t(label.key); });this.courseProgress?.refreshLabels();this.standings?.refreshLabels();this.resultSignature='';this.refreshGoals();});
     this.animation = new AnimalAnimationController(config);
     this.effect = new AnimalEffects(config.effects);
     const forest=settings?.map==='forest';
@@ -198,6 +200,7 @@ export class PlayScene extends Scene {
     if(settings?.multiplayer){
       this.hud.classList.add('race-hud');
       this.courseProgress=new RaceProgress(settings.multiplayer.client.owner);this.hud.append(this.courseProgress.element);
+      this.standings=new RaceStandings(settings.multiplayer.client.owner);this.standings.element.hidden=true;this.hud.append(this.standings.element);
       this.syncStatus.className='race-sync-status';this.hud.append(this.syncStatus);
       settings.multiplayer.client.pose=()=>this.pose();
       this.retry.hidden=true;bindText(this.back,'returnRoom');
@@ -376,10 +379,15 @@ export class PlayScene extends Scene {
     const multi=this.settings?.multiplayer,room=multi?.client.room;
     if(this.courseProgress&&multi&&room){
       this.courseProgress.element.hidden=room.phase==='results';
-      this.courseProgress.update(room.racers.filter(racer=>!racer.left||racer.time!==null).map(racer=>({
-        id:racer.id,name:racer.name,finished:racer.time!==null,
+      const entries=room.racers.filter(racer=>!racer.left||racer.time!==null).map(racer=>({
+        id:racer.id,name:racer.name,finished:racer.time!==null,time:racer.time,
         x:racer.id===multi.client.owner?this.run.x:this.peers.get(racer.id)?.box.x??room.members.find(member=>member.id===racer.id)?.pose.x??this.run.start,
-      })),this.run.start,this.run.finish);
+      }));
+      this.courseProgress.update(entries,this.run.start,this.run.finish);
+      if(this.standings){
+        this.standings.element.hidden=room.phase==='results'||!(this.startPoseSent||this.raceStarted||this.run.won);
+        this.standings.update(entries,this.run.start,this.run.finish,seconds,!multi.client.reconnecting&&!multi.client.error);
+      }
     }
     if (this.run.respawns !== respawns) { this.blur(); this.cameraX = cameraTarget(this.run.x, this.courseEnd); }
     this.elapsed += seconds;
@@ -442,6 +450,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    this.standings?.destroy();
     this.closeRecovery();
     this.courseProgress?.destroy();
     this.podium?.destroy();
