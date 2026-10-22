@@ -507,3 +507,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .run-recovery-panel{width: min(64cqw, 420px);text-align:center;padding:3cqh 3cqw;}
 .run-recovery-panel p{margin:2cqh 0;color:#70644f;line-height:1.5;}
 .run-recovery-panel .commerce-primary{margin-top:1cqh;}
+.room-invite-actions{display:flex;align-items:center;justify-content:center;gap:1cqw;flex-wrap:wrap;}
+.room-invite-actions p{font-size:clamp(9px,1.1cqw,15px);margin:0;}
+.room-invite-link{width:100%;resize:none;padding:1cqh;color:var(--ui-ink);background:var(--ui-cream);border:1px solid var(--ui-edge);border-radius:1cqh;}
+.room-invite-link[hidden]{display:none;}
+.room-invitation{display:flex;flex-direction:column;align-items:center;gap:1.5cqh;text-align:center;}

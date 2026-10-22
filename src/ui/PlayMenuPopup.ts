@@ -4,6 +4,7 @@ import type { RoomClient, Room } from '../multiplayer/RoomClient';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { paintPetPortrait } from './PetPortrait';
 import { raceResults } from './RaceResults';
+import { RoomInviteButton } from './RoomInviteButton';
 type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
 export class PlayMenuPopup {
@@ -16,6 +17,7 @@ export class PlayMenuPopup {
   private singleMap:CourseId='garden';
   private signature='';
   private notice?:TextKey;
+  private inviteButton?:RoomInviteButton;
   private previousRoom?:Room;
   private roomEvent?:{key:TextKey;name:string;until:number};
   private portraits:{element:HTMLElement;config:AnimalConfig;thumbnail:string}[]=[];
@@ -29,6 +31,8 @@ export class PlayMenuPopup {
     pets?:{config:AnimalConfig;thumbnail:string}[];
     nickname?:()=>string|null|undefined;
     best?:(map:CourseId)=>number|null;
+    invitation?:{id:string;dismiss:()=>void};
+    inviteHref?:string;
   }){}
   open(page:Page='mode'){
     if(this.overlay)return;this.page=page;
@@ -43,7 +47,7 @@ export class PlayMenuPopup {
     panel.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();if(this.page==='single')this.backToModes();else void this.exit();}
       if(event.key!=='Tab')return;
-      const controls=Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)'));
+      const controls=Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not([hidden])'));
       if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
       else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
     },{signal:this.abort.signal});
@@ -56,6 +60,7 @@ export class PlayMenuPopup {
   private async action(run:()=>Promise<unknown>){if(this.busy)return;this.busy=true;this.render();try{await run();}catch{this.notice='multiOffline';}finally{this.busy=false;this.changed();}}
   private changed(){
     const client=this.options.rooms,room=client?.room;
+    if(room&&room.id===this.options.invitation?.id)this.clearInvitation();
     const previous=this.previousRoom;
     if(room&&previous?.id===room.id){
       const left=previous.members.find(member=>!room.members.some(next=>next.id===member.id));
@@ -74,7 +79,25 @@ export class PlayMenuPopup {
     const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
   }
-  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent]);}
+  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.listed,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent,this.options.invitation?.id]);}
+  private clearInvitation(){this.options.invitation?.dismiss();this.options.invitation=undefined;}
+  private cancelInvitation(){const button=this.button('roomInviteDismiss',()=>{this.clearInvitation();this.render();});button.setAttribute('data-recovery-control','true');return button;}
+  private invitationCard(){
+    const card=document.createElement('section');card.className='daily-quest room-invitation';
+    const client=this.options.rooms,id=this.options.invitation!.id,item=client?.snapshot.rooms.find(room=>room.id===id);
+    const title=document.createElement('h3');title.textContent=t('roomInvited');card.append(title);
+    if(!client){card.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
+    else if(!client.listed||client.reconnecting||client.error)card.append(this.text(t('roomInviteChecking')));
+    else if(!item)card.append(this.text(t('multiRoomClosed')));
+    else{
+      const name=document.createElement('strong');name.textContent=item.name;
+      card.append(name,this.text(`${t(COURSES[item.map].title)} · ${item.count} / 4`));
+      const join=this.button('joinRoom',()=>{void this.action(async()=>{await client.command('join',{},id);});});join.classList.add('room-invite-join');
+      join.disabled=item.count>=4||item.phase!=='waiting';card.append(join);
+      if(join.disabled)card.append(this.text(t('multiRoomFull')));
+    }
+    card.append(this.cancelInvitation());return card;
+  }
   private stopPortraits(){clearInterval(this.portraitTimer);this.portraitTimer=undefined;this.portraits=[];}
   private animatePortraits(){
     if(!this.portraits.length)return;
@@ -166,7 +189,7 @@ export class PlayMenuPopup {
   }
   private render(){
     if(!this.content||!this.title)return;
-    this.signature=this.renderSignature();this.stopPortraits();
+    this.signature=this.renderSignature();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
     if(this.closeButton){this.closeButton.className='settings-close'+(this.page==='single'?' play-menu-back':'');this.closeButton.textContent=this.page==='single'?'←':'×';bindAria(this.closeButton,this.page==='single'?'back':'close');this.closeButton.disabled=this.page==='single'&&this.busy;}
@@ -176,6 +199,7 @@ export class PlayMenuPopup {
       const cards=document.createElement('div');cards.className='mode-cards';
       cards.append(this.button('singleplayer',()=>{this.page='single';this.render();this.closeButton?.focus();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
     }else if(this.page==='single')root.append(...this.singleMaps());
+    else if(this.page==='multi'&&this.options.invitation&&!room)root.append(this.invitationCard());
     else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
     else if(this.page==='create'){
       const defaultName=()=>`${this.options.nickname?.()?.trim()||'Player '+client.owner.slice(0,4)}님의 방`;
@@ -183,6 +207,11 @@ export class PlayMenuPopup {
       input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map),this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name.trim()||defaultName(),map:this.map}))this.page='multi';});}));
     }else if(room){
       root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
+      if(room.phase==='waiting'){
+        const href=this.options.inviteHref??window.location?.href;
+        if(href){this.inviteButton=new RoomInviteButton(room.id,href);root.append(this.inviteButton.element);}
+      }
+      if(this.options.invitation){root.append(this.text(t('roomInviteLeaveFirst')),this.cancelInvitation());}
       if(room.phase==='results'){
         root.append(raceResults(room.racers,room.members,client.owner,this.options.pets?.map(pet=>pet.config)??[],true),this.text(t('raceTogether')));
         const mine=room.members.find(m=>m.id===client.owner);
@@ -249,7 +278,7 @@ export class PlayMenuPopup {
   }
   private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!this.options.rooms.error&&!this.options.rooms.reconnecting&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
-    if(!this.overlay)return;this.closeMapPicker();this.stopPortraits();this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
+    if(!this.overlay)return;this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
     if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
   }

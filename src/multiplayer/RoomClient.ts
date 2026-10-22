@@ -24,6 +24,7 @@ export function roomTransport(client: SupabaseClient, owner:string,saveLook?:()=
   };
 }
 export class RoomClient {
+  listed=false;
   snapshot:RoomSnapshot={room:null,rooms:[],now:0}; busy=false; error:''|'setup'|'offline'|'rejected'='';
   rejection:''|'already_in_room'|'room_closed'|'room_unavailable'|'auth'='';
   pose?:()=>Pose;
@@ -151,7 +152,7 @@ export class RoomClient {
         this.receivedAt=performance.now();this.roundTripMS=this.receivedAt-started;
         this.clockSamples.push({rtt:this.roundTripMS,offset:data.now+this.roundTripMS/2-this.receivedAt});this.clockSamples=this.clockSamples.slice(-8);
         this.clockOffset=this.clockSamples.reduce((best,sample)=>sample.rtt<best.rtt?sample:best).offset;
-        this.snapshot=data;this.error='';this.rejection='';this.needsSync=false;this.syncLobby();this.syncStream();this.emit();return true;
+        this.snapshot=data;this.listed=true;this.error='';this.rejection='';this.needsSync=false;this.syncLobby();this.syncStream();this.emit();return true;
       }catch(error){
         if(this.closed||revision!==this.revision)return false;
         const code=(error as {code?:string})?.code;

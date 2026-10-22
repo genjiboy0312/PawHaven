@@ -4,6 +4,7 @@ import { importTs } from './load-typescript.mjs';
 Object.defineProperty(globalThis, 'navigator', { value: { userAgent: 'Node.js' }, configurable: true });
 const { AccountStorage, normalizeSnapshot } = await importTs('../src/account/AccountStorage.ts', import.meta.url);
 const { AccountService } = await importTs('../src/account/AccountService.ts', import.meta.url);
+const { RoomInvitation } = await importTs('../src/multiplayer/RoomInvitation.ts', import.meta.url);
 const { CharacterSelection, CHARACTER_STORAGE_KEY } = await importTs('../src/animals/CharacterSelection.ts', import.meta.url);
 const { CharacterPresets } = await importTs('../src/animals/CharacterPresets.ts', import.meta.url);
 const { HomeState } = await importTs('../src/home/HomeState.ts', import.meta.url);
@@ -245,6 +246,18 @@ test('account panel enables cloud actions after loading, translates, prevents du
     panel?.destroy(); service.destroy(); setLanguage('en');
     if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
   }
+});
+
+test('Google login keeps a pending room in tab storage while retaining the existing clean callback URL', async()=>{
+  const client=fakeClient(new Map(),null),tab=disk(),id='12345678-1234-4234-8234-123456789abc';
+  const service=new AccountService(new AccountStorage(disk()),client);
+  const url='https://genjiboy0312.github.io/PawHaven/?room='+id+'#access_token=stale';
+  try{
+    new RoomInvitation(url,tab,1000);await service.loginGoogle(url);
+    const redirect=client.calls.at(-1)[1].options.redirectTo;
+    assert.equal(redirect,'https://genjiboy0312.github.io/PawHaven/');
+    assert.equal(new RoomInvitation(redirect+'?code=oauth',tab,2000).room,id);
+  }finally{service.destroy();}
 });
 
 test('Google OAuth uses the game path, clears callback fragments and query, and preserves guest data', async () => {

@@ -5,6 +5,8 @@ import { PGlite } from '@electric-sql/pglite';
 import { importTs } from './load-typescript.mjs';
 Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},configurable:true});
 const {RoomClient,roomTransport}=await importTs('../src/multiplayer/RoomClient.ts',import.meta.url);
+const {RoomInvitation,invitationFromUrl,roomInvitationUrl,shareRoomInvitation}=await importTs('../src/multiplayer/RoomInvitation.ts',import.meta.url);
+const {RoomInviteButton}=await importTs('../src/ui/RoomInviteButton.ts',import.meta.url);
 const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.url);
 const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.url);
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
@@ -212,6 +214,84 @@ function dom(){
   return {host,restore(){for(const key of Object.keys(old))if(old[key]===undefined)delete globalThis[key];else globalThis[key]=old[key];}};
 }
 async function idle(client){for(let n=0;n<100;n++){await new Promise(r=>setTimeout(r,2));if(!client.busy&&!client.work)return;}throw Error('Room request did not settle');}
+
+test('invitation URLs keep the app path, discard credentials and persist only a valid tab-scoped room',()=>{
+  const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+  const link=roomInvitationUrl('https://example.com/PawHaven/?code=secret&old=1#access_token=secret',users[0]);
+  assert.equal(link,'https://example.com/PawHaven/?room='+users[0]);assert.equal(invitationFromUrl(link),users[0]);
+  assert.equal(invitationFromUrl(link+'&room='+users[1]),undefined);assert.equal(invitationFromUrl('https://example.com/?room=invalid'),undefined);
+  assert.throws(()=>roomInvitationUrl('javascript:alert(1)',users[0]));
+  new RoomInvitation(link,storage,1000);const restored=new RoomInvitation('https://example.com/PawHaven/?code=oauth',storage,2000);
+  assert.equal(restored.room,users[0]);restored.clear();assert.equal(new RoomInvitation('https://example.com/',storage,2000).room,undefined);
+  new RoomInvitation(link,storage,1000);assert.equal(new RoomInvitation('https://example.com/',storage,1000+30*60*1000).room,undefined);
+  new RoomInvitation(link,storage,1000);assert.equal(new RoomInvitation('https://example.com/?room=bad',storage,2000).room,undefined);assert.equal(data.size,0);
+  assert.equal(new RoomInvitation(link,{setItem(){throw Error('blocked');}},1000).room,users[0]);
+});
+
+test('native invitation sharing respects cancellation, falls back to clipboard, and offers manual text if blocked',async()=>{
+  const url=roomInvitationUrl('https://example.com/PawHaven/',users[0]);let copied=0,shared=0;
+  assert.equal(await shareRoomInvitation(url,{mobile:true,share:async data=>{shared++;assert.equal(data.url,url);},copy:async()=>copied++}),'shared');
+  assert.equal(shared,1);assert.equal(copied,0);
+  assert.equal(await shareRoomInvitation(url,{mobile:true,share:async()=>{throw {name:'AbortError'};},copy:async()=>copied++}),'cancelled');assert.equal(copied,0);
+  assert.equal(await shareRoomInvitation(url,{mobile:true,share:async()=>{throw Error('unsupported');},copy:async value=>{copied++;assert.equal(value,url);}}),'copied');
+  assert.equal(await shareRoomInvitation(url,{mobile:false,share:async()=>assert.fail('desktop should copy'),copy:async()=>{throw Error('denied');}}),'manual');
+});
+
+test('Invite guards repeated taps, exposes selectable links on copy failure and ignores late completion after close',async()=>{
+  const env=dom(),oldNavigator=globalThis.navigator;let component,copyCalls=0,release;
+  try{
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async()=>{copyCalls++;await new Promise(resolve=>release=resolve);}}}});
+    component=new RoomInviteButton(users[0],'https://example.com/PawHaven/?code=private#access_token=private');
+    const button=component.element.children[0];button.dispatchEvent(new Event('click'));button.dispatchEvent(new Event('click'));assert.equal(copyCalls,1);assert.equal(button.disabled,true);
+    component.destroy();release();await new Promise(resolve=>setImmediate(resolve));assert.equal(button.disabled,true);
+    navigator.clipboard.writeText=async()=>{throw Error('denied');};component=new RoomInviteButton(users[0],'https://example.com/PawHaven/');
+    const link=component.element.children[2];let selected=0;link.select=()=>selected++;
+    component.element.children[0].dispatchEvent(new Event('click'));await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(link.hidden,false);assert.equal(link.readOnly,true);assert.equal(link.value,'https://example.com/PawHaven/?room='+users[0]);assert.equal(selected,1);
+  }finally{component?.destroy();Object.defineProperty(globalThis,'navigator',{configurable:true,value:oldNavigator});env.restore();}
+});
+
+test('an invited guest keeps the invitation through login and joins the real room only after Join',async()=>{
+  const room=(await cmd(0,'create',null,{name:'Invitation test',map:'practice'})).room,env=dom();let menu,client,login=0,cleared=0;const calls=[];
+  const invitation={id:room.id,dismiss:()=>cleared++};
+  try{
+    menu=new PlayMenuPopup(()=>{},{invitation,single:async()=>true,race(){},login(){login++;},dismiss(){}});menu.open('multi');
+    assert.ok(env.host.querySelector('.room-invitation'));env.host.all().find(e=>e.tag==='button'&&e.textContent==='Login').dispatchEvent(new Event('click'));
+    assert.equal(login,1);assert.equal(cleared,0);menu.destroy();
+    client=new RoomClient(users[1],(a,r,p)=>{calls.push(a);return cmd(1,a,r,p);});
+    menu=new PlayMenuPopup(()=>{},{rooms:client,invitation,inviteHref:'https://example.com/PawHaven/',single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    assert.equal(client.room,null);assert.equal(calls.includes('join'),false);assert.ok(env.host.all().some(e=>e.textContent==='Invitation test'));
+    env.host.querySelector('.room-invite-join').dispatchEvent(new Event('click'));await idle(client);await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(client.room.id,room.id);assert.equal(calls.filter(a=>a==='join').length,1);assert.equal(cleared,1);assert.ok(env.host.querySelector('.room-invite-actions'));
+    assert.equal(env.host.querySelector('.room-invitation'),undefined);
+  }finally{menu?.destroy();client?.destroy(false);env.restore();}
+});
+
+test('full, started and closed invitations never auto-join, and can be dismissed without admission',async()=>{
+  const room=(await cmd(0,'create')).room;for(const n of [1,2,3])await cmd(n,'join',room.id);
+  const env=dom(),calls=[],client=new RoomClient(users[4],(a,r,p)=>{calls.push(a);return cmd(4,a,r,p);});let menu,cleared=0;
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,invitation:{id:room.id,dismiss:()=>cleared++},single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    assert.equal(env.host.querySelector('.room-invite-join').disabled,true);assert.equal(calls.includes('join'),false);
+    for(const n of [1,2,3])await cmd(n,'ready',room.id,{ready:true});await cmd(0,'start',room.id);await client.command('list');
+    assert.equal(env.host.querySelector('.room-invite-join').disabled,true);
+    for(const n of [0,1,2,3])await cmd(n,'leave',room.id);await client.command('list');
+    assert.equal(env.host.querySelector('.room-invite-join'),undefined);assert.ok(env.host.all().some(e=>e.textContent==='This room has closed. Refresh the room list.'));
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Dismiss invitation').dispatchEvent(new Event('click'));
+    assert.equal(cleared,1);assert.ok(env.host.querySelector('.room-pages'));assert.equal(client.room,null);
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
+
+test('an invitation never replaces an existing membership; leaving first reveals the invited room',async()=>{
+  const target=(await cmd(0,'create')).room,own=(await cmd(1,'create')).room,env=dom();let cleared=0,menu;const calls=[];
+  const client=new RoomClient(users[1],(a,r,p)=>{calls.push(a);return cmd(1,a,r,p);});
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,invitation:{id:target.id,dismiss:()=>cleared++},single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    assert.equal(client.room.id,own.id);assert.equal(cleared,0);assert.equal(calls.includes('join'),false);
+    assert.ok(env.host.all().some(e=>e.textContent==='Leave your current room to accept the invitation.'));
+    await client.command('leave');assert.equal(client.room,null);assert.ok(env.host.querySelector('.room-invite-join'));assert.equal(cleared,0);
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
 
 test('room menu renders four cards per page with counts and blocks full/running rooms',async()=>{
   const env=dom();const rooms=Array.from({length:6},(_,i)=>({id:String(i),name:'Room '+i,map:'garden',phase:i===1?'playing':'waiting',count:i===2?4:2}));

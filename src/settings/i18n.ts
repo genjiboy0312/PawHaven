@@ -1,5 +1,7 @@
 export type Language = 'en' | 'ko';
 const en = {
+  roomInvite:'Invite', roomInviteLink:'Room invitation link', roomInviteCopied:'Invitation link copied.', roomInviteShared:'Invitation link shared.', roomInviteManual:'Select and copy this link to invite a friend.',
+  roomInvited:'Room invitation', roomInviteChecking:'Checking the invited room…', roomInviteDismiss:'Dismiss invitation', roomInviteLeaveFirst:'Leave your current room to accept the invitation.',
   runPaused:'Paused', runResumeNote:'Take your time. Continue when you are ready.', runResume:'Continue',
   runConnectionLost:'Unable to reconnect', runConnectionNote:'The connection is taking too long. You can return to the room list.', runRoomList:'Back to room list',
   installApp: 'Install app', installWorking: 'Opening installer…', installFailed: 'Could not open the installer. Try Chrome’s Install app menu.',
@@ -90,6 +92,8 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  roomInvite:'초대', roomInviteLink:'방 초대 링크', roomInviteCopied:'초대 링크를 복사했어요.', roomInviteShared:'초대 링크를 공유했어요.', roomInviteManual:'이 링크를 선택해 복사한 뒤 친구에게 보내 주세요.',
+  roomInvited:'방 초대', roomInviteChecking:'초대받은 방을 확인하고 있어요…', roomInviteDismiss:'초대 닫기', roomInviteLeaveFirst:'초대에 참여하려면 현재 방에서 먼저 나와 주세요.',
   runPaused:'잠시 쉬는 중', runResumeNote:'준비되시면 이어서 달려요.', runResume:'이어하기',
   runConnectionLost:'연결을 복구하지 못했어요', runConnectionNote:'연결이 오래 걸리고 있어요. 방 목록으로 돌아갈 수 있어요.', runRoomList:'방 목록으로',
   installApp: '앱 설치', installWorking: '설치창 여는 중…', installFailed: '설치창을 열지 못했어요. 크롬 메뉴에서 앱 설치를 확인해 주세요.',

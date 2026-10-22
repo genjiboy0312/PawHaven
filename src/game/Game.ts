@@ -1,6 +1,7 @@
 import { AccountStorage } from '../account/AccountStorage';
 import { PlayMenuPopup } from '../ui/PlayMenuPopup';
 import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
+import { RoomInvitation } from '../multiplayer/RoomInvitation';
 import { roomStream, lobbyStream } from '../multiplayer/RoomStream';
 import type { CourseId } from './CourseCatalog';
 import { SingleRecords } from './SingleRecords';
@@ -92,6 +93,14 @@ export class Game {
     this.scenes = new SceneManager(this.app);
     let storage: Storage | undefined;
     try { storage = window.localStorage; } catch { /* Session-only settings. */ }
+    let invitationStorage:Storage|undefined;
+    try { invitationStorage=window.sessionStorage; } catch { /* Keep the invitation in the URL. */ }
+    const invitation=new RoomInvitation(window.location.href,invitationStorage);
+    const clearInvitation=():void=>{
+      invitation.clear();
+      const url=new URL(window.location.href);url.searchParams.delete('room');
+      try{window.history.replaceState(window.history.state,'',url.href);}catch{/* The in-memory invitation is still cleared. */}
+    };
     const preferences = new SoundSettings(storage);
     const gameSettings = new GameSettings(storage);
 
@@ -189,6 +198,7 @@ export class Game {
         }),roomStream(accountClient,owner),lobbyStream(accountClient,owner)):undefined);
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
+          invitation:invitation.room?{id:invitation.room,dismiss:clearInvitation}:undefined,
           rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           race:(room,client)=>{
             const look=room.members.find(m=>m.id===client.owner)?.look;
@@ -228,12 +238,13 @@ export class Game {
       activePet = look.petId === this.myeongrang?.id ? this.myeongrang! : corgi;
       this.friends = new FriendsPopup(paused => this.scenes?.setPaused(paused));
       this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
-      lobby(true);
-      if (reopenSettings) this.settings?.open(false);
+      const resumeInvitation=!!invitation.room&&!!this.account?.user&&this.account.status!=='loading';
+      lobby(true,resumeInvitation?'multi':undefined);
+      if (reopenSettings&&!resumeInvitation) this.settings?.open(false);
     });
     window.addEventListener('online', () => { if (this.account?.storage.meta.dirty) void this.account.save(); }, { signal: this.events.signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.account?.storage.meta.dirty) void this.account.save(); }, { signal: this.events.signal });
-    this.scenes.show(new TitleScene(() => lobby()));
+    this.scenes.show(new TitleScene(() => lobby(false,invitation.room?'multi':undefined)));
 
     this.visibility();
   }
