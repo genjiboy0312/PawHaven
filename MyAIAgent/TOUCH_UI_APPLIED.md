@@ -1,5 +1,11 @@
 # 2D 조작 UI·멀티 패널·상점 헤더 적용
 
+## 2026-10-23 사용자 피드백 반영 (아래 최초 적용 기록보다 우선)
+- 매끈한 CSS 원·곡선 아이콘을 계단형 도트 SVG로 교체했다. 아이콘은 32격자, 색면·조이스틱 손잡이는 64격자이며 crispEdges/pixelated를 적용한다. Resources/Control_*와 public/assets/controls에 동일 원본을 보존한다.
+- 아이콘은 버튼 높이 19~65%, 라벨은 69%부터 배치해 간격을 좁혔다. 쿨다운에는 아이콘을 줄여 숫자 공간을 확보한다. 기존 컴포넌트·입력·쿨다운 규칙을 재사용한다.
+- 상점 패널 시작점은 3cqh, 코인/X는 6cqh로 내려 안쪽에 배치한다. 패널 오른쪽 2cqw, X 오른쪽 4cqw로 여백을 확보하고 최소 터치 크기 44px를 유지한다. 잔액 최대 너비도 패널 폭으로 제한한다.
+- 전체 192개 테스트·타입 검사·빌드 통과. Chrome headless 임시 fixture에서 1280×720 조작부와 800×540 상점을 렌더링했다. 패널/코인/X 사각 영역을 비교해 내부 포함과 여백을 확인했다. 실제 로그인·모바일 터치·멀티 접속 검증은 아니다.
+
 ## 조작부
 - 승인된 Resources/Touch_Controls_UI_Prototype_v3.png를 기준으로 평면 원형 색면·갈색 외곽선·얕은 그림자를 적용했다. Attack은 발바닥만, Dash는 이중 화살표, Jump는 위 화살표다.
 - 이미지 시안 v1/v2/v3는 Resources에 모두 보존한다. 실제 아이콘은 직접 작성한 단순 SVG를 Resources/Control_Attack.svg, Control_Dash.svg, Control_Jump.svg에 저장하고 public/assets/controls에 동일 파일을 배포한다. 시안 전체 PNG를 잘라 붙이거나 무거운 텍스처를 추가하지 않는다.
