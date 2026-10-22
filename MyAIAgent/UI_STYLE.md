@@ -7,6 +7,11 @@
 - 글자는 기존 Jua 둥근 폰트와 한영 번역을 사용한다. 영어 5×7 도트 글자 확대는 사용하지 않는다. 버튼 크기·발바닥 배치·색상·좁은 아이콘/글자 간격·입력 및 쿨다운 동작을 유지한다.
 - 기존 컴포넌트와 scripts/generate-touch-controls.mjs를 재사용하고, 리소스는 Resources/Control_*와 public/assets/controls에 함께 저장한다. 이미지 변경 시 캐시 갱신용 버전도 조정한다. 상세: [TOUCH_UI_APPLIED.md](TOUCH_UI_APPLIED.md).
 
+## 멀티 Create room 크기 보정 (2026-10-23)
+- 방 목록과 방 생성 화면의 Create room 버튼은 너비 clamp(104px,12cqw,172px), 높이 clamp(32px,5cqh,44px), 글자 10~17px로 제한한다. 이전 18cqw×7cqh 크기를 재사용하지 않는다.
+- 멀티/방 생성 본문에 제목 아래 2cqh 여백을 두고 버튼은 본문 흐름 안에서 공간을 확보한다. 방 목록·맵 선택·하단 Previous/Next/Back과 겹치지 않게 한다.
+- Chrome headless에서 1280×720 빈 목록, 800×540 방 6개 목록과 방 생성 화면을 확인했다. 타입 검사·프로덕션 빌드 통과. 크기와 여백만 수정했으며 기능 코드는 유지한다.
+
 ## 디자인
 - 사용자가 제공한 Party Animals UI의 둥근 형태·넉넉한 여백·부드러운 입체감을 참고했다. 게임 원본 로고/이미지를 복사하지 않고 CSS로 구성한다.
 - 로딩/타이틀 글자와 Settings·Quest·Friends 팝업을 먼저 적용했다. Character/Home/Shop의 인벤토리 구조와 아이템 아래 타원 그림자는 유지한다. 공용 DOM 글꼴은 새 폰트를 사용한다.
