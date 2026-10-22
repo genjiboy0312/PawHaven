@@ -184,7 +184,7 @@ export class Game {
             open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,
             sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
             complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
-            record:seconds=>runRecords.record(map,seconds),
+            record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),
             retry: async () => { await completion; return launch(play,map); },
           });
           this.scenes.show(play); return true;
@@ -199,7 +199,7 @@ export class Game {
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
           invitation:invitation.room?{id:invitation.room,dismiss:clearInvitation}:undefined,
-          rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
+          rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           race:(room,client)=>{
             const look=room.members.find(m=>m.id===client.owner)?.look;
             const original=look?.petId===this.myeongrang?.id?this.myeongrang!:corgi;

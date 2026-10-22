@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  singleGoals:'Map goals', singleGoalFinish:'Finish', singleGoalNoFalls:'No falls', singleGoalTime:'Within {seconds}s', singleGoalEarned:'Achieved', singleGoalPending:'Not achieved', singleGoalNew:'NEW',
   roomInvite:'Invite', roomInviteLink:'Room invitation link', roomInviteCopied:'Invitation link copied.', roomInviteShared:'Invitation link shared.', roomInviteManual:'Select and copy this link to invite a friend.',
   roomInvited:'Room invitation', roomInviteChecking:'Checking the invited room…', roomInviteDismiss:'Dismiss invitation', roomInviteLeaveFirst:'Leave your current room to accept the invitation.',
   runPaused:'Paused', runResumeNote:'Take your time. Continue when you are ready.', runResume:'Continue',
@@ -92,6 +93,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  singleGoals:'맵 달성 목표', singleGoalFinish:'완주', singleGoalNoFalls:'낙하 없이', singleGoalTime:'{seconds}초 이내', singleGoalEarned:'달성', singleGoalPending:'미달성', singleGoalNew:'새 달성',
   roomInvite:'초대', roomInviteLink:'방 초대 링크', roomInviteCopied:'초대 링크를 복사했어요.', roomInviteShared:'초대 링크를 공유했어요.', roomInviteManual:'이 링크를 선택해 복사한 뒤 친구에게 보내 주세요.',
   roomInvited:'방 초대', roomInviteChecking:'초대받은 방을 확인하고 있어요…', roomInviteDismiss:'초대 닫기', roomInviteLeaveFirst:'초대에 참여하려면 현재 방에서 먼저 나와 주세요.',
   runPaused:'잠시 쉬는 중', runResumeNote:'준비되시면 이어서 달려요.', runResume:'이어하기',

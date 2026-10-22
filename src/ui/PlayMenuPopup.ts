@@ -5,6 +5,8 @@ import type { AnimalConfig } from '../animals/AnimalConfig';
 import { paintPetPortrait } from './PetPortrait';
 import { raceResults } from './RaceResults';
 import { RoomInviteButton } from './RoomInviteButton';
+import { singleGoals } from './SingleGoals';
+import type { SingleGoal } from '../game/SingleRecords';
 type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
 export class PlayMenuPopup {
@@ -31,6 +33,7 @@ export class PlayMenuPopup {
     pets?:{config:AnimalConfig;thumbnail:string}[];
     nickname?:()=>string|null|undefined;
     best?:(map:CourseId)=>number|null;
+    goals?:(map:CourseId)=>readonly SingleGoal[];
     invitation?:{id:string;dismiss:()=>void};
     inviteHref?:string;
   }){}
@@ -128,12 +131,12 @@ export class PlayMenuPopup {
     const description=this.text(t(map.description));description.className='single-map-description';
     const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
     const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';
-    if(select)card.append(description,duration,record);
+    if(select)card.append(description,duration,record,singleGoals(id,this.options.goals?.(id)??[]));
     else{
       const info=document.createElement('div');info.className='single-map-info';
       const heading=document.createElement('div');heading.className='single-map-heading';heading.append(name);
       const stats=document.createElement('div');stats.className='single-map-stats';stats.append(duration,record);
-      info.append(heading,description,stats);card.append(info);
+      info.append(heading,description,stats,singleGoals(id,this.options.goals?.(id)??[]));card.append(info);
     }return card;
   }
   private singleMaps(){

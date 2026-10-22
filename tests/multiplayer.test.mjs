@@ -438,6 +438,62 @@ test('single personal records keep the faster valid completion and survive a loc
   assert.equal(blocked.record('garden',12),true);assert.equal(blocked.best('garden'),12000);
 });
 
+test('single goals accumulate across runs, include exact time limits and award a slower clean run only once',()=>{
+  const records=new SingleRecords();
+  for(const [map,course]of Object.entries(COURSES)){
+    assert.deepEqual(records.complete(map,course.goalSeconds+.001,1).newGoals,['finish']);
+    assert.deepEqual(records.complete(map,course.goalSeconds,2).newGoals,['time']);
+    const clean=records.complete(map,course.goalSeconds+5,0);
+    assert.equal(clean.newBest,false);assert.deepEqual(clean.newGoals,['noFalls']);assert.deepEqual(clean.goals,['finish','noFalls','time']);
+    assert.deepEqual(records.complete(map,course.goalSeconds+6,0).newGoals,[]);
+    const exposed=records.goals(map);exposed.length=0;assert.equal(records.goals(map).length,3);
+  }
+});
+
+test('single goal saves migrate only verifiable old goals, survive reload and reject invalid completions',()=>{
+  const data=new Map([[SINGLE_RECORDS_KEY,JSON.stringify({version:1,times:{garden:33000,practice:11000}})]]),disk={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+  let records=new SingleRecords(disk);assert.deepEqual(records.goals('garden'),['finish']);assert.deepEqual(records.goals('practice'),['finish','time']);
+  assert.deepEqual(records.complete('practice',13,0).newGoals,['noFalls']);records=new SingleRecords(disk);assert.deepEqual(records.goals('practice'),['finish','noFalls','time']);
+  const before=data.get(SINGLE_RECORDS_KEY);
+  for(const falls of [-1,NaN,Infinity,1.5,'0'])assert.deepEqual(records.complete('forest',35,falls).newGoals,[]);
+  for(const time of [0,-1,NaN,Infinity])assert.deepEqual(records.complete('forest',time,0).newGoals,[]);
+  assert.deepEqual(records.complete('__proto__',1,0).newGoals,[]);assert.equal(data.get(SINGLE_RECORDS_KEY),before);
+  data.set(SINGLE_RECORDS_KEY,JSON.stringify({version:2,times:{forest:-1},goals:{forest:['finish','noFalls','time']}}));assert.deepEqual(new SingleRecords(disk).goals('forest'),[]);
+  const blocked=new SingleRecords({getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}});
+  assert.equal(blocked.complete('garden',29,0).newGoals.length,3);assert.deepEqual(blocked.complete('garden',30,0).newGoals,[]);
+});
+
+test('single map summary and picker share earned paw goals with visible thresholds',()=>{
+  const env=dom(),records=new SingleRecords();let menu;records.complete('practice',11,1);
+  try{
+    menu=new PlayMenuPopup(()=>{},{goals:map=>records.goals(map),single:async()=>true,race(){},login(){},dismiss(){}});menu.open('single');
+    const summary=env.host.querySelector('.single-map-summary').querySelector('.single-goals');
+    assert.equal(summary.children.length,3);assert.ok(summary.children.every(e=>e.getAttribute('data-earned')==='false'));
+    assert.equal(summary.children[2].getAttribute('aria-label'),'Within 30s · Not achieved');
+    env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
+    const practice=env.host.querySelector('.single-map-choices').children.find(e=>e.getAttribute('data-map')==='practice').querySelector('.single-goals');
+    assert.deepEqual(practice.children.map(e=>e.getAttribute('data-earned')),['true','false','true']);
+    assert.ok(practice.children.every(e=>e.getAttribute('data-new')==='false'));assert.equal(practice.children[0].children[0].children.length,4);
+  }finally{menu?.destroy();env.restore();}
+});
+
+test('single results highlight only newly achieved goals, update language and never resubmit on repeat frames',async()=>{
+  const env=dom(),records=new SingleRecords();const {setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);let scene,submissions=0;
+  const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  const settings={open(){},map:'practice',goals:()=>records.goals('practice'),record(seconds,falls){submissions++;return records.complete('practice',seconds,falls);}};
+  try{
+    scene=new PlayScene(config,()=>{},settings);scene.update(.1);assert.equal(submissions,0);
+    scene.run.elapsed=10;scene.run.respawns=1;scene.run.x=scene.run.finish;scene.update(.1);scene.update(.1);
+    let badges=scene.goalDetails.children[0].children;assert.equal(submissions,1);assert.deepEqual(badges.map(e=>e.getAttribute('data-new')),['true','false','true']);
+    setLanguage('ko');badges=scene.goalDetails.children[0].children;assert.ok(badges[2].getAttribute('aria-label').includes('12초 이내'));assert.equal(submissions,1);
+    scene.destroy({children:true});setLanguage('en');scene=new PlayScene(config,()=>{},settings);
+    scene.run.elapsed=13;scene.run.respawns=0;scene.run.x=scene.run.finish;scene.update(.1);
+    badges=scene.goalDetails.children[0].children;assert.equal(submissions,2);assert.equal(scene.bestNote.hidden,true);assert.deepEqual(badges.map(e=>e.getAttribute('data-new')),['false','true','false']);
+    scene.destroy({children:true});scene=new PlayScene(config,()=>{},settings);scene.run.elapsed=14;scene.run.x=scene.run.finish;scene.update(.1);
+    assert.ok(scene.goalDetails.children[0].children.every(e=>e.getAttribute('data-new')==='false'));
+  }finally{scene?.destroy({children:true});setLanguage('en');env.restore();}
+});
+
 test('forest stepping route completes at 30/60/120 FPS with optional ground dashes and no forced fall',()=>{
   const map=COURSES.forest,jumps=[520,1170,2320,2820,4140,4450,4760,5470,6480,7020,7620,8130,8720,9280],times=[];
   for(const fps of [30,60,120])for(const dash of [false,true]){
@@ -499,11 +555,11 @@ test('single map dialog cancels with Escape without leaving Single or starting a
 test('single records are local to each guest or account without marking cloud saves dirty',()=>{
   const values=new Map(),storage=new AccountStorage({getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)});
   new SingleRecords(storage).record('garden',20);
-  storage.owner='first';let records=new SingleRecords(storage);assert.equal(records.best('garden'),null);records.record('garden',15);
+  storage.owner='first';let records=new SingleRecords(storage);assert.equal(records.best('garden'),null);records.complete('garden',15,0);
   assert.equal(storage.meta.dirty,false);
   storage.owner='second';records=new SingleRecords(storage);assert.equal(records.best('garden'),null);records.record('practice',11);
-  storage.owner='first';assert.equal(new SingleRecords(storage).best('garden'),15000);assert.equal(new SingleRecords(storage).best('practice'),null);
-  storage.owner=null;assert.equal(new SingleRecords(storage).best('garden'),20000);
+  storage.owner='first';assert.equal(new SingleRecords(storage).best('garden'),15000);assert.equal(new SingleRecords(storage).best('practice'),null);assert.deepEqual(new SingleRecords(storage).goals('garden'),['finish','noFalls','time']);
+  storage.owner=null;assert.equal(new SingleRecords(storage).best('garden'),20000);assert.deepEqual(new SingleRecords(storage).goals('garden'),['finish','time']);
 });
 
 test('single scene records only a completed run once and highlights only an improved personal best',()=>{

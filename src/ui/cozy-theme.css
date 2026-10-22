@@ -512,3 +512,12 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .room-invite-link{width:100%;resize:none;padding:1cqh;color:var(--ui-ink);background:var(--ui-cream);border:1px solid var(--ui-edge);border-radius:1cqh;}
 .room-invite-link[hidden]{display:none;}
 .room-invitation{display:flex;flex-direction:column;align-items:center;gap:1.5cqh;text-align:center;}
+.single-goals{display:flex;flex-wrap:wrap;gap:.7cqh .6cqw;margin:1.5cqh 0;}
+.single-goal{display:inline-flex;align-items:center;gap:.4cqw;padding:.5cqh .65cqw;border:1px solid #dfd6c4;border-radius:2cqh;background:#f0ecdf;color:#8a806d;font:400 clamp(9px,1.1cqw,15px) var(--font-body);}
+.single-goal .single-goal-paw{width:1.6cqw;height:1.6cqw;min-width:12px;min-height:12px;color:#b8b09f;}
+.single-goal[data-earned="true"]{background:#e7eed9;color:#566a3d;border-color:#bdcda3;}
+.single-goal[data-earned="true"] .single-goal-paw{color:#819a56;}
+.single-goal[data-new="true"]{background:#fff0bf;border-color:#d6ad55;}
+.single-goal-new{font-family:var(--font-round);color:#9b6c26;font-weight:400;}
+.single-result-goals .single-goals{justify-content:center;}
+.play-hud:not(.race-hud) .play-result{max-height:51cqh;overflow-y:auto;}
