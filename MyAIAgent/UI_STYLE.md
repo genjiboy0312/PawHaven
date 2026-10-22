@@ -1,5 +1,12 @@
 # Cozy UI 1차 (2026-10-17)
 
+## 사용자 승인 기준 (2026-10-23, 이전 시안 기록보다 우선)
+- 사용자가 현재 배포된 조이스틱·Attack·Dash·Jump UI를 확인하고 승인했다. 기준 구현은 커밋 df4fdb5이며, 변경 요청 없이 저해상도 도트 방식으로 되돌리거나 새 디자인을 다시 생성하지 않는다.
+- 픽셀 밀도 참고: Resources/Pet_Sofa_Black_White_Prototype.png. 큰 픽셀 알갱이가 드러나는 확대 대신 촘촘하고 자연스러운 윤곽과 절제된 색 단계를 사용한다.
+- 승인 수치: 아이콘 64격자, 버튼 바탕·손잡이 96격자, 조이스틱 바닥 128격자. 정수 격자 SVG 윤곽은 유지하고 강제 pixelated 확대는 적용하지 않는다.
+- 글자는 기존 Jua 둥근 폰트와 한영 번역을 사용한다. 영어 5×7 도트 글자 확대는 사용하지 않는다. 버튼 크기·발바닥 배치·색상·좁은 아이콘/글자 간격·입력 및 쿨다운 동작을 유지한다.
+- 기존 컴포넌트와 scripts/generate-touch-controls.mjs를 재사용하고, 리소스는 Resources/Control_*와 public/assets/controls에 함께 저장한다. 이미지 변경 시 캐시 갱신용 버전도 조정한다. 상세: [TOUCH_UI_APPLIED.md](TOUCH_UI_APPLIED.md).
+
 ## 디자인
 - 사용자가 제공한 Party Animals UI의 둥근 형태·넉넉한 여백·부드러운 입체감을 참고했다. 게임 원본 로고/이미지를 복사하지 않고 CSS로 구성한다.
 - 로딩/타이틀 글자와 Settings·Quest·Friends 팝업을 먼저 적용했다. Character/Home/Shop의 인벤토리 구조와 아이템 아래 타원 그림자는 유지한다. 공용 DOM 글꼴은 새 폰트를 사용한다.
