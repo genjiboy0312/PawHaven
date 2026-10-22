@@ -301,6 +301,10 @@ test('room menu renders four cards per page with counts and blocks full/running 
     menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
     const pager=env.host.querySelector('.room-pages');assert.equal(pager.children.length,2);assert.equal(pager.children[0].children.length,4);assert.equal(pager.children[1].children.length,2);
     assert.equal(pager.children[0].children[0].children[1].textContent,'2 / 4 · Waiting');assert.equal(pager.children[0].children[1].disabled,true);assert.equal(pager.children[0].children[2].disabled,true);
+    const footer=env.host.querySelector('.play-menu-footer'),navigation=env.host.querySelector('.room-navigation');
+    assert.equal(footer.contains(navigation),true);assert.equal(menu.content.contains(navigation),false);assert.equal(footer.hidden,false);
+    navigation.children[2].dispatchEvent(new Event('click'));assert.equal(pager.scrollLeft,500);assert.equal(navigation.children[1].textContent,'2 / 2');
+    footer.children[1].dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(footer.hidden,true);
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
 
@@ -757,6 +761,27 @@ test('background transitions invalidate stale responses and remove recovery list
     document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));await idle(client);assert.equal(client.snapshot.now,2);assert.equal(client.reconnecting,false);
     client.destroy(false);window.dispatchEvent(new Event('online'));document.dispatchEvent(new Event('visibilitychange'));assert.equal(calls,2);
   }finally{release();client.destroy(false);env.restore();}
+});
+
+test('flat action controls follow actual cooldown and airborne rules while preserving icons through language changes',async()=>{
+  for(const action of ['Attack','Dash','Jump']){
+    const original=await readFile(new URL('../Resources/Control_'+action+'.svg',import.meta.url)),runtime=await readFile(new URL('../public/assets/controls/'+action.toLowerCase()+'.svg',import.meta.url));assert.ok(original.equals(runtime));
+  }
+  const env=dom();let scene;const {setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
+  document.querySelectorAll=selector=>env.host.all().filter(node=>node.getAttribute(selector.slice(1,-1))!==null);
+  const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  try{
+    scene=new PlayScene(config,()=>{},{open(){}});
+    const dash=scene.controls.get('dash'),attack=scene.controls.get('attack'),jump=scene.controls.get('jump');
+    assert.equal(dash.element.disabled,false);assert.equal(attack.element.children[0].src,'./assets/controls/attack.svg');
+    scene.act('dash');assert.equal(dash.element.disabled,true);assert.equal(dash.counter.textContent,'0.8s');assert.equal(dash.ring.hidden,false);
+    scene.act('attack');assert.equal(scene.run.attack,0);scene.update(.4);assert.equal(attack.element.disabled,false);assert.equal(dash.element.disabled,true);assert.match(dash.ring.style.background,/conic-gradient/);
+    scene.act('jump');assert.equal(scene.run.canDash,false);assert.equal(dash.element.disabled,true);assert.equal(attack.element.disabled,false);
+    scene.act('attack');assert.ok(scene.run.attack>0);assert.equal(attack.element.disabled,true);
+    for(let i=0;i<100;i++)scene.update(.02);assert.equal(dash.ring.hidden,true);assert.equal(dash.element.disabled,false);
+    setLanguage('ko');assert.equal(dash.element.children[1].textContent,'대시');assert.equal(dash.element.children[0].tag,'img');
+    scene.setPaused(true);assert.equal(dash.element.disabled,true);assert.equal(attack.element.disabled,true);scene.setPaused(false);assert.equal(dash.element.disabled,false);
+  }finally{scene?.destroy({children:true});setLanguage('en');env.restore();}
 });
 
 test('single background recovery freezes time and input until Continue, without stacking over settings',()=>{

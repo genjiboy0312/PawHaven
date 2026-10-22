@@ -24,6 +24,7 @@ export class DummyRun {
   private exitTime = -1;
   readonly attackDuration = 0.48;
   readonly dashDuration = 0.32;
+  readonly dashCooldownDuration = 0.8;
   victoryTime = -1;
   constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1, private readonly options: RunOptions = {}) {
     this.finish = options.finish ?? 2520;
@@ -40,11 +41,14 @@ export class DummyRun {
   get fade(): number { return Math.max(0, Math.min(1, this.options.manualReturn ? this.exitTime / 0.4 : (this.victoryTime - 1.5) / 0.4)); }
   leave(): void { if (this.won && this.exitTime < 0) this.exitTime = 0; }
   cancelLeave(): void { this.exitTime = -1; }
-  jump(): void { if (!this.won && this.grounded && this.dash === 0) this.velocity = 440; }
+  get canJump():boolean{return !this.won&&this.grounded&&this.dash===0;}
+  get canDash():boolean{return !this.won&&this.grounded&&this.attack===0&&this.dashCooldown<=0;}
+  get canAttack():boolean{return !this.won&&this.dash===0&&this.attack===0;}
+  jump(): void { if (this.canJump) this.velocity = 440; }
   startDash(): void {
-    if (!this.won && this.grounded && this.attack === 0 && this.dashCooldown <= 0) { this.horizontalVelocity = this.direction * 1100 * this.movementScale; this.dash = this.dashDuration; this.dashCooldown = 0.8; }
+    if (this.canDash) { this.horizontalVelocity = this.direction * 1100 * this.movementScale; this.dash = this.dashDuration; this.dashCooldown = this.dashCooldownDuration; }
   }
-  startAttack(): void { if (!this.won && this.dash === 0 && this.attack === 0) this.attack = this.attackDuration; }
+  startAttack(): void { if (this.canAttack) this.attack = this.attackDuration; }
   action(axis: number): AnimalAction {
     if (this.won) return 'idle';
     if (this.attack > 0) return 'attack';

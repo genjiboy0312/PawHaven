@@ -13,6 +13,7 @@ import { raceResults } from '../../ui/RaceResults';
 import { RacePodium } from '../../ui/RacePodium';
 import { RaceProgress } from '../../ui/RaceProgress';
 import { RaceStandings } from '../../ui/RaceStandings';
+import { ActionButton, type ControlAction } from '../../ui/ActionButton';
 import { RunRecoveryPopup } from '../../ui/RunRecoveryPopup';
 import { singleGoals } from '../../ui/SingleGoals';
 import type { SingleCompletion, SingleGoal } from '../SingleRecords';
@@ -71,6 +72,7 @@ export class PlayScene extends Scene {
   private readonly stick = document.createElement('button');
   private readonly knob = document.createElement('span');
   private readonly keys = new Set<string>();
+  private readonly controls=new Map<ControlAction,ActionButton>();
   private readonly abort = new AbortController();
   private paused = false;
   private suspended = false;
@@ -80,6 +82,7 @@ export class PlayScene extends Scene {
     this.paused = paused; this.blur();
     if (paused) this.closeRecovery();
     else this.showResume();
+    this.updateControls();
   }
   private closeRecovery(): void { this.recoveryPopup?.destroy(); this.recoveryPopup = undefined; }
   private showResume(): void {
@@ -247,6 +250,7 @@ export class PlayScene extends Scene {
       if (event.code === 'KeyJ') this.act('attack');
     }, { signal });
     window.addEventListener('keyup', (event) => { this.keys.delete(event.code); }, { signal });
+    this.updateControls();
   }
   private leave(retry: boolean): void {
     if (!this.run.won || (this.retry.disabled && retry) || this.returned || this.back.disabled) return;
@@ -265,12 +269,21 @@ export class PlayScene extends Scene {
     else this.run.startAttack();
     const after = kind === 'jump' ? this.run.velocity : this.run[kind];
     if (after > before) this.settings?.sound?.(kind);
+    this.updateControls();
+  }
+  private updateControls():void{
+    const active=!this.paused&&!this.suspended&&!this.recoveryPopup&&!this.podium&&this.raceStarted;
+    this.controls.get('jump')?.update(active&&this.run.canJump);
+    this.controls.get('attack')?.update(active&&this.run.canAttack);
+    this.controls.get('dash')?.update(active&&this.run.canDash,this.run.dashCooldown,this.run.dashCooldownDuration);
   }
   private button(label: TextKey, action?: () => void): HTMLButtonElement {
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'play-circle'; bindText(button, label);
-    button.addEventListener('pointerdown', (event) => { if (event.button !== 0) return; event.preventDefault(); action?.(); }, { signal: this.abort.signal });
-    button.addEventListener('click', (event) => { if (event.detail === 0) action?.(); }, { signal: this.abort.signal });
+    const control=label==='jump'||label==='attack'||label==='dash'?new ActionButton(label):undefined;
+    const button = control?.element??document.createElement('button');
+    if(control)this.controls.set(control.action,control);
+    else{button.type='button';button.className='play-circle';bindText(button,label);}
+    button.addEventListener('pointerdown', (event) => { if (button.disabled||event.button !== 0) return; event.preventDefault(); action?.(); }, { signal: this.abort.signal });
+    button.addEventListener('click', (event) => { if (!button.disabled&&event.detail === 0) action?.(); }, { signal: this.abort.signal });
     return button;
   }
   resize(_width: number, _height: number): void { this.render(0, 0); }
@@ -416,6 +429,7 @@ export class PlayScene extends Scene {
     }
   }
   private render(seconds: number, axis: number): void {
+    this.updateControls();
     const run = this.run;
     const target = cameraTarget(run.x, this.courseEnd);
     const preferences = this.settings?.preferences?.();

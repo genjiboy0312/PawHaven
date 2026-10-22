@@ -11,6 +11,7 @@ type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
 export class PlayMenuPopup {
   private overlay?:HTMLElement; private content?:HTMLElement; private title?:HTMLElement;
+  private readonly footer=document.createElement('footer');
   private panel?:HTMLElement;private closeButton?:HTMLButtonElement;
   private page:Page='mode'; private busy=false; private launching=false;
   private abort?:AbortController; private unsubscribe?:()=>void; private localeOff?:()=>void;
@@ -46,7 +47,7 @@ export class PlayMenuPopup {
     const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
     const panel=document.createElement('section');this.panel=panel;panel.className='settings-panel play-menu-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'play');
     this.title=document.createElement('h2');const close=this.button('close',()=>{if(this.page==='single')this.backToModes();else void this.exit();});this.closeButton=close;close.className='settings-close';close.textContent='×';bindAria(close,'close');
-    this.content=document.createElement('div');this.content.className='settings-content play-menu-content';panel.append(this.title,close,this.content);overlay.append(panel);host.append(overlay);
+    this.content=document.createElement('div');this.content.className='settings-content play-menu-content';this.footer.className='play-menu-footer';this.footer.hidden=true;panel.append(this.title,close,this.content,this.footer);overlay.append(panel);host.append(overlay);
     panel.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();if(this.page==='single')this.backToModes();else void this.exit();}
       if(event.key!=='Tab')return;
@@ -194,6 +195,7 @@ export class PlayMenuPopup {
     if(!this.content||!this.title)return;
     this.signature=this.renderSignature();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
+    this.footer.replaceChildren();this.footer.hidden=true;
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
     if(this.closeButton){this.closeButton.className='settings-close'+(this.page==='single'?' play-menu-back':'');this.closeButton.textContent=this.page==='single'?'←':'×';bindAria(this.closeButton,this.page==='single'?'back':'close');this.closeButton.disabled=this.page==='single'&&this.busy;}
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
@@ -207,7 +209,8 @@ export class PlayMenuPopup {
     else if(this.page==='create'){
       const defaultName=()=>`${this.options.nickname?.()?.trim()||'Player '+client.owner.slice(0,4)}님의 방`;
       const input=document.createElement('input');input.maxLength=24;input.value=this.name;input.placeholder=defaultName();bindAria(input,'roomName');
-      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map),this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name.trim()||defaultName(),map:this.map}))this.page='multi';});}));
+      const create=this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name.trim()||defaultName(),map:this.map}))this.page='multi';});});create.classList.add('room-create');
+      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map),create);
     }else if(room){
       root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
       if(room.phase==='waiting'){
@@ -250,7 +253,7 @@ export class PlayMenuPopup {
       if(client.notice==='round'&&['countdown','playing'].includes(room.phase))root.append(this.button('raceResume',()=>client.clearNotice()));
       if(this.roomEvent){const event=this.text(t(this.roomEvent.key).replace('{name}',this.roomEvent.name));event.className='room-event';event.setAttribute('role','status');root.append(event);}
     }else{
-      root.append(this.button('createRoom',()=>{this.page='create';this.render();}));
+      const create=this.button('createRoom',()=>{this.page='create';this.render();});create.classList.add('room-create');root.append(create);
       const pager=document.createElement('div');pager.className='room-pages';
       const rooms=client.snapshot.rooms;
       for(let offset=0;offset<rooms.length;offset+=4){
@@ -265,7 +268,7 @@ export class PlayMenuPopup {
       const pages=Math.max(1,Math.ceil(rooms.length/4)),navigation=document.createElement('div');navigation.className='room-navigation';
       const status=this.text('');const update=()=>{status.textContent=`${Math.min(pages,1+Math.round(pager.scrollLeft/Math.max(1,pager.clientWidth)))} / ${pages}`;};
       navigation.append(this.button('previous',()=>pager.scrollBy({left:-pager.clientWidth,behavior:'smooth'})),status,this.button('next',()=>pager.scrollBy({left:pager.clientWidth,behavior:'smooth'})));
-      pager.addEventListener('scroll',update);update();root.append(navigation);
+      pager.addEventListener('scroll',update);update();this.footer.append(navigation);this.footer.hidden=false;
     }
     if(client?.error||client?.reconnecting){
       const key:TextKey=client.rejection==='already_in_room'?'multiAlreadyJoined':client.rejection==='room_closed'?'multiRoomClosed':client.rejection==='room_unavailable'?'multiRoomFull':client.rejection==='auth'?'multiAuthRetry':client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiReconnecting';
@@ -273,9 +276,10 @@ export class PlayMenuPopup {
     }
     else if(client?.notice){const p=this.text(t(client.notice==='removed'?'multiRemoved':client.notice==='round'?'multiRoundChanged':'multiRestored'));p.setAttribute('role','status');root.append(p);}
     if(this.notice)root.append(this.text(t(this.notice)));
-    if(this.page!=='mode'&&this.page!=='single'&&!room){const back=this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();});back.setAttribute('data-recovery-control','true');root.append(back);}
-    if(this.busy||client?.busy)for(const b of Array.from(root.querySelectorAll('button')))b.disabled=true;
-    if((this.page==='multi'||this.page==='create')&&(client?.error||client?.reconnecting))for(const b of Array.from(root.querySelectorAll('button')))if(b.getAttribute('data-recovery-control')!=='true')b.disabled=true;
+    if(this.page!=='mode'&&this.page!=='single'&&!room){const back=this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();});back.classList.add('play-menu-bottom-back');back.setAttribute('data-recovery-control','true');this.footer.append(back);this.footer.hidden=false;}
+    const buttons=[...Array.from(root.querySelectorAll<HTMLButtonElement>('button')),...Array.from(this.footer.querySelectorAll<HTMLButtonElement>('button'))];
+    if(this.busy||client?.busy)for(const b of buttons)b.disabled=true;
+    if((this.page==='multi'||this.page==='create')&&(client?.error||client?.reconnecting))for(const b of buttons)if(b.getAttribute('data-recovery-control')!=='true')b.disabled=true;
     this.animatePortraits();
     this.refreshMapPicker();
   }

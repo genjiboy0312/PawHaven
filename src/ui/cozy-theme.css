@@ -532,3 +532,37 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .race-live-check{color:#789149;flex-shrink:0;}
 .race-live-standings[data-stale="true"] .race-live-list{opacity:.6;}
 .race-hud[data-results="true"]:not([data-podium="true"]) .play-result{width:58%;}
+/* Approved flat 2D touch controls; the layout and input model remain shared. */
+.play-actions .action-button{border:2px solid #79523b;background:#f9d7b5;color:#70452f;box-shadow:0 2px 0 #79523b40;overflow:visible;}
+.play-actions .action-button[data-action="dash"]{background:#e1e9c5;}
+.play-actions .action-button[data-action="jump"]{background:#ffe69e;}
+.action-button .control-icon{position:absolute;top:12%;left:27%;width:46%;height:46%;pointer-events:none;}
+.control-label{position:absolute;bottom:10%;left:0;width:100%;font:400 clamp(9px,1.1cqw,16px) var(--font-round);line-height:1;text-transform:uppercase;pointer-events:none;}
+.control-cooldown{position:absolute;bottom:27%;left:0;width:100%;font:400 clamp(8px,.95cqw,13px) var(--font-round);font-variant-numeric:tabular-nums;pointer-events:none;}
+.control-ring{position:absolute;inset:-5px;border-radius:50%;pointer-events:none;mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));}
+.control-ring[hidden],.control-cooldown[hidden]{display:none;}
+.play-actions .action-button:disabled{opacity:1;background:#e5e0d5;color:#998b76;border-color:#aa9680;box-shadow:none;}
+.action-button:disabled .control-icon{filter:grayscale(1);opacity:.45;}
+.play-actions .action-button:enabled:active{transform:translateY(2px);box-shadow:none;}
+.action-button:focus-visible,.play-stick:focus-visible{outline:2px solid #ba8627;outline-offset:4px;}
+.play-stick{border:2px solid #79523b;background:#d8c9b0ad;box-shadow:none;}
+.play-stick::before,.play-stick::after{position:absolute;top:50%;transform:translateY(-50%);color:#8d6d4d;font-size:1.5cqw;pointer-events:none;}
+.play-stick::before{content:'◀';left:9%;}
+.play-stick::after{content:'▶';right:9%;}
+.stick-knob{position:relative;z-index:1;box-sizing:border-box;border:2px solid #79523b;background:#fff4d9;box-shadow:none;}
+/* Keep pagination and Back outside the scrolling multiplayer content. */
+.play-menu-panel>.play-menu-content{flex:1;min-height:0;overflow-y:auto;}
+.play-menu-footer{flex:none;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:1cqw;min-height:7cqh;margin-top:1cqh;padding-top:1cqh;border-top:1px solid #e1d2af;}
+.play-menu-footer[hidden]{display:none;}
+.play-menu-footer .room-navigation{grid-column:2;grid-row:1;justify-content:center;}
+.play-menu-footer .commerce-primary{min-width:8cqw;min-height:36px;padding:1cqh 1.5cqw;border:1px solid #d6bc88;background:#fff4d8;color:#7b6748;font:400 clamp(10px,1.4cqw,18px) var(--font-round);}
+.play-menu-bottom-back{grid-column:3;grid-row:1;justify-self:end;}
+.play-menu-content .room-create{display:flex;align-items:center;justify-content:center;margin:0 0 1cqh auto;width:18cqw;max-width:100%;min-width:min(120px,100%);min-height:36px;height:7cqh;box-sizing:border-box;padding:1cqh 1.5cqw;flex:none;}
+/* Shop title, coin balance and close share one aligned header. */
+.shop-screen{--shop-header-size:clamp(44px,5cqw,60px);--shop-tabs-top:calc(3cqh + var(--shop-header-size) + 1.5cqh);--shop-content-top:calc(var(--shop-tabs-top) + max(40px,8cqh) + 2cqh);}
+.shop-screen .shop-title{top:3cqh;left:4cqw;height:var(--shop-header-size);display:flex;align-items:center;}
+.shop-screen>.character-close{top:3cqh;right:3cqw;width:var(--shop-header-size);height:var(--shop-header-size);background:#fff2d5;box-shadow:0 2px 0 #bc9d6d45;}
+.shop-screen .shop-balance{top:3cqh;right:calc(4.5cqw + var(--shop-header-size));height:var(--shop-header-size);max-width:49cqw;box-sizing:border-box;display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.shop-screen .shop-tabs{top:var(--shop-tabs-top);height:max(40px,8cqh);box-sizing:border-box;}
+.shop-screen .shop-style,.shop-screen .shop-pass{top:var(--shop-content-top);}
+@media(prefers-reduced-motion:reduce){.play-actions .action-button:enabled:active{transform:none;}}

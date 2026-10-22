@@ -548,7 +548,7 @@ test('Play enters a run, victory returns once without another greeting, and scen
     playButton.dispatchEvent(new Event('click'));
     const runHud = host.children[0];
     assert.equal(runHud.className, 'play-hud');
-    assert.deepEqual(runHud.children[1].children.map(item => item.textContent), ['Attack', 'Dash', 'Jump']);
+    assert.deepEqual(runHud.children[1].children.map(item => item.children[1].textContent), ['Attack', 'Dash', 'Jump']);
     const down = new Event('keydown', { cancelable: true });
     Object.defineProperty(down, 'code', { value: 'ArrowRight' });
     window.dispatchEvent(down);
