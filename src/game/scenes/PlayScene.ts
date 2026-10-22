@@ -2,6 +2,8 @@ import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../../set
 import type { GamePreferences } from '../../settings/GameSettings';
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
 import { AnimalEffects } from '../../animals/AnimalEffects';
+import { HitReactionEffect } from '../../animals/HitReactionEffect';
+import type { PlayerHit } from '../HitReaction';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
@@ -49,6 +51,7 @@ export class PlayScene extends Scene {
   private localName?:Text;
   private readonly pet = new Container();
   private readonly effect: AnimalEffects;
+  private readonly hitEffect?: HitReactionEffect;
   private readonly animation: AnimalAnimationController;
   private readonly hud = document.createElement('section');
   private readonly victory = document.createElement('p');
@@ -111,7 +114,7 @@ export class PlayScene extends Scene {
   constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
-    this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
+    this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
@@ -159,6 +162,7 @@ export class PlayScene extends Scene {
     }
     this.world.addChild(this.pet);
     this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
+    if(this.run.hitReaction.enabled){this.hitEffect=new HitReactionEffect(this.pet,config.effects);this.pet.addChild(this.hitEffect);}
     if(settings?.multiplayer){
       const mine=settings.multiplayer.client.room?.members.find(member=>member.id===settings.multiplayer?.client.owner);
       this.localName=this.playerName(mine?.name??'',true);this.nameLayer.addChild(this.localName);
@@ -271,6 +275,11 @@ export class PlayScene extends Scene {
     if (after > before) this.settings?.sound?.(kind);
     this.updateControls();
   }
+  /** Future authoritative competitive events only; existing maps always reject. */
+  receivePlayerHit(hit: PlayerHit): boolean {
+    if(this.paused||this.suspended||this.returned||!this.settings?.multiplayer||!this.raceStarted)return false;
+    return this.run.receivePlayerHit(hit);
+  }
   private updateControls():void{
     const active=!this.paused&&!this.suspended&&!this.recoveryPopup&&!this.podium&&this.raceStarted;
     this.controls.get('jump')?.update(active&&this.run.canJump);
@@ -290,7 +299,7 @@ export class PlayScene extends Scene {
   private get raceStarted(){const client=this.settings?.multiplayer?.client;return !client||!client.reconnecting&&!client.error&&!!client.room&&client.room.round===this.raceRound&&client.serverTime>=(client.room.startsAt??Infinity)&&client.room.phase!=='results';}
   private pose():Pose{
     const action=this.run.action(this.run.horizontalVelocity),progress=action==='attack'?1-this.run.attack/this.run.attackDuration:action==='skill'?1-this.run.dash/this.run.dashDuration:action==='land'?1-this.run.land/0.16:action==='jump'?Math.min(0.49,Math.max(0,(440-this.run.velocity)/880)):0;
-    return {x:this.run.x,height:this.run.height,direction:this.run.direction,action,progress,vx:this.run.horizontalVelocity};
+    return {x:this.run.x,height:this.run.height,direction:this.run.direction,action,progress,vx:this.run.motionVelocity};
   }
   private playerName(value:string,self=false):Text{
     const name=new Text({text:value,style:{fontFamily:'Jua, sans-serif',fontSize:22,fill:self?'#d7f4a8':'#fff9e5',stroke:{color:'#47513d',width:3,join:'round'}}});
@@ -301,6 +310,7 @@ export class PlayScene extends Scene {
     if(!client||!room||!mine||this.run.won)return;
     this.run.x=mine.pose.x;this.run.height=mine.pose.height;this.run.direction=mine.pose.direction;
     this.run.velocity=0;this.run.horizontalVelocity=0;this.run.dash=0;this.run.attack=0;this.run.land=0;
+    this.run.hitReaction.reset();
     const checkpoint=COURSES[this.settings?.map??'garden'].checkpoint;
     if(this.run.x>=checkpoint)this.run.checkpoint=checkpoint;
     if(room.startsAt)this.run.elapsed=Math.max(0,(client.serverTime-room.startsAt)/1000);
@@ -446,6 +456,7 @@ export class PlayScene extends Scene {
     this.animation.update('IDLE', this.elapsed, run.direction, 0, 0, seconds, action, progress);
     this.effect.update(action, progress ?? 0, run.direction, this.animation.sprite, run.horizontalVelocity);
     this.effect.visible = preferences?.effects !== false;
+    this.hitEffect?.update(run.hitReaction,preferences?.effects!==false);
     if (preferences?.effects === false) this.effect.ghosts.forEach(ghost => { ghost.visible = false; });
     this.victory.hidden = !run.won;
     this.result.hidden = !run.won;

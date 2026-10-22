@@ -1,11 +1,13 @@
 import type { AnimalAction } from '../animals/AnimalConfig';
 import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
-export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean }
+import { HitReaction, type PlayerHit } from './HitReaction';
+export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
   readonly start = 120;
   readonly finish: number;
+  readonly hitReaction: HitReaction;
   readonly halfWidth = 24;
   readonly bodyHeight = 90;
   x = this.start;
@@ -28,6 +30,7 @@ export class DummyRun {
   victoryTime = -1;
   constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1, private readonly options: RunOptions = {}) {
     this.finish = options.finish ?? 2520;
+    this.hitReaction = new HitReaction(options.playerCombat === true);
     this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));
   }
   private overlaps(solid: CourseSolid, x = this.x): boolean {
@@ -37,6 +40,14 @@ export class DummyRun {
     return this.velocity <= 0 && this.course.some(solid => this.overlaps(solid) && Math.abs(this.height - solid.top) < 0.000001);
   }
   get won(): boolean { return this.victoryTime >= 0; }
+  get motionVelocity(): number { return this.horizontalVelocity + this.hitReaction.velocity * this.movementScale; }
+  receivePlayerHit(hit: PlayerHit): boolean {
+    if (this.won || !this.hitReaction.receive(hit)) return false;
+    // Cancel an existing burst, without imposing a stun or changing vertical motion.
+    if (this.dash > 0) this.horizontalVelocity = 0;
+    this.dash = 0;
+    return true;
+  }
   get returnReady(): boolean { return this.options.manualReturn ? this.exitTime >= 0.4 : this.victoryTime >= 1.9; }
   get fade(): number { return Math.max(0, Math.min(1, this.options.manualReturn ? this.exitTime / 0.4 : (this.victoryTime - 1.5) / 0.4)); }
   leave(): void { if (this.won && this.exitTime < 0) this.exitTime = 0; }
@@ -59,6 +70,7 @@ export class DummyRun {
   }
   private respawn(): void {
     this.respawns++;
+    this.hitReaction.reset();
     this.x = this.checkpoint; this.height = 0; this.direction = 1;
     this.velocity = this.horizontalVelocity = this.dash = this.dashCooldown = this.attack = this.land = 0;
     this.victoryTime = -1;
@@ -88,6 +100,7 @@ export class DummyRun {
       this.horizontalVelocity = input * this.speed;
       distance = this.horizontalVelocity * seconds;
     }
+    distance += this.hitReaction.advance(seconds) * this.movementScale;
     let nextX = Math.max(this.start, Math.min(this.finish, this.x + distance));
     for (const solid of this.course) {
       if (this.height >= solid.top - 0.000001 || this.height + this.bodyHeight <= solid.bottom + 0.000001) continue;
@@ -95,6 +108,7 @@ export class DummyRun {
       if (distance < 0 && this.x - this.halfWidth >= solid.x + solid.width - 0.000001 && nextX - this.halfWidth < solid.x + solid.width) nextX = Math.max(nextX, solid.x + solid.width + this.halfWidth);
     }
     if (Math.abs(nextX - this.x) < 0.000001 && distance !== 0) this.horizontalVelocity = 0;
+    if (Math.abs(nextX - this.x - distance) > 0.000001) this.hitReaction.stopPush();
     this.x = nextX;
     this.dash = Math.max(0, this.dash - seconds);
     this.dashCooldown = Math.max(0, this.dashCooldown - seconds);
@@ -125,6 +139,7 @@ export class DummyRun {
       }
     }
     if (this.x >= this.finish - 0.000001 && this.grounded) {
+      this.hitReaction.reset();
       this.x = this.finish; this.victoryTime = 0; this.velocity = 0; this.horizontalVelocity = 0;
     }
     return false;

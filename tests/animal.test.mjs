@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { importTs } from './load-typescript.mjs';
+const { HitReaction, HIT_RULES } = await importTs('../src/game/HitReaction.ts', import.meta.url);
 // PixiJS checks userAgent at module load; no renderer or DOM is used in these tests.
 Object.defineProperty(globalThis, 'navigator', { value: { userAgent: 'Node.js' }, configurable: true });
 const { Texture } = await import('pixi.js');
@@ -476,6 +477,109 @@ test('shared idle playback survives behavior timer resets and independent clips 
   destroyAnimationController(controller);
 });
 const { DummyRun } = await importTs('../src/game/DummyRun.ts', import.meta.url);
+
+test('player hit reception stays disabled for every existing course and ordinary run', async () => {
+  const { COURSES } = await importTs('../src/game/CourseCatalog.ts', import.meta.url);
+  for (const map of Object.values(COURSES)) {
+    assert.equal(map.playerCombat, false);
+    const run = new DummyRun(map.solids, 1, { playerCombat: map.playerCombat });
+    assert.equal(run.receivePlayerHit({ sequence: 1, direction: 1 }), false);
+    assert.equal(run.hitReaction.protected, false);
+  }
+  const normal = new DummyRun(flatCourse), baseline = new DummyRun(flatCourse);
+  normal.receivePlayerHit({ sequence: 1, direction: 1 });
+  normal.update(0.4, 1); baseline.update(0.4, 1);
+  assert.equal(normal.x, baseline.x); assert.equal(normal.motionVelocity, baseline.horizontalVelocity);
+});
+
+test('hit immunity rejects repeat and protected events without extending its duration', () => {
+  const reaction = new HitReaction(true);
+  assert.equal(reaction.receive({ sequence: 1, direction: 1 }), true);
+  assert.equal(reaction.flash, 1); assert.equal(reaction.protectionRemaining, 1.2);
+  reaction.advance(0.3); const remaining = reaction.protectionRemaining;
+  assert.equal(reaction.receive({ sequence: 1, direction: -1 }), false);
+  assert.equal(reaction.receive({ sequence: 2, direction: -1 }), false);
+  assert.equal(reaction.protectionRemaining, remaining);
+  reaction.advance(1);
+  assert.equal(reaction.protected, false); assert.equal(reaction.flash, 0);
+  assert.equal(reaction.receive({ sequence: 2, direction: -1 }), false);
+  assert.equal(reaction.receive({ sequence: 3, direction: -1 }), true);
+  reaction.reset();
+  assert.equal(reaction.protected, false); assert.equal(reaction.velocity, 0);
+  assert.equal(reaction.receive({ sequence: 3, direction: -1 }), false);
+  for (const hit of [{sequence:NaN,direction:1},{sequence:-1,direction:1},{sequence:4.5,direction:1},{sequence:4,direction:0}]) assert.equal(reaction.receive(hit), false);
+});
+
+test('knockback is frame-rate independent, horizontal only, and permits movement and jump', () => {
+  const create = () => { const run = new DummyRun(flatCourse, 1, { playerCombat: true }); run.x = 500; return run; };
+  const coarse = create(), fine = create();
+  coarse.receivePlayerHit({ sequence: 1, direction: 1 }); fine.receivePlayerHit({ sequence: 1, direction: 1 });
+  const velocity = coarse.motionVelocity;
+  assert.ok(velocity > 0); assert.equal(coarse.canJump, true); assert.equal(coarse.canAttack, true);
+  coarse.update(0.4, 0); for (let i=0;i<40;i++) fine.update(0.01, 0);
+  const expected = HIT_RULES.distance * (1-Math.exp(-HIT_RULES.decay*HIT_RULES.pushTime));
+  assert.ok(Math.abs(coarse.x-500-expected)<0.00001); assert.ok(Math.abs(coarse.x-fine.x)<0.00001);
+  const moving = create(), jumping = create(), baseline = create();
+  moving.receivePlayerHit({ sequence: 1, direction: 1 }); moving.update(0.4, -1);
+  assert.ok(moving.x < 500); // Input counter-steers immediately; there is no stun.
+  jumping.jump(); baseline.jump(); jumping.receivePlayerHit({ sequence: 1, direction: -1 });
+  jumping.update(0.1, 0); baseline.update(0.1, 0);
+  assert.equal(jumping.height, baseline.height); assert.equal(jumping.velocity, baseline.velocity);
+  assert.ok(jumping.x < 500);
+  const invalid = jumping.hitReaction.protectionRemaining;
+  jumping.hitReaction.advance(NaN); jumping.hitReaction.advance(-1);
+  assert.equal(jumping.hitReaction.protectionRemaining, invalid);
+});
+
+test('knockback respects walls and boundaries and resets at respawn and finish', () => {
+  for (const direction of [-1,1]) {
+    const wall = direction===1?{x:560,width:40,top:150,bottom:0}:{x:300,width:20,top:150,bottom:0};
+    const run = new DummyRun([...flatCourse,wall],1,{playerCombat:true}); run.x=direction===1?500:380;
+    run.receivePlayerHit({sequence:1,direction}); run.update(.5,0);
+    assert.ok(Math.abs(run.x-(direction===1?536:344))<.00001);
+    assert.equal(run.hitReaction.velocity,0); assert.equal(run.hitReaction.protected,true);
+  }
+  const start = new DummyRun(flatCourse,1,{playerCombat:true});
+  start.receivePlayerHit({sequence:1,direction:-1}); start.update(.5,0);
+  assert.equal(start.x,start.start); assert.equal(start.hitReaction.velocity,0);
+  const fall = new DummyRun(flatCourse,1,{playerCombat:true}); fall.height=-200;
+  fall.receivePlayerHit({sequence:1,direction:1}); fall.update(.01,0);
+  assert.equal(fall.respawns,1); assert.equal(fall.hitReaction.protected,false);
+  assert.equal(fall.receivePlayerHit({sequence:1,direction:1}),false);
+  const finish = new DummyRun(flatCourse,1,{playerCombat:true}); finish.x=finish.finish-1;
+  finish.receivePlayerHit({sequence:1,direction:1}); finish.update(.1,0);
+  assert.equal(finish.won,true); assert.equal(finish.hitReaction.protected,false);
+  assert.equal(finish.receivePlayerHit({sequence:2,direction:-1}),false);
+  const dash = new DummyRun(flatCourse,1,{playerCombat:true}); dash.x=500; dash.startDash();
+  dash.receivePlayerHit({sequence:1,direction:-1});
+  assert.equal(dash.dash,0); assert.ok(dash.dashCooldown>0); assert.equal(dash.canJump,true);
+});
+
+test('hit visuals reuse attack textures and restore alpha and filters without resizing the pet', async () => {
+  const { Container, ColorMatrixFilter, DOMAdapter } = await import('pixi.js');
+  const { HitReactionEffect } = await importTs('../src/animals/HitReactionEffect.ts', import.meta.url);
+  const adapter=DOMAdapter.get();
+  DOMAdapter.set({...adapter,createCanvas:()=>({getContext:()=>null})});
+  try {
+  const target = new Container(), existing = new ColorMatrixFilter(); target.alpha=.8; target.scale.set(.62); target.filters=[existing];
+  const view = new HitReactionEffect(target,{attack:[Texture.WHITE]}), reaction = new HitReaction(true);
+  target.addChild(view); view.update(reaction);
+  assert.equal(target.alpha,.8); assert.equal(view.children[0].visible,false);
+  reaction.receive({sequence:1,direction:1}); view.update(reaction);
+  assert.equal(view.children[0].texture,Texture.WHITE); assert.equal(view.children[0].visible,true);
+  assert.equal(target.filters.length,2); assert.equal(target.filters[0],existing); assert.equal(target.scale.x,.62);
+  assert.ok(Math.abs(target.filters[1].matrix[0]+target.filters[1].matrix[4]-1)<.00001);
+  assert.ok(target.filters[1].matrix[4]>.8); // Blend toward white rather than clipping orange to yellow.
+  reaction.advance(.2); view.update(reaction);
+  assert.ok(target.alpha>=.8*.74&&target.alpha<=.8); assert.deepEqual([...target.filters],[existing]);
+  view.update(reaction,false); const steady=target.alpha;
+  reaction.advance(.2); view.update(reaction,false);
+  assert.equal(target.alpha,steady); assert.equal(view.children[0].visible,false);
+  reaction.advance(2); view.update(reaction);
+  assert.equal(target.alpha,.8); assert.deepEqual([...target.filters],[existing]);
+  view.destroy({children:true}); assert.equal(target.alpha,.8); target.destroy(); existing.destroy();
+  } finally { DOMAdapter.set(adapter); }
+});
 const flatCourse = [{ x: 0, width: 2850, top: 0, bottom: -300 }];
 test('dummy course takes ten seconds and returns only after victory and fade', () => {
   const run = new DummyRun(flatCourse);
