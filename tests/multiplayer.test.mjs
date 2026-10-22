@@ -773,7 +773,7 @@ test('flat action controls follow actual cooldown and airborne rules while prese
   try{
     scene=new PlayScene(config,()=>{},{open(){}});
     const dash=scene.controls.get('dash'),attack=scene.controls.get('attack'),jump=scene.controls.get('jump');
-    assert.equal(dash.element.disabled,false);assert.equal(attack.element.children[0].src,'./assets/controls/attack.svg');
+    assert.equal(dash.element.disabled,false);assert.equal(attack.element.children[0].src,'./assets/controls/attack.svg?v=20261023c');
     scene.act('dash');assert.equal(dash.element.disabled,true);assert.equal(dash.counter.textContent,'0.8s');assert.equal(dash.ring.hidden,false);
     scene.act('attack');assert.equal(scene.run.attack,0);scene.update(.4);assert.equal(attack.element.disabled,false);assert.equal(dash.element.disabled,true);assert.match(dash.ring.style.background,/conic-gradient/);
     scene.act('jump');assert.equal(scene.run.canDash,false);assert.equal(dash.element.disabled,true);assert.equal(attack.element.disabled,false);

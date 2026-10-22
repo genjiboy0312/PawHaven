@@ -7,7 +7,7 @@ export class ActionButton {
   private readonly counter=document.createElement('span');
   constructor(readonly action:ControlAction){
     const button=this.element;button.type='button';button.className='play-circle action-button';button.setAttribute('data-action',action);bindAria(button,action);
-    const icon=document.createElement('img');icon.className='control-icon';icon.src=`./assets/controls/${action}.svg`;icon.alt='';icon.draggable=false;icon.setAttribute('aria-hidden','true');
+    const icon=document.createElement('img');icon.className='control-icon';icon.src=`./assets/controls/${action}.svg?v=20261023c`;icon.alt='';icon.draggable=false;icon.setAttribute('aria-hidden','true');
     const label=document.createElement('span');label.className='control-label';bindText(label,action);
     this.ring.className='control-ring';this.ring.setAttribute('aria-hidden','true');this.counter.className='control-cooldown';this.counter.setAttribute('aria-hidden','true');
     this.ring.hidden=this.counter.hidden=true;button.append(icon,label,this.ring,this.counter);
