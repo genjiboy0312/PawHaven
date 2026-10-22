@@ -504,3 +504,6 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .play-result .single-new-best { color: #728648; font-family: var(--font-round); }
 .map-forest { border-top: 0.5cqh solid #73977c !important; }
 .map-forest::before { filter: hue-rotate(18deg) saturate(0.8); background-position: center 30%; }
+.run-recovery-panel{width: min(64cqw, 420px);text-align:center;padding:3cqh 3cqw;}
+.run-recovery-panel p{margin:2cqh 0;color:#70644f;line-height:1.5;}
+.run-recovery-panel .commerce-primary{margin-top:1cqh;}

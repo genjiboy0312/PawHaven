@@ -41,6 +41,8 @@ export class RoomClient {
   private readonly directOffsets=new Map<string,number>();
   private revision=0;private listening=false;
   private receivedAt=0; private timer?:ReturnType<typeof setTimeout>; private work?:Promise<boolean>; private closed=false;
+  private requestAbort?:AbortController;
+  private backgrounded=false;
   private clockSamples:{offset:number;rtt:number}[]=[];
   private clockOffset?:number;
   private lobbyKey='';private closeLobby?:()=>void;private lobbyConnected=false;private roomRefresh=false;
@@ -54,14 +56,22 @@ export class RoomClient {
   start(){
     if(!this.listening&&typeof window!=='undefined'&&typeof document!=='undefined'){
       this.listening=true;const options={signal:this.abort.signal};
+      this.backgrounded=document.hidden;
       window.addEventListener('online',()=>this.reconnect(),options);
       window.addEventListener('offline',()=>this.reconnect(),options);
       window.addEventListener('focus',()=>this.reconnect(),options);
-      document.addEventListener('visibilitychange',()=>this.reconnect(),options);
+      window.addEventListener('pagehide',()=>{this.backgrounded=true;this.reconnect();},options);
+      window.addEventListener('pageshow',()=>{this.backgrounded=document.hidden;this.reconnect();},options);
+      document.addEventListener('visibilitychange',()=>{this.backgrounded=document.hidden;this.reconnect();},options);
     }
     void this.poll();
   }
-  reconnect(){if(this.closed)return;this.stopStream();this.stopLobby();this.needsSync=true;this.revision++;clearTimeout(this.timer);this.emit();void this.poll();}
+  reconnect(){
+    if(this.closed)return;
+    this.stopStream();this.stopLobby();this.needsSync=true;this.revision++;
+    this.requestAbort?.abort();this.clockSamples=[];this.clockOffset=undefined;
+    clearTimeout(this.timer);this.emit();void this.poll();
+  }
   private stopLobby(){this.lobbyKey='';this.closeLobby?.();this.closeLobby=undefined;this.lobbyConnected=false;this.roomRefresh=false;}
   private syncLobby(){
     const room=this.room;if((room?.id??'')===this.lobbyKey)return;this.stopLobby();if(!room||!this.lobby)return;
@@ -103,7 +113,7 @@ export class RoomClient {
   }
   private async poll(){
     if(this.closed||this.busy||this.work)return;
-    if(typeof document!=='undefined'&&document.hidden)return;
+    if(this.backgrounded||typeof document!=='undefined'&&document.hidden)return;
     if(typeof navigator!=='undefined'&&navigator.onLine===false){this.needsSync=true;this.error='offline';this.emit();this.schedule();return;}
     const room=this.room;
     if(this.needsSync){await this.send(room?'sync':'list');return;}
@@ -122,10 +132,11 @@ export class RoomClient {
   private async send(action:string,payload:Record<string,unknown>={},roomId?:string):Promise<boolean>{
     clearTimeout(this.timer);if(this.closed)return false;
     const revision=this.revision;
+    const requestAbort=new AbortController();this.requestAbort=requestAbort;
     const started=performance.now();this.requestStarted=started;
     const task=(async()=>{
       try{
-        const signal=AbortSignal.any([this.abort.signal,AbortSignal.timeout(12000)]);
+        const signal=AbortSignal.any([this.abort.signal,requestAbort.signal,AbortSignal.timeout(12000)]);
         const data=await this.transport(action,roomId??this.room?.id??null,payload,signal) as RoomSnapshot;
         if(this.closed||revision!==this.revision)return false;
         if(!data||!Number.isFinite(data.now)||!Array.isArray(data.rooms)||data.rooms.length>80||
@@ -152,10 +163,10 @@ export class RoomClient {
       }
     })();
     this.work=task;
-    try{return await task;}finally{if(this.work===task)this.work=undefined;this.schedule();}
+    try{return await task;}finally{if(this.work===task)this.work=undefined;if(this.requestAbort===requestAbort)this.requestAbort=undefined;this.schedule();}
   }
   private schedule(){
-    clearTimeout(this.timer);if(this.closed||this.busy||(typeof document!=='undefined'&&document.hidden))return;
+    clearTimeout(this.timer);if(this.closed||this.busy||this.backgrounded||(typeof document!=='undefined'&&document.hidden))return;
     const racing=this.pose&&['countdown','playing'].includes(this.room?.phase??'');
     const delay=racing?Math.max(16,(this.directConnected?800:RACE_SYNC_MS)-(performance.now()-this.requestStarted)):this.room?(this.lobbyConnected?600:300):1200;
     this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync||this.startPosePending?0:this.roomRefresh?30:delay);

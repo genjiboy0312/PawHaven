@@ -589,6 +589,65 @@ test('background transitions invalidate stale responses and remove recovery list
   }finally{release();client.destroy(false);env.restore();}
 });
 
+test('single background recovery freezes time and input until Continue, without stacking over settings',()=>{
+  const env=dom();let scene,completed=0;
+  try{
+    const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+    scene=new PlayScene(config,()=>{},{open(){},complete(){completed++;}});
+    scene.keys.add('KeyD');scene.update(.1);const x=scene.run.x,time=scene.run.elapsed;
+    document.hidden=true;document.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(scene.keys.size,0);scene.update(10);assert.equal(scene.run.x,x);assert.equal(scene.run.elapsed,time);
+    assert.equal(env.host.querySelector('.run-recovery-overlay'),undefined);
+    document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('pageshow'));
+    const popup=env.host.querySelector('.run-recovery-overlay');assert.ok(popup);assert.equal(scene.hud.inert,true);
+    assert.equal(env.host.all().filter(e=>e.classList.contains('run-recovery-overlay')).length,1);
+    const key=Object.assign(new Event('keydown',{cancelable:true}),{code:'KeyD'});window.dispatchEvent(key);
+    scene.act('jump');scene.update(5);assert.equal(scene.run.x,x);assert.equal(scene.run.velocity,0);assert.equal(completed,0);
+    popup.all().find(e=>e.tag==='button').dispatchEvent(new Event('click'));
+    assert.equal(scene.hud.inert,false);scene.update(.1);assert.equal(scene.run.x,x);assert.ok(scene.run.elapsed>time);
+    scene.setPaused(true);document.hidden=true;document.dispatchEvent(new Event('visibilitychange'));
+    document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));assert.equal(scene.recoveryPopup,undefined);
+    scene.setPaused(false);assert.ok(scene.recoveryPopup);scene.recoveryPopup.element.all().find(e=>e.tag==='button').dispatchEvent(new Event('click'));
+    scene.run.victoryTime=0;scene.update(.1);assert.equal(completed,1);
+    window.dispatchEvent(new Event('pagehide'));window.dispatchEvent(new Event('pageshow'));scene.update(.1);
+    assert.equal(scene.recoveryPopup,undefined);assert.equal(completed,1);
+    scene.destroy({children:true});scene=undefined;
+    document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('pageshow'));
+    assert.equal(env.host.querySelector('.run-recovery-overlay'),undefined);
+  }finally{scene?.destroy({children:true});env.restore();}
+});
+
+test('race recovery offers room selection after 20 seconds, dismisses on sync and exits only once',t=>{
+  const env=dom();let scene,now=0,failed=0;t.mock.method(performance,'now',()=>now);
+  const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  const room={id:'room',map:'garden',round:'round',phase:'playing',startsAt:1,endsAt:120000,members:[],racers:[]};
+  const client={owner:'owner',room,reconnecting:true,error:'offline',recoverySerial:0,serverTime:2000,peerPose:m=>({pose:m.pose,at:0}),publishStartPose(){}};
+  try{
+    scene=new PlayScene(config,()=>{},{open(){},multiplayer:{client,pets:[config],leave(){assert.fail('use room selection callback');},failed(){failed++;}}});
+    scene.update(.01);now=19999;scene.update(.01);assert.equal(scene.recoveryPopup,undefined);
+    now=20000;scene.update(.01);assert.ok(scene.recoveryPopup);assert.equal(scene.hud.inert,true);
+    client.reconnecting=false;client.error='';scene.update(.01);assert.equal(scene.recoveryPopup,undefined);assert.equal(scene.hud.inert,false);
+    client.reconnecting=true;scene.update(.01);now=40000;scene.update(.01);
+    const back=scene.recoveryPopup.element.all().find(e=>e.tag==='button');back.dispatchEvent(new Event('click'));back.dispatchEvent(new Event('click'));scene.update(1);
+    assert.equal(failed,1);assert.equal(scene.recoveryPopup,undefined);
+  }finally{scene?.destroy({children:true});env.restore();}
+});
+
+test('pagehide aborts an in-flight room request and pageshow resynchronizes before actions resume',async()=>{
+  const env=dom();let calls=0,firstSignal;
+  const client=new RoomClient(users[0],async(_a,_r,_p,signal)=>{
+    calls++;if(calls===1){firstSignal=signal;await new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(Error('aborted')),{once:true}));}
+    return{room:null,rooms:[],now:calls};
+  });
+  try{
+    client.start();window.dispatchEvent(new Event('pagehide'));await idle(client);
+    assert.equal(firstSignal.aborted,true);assert.equal(client.snapshot.now,0);assert.equal(client.reconnecting,true);
+    document.hidden=false;window.dispatchEvent(new Event('pageshow'));await idle(client);
+    assert.equal(calls,2);assert.equal(client.snapshot.now,2);assert.equal(client.reconnecting,false);
+    client.destroy(false);window.dispatchEvent(new Event('pageshow'));assert.equal(calls,2);
+  }finally{client.destroy(false);env.restore();}
+});
+
 test('host selects maps in a separate popup, resetting Ready and restoring the room focus surface',async()=>{
   const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});
   const env=dom(),client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));let menu;

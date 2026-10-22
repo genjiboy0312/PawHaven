@@ -135,6 +135,7 @@ export class Game {
     this.app.renderer.on('resize', this.resize);
     this.app.ticker.add(this.tick);
     document.addEventListener('visibilitychange', this.visibility);
+    window.addEventListener('pageshow', this.visibility, { signal: this.events.signal });
 
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
@@ -197,7 +198,8 @@ export class Game {
               lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
             },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,
               sound:kind=>{this.audio?.play(kind);},
-              multiplayer:{client,pets:[corgi,this.myeongrang!],leave:()=>{client.destroy();this.rooms=undefined;lobby(true);}},
+              multiplayer:{client,pets:[corgi,this.myeongrang!],leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
+                failed:()=>{client.destroy();this.rooms=undefined;lobby(true,'multi');}},
             }));
           },
           dismiss:keep=>{this.playMenu=undefined;if(!keep){rooms?.destroy();if(this.rooms===rooms)this.rooms=undefined;}},

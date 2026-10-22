@@ -1,5 +1,7 @@
 export type Language = 'en' | 'ko';
 const en = {
+  runPaused:'Paused', runResumeNote:'Take your time. Continue when you are ready.', runResume:'Continue',
+  runConnectionLost:'Unable to reconnect', runConnectionNote:'The connection is taking too long. You can return to the room list.', runRoomList:'Back to room list',
   installApp: 'Install app', installWorking: 'Opening installer…', installFailed: 'Could not open the installer. Try Chrome’s Install app menu.',
   purchaseTitle: 'Confirm purchase', purchaseQuantity: 'Quantity', purchaseAfter: 'Balance after purchase', purchaseConfirm: 'Buy', purchaseCancel: 'Cancel',
   shopComingSoon: 'Coming soon',
@@ -88,6 +90,8 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  runPaused:'잠시 쉬는 중', runResumeNote:'준비되시면 이어서 달려요.', runResume:'이어하기',
+  runConnectionLost:'연결을 복구하지 못했어요', runConnectionNote:'연결이 오래 걸리고 있어요. 방 목록으로 돌아갈 수 있어요.', runRoomList:'방 목록으로',
   installApp: '앱 설치', installWorking: '설치창 여는 중…', installFailed: '설치창을 열지 못했어요. 크롬 메뉴에서 앱 설치를 확인해 주세요.',
   purchaseTitle: '구매 확인', purchaseQuantity: '수량', purchaseAfter: '구매 후 잔액', purchaseConfirm: '구매', purchaseCancel: '취소',
   shopComingSoon: '준비 중',

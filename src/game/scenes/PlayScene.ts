@@ -12,6 +12,7 @@ import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
 import { RacePodium } from '../../ui/RacePodium';
 import { RaceProgress } from '../../ui/RaceProgress';
+import { RunRecoveryPopup } from '../../ui/RunRecoveryPopup';
 import { RemoteMotion } from '../../multiplayer/RemoteMotion';
 import { raceCountdown } from '../../multiplayer/RaceCountdown';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
@@ -66,7 +67,26 @@ export class PlayScene extends Scene {
   private readonly keys = new Set<string>();
   private readonly abort = new AbortController();
   private paused = false;
-  override setPaused(paused: boolean): void { this.paused = paused; this.blur(); }
+  private suspended = false;
+  private recoveryPopup?: RunRecoveryPopup;
+  private recoverySince?: number;
+  override setPaused(paused: boolean): void {
+    this.paused = paused; this.blur();
+    if (paused) this.closeRecovery();
+    else this.showResume();
+  }
+  private closeRecovery(): void { this.recoveryPopup?.destroy(); this.recoveryPopup = undefined; }
+  private showResume(): void {
+    if (!this.suspended || this.paused || document.hidden || this.recoveryPopup || this.returned) return;
+    this.recoveryPopup = new RunRecoveryPopup(this.hud, false, () => {
+      this.closeRecovery(); this.blur(); this.suspended = false;
+    });
+  }
+  private readonly background = (): void => {
+    this.blur();
+    if (!this.settings?.multiplayer && !this.run.won && !this.returned) this.suspended = true;
+  };
+  private readonly foreground = (): void => { if (!document.hidden) this.showResume(); };
   private axis = 0;
   private pointer: number | undefined;
   private elapsed = 0;
@@ -79,7 +99,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number)=>boolean; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number)=>boolean; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true});
@@ -183,7 +203,7 @@ export class PlayScene extends Scene {
     document.querySelector('#app')?.append(this.hud);
     const signal = this.abort.signal;
     const move = (event: PointerEvent): void => {
-      if (this.paused || event.pointerId !== this.pointer) return;
+      if (this.paused || this.suspended || this.recoveryPopup || event.pointerId !== this.pointer) return;
       const rect = this.stick.getBoundingClientRect();
       const rotated = document.querySelector('#app')?.classList.contains('portrait-touch')??false;
       const distance = rotated ? event.clientY - rect.top - rect.height / 2 : event.clientX - rect.left - rect.width / 2;
@@ -192,7 +212,7 @@ export class PlayScene extends Scene {
       this.knob.style.transform = `translateX(${this.axis * 65}%)`;
     };
     this.stick.addEventListener('pointerdown', (event) => {
-      if (this.paused || event.button !== 0 || this.pointer !== undefined) return;
+      if (this.paused || this.suspended || this.recoveryPopup || event.button !== 0 || this.pointer !== undefined) return;
       this.pointer = event.pointerId; this.stick.setPointerCapture(event.pointerId); move(event);
     }, { signal });
     this.stick.addEventListener('pointermove', move, { signal });
@@ -202,8 +222,13 @@ export class PlayScene extends Scene {
     window.addEventListener('blur', this.blur, { signal });
     window.addEventListener('resize', this.blur, { signal });
     document.addEventListener('visibilitychange', this.blur, { signal });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.background(); else this.foreground();
+    }, { signal });
+    window.addEventListener('pagehide', this.background, { signal });
+    window.addEventListener('pageshow', this.foreground, { signal });
     window.addEventListener('keydown', (event) => {
-      if (this.paused || this.podium) return;
+      if (this.paused || this.suspended || this.recoveryPopup || this.podium) return;
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', 'KeyA', 'KeyD', 'KeyW', 'ShiftLeft', 'ShiftRight', 'KeyJ'].includes(event.code)) return;
       event.preventDefault(); this.keys.add(event.code);
       if (event.repeat) return;
@@ -219,7 +244,7 @@ export class PlayScene extends Scene {
     this.retrying = retry; this.retry.disabled = this.back.disabled = true; this.run.leave();
   }
   private act(kind: 'jump' | 'dash' | 'attack'): void {
-    if (this.paused || this.run.won || !this.raceStarted) return;
+    if (this.paused || this.suspended || this.recoveryPopup || this.run.won || !this.raceStarted) return;
     const before = kind === 'jump' ? this.run.velocity : this.run[kind];
     if (kind === 'jump') this.run.jump();
     else if (kind === 'dash') this.run.startDash();
@@ -258,6 +283,16 @@ export class PlayScene extends Scene {
     const multi=this.settings?.multiplayer;if(!multi)return false;
     const client=multi.client,room=client.room;
     if(client.reconnecting||client.error)this.blur();
+    if(client.reconnecting||client.error){
+      this.recoverySince??=performance.now();
+      if(!this.recoveryPopup&&performance.now()-this.recoverySince>=20000){
+        this.recoveryPopup=new RunRecoveryPopup(this.hud,true,()=>{
+          if(this.returned)return;
+          this.returned=true; this.closeRecovery();
+          if(multi.failed)multi.failed();else multi.leave();
+        });
+      }
+    }else{this.recoverySince=undefined;this.closeRecovery();}
     if(!client.reconnecting&&!client.error&&(!room||room.round!==this.raceRound)){
       this.returned=true;this.onReturn();return true;
     }
@@ -320,7 +355,7 @@ export class PlayScene extends Scene {
     return false;
   }
   override update(seconds: number): void {
-    if (this.paused || this.returned) return;
+    if (this.paused || this.suspended || this.returned) return;
     if(this.network(seconds))return;
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
@@ -391,6 +426,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    this.closeRecovery();
     this.courseProgress?.destroy();
     this.podium?.destroy();
     if(this.settings?.multiplayer)this.settings.multiplayer.client.pose=undefined;
