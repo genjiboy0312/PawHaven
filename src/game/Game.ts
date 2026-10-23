@@ -174,10 +174,11 @@ export class Game {
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab));
     };
     let inGame=false;let currentLobby:LobbyScene|undefined;
+    const saveRoomLook=async()=>{if(this.account?.pendingSave)await this.account.save();};
     const makeActivity=()=>{
       const owner=this.account?.user?.id;
       if(!owner||!accountClient)return;
-      const activity=new FriendActivity(owner,activityTransport(accountClient,owner),()=>inGame?'playing':'lobby');
+      const activity=new FriendActivity(owner,activityTransport(accountClient,owner,saveRoomLook),()=>inGame?'playing':'lobby');
       this.friendActivity=activity;
       this.friendInbox=new FriendInviteInbox(activity,()=>!!currentLobby&&!!this.scenes?.isCurrent(currentLobby)&&!this.rooms?.room&&!document.hidden&&!document.querySelector('#app > .settings-overlay:not(.friend-invite-inbox)'),
         paused=>this.scenes?.setPaused(paused),()=>{lobby(true,'multi');});
@@ -217,9 +218,7 @@ export class Game {
       const openMenu=(page:'mode'|'multi'='mode'):void=>{
         if(this.disposed)return;
         const owner=this.account?.user?.id;
-        const rooms=this.rooms??(owner&&accountClient?new RoomClient(owner,roomTransport(accountClient,owner,async()=>{
-          if(this.account?.pendingSave&&this.account.canSave)await this.account.save();
-        }),roomStream(accountClient,owner),lobbyStream(accountClient,owner)):undefined);
+        const rooms=this.rooms??(owner&&accountClient?new RoomClient(owner,roomTransport(accountClient,owner,saveRoomLook),roomStream(accountClient,owner),lobbyStream(accountClient,owner)):undefined);
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
           invitation:invitation.room?{id:invitation.room,dismiss:clearInvitation}:undefined,

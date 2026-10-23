@@ -3,6 +3,7 @@ import type { AnimalAction } from '../animals/AnimalConfig';
 import type { CharacterPreset } from '../animals/CharacterPresets';
 import type { CourseId } from '../game/CourseCatalog';
 import { COURSES } from '../game/CourseCatalog';
+import { prepareRoomAppearance } from './RoomAppearance';
 import type { RoomStream, StreamPose, LobbyStream } from './RoomStream';
 export interface Pose { x: number; height: number; direction: number; action: AnimalAction; progress: number; vx: number }
 export interface RoomMember { id: string; name: string; look: CharacterPreset; ready: boolean; returned: boolean; pose: Pose }
@@ -13,8 +14,7 @@ export const RACE_SYNC_MS=100;
 type Transport = (action:string,room:string|null,payload:Record<string,unknown>,signal:AbortSignal)=>Promise<unknown>;
 export function roomTransport(client: SupabaseClient, owner:string,saveLook?:()=>Promise<void>):Transport {
   return async(action,room,payload,signal)=>{
-    // Cosmetic sync is best effort; room admission must not depend on cloud-save health.
-    if(['create','join'].includes(action)&&saveLook){try{void saveLook().catch(()=>{});}catch{/* Use the last server-confirmed appearance. */}}
+    if(['create','join'].includes(action))await prepareRoomAppearance(saveLook,signal);
     const {data,error}=await client.auth.getSession();
     if(error) throw error;
     if(signal.aborted || data.session?.user.id!==owner) throw {code:'42501'};

@@ -59,7 +59,7 @@ export class PlayMenuPopup {
       else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
     },{signal:this.abort.signal});
     this.localeOff=onLanguageChange(()=>{this.closeLeavePrompt();this.closeMapPicker();this.render();});this.unsubscribe=this.options.rooms?.subscribe(()=>this.changed());
-    if(page==='multi')this.options.rooms?.start();this.render();close.focus();
+    if(page==='multi')this.options.rooms?.start();this.render();if(!close.hidden)close.focus();else this.footer.querySelector<HTMLElement>('button:not(:disabled)')?.focus();
   }
   private button(key:TextKey,action:()=>void){const b=document.createElement('button');b.type='button';b.className='commerce-primary';b.textContent=t(key);b.addEventListener('click',action);return b;}
   private backToModes(){if(this.busy)return;this.page='mode';this.notice=undefined;this.render();this.content?.querySelectorAll<HTMLElement>('button:not(:disabled)')[0]?.focus();}
@@ -76,7 +76,7 @@ export class PlayMenuPopup {
         void this.action(async()=>{if(await client.command('leave')){this.page='multi';this.notice=undefined;}});
       },()=>this.closeLeavePrompt());return;
     }
-    if(this.page==='create'){this.page='multi';this.notice=undefined;this.render();this.closeButton?.focus();}
+    if(this.page==='create'){this.page='multi';this.notice=undefined;this.render();this.footer.querySelector<HTMLElement>('.play-menu-exit')?.focus();}
     else this.backToModes();
   }
   private text(value:string){const p=document.createElement('p');p.textContent=value;return p;}
@@ -218,7 +218,7 @@ export class PlayMenuPopup {
     this.footer.replaceChildren();this.footer.hidden=true;
     this.footer.classList.remove('room-menu-footer');
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
-    if(this.closeButton){const back=this.page!=='mode';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
+    if(this.closeButton){const back=this.page!=='mode';this.closeButton.hidden=this.page==='multi';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.closeButton.hidden||this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
     this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'singleplayer':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
     if(this.page==='mode'){
@@ -236,7 +236,7 @@ export class PlayMenuPopup {
     }else if(room){
       this.footer.classList.add('room-menu-footer');this.footer.hidden=false;
       const actions=document.createElement('div');actions.className='room-footer-actions';
-      this.footer.append(this.button('leaveRoom',()=>this.navigateBack()),actions);
+      const leave=this.button('leaveRoom',()=>this.navigateBack());leave.classList.add('play-menu-exit');this.footer.append(leave,actions);
       root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
       if(room.phase==='waiting'){
         const href=this.options.inviteHref??window.location?.href;
@@ -296,6 +296,7 @@ export class PlayMenuPopup {
       navigation.append(this.button('previous',()=>pager.scrollBy({left:-pager.clientWidth,behavior:'smooth'})),status,this.button('next',()=>pager.scrollBy({left:pager.clientWidth,behavior:'smooth'})));
       pager.addEventListener('scroll',update);update();this.footer.append(navigation);this.footer.hidden=false;
     }
+    if(this.page==='multi'&&!room){const leave=this.button('leaveRoom',()=>this.navigateBack());leave.classList.add('play-menu-exit');leave.setAttribute('data-recovery-control','true');this.footer.append(leave);this.footer.hidden=false;}
     if(client?.error||client?.reconnecting){
       const key:TextKey=client.rejection==='already_in_room'?'multiAlreadyJoined':client.rejection==='room_closed'?'multiRoomClosed':client.rejection==='room_unavailable'?'multiRoomFull':client.rejection==='auth'?'multiAuthRetry':client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiReconnecting';
       const p=this.text(t(key));p.setAttribute('role','status');const retry=this.button('economyRetry',()=>client.reconnect());retry.setAttribute('data-recovery-control','true');root.append(p,retry);

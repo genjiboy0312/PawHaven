@@ -5,6 +5,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { importTs } from './load-typescript.mjs';
 Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},configurable:true});
 const {RoomClient,roomTransport}=await importTs('../src/multiplayer/RoomClient.ts',import.meta.url);
+const {prepareRoomAppearance}=await importTs('../src/multiplayer/RoomAppearance.ts',import.meta.url);
 const {RoomInvitation,invitationFromUrl,roomInvitationUrl,shareRoomInvitation}=await importTs('../src/multiplayer/RoomInvitation.ts',import.meta.url);
 const {RoomInviteButton}=await importTs('../src/ui/RoomInviteButton.ts',import.meta.url);
 const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.url);
@@ -304,7 +305,9 @@ test('room menu renders four cards per page with counts and blocks full/running 
     const footer=env.host.querySelector('.play-menu-footer'),navigation=env.host.querySelector('.room-navigation');
     assert.equal(footer.contains(navigation),true);assert.equal(menu.content.contains(navigation),false);assert.equal(footer.hidden,false);
     navigation.children[2].dispatchEvent(new Event('click'));assert.equal(pager.scrollLeft,500);assert.equal(navigation.children[1].textContent,'2 / 2');
-    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(footer.hidden,true);
+    assert.equal(menu.closeButton.hidden,true);assert.equal(menu.closeButton.disabled,true);
+    assert.equal(footer.contains(env.host.querySelector('.play-menu-exit')),true);
+    env.host.querySelector('.play-menu-exit').dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(footer.hidden,true);assert.equal(menu.closeButton.hidden,false);
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
 
@@ -922,15 +925,30 @@ test('a second account joins from the room card and stays in the shared room wit
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
 
-test('cloud cosmetic save failure cannot block room admission and auth is checked after the save attempt',{timeout:5000},async()=>{
+test('room admission waits for appearance save, tolerates failure and rechecks the account',{timeout:5000},async()=>{
   let rpcCalls=0,saves=0,active=users[1];
   const client={auth:{getSession:async()=>({data:{session:{user:{id:active},access_token:'token'}}})},rpc(name,args){rpcCalls++;assert.equal(args.p_action,'join');return {setHeader(){return this;},abortSignal(){return Promise.resolve({data:{room:null,rooms:[],now:1},error:null});}};}};
   const send=roomTransport(client,users[1],async()=>{saves++;throw Error('cloud conflict');});
   await send('join','room',{},new AbortController().signal);assert.equal(saves,1);assert.equal(rpcCalls,1);
   let release;const saving=new Promise(resolve=>{release=resolve;});const pending=roomTransport(client,users[1],()=>saving);
-  try{await pending('join','room',{},new AbortController().signal);assert.equal(rpcCalls,2);}finally{release();}
+  const joining=pending('join','room',{},new AbortController().signal);await new Promise(resolve=>setImmediate(resolve));assert.equal(rpcCalls,1,'admission waits for the selected look to finish saving');release();await joining;assert.equal(rpcCalls,2);
   const changed=roomTransport(client,users[1],async()=>{active=users[0];});
   await assert.rejects(()=>changed('join','room',{},new AbortController().signal));assert.equal(rpcCalls,2);
+});
+
+test('appearance preparation releases stalled saves on deadline or cancellation',async()=>{
+ const stalled=()=>new Promise(()=>{}),abort=new AbortController();
+ await prepareRoomAppearance(stalled,abort.signal,10);
+ const waiting=prepareRoomAppearance(stalled,abort.signal,10000);abort.abort();await waiting;
+ let called=false;await prepareRoomAppearance(async()=>{called=true;},abort.signal);assert.equal(called,false);
+});
+
+test('a freshly selected pet reaches the real room member snapshot before admission',async()=>{
+ const room=(await cmd(0,'create')).room;let release;const gate=new Promise(resolve=>{release=resolve;});
+ const api={auth:{getSession:async()=>({data:{session:{user:{id:users[1]},access_token:'owner'}}})},rpc(_name,args){return{setHeader(){return this;},abortSignal(){return cmd(1,args.p_action,args.p_room,args.p_payload).then(data=>({data,error:null}));}};}};
+ const send=roomTransport(api,users[1],async()=>{await gate;await db.query("insert into public.player_saves(user_id,snapshot) values($1,$2) on conflict(user_id) do update set snapshot=excluded.snapshot",[users[1],JSON.stringify({version:1,character:{petId:'myeongrang',outfit:{Hat:1,Body:0,Acc:0,Etc:0}}})]);});
+ const joining=send('join',room.id,{},new AbortController().signal);release();
+ const data=await joining;assert.equal(data.room.members.find(m=>m.id===users[1]).look.petId,'myeongrang');assert.equal(data.room.members.find(m=>m.id===users[1]).look.outfit.Hat,1);
 });
 
 test('database broadcasts accepted poses privately and room topics reject outsiders and client writes',async()=>{

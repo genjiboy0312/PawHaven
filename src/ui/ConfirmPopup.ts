@@ -33,6 +33,6 @@ export class ConfirmPopup {
   destroy():void{
     this.abort.abort();this.element.remove();this.parent.inert=this.wasInert;
     if(this.opener?.isConnected)this.opener.focus();
-    else this.parent.querySelector<HTMLElement>('.settings-close')?.focus();
+    else {const fallback=this.parent.querySelector<HTMLButtonElement>('.play-menu-exit')??this.parent.querySelector<HTMLButtonElement>('.settings-close');if(fallback&&!fallback.hidden&&!fallback.disabled)fallback.focus();}
   }
 }

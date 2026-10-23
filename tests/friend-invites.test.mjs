@@ -83,6 +83,13 @@ test('activity transport binds authenticated owner and forwards cancellation and
  assert.deepEqual(args,{p_action:'accept',p_target:users[1],p_mode:'lobby',p_ticket:users[3]});assert.deepEqual(headers,['Authorization','Bearer owner']);assert.equal(signal,abort.signal);
  current={user:{id:users[1]},access_token:'other'};await assert.rejects(send('poll',null,'lobby',null,abort.signal));assert.equal(calls,1);
 });
+
+test('friend invite acceptance also saves the selected appearance before admission',async()=>{
+ let release,admitted=false,saved=false;const gate=new Promise(resolve=>{release=resolve;});
+ const api={auth:{async getSession(){return{data:{session:{user:{id:users[0]},access_token:'owner'}},error:null};}},rpc(){admitted=true;assert.equal(saved,true);return{setHeader(){return this;},abortSignal(){return Promise.resolve({data:blank(),error:null});}};}};
+ const send=activityTransport(api,users[0],async()=>{await gate;saved=true;});
+ const accepting=send('accept',users[1],'lobby',users[3],new AbortController().signal);await new Promise(resolve=>setImmediate(resolve));assert.equal(admitted,false);release();await accepting;assert.equal(admitted,true);
+});
 test('activity discards disposed-account responses, validates data, maps errors and hides stale inbox in gameplay',async()=>{
  let release,mode='lobby',failure='',calls=0;const gate=new Promise(resolve=>{release=resolve;});
  const data={...blank(),people:[{id:users[1],state:'lobby'}],invitations:[{sender:users[1],nickname:'Friend',room:users[3],name:'Room',ticket:users[4],expires:Date.now()+60000}]};

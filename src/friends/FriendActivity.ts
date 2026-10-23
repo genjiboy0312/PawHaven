@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { prepareRoomAppearance } from '../multiplayer/RoomAppearance';
 export type ActivityState='offline'|'lobby'|'room'|'playing';
 export interface FriendInvite {sender:string;nickname:string;room:string;name:string;ticket:string;expires:number}
 export interface ActivitySnapshot {people:{id:string;state:ActivityState}[];invitations:FriendInvite[];cooldowns:{id:string;until:number}[];joined:string|null;now:number}
@@ -6,8 +7,9 @@ type Mode='lobby'|'playing';
 type Transport=(action:string,target:string|null,mode:Mode,ticket:string|null,signal:AbortSignal)=>Promise<unknown>;
 const uuid=(value:unknown):value is string=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const empty=():ActivitySnapshot=>({people:[],invitations:[],cooldowns:[],joined:null,now:0});
-export function activityTransport(client:SupabaseClient,owner:string):Transport{
+export function activityTransport(client:SupabaseClient,owner:string,saveLook?:()=>Promise<void>):Transport{
   return async(action,target,mode,ticket,signal)=>{
+    if(action==='accept')await prepareRoomAppearance(saveLook,signal);
     const {data,error}=await client.auth.getSession();if(error)throw error;
     if(signal.aborted||data.session?.user.id!==owner)throw {code:'42501'};
     const result=await client.rpc('friend_activity',{p_action:action,p_target:target,p_mode:mode,p_ticket:ticket})
