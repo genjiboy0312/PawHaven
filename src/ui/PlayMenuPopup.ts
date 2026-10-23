@@ -6,6 +6,7 @@ import { paintPetPortrait } from './PetPortrait';
 import { raceResults } from './RaceResults';
 import { RoomInviteButton } from './RoomInviteButton';
 import { singleGoals } from './SingleGoals';
+import { ConfirmPopup } from './ConfirmPopup';
 import type { SingleGoal } from '../game/SingleRecords';
 type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
@@ -27,6 +28,7 @@ export class PlayMenuPopup {
   private portraitTimer?:ReturnType<typeof setInterval>;
   private mapPicker?:HTMLElement;private mapPickerAbort?:AbortController;
   private pickerSingle=false;
+  private leavePrompt?:ConfirmPopup;private leaveRoomId?:string;
   private pickerBlocked?:{element:HTMLElement;inert:boolean};private pickerFocus?:HTMLElement;
   constructor(private readonly pause:(value:boolean)=>void,private readonly options:{
     rooms?:RoomClient;single:(map:CourseId)=>Promise<boolean>;race:(room:Room,client:RoomClient)=>void;
@@ -46,24 +48,41 @@ export class PlayMenuPopup {
     this.blocked.forEach(b=>{b.element.inert=true;});this.pause(true);
     const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
     const panel=document.createElement('section');this.panel=panel;panel.className='settings-panel play-menu-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'play');
-    this.title=document.createElement('h2');const close=this.button('close',()=>{if(this.page==='single')this.backToModes();else void this.exit();});this.closeButton=close;close.className='settings-close';close.textContent='×';bindAria(close,'close');
+    this.title=document.createElement('h2');const close=this.button('close',()=>this.navigateBack());this.closeButton=close;close.className='settings-close';close.textContent='×';bindAria(close,'close');
     this.content=document.createElement('div');this.content.className='settings-content play-menu-content';this.footer.className='play-menu-footer';this.footer.hidden=true;panel.append(this.title,close,this.content,this.footer);overlay.append(panel);host.append(overlay);
     panel.addEventListener('keydown',event=>{
-      if(event.key==='Escape'){event.preventDefault();if(this.page==='single')this.backToModes();else void this.exit();}
+      if(event.key==='Escape'){event.preventDefault();this.navigateBack();}
       if(event.key!=='Tab')return;
       const controls=Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not([hidden])'));
       if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
       else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
     },{signal:this.abort.signal});
-    this.localeOff=onLanguageChange(()=>{this.closeMapPicker();this.render();});this.unsubscribe=this.options.rooms?.subscribe(()=>this.changed());
+    this.localeOff=onLanguageChange(()=>{this.closeLeavePrompt();this.closeMapPicker();this.render();});this.unsubscribe=this.options.rooms?.subscribe(()=>this.changed());
     if(page==='multi')this.options.rooms?.start();this.render();close.focus();
   }
   private button(key:TextKey,action:()=>void){const b=document.createElement('button');b.type='button';b.className='commerce-primary';b.textContent=t(key);b.addEventListener('click',action);return b;}
   private backToModes(){if(this.busy)return;this.page='mode';this.notice=undefined;this.render();this.content?.querySelectorAll<HTMLElement>('button:not(:disabled)')[0]?.focus();}
+  private closeLeavePrompt(){this.leavePrompt?.destroy();this.leavePrompt=undefined;this.leaveRoomId=undefined;}
+  private navigateBack(){
+    const client=this.options.rooms;
+    if(this.busy||client?.busy||this.leavePrompt)return;
+    if(this.page==='mode'){void this.exit();return;}
+    if(client?.room&&this.panel){
+      const id=client.room.id;this.leaveRoomId=id;
+      this.leavePrompt=new ConfirmPopup(this.panel,'roomLeaveTitle','roomLeaveNote','leaveRoom',()=>{
+        this.closeLeavePrompt();
+        if(client.room?.id!==id)return;
+        void this.action(async()=>{if(await client.command('leave')){this.page='multi';this.notice=undefined;}});
+      },()=>this.closeLeavePrompt());return;
+    }
+    if(this.page==='create'){this.page='multi';this.notice=undefined;this.render();this.closeButton?.focus();}
+    else this.backToModes();
+  }
   private text(value:string){const p=document.createElement('p');p.textContent=value;return p;}
   private async action(run:()=>Promise<unknown>){if(this.busy)return;this.busy=true;this.render();try{await run();}catch{this.notice='multiOffline';}finally{this.busy=false;this.changed();}}
   private changed(){
     const client=this.options.rooms,room=client?.room;
+    if(this.leavePrompt&&room?.id!==this.leaveRoomId)this.closeLeavePrompt();
     if(room&&room.id===this.options.invitation?.id)this.clearInvitation();
     const previous=this.previousRoom;
     if(room&&previous?.id===room.id){
@@ -141,8 +160,8 @@ export class PlayMenuPopup {
     }return card;
   }
   private singleMaps(){
-    const change=this.button('chooseMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
-    change.textContent=t('chooseMap')+' ('+Object.keys(COURSES).length+')';change.setAttribute('aria-haspopup','dialog');change.setAttribute('aria-expanded','false');
+    const change=this.button('changeMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
+    change.textContent=t('changeMap')+' ('+Object.keys(COURSES).length+') ▾';change.setAttribute('aria-haspopup','dialog');change.setAttribute('aria-expanded','false');
     const actions=document.createElement('div');actions.className='single-map-actions';
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
@@ -197,7 +216,7 @@ export class PlayMenuPopup {
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
     this.footer.replaceChildren();this.footer.hidden=true;
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
-    if(this.closeButton){this.closeButton.className='settings-close'+(this.page==='single'?' play-menu-back':'');this.closeButton.textContent=this.page==='single'?'←':'×';bindAria(this.closeButton,this.page==='single'?'back':'close');this.closeButton.disabled=this.page==='single'&&this.busy;}
+    if(this.closeButton){const back=this.page!=='mode';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
     this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'singleplayer':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
     if(this.page==='mode'){
@@ -250,7 +269,7 @@ export class PlayMenuPopup {
         const start=this.button(host?'start':mine?.ready?'cancelReady':'ready',()=>{void client.command(host?'start':'ready',host?{}:{ready:!mine?.ready});});
         start.disabled=client.busy||(host&&(room.members.length<2||room.members.some(m=>m.id!==room.host&&!m.ready)))||room.phase!=='waiting';root.append(start);
       }
-      root.append(this.button('leaveRoom',()=>{void this.action(async()=>{await client.command('leave');});}));
+      root.append(this.button('leaveRoom',()=>this.navigateBack()));
       if(client.notice==='round'&&['countdown','playing'].includes(room.phase))root.append(this.button('raceResume',()=>client.clearNotice()));
       if(this.roomEvent){const event=this.text(t(this.roomEvent.key).replace('{name}',this.roomEvent.name));event.className='room-event';event.setAttribute('role','status');root.append(event);}
     }else{
@@ -277,7 +296,6 @@ export class PlayMenuPopup {
     }
     else if(client?.notice){const p=this.text(t(client.notice==='removed'?'multiRemoved':client.notice==='round'?'multiRoundChanged':'multiRestored'));p.setAttribute('role','status');root.append(p);}
     if(this.notice)root.append(this.text(t(this.notice)));
-    if(this.page!=='mode'&&this.page!=='single'&&!room){const back=this.button('back',()=>{this.page=this.page==='create'?'multi':'mode';this.render();});back.classList.add('play-menu-bottom-back');back.setAttribute('data-recovery-control','true');this.footer.append(back);this.footer.hidden=false;}
     const buttons=[...Array.from(root.querySelectorAll<HTMLButtonElement>('button')),...Array.from(this.footer.querySelectorAll<HTMLButtonElement>('button'))];
     if(this.busy||client?.busy)for(const b of buttons)b.disabled=true;
     if((this.page==='multi'||this.page==='create')&&(client?.error||client?.reconnecting))for(const b of buttons)if(b.getAttribute('data-recovery-control')!=='true')b.disabled=true;
@@ -286,7 +304,7 @@ export class PlayMenuPopup {
   }
   private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!this.options.rooms.error&&!this.options.rooms.reconnecting&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
-    if(!this.overlay)return;this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
+    if(!this.overlay)return;this.closeLeavePrompt();this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
     if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
   }

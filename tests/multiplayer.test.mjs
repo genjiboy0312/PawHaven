@@ -304,7 +304,7 @@ test('room menu renders four cards per page with counts and blocks full/running 
     const footer=env.host.querySelector('.play-menu-footer'),navigation=env.host.querySelector('.room-navigation');
     assert.equal(footer.contains(navigation),true);assert.equal(menu.content.contains(navigation),false);assert.equal(footer.hidden,false);
     navigation.children[2].dispatchEvent(new Event('click'));assert.equal(pager.scrollLeft,500);assert.equal(navigation.children[1].textContent,'2 / 2');
-    footer.children[1].dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(footer.hidden,true);
+    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(footer.hidden,true);
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
 
@@ -446,7 +446,7 @@ test('single map choice launches without an account and restores the lobby input
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
-    assert.equal(env.host.querySelector('.single-map-change').textContent,'Choose map (3)');
+    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (3) ▾');
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
     const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,3);
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
@@ -574,6 +574,56 @@ test('forest can launch as single but never leaks into room creation after switc
     const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice']);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);assert.equal(client.room.map,'garden');
   }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
+
+test('single and multiplayer use one top back action while preserving pagination and map changes',async()=>{
+  const {setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
+  const env=dom(),client=new RoomClient(users[0],async()=>({room:null,rooms:[],now:Date.now()}));let menu;
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>false,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    assert.equal(env.host.querySelector('.play-menu-back').textContent,'←');
+    assert.equal(env.host.querySelector('.play-menu-bottom-back'),undefined);
+    assert.ok(env.host.querySelector('.room-navigation'));
+    env.host.querySelector('.room-create').dispatchEvent(new Event('click'));
+    assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'create');
+    assert.ok(env.host.querySelector('.play-menu-footer').all().some(e=>e.classList.contains('room-create')));
+    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));
+    assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'multi');
+    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));
+    assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'mode');
+    assert.equal(env.host.querySelector('.settings-close').textContent,'×');
+    env.host.all().find(e=>e.tag==='button'&&e.textContent==='Single').dispatchEvent(new Event('click'));
+    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (3) ▾');
+    assert.ok(env.host.querySelector('.single-map-heading').children.includes(change));
+    change.dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.room-map-picker').getAttribute('aria-label'),'Choose map');
+    env.host.querySelector('.room-map-picker').querySelector('.settings-close').dispatchEvent(new Event('click'));
+    assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'single');
+    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (3) ▾');
+    assert.equal(env.host.querySelector('.play-menu-back').getAttribute('aria-label'),'뒤로');
+  }finally{menu?.destroy();client.destroy(false);setLanguage('en');env.restore();}
+});
+
+test('waiting-room back requires confirmation, cancels safely, and leaves only once before showing rooms',async()=>{
+  const {setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
+  const room=(await cmd(0,'create')).room,env=dom();let menu,leaves=0;
+  const client=new RoomClient(users[0],(a,r,p)=>{if(a==='leave')leaves++;return cmd(0,a,r,p);});
+  try{
+    menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+    const panel=env.host.querySelector('.play-menu-panel');
+    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));
+    assert.equal(panel.inert,true);assert.equal(leaves,0);assert.ok(env.host.querySelector('.confirm-overlay'));
+    env.host.querySelector('.confirm-cancel').dispatchEvent(new Event('click'));
+    assert.equal(panel.inert,false);assert.equal(client.room.id,room.id);assert.equal(leaves,0);
+    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));
+    const escape=Object.assign(new Event('keydown',{cancelable:true}),{key:'Escape'});env.host.querySelector('.confirm-panel').dispatchEvent(escape);
+    assert.equal(env.host.querySelector('.confirm-overlay'),undefined);assert.equal(panel.inert,false);assert.equal(leaves,0);
+    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));setLanguage('ko');
+    assert.equal(env.host.querySelector('.confirm-overlay'),undefined);assert.equal(panel.inert,false);setLanguage('en');
+    env.host.querySelector('.play-menu-back').dispatchEvent(new Event('click'));
+    const accept=env.host.querySelector('.confirm-accept');accept.dispatchEvent(new Event('click'));accept.dispatchEvent(new Event('click'));await idle(client);
+    assert.equal(leaves,1);assert.equal(client.room,null);assert.ok(env.host.querySelector('.room-pages'));
+    assert.equal(env.host.querySelector('.confirm-overlay'),undefined);assert.equal(panel.inert,false);
+  }finally{menu?.destroy();client.destroy(false);setLanguage('en');env.restore();}
 });
 
 test('single map dialog cancels with Escape without leaving Single or starting a run and restores opener focus',()=>{

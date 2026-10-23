@@ -482,20 +482,24 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .single-map-actions { display: flex; flex-direction: column; align-items: center; gap: 1.2cqh; margin: 0; }
 .single-map-actions p { margin: 0; color: #948264; font-size: clamp(9px,1.15cqw,16px); }
 .single-map-actions .single-map-play { min-width: 24cqw; padding: 1.8cqh 3cqw; font: 400 2.2cqw var(--font-round); }
-.single-map-change { flex: 0 0 auto; margin: 0; padding: 1cqh 1.4cqw; font: 400 1.5cqw var(--font-round); }
+.single-map-heading .single-map-change { flex: 0 0 auto; max-width:55%; min-height:32px; margin:0 0 0 auto; padding:.8cqh 1cqw; font:400 clamp(10px,1.35cqw,18px)/1.2 var(--font-round); }
 .single-map-summary { display: grid; grid-template-columns: 36% minmax(0,1fr); align-items: stretch; gap: 2cqw; margin: 0; border: 1px solid #d6bc88; background: #fff8e5; }
 .single-map-summary::before { margin: 0; height: 100%; min-height: 22cqh; }
 .single-map-summary .single-map-description { min-height: 0; }
 .single-menu-content { display: flex; flex-direction: column; gap: 2.4cqh; margin-top: 3cqh; }
 .single-menu-content > .single-map-summary { flex: 1 0 auto; padding: 2cqh 1.8cqw; }
-.single-map-info { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1.6cqh; }
-.single-map-heading { display: flex; align-items: center; justify-content: space-between; gap: 1cqw; flex-wrap: wrap; }
+.single-map-info { min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 1.6cqh; }
+.single-map-heading { display: flex; align-items: center; justify-content: space-between; gap: 1cqw; flex-wrap: nowrap; }
 .single-map-heading strong { min-width: 0; font-weight: 400; overflow-wrap: anywhere; }
 .single-map-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8cqh 2cqw; }
 .single-map-summary .single-map-stats p { margin: 0; }
-.play-menu-panel[data-page="single"] > h2 { padding: 0 6cqw; text-align: center; }
+.play-menu-panel:not([data-page="mode"]) > h2 { padding: 0 6cqw; text-align: center; }
 .play-menu-back { left: 2cqw; right: auto; min-width: 36px; min-height: 36px; }
 .play-menu-back:focus-visible { outline: 2px solid #b67b3f; outline-offset: 2px; }
+.confirm-overlay{z-index:31;}
+.confirm-panel>h2{padding:0 4cqw;font-size:clamp(18px,2.6cqw,34px);}
+.confirm-panel>p{margin:1cqh 0;padding:1cqh 0;font:400 clamp(12px,1.5cqw,20px)/1.5 var(--font-body);text-align:center;}
+.confirm-panel .purchase-actions button{min-height:36px;min-width:9cqw;}
 .single-map-picker { width: 78%; height: 84%; }
 .single-map-choices { margin: 1cqh 0 0; }
 .single-map-choices .single-map-card { min-height: 0; font-size: 1.7cqw; }
