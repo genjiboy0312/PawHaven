@@ -26,9 +26,14 @@ export class LobbyHud {
   private questButton?: HTMLButtonElement;
   private questReady?: boolean;
   private readonly rewards?: () => boolean;
+  private readonly requestBadge=document.createElement('span');
+  private friendsButton?:HTMLButtonElement;
+  private requestCount=-1;
+  private readonly requests?:()=>number;
   private readonly clickSound?: () => void;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void) {
+    this.requests=commerce?.requests;
     this.rewards = commerce?.rewards;
     this.clickSound = commerce?.click;
     this.readNotice = commerce?.notice; this.economyBusy = commerce?.busy;
@@ -63,6 +68,7 @@ export class LobbyHud {
     }
     this.questButton = quest;
     const friends = this.menu('friends', 'Friends');
+    this.friendsButton=friends;this.requestBadge.className='hud-request-badge';this.requestBadge.hidden=true;this.requestBadge.setAttribute('aria-hidden','true');friends.append(this.requestBadge);
     if (commerce?.friends) { friends.disabled = false; friends.addEventListener('click', commerce.friends); }
     utilities.append(quest, friends, shop, settings);
     const play = document.createElement('div');
@@ -115,6 +121,8 @@ export class LobbyHud {
     return button;
   }
   update(state: AnimalVisualState): void {
+    const value=this.requests?.()??0,count=Number.isFinite(value)?Math.max(0,Math.min(100,Math.floor(value))):0;
+    if(count!==this.requestCount){this.requestCount=count;this.requestBadge.hidden=count===0;this.requestBadge.textContent=count>99?'99+':String(count);if(this.friendsButton)bindAria(this.friendsButton,count?'friendsRequestsReady':'friends');}
     const message = this.readNotice?.() ?? '';
     this.economyNote.hidden = !message; this.economyCaption.textContent = message;
     this.economyRetry.disabled = this.economyBusy?.() ?? false;

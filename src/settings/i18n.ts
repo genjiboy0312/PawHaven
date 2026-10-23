@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  friendsRequestsReady:'Friends · incoming friend requests',
   roomInviteShare:'Share link',
   friendOnline:'Online',friendOffline:'Offline',friendInRoom:'In a room',friendPlaying:'Playing',friendUnknown:'Checking…',friendInvite:'Invite friend',friendInviteSent:'Invited · 30s cooldown',friendInviteTitle:'Play together?',friendInviteNote:'{nickname} invited you to {room}.',friendInviteAccept:'Join room',friendInviteDecline:'Decline',friendInviteExpired:'This invitation has expired.',friendInviteBusy:'This player is busy. Try again from the lobby.',friendInviteUnavailable:'The room is full, closed or already started.',friendInviteSetup:'Apply the friend invitation SQL update to use this feature.',
   friendsLogin:'Log in to find and add friends.',friendsNickname:'Set your nickname in Account settings before using Friends.',
@@ -101,6 +102,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  friendsRequestsReady:'친구 · 받은 친구 요청이 있어요',
   roomInviteShare:'링크 공유',
   friendOnline:'온라인',friendOffline:'오프라인',friendInRoom:'대기방',friendPlaying:'플레이 중',friendUnknown:'확인 중…',friendInvite:'친구 초대',friendInviteSent:'초대 완료 · 30초 대기',friendInviteTitle:'함께 플레이할까요?',friendInviteNote:'{nickname}님이 {room}에 초대했어요.',friendInviteAccept:'방 입장',friendInviteDecline:'거절',friendInviteExpired:'초대가 만료됐어요.',friendInviteBusy:'지금은 참여할 수 없어요. 로비에서 다시 시도해 주세요.',friendInviteUnavailable:'방이 꽉 찼거나 종료 또는 시작됐어요.',friendInviteSetup:'친구 초대 SQL 업데이트를 적용해 주세요.',
   friendsLogin:'친구를 찾고 추가하려면 로그인해 주세요.',friendsNickname:'친구 기능을 사용하려면 계정 설정에서 닉네임을 정해 주세요.',

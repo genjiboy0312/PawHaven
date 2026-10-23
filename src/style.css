@@ -182,9 +182,12 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .daily-hint { font-size: 1.2cqw; color: #77816f; }
 
 .hud-menu-friends:enabled { pointer-events: auto; cursor: pointer; }
-.hud-menu-quest { position: relative; }
+.hud-menu-quest,.hud-menu-friends { position: relative; }
 .hud-menu-quest[data-reward-ready="true"] .hud-icon { background: #f4e4ad; border-color: #d7b454; }
-.hud-menu-quest[data-reward-ready="true"]::after { content: '!'; position: absolute; top: -0.2cqw; right: 0.1cqw; width: 1.8cqw; height: 1.8cqw; display: grid; place-items: center; border-radius: 50%; background: #bc6651; color: white; font: bold 1.2cqw system-ui; }
+.hud-menu-quest[data-reward-ready="true"]::after,.hud-request-badge { position: absolute; top: -0.2cqw; right: 0.1cqw; min-width:1.8cqw;height:1.8cqw;display:grid;place-items:center;border-radius:50%;background:#bc6651;color:white;font:bold 1.2cqw system-ui; }
+.hud-menu-quest[data-reward-ready="true"]::after{content:'!';width:1.8cqw;}
+.hud-request-badge{padding:0 .3cqw;pointer-events:none;}
+.hud-request-badge[hidden]{display:none;}
 .settings-tabs button[data-reward-ready="true"]::after { content: ' •'; color: #b56c35; }
 .commerce-primary[data-reward-ready="true"], .pass-reward[data-reward-ready="true"] { background: #ead58f; color: #4d482c; box-shadow: inset 0 0 0 1px #c9ad58; }
 .daily-quest[data-reward-ready="true"] { background: #ede8cf; }

@@ -179,7 +179,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .hud-menu-quest[data-reward-ready="true"] .hud-icon {
   border-color: #d2a24e; background: radial-gradient(circle at 35% 20%, #fff7d0, #f4d995);
 }
-.hud-menu-quest[data-reward-ready="true"]::after {
+.hud-menu-quest[data-reward-ready="true"]::after,.hud-request-badge {
   top: -0.15cqw; right: 0.15cqw; border: max(1px, 0.15cqw) solid #fff5dd;
   background: #d78e73; box-shadow: 0 0.2cqw 0.4cqw #9d684b30;
 }

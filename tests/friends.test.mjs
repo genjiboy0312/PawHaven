@@ -105,6 +105,17 @@ function dom(){
  globalThis.document=doc;globalThis.window=new EventTarget();globalThis.HTMLElement=Element;
  return{host,restore(){for(const key of Object.keys(old)){if(old[key]===undefined)delete globalThis[key];else globalThis[key]=old[key];}}};
 }
+
+test('lobby-owned friends polling survives popup close and is disposed with the account',async()=>{
+ const env=dom(),client=new FriendsClient(users[0],async()=>blank());
+ const popup=new FriendsPopup(()=>{},client,undefined,()=> 'Myeongrang',undefined,undefined,true);
+ try{
+  client.start();await idle(client);const timer=client.timer;popup.open();popup.close();
+  assert.equal(client.timer,timer);assert.equal(timer._destroyed,false);
+  await command(1,'send',0);client.transport=async()=>command(0);await client.refresh();assert.equal(client.snapshot.incoming.length,1);
+  popup.destroy();assert.equal(client.timer._destroyed,true);assert.deepEqual(client.snapshot,blank());assert.equal(await client.refresh(),false);
+ }finally{popup.destroy();env.restore();}
+});
 test('Friends popup searches, sends, cancels, accepts and confirms deletion with the real RPC state',async()=>{
  const env=dom(),hud=new Element();env.host.append(hud);const pauses=[];
  const client=new FriendsClient(users[0],(action,target,query)=>command(0,action,target===null?null:users.indexOf(target),query));

@@ -2239,13 +2239,17 @@ test('Friends opens as an accessible paused lobby overlay and Quest badge clears
   const { FriendsPopup } = await importTs('../src/ui/FriendsPopup.ts', import.meta.url);
   const { LobbyScene } = await importTs('../src/game/scenes/LobbyScene.ts', import.meta.url);
   const state = new ShopState(); state.claim(1, false);
-  let scene; const friends = new FriendsPopup(value => scene.setPaused(value));
+  let scene,requests=0; const friends = new FriendsPopup(value => scene.setPaused(value));
   scene = new LobbyScene({ id: 'myeongrang', speed: 90, scale: 0.62,
     animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, undefined, true, undefined, undefined,
-    { shop() {}, quest() {}, friends: () => friends.open(), rewards: () => state.hasQuestRewards });
+    { shop() {}, quest() {}, friends: () => friends.open(), requests:()=>requests, rewards: () => state.hasQuestRewards });
   try {
     scene.resize(960, 540);
     const hud = host.children[0], questButton = hud.children[1].children[0], friendButton = hud.children[1].children[1];
+    const badge=friendButton.children.at(-1);assert.equal(badge.hidden,true);
+    requests=3;scene.update(0);assert.equal(badge.hidden,false);assert.equal(badge.textContent,'3');assert.equal(friendButton.getAttribute('data-i18n-aria'),'friendsRequestsReady');
+    requests=100;scene.update(0);assert.equal(badge.textContent,'99+');
+    requests=0;scene.update(0);assert.equal(badge.hidden,true);assert.equal(friendButton.getAttribute('data-i18n-aria'),'friends');
     assert.equal(questButton.getAttribute('data-reward-ready'), 'false');
     state.completeRun(); scene.update(0);
     assert.equal(questButton.getAttribute('data-reward-ready'), 'true');

@@ -14,7 +14,7 @@ export class FriendsPopup {
   private panel?:HTMLElement;private tabs?:HTMLElement;private unsubscribe?:()=>void;
   private draft='';private search?:HTMLInputElement;private confirm?:ConfirmPopup;private activityOff?:()=>void;
   private readonly localeOff = onLanguageChange(() => this.render());
-  constructor(private readonly pause: (paused: boolean) => void,private readonly client?:FriendsClient,private readonly account?:()=>void,private readonly nickname?:()=>string|null,private readonly activity?:FriendActivity,private readonly canInvite?:()=>boolean) {}
+  constructor(private readonly pause: (paused: boolean) => void,private readonly client?:FriendsClient,private readonly account?:()=>void,private readonly nickname?:()=>string|null,private readonly activity?:FriendActivity,private readonly canInvite?:()=>boolean,private readonly keepAlive=false) {}
   open(): void {
     if (this.overlay) return;
     const host = document.querySelector<HTMLElement>('#app'); if (!host) return;
@@ -122,7 +122,7 @@ export class FriendsPopup {
   }
   close(): void {
     if (!this.overlay) return;
-    this.confirm?.destroy();this.confirm=undefined;this.unsubscribe?.();this.unsubscribe=undefined;this.client?.stop();
+    this.confirm?.destroy();this.confirm=undefined;this.unsubscribe?.();this.unsubscribe=undefined;if(!this.keepAlive)this.client?.stop();
     this.activityOff?.();this.activityOff=undefined;
     this.abort?.abort(); this.overlay.remove(); this.overlay = undefined; this.content = undefined;
     this.blocked.forEach(item => { item.element.inert = item.inert; }); this.blocked = []; this.pause(false);

@@ -56,6 +56,7 @@ export class Game {
   private quests?: QuestPopup;
   private friends?: FriendsPopup;
   private friendActivity?:FriendActivity;
+  private friendClient?:FriendsClient;
   private friendInbox?:FriendInviteInbox;
   private audio?: AudioSystem;
   private readonly outfit = createOutfit();
@@ -182,15 +183,18 @@ export class Game {
         paused=>this.scenes?.setPaused(paused),()=>{lobby(true,'multi');});
       activity.start();
     };
-    const makeFriends=()=>new FriendsPopup(paused=>this.scenes?.setPaused(paused||!!this.playMenu),
-      this.account?.user&&accountClient?new FriendsClient(this.account.user.id,friendsTransport(accountClient,this.account.user.id)):undefined,
-      ()=>this.settings?.openAccount(),()=>this.account?.nickname??null,this.friendActivity,()=>{const room=this.rooms?.room;return !!room&&room.host===this.account?.user?.id&&room.phase==='waiting'&&room.members.length<4;});
+    const makeFriends=()=>{
+      this.friendClient=this.account?.user&&accountClient?new FriendsClient(this.account.user.id,friendsTransport(accountClient,this.account.user.id)):undefined;
+      return new FriendsPopup(paused=>this.scenes?.setPaused(paused||!!this.playMenu),this.friendClient,
+        ()=>this.settings?.openAccount(),()=>this.account?.nickname??null,this.friendActivity,()=>{const room=this.rooms?.room;return !!room&&room.host===this.account?.user?.id&&room.phase==='waiting'&&room.members.length<4;},true);
+    };
     makeActivity();
     this.friends = makeFriends();
     this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
     const lobby = (returning = false, initialMenu?:'mode'|'multi'): void => {
       if (this.disposed) return;
       inGame=false;
+      if(this.account?.nickname)this.friendClient?.start();
       const runCommerce = commerce;
       let starting = false;
       const launch = async (origin: LobbyScene | PlayScene, map:CourseId='garden'): Promise<boolean> => {
@@ -207,7 +211,7 @@ export class Game {
             record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),
             retry: async () => { await completion; return launch(play,map); },
           });
-          inGame=true;this.scenes.show(play);void this.friendActivity?.refresh();return true;
+          inGame=true;this.friendClient?.stop();this.scenes.show(play);void this.friendActivity?.refresh();return true;
         } finally { starting = false; }
       };
       const openMenu=(page:'mode'|'multi'='mode'):void=>{
@@ -222,7 +226,7 @@ export class Game {
           rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           inviteFriends:()=>this.friends?.open(),
           race:(room,client)=>{
-            this.friends?.close();inGame=true;void this.friendActivity?.refresh();
+            this.friends?.close();this.friendClient?.stop();inGame=true;void this.friendActivity?.refresh();
             const look=room.members.find(m=>m.id===client.owner)?.look;
             const original=look?.petId===this.myeongrang?.id?this.myeongrang!:corgi;
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
@@ -240,7 +244,7 @@ export class Game {
       };
       const scene = new LobbyScene(activePet, () => openMenu(), returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index), subscribe: callback => commerce.subscribe(callback) }));
-      }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback))); } }, () => this.account?.user ? this.account.nickname : null);
+      }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, friends: () => this.friends?.open(), requests: () => this.friendClient?.snapshot.incoming.length ?? 0, rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback))); } }, () => this.account?.user ? this.account.nickname : null);
       currentLobby=scene;this.scenes?.show(scene);void this.friendActivity?.refresh();
       if(initialMenu)openMenu(initialMenu);
     };
