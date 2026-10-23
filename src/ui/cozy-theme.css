@@ -420,8 +420,9 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .room-slots .room-player { display: flex; align-items: center; gap: 1cqw; min-height: 12cqh; padding: 0.8cqh 1cqw; border: 1px solid #ded2b5; border-radius: 1.4cqw; background: #fff7e7; }
 .room-slots .room-player[data-ready="true"] { border-color: #b3c785; background: #e8efcf; }
 .room-slots .room-player[data-empty="true"] { justify-content: center; background: #eee5d348; color: #a4957d; border-style: dashed; }
-.room-pet-stage { display: flex; align-items: flex-end; justify-content: center; width: 13cqw; height: 11cqh; flex-shrink: 0; }
-.room-pet { display: block; background-repeat: no-repeat; image-rendering: pixelated; }
+.room-pet-stage { display: flex; align-items: flex-end; justify-content: center; width: 13cqw; height: 14cqh; flex-shrink: 0; }
+.room-pet { position:relative;display: block; background-repeat: no-repeat; image-rendering: pixelated; }
+.pet-portrait-hat{position:absolute;display:block;pointer-events:none;background:url('/assets/items/santa-hat.png') center/100% 100% no-repeat;image-rendering:pixelated;}
 .room-player-info { min-width: 0; overflow-wrap: anywhere; }
 .room-player-info strong { font-family: var(--font-round); font-weight: 400; font-size: clamp(12px,1.7cqw,23px); }
 .room-player-info p { margin: 0.4cqh 0; font-size: clamp(10px,1.2cqw,16px); color: #78865a; }

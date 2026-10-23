@@ -7,6 +7,7 @@ import { raceResults } from './RaceResults';
 import { RoomInviteButton } from './RoomInviteButton';
 import { singleGoals } from './SingleGoals';
 import { ConfirmPopup } from './ConfirmPopup';
+import type { OutfitState } from '../animals/OutfitState';
 import type { SingleGoal } from '../game/SingleRecords';
 type Page='mode'|'single'|'multi'|'create';
 /** Reuses the existing settings overlay and commerce controls. No fake rooms/players. */
@@ -24,7 +25,7 @@ export class PlayMenuPopup {
   private inviteButton?:RoomInviteButton;
   private previousRoom?:Room;
   private roomEvent?:{key:TextKey;name:string;until:number};
-  private portraits:{element:HTMLElement;config:AnimalConfig;thumbnail:string}[]=[];
+  private portraits:{element:HTMLElement;config:AnimalConfig;thumbnail:string;outfit:OutfitState}[]=[];
   private portraitTimer?:ReturnType<typeof setInterval>;
   private mapPicker?:HTMLElement;private mapPickerAbort?:AbortController;
   private pickerSingle=false;
@@ -128,9 +129,9 @@ export class PlayMenuPopup {
     const draw=()=>{
       if(document.hidden)return;
       const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      for(const {element,config,thumbnail}of this.portraits){
+      for(const {element,config,thumbnail,outfit}of this.portraits){
         const idle=config.animations.idle;if(!idle?.frames.length)continue;
-        paintPetPortrait(element,config,thumbnail,10,reduced?0:Math.floor(performance.now()/1000*idle.fps));
+        paintPetPortrait(element,config,thumbnail,10,reduced?0:Math.floor(performance.now()/1000*idle.fps),outfit);
       }
     };
     draw();this.portraitTimer=setInterval(draw,125);
@@ -260,7 +261,7 @@ export class PlayMenuPopup {
             const isHost=member.id===room.host;slot.setAttribute('data-ready',String(member.ready||isHost));
             const art=document.createElement('div');art.className='room-pet-stage';
             const portrait=document.createElement('span');portrait.className='room-pet';portrait.setAttribute('aria-hidden','true');art.append(portrait);
-            const pet=this.options.pets?.find(pet=>pet.config.id===member.look.petId);if(pet)this.portraits.push({element:portrait,...pet});
+            const pet=this.options.pets?.find(pet=>pet.config.id===member.look.petId);if(pet)this.portraits.push({element:portrait,...pet,outfit:member.look.outfit});
             const details=document.createElement('div');details.className='room-player-info';
             const name=document.createElement('strong');name.textContent=member.name;
             const status=this.text((isHost?'♛ ':member.ready?'✓ ':'')+t(isHost?'roomHost':member.ready?'ready':'notReady'));details.append(name,status);

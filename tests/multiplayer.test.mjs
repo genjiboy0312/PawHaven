@@ -11,6 +11,7 @@ const {RoomInviteButton}=await importTs('../src/ui/RoomInviteButton.ts',import.m
 const {PlayMenuPopup}=await importTs('../src/ui/PlayMenuPopup.ts',import.meta.url);
 const {PlayScene}=await importTs('../src/game/scenes/PlayScene.ts',import.meta.url);
 const {raceResults}=await importTs('../src/ui/RaceResults.ts',import.meta.url);
+const {paintPetPortrait}=await importTs('../src/ui/PetPortrait.ts',import.meta.url);
 const {RacePodium}=await importTs('../src/ui/RacePodium.ts',import.meta.url);
 const {RaceProgress}=await importTs('../src/ui/RaceProgress.ts',import.meta.url);
 const {RaceStandings}=await importTs('../src/ui/RaceStandings.ts',import.meta.url);
@@ -676,15 +677,32 @@ test('background room refreshes never overlap while a response is pending',async
   finally{release();client.destroy(false);}
 });
 
-test('waiting room shows real pets, Ready state and host transfer without leaking animation timers',async()=>{
+test('portraits attach each member hat to trimmed animated head anchors without borrowing the local outfit',()=>{
+  const env=dom(),element=new Element(),outfit={Hat:1,Body:0,Acc:0,Etc:0};
+  const frame={frame:{x:20,y:40,width:100,height:120},source:{width:400,height:300},orig:{width:256,height:240},trim:{x:78,y:120}};
+  const head=[{x:10,y:-90,width:40},{x:16,y:-85,width:42,rotation:.1}];
+  const config={id:'corgi',scale:.62,wardrobe:{santaHat:Texture.WHITE,outfit},animations:{idle:{frames:[frame,frame],fps:3,head}}};
+  try{
+    paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
+    paintPetPortrait(element,config,'atlas.png',10,0,outfit);const hat=element.children[0];assert.ok(hat);const first=hat.style.left;
+    paintPetPortrait(element,config,'atlas.png',10,1,outfit);assert.equal(element.children[0],hat);assert.notEqual(hat.style.left,first);assert.equal(hat.style.transform,'rotate(0.1rad)');
+    const personal={...config,id:'myeongrang',animations:{idle:{...config.animations.idle,anchorY:870/1024,scale:1.3,frames:[{...frame,orig:{width:1024,height:1024},trim:{x:300,y:600}}]}}};
+    paintPetPortrait(element,personal,'personal.png',10,0,outfit);assert.ok(Number.isFinite(parseFloat(hat.style.top)));
+    const expectedY=(-90+5/(.62*1.3)+870-600-730*40/550)*10/120;assert.ok(Math.abs(parseFloat(hat.style.top)-expectedY)<1e-9);
+    paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
+  }finally{env.restore();}
+});
+
+test('waiting room shows real pets, individual outfits, Ready state and host transfer without leaking animation timers',async()=>{
   const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});
-  const env=dom(),client=new RoomClient(users[1],(a,r,p)=>cmd(1,a,r,p));let menu;
-  const config={id:'corgi',animations:{idle:{frames:[Texture.WHITE],fps:8}}};
+  const env=dom(),client=new RoomClient(users[1],async(a,r,p)=>{const value=await cmd(1,a,r,p);for(const member of value.room?.members??[])member.look.outfit.Hat=member.id===users[0]?1:0;return value;});let menu;
+  const config={id:'corgi',scale:.62,wardrobe:{santaHat:Texture.WHITE,outfit:{Hat:1,Body:0,Acc:0,Etc:0}},animations:{idle:{frames:[Texture.WHITE],fps:8,head:[{x:0,y:-1,width:1}]}}};
   try{
     menu=new PlayMenuPopup(()=>{},{rooms:client,pets:[{config,thumbnail:'./assets/characters/corgi/corgi-idle-walk.png'}],single:async()=>true,race(){},login(){},dismiss(){}});
     menu.open('multi');await idle(client);
     const slots=env.host.querySelector('.room-slots');assert.equal(slots.children.length,4);
     assert.equal(slots.children[0].getAttribute('data-ready'),'true');assert.equal(slots.children[1].getAttribute('data-ready'),'true');assert.equal(slots.children[2].getAttribute('data-empty'),'true');
+    assert.ok(slots.children[0].querySelector('.pet-portrait-hat'));assert.equal(slots.children[1].querySelector('.pet-portrait-hat'),undefined);
     assert.equal(env.host.querySelector('.room-start-hint').textContent,'Ready! Waiting for the host to start…');
     assert.ok(env.host.querySelector('.room-pet').style.backgroundImage.includes('corgi-idle-walk.png'));
     assert.ok(menu.portraitTimer);assert.ok(!env.host.all().some(e=>e.tag==='button'&&e.textContent==='START'));

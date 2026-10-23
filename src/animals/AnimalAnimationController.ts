@@ -3,6 +3,7 @@ import { AnimatedSprite, Sprite, Text, Rectangle } from 'pixi.js';
 import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
+import { SANTA_HAT, santaHatPose } from './HatPlacement';
 
 export class AnimalAnimationController {
   readonly sprite: AnimatedSprite;
@@ -47,7 +48,7 @@ export class AnimalAnimationController {
     if (config.wardrobe) {
       this.hat = new Sprite(config.wardrobe.santaHat);
       // The full generated canvas is preserved; anchor is the centre of the brim.
-      this.hat.anchor.set(865 / 1536, 730 / 1024);
+      this.hat.anchor.set(SANTA_HAT.anchorX, SANTA_HAT.anchorY);
       this.hat.visible = false;
       this.hat.label = 'santa-hat';
       this.sprite.addChild(this.hat);
@@ -85,9 +86,10 @@ export class AnimalAnimationController {
     if (this.hat) {
       this.hat.visible = this.config.wardrobe?.outfit.Hat === 1 && !!head;
       if (head) {
-        this.hat.position.set(head.x, head.y + 5 / (this.config.scale * (animation.scale ?? 1)));
-        this.hat.scale.set(head.width / 550);
-        this.hat.rotation = head.rotation ?? 0;
+        const pose=santaHatPose(head,this.config.scale*(animation.scale??1));
+        this.hat.position.set(pose.x,pose.y);
+        this.hat.scale.set(pose.scale);
+        this.hat.rotation=pose.rotation;
       }
     }
     this.sprite.anchor.set(0.5, animation.anchorY ?? 1);

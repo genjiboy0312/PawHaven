@@ -16,7 +16,7 @@ export function raceResults(racers:Room['racers'],members:Room['members'],owner:
     const member=members.find(member=>member.id===racer.id),pet=pets.find(pet=>pet.id===member?.look.petId);
     if(pet&&['corgi','myeongrang'].includes(pet.id)){
       const portrait=document.createElement('span');portrait.className='room-pet';portrait.setAttribute('aria-hidden','true');
-      paintPetPortrait(portrait,pet,pet.id==='corgi'?'./assets/characters/corgi/corgi-idle-walk.png':'./assets/characters/myeongrang/idle.png',7);art.append(portrait);
+      paintPetPortrait(portrait,pet,pet.id==='corgi'?'./assets/characters/corgi/corgi-idle-walk.png':'./assets/characters/myeongrang/idle.png',7,0,member?.look.outfit);art.append(portrait);
     }
     const name=document.createElement('strong');name.className='race-result-name';name.textContent=racer.name+(racer.id===owner?' · '+t('raceYou'):'');
     const time=document.createElement('span');time.className='race-result-time';
