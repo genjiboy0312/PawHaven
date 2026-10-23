@@ -20,6 +20,7 @@ import type { CommerceState } from '../shop/CommerceState';
 import { ShopScene } from './scenes/ShopScene';
 import { QuestPopup } from '../ui/QuestPopup';
 import { FriendsPopup } from '../ui/FriendsPopup';
+import { FriendsClient, friendsTransport } from '../friends/FriendsClient';
 import { CharacterPresets } from '../animals/CharacterPresets';
 import { CharacterSelection } from '../animals/CharacterSelection';
 import { GameSettings, type GamePreferences } from '../settings/GameSettings';
@@ -167,7 +168,10 @@ export class Game {
     const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab));
     };
-    this.friends = new FriendsPopup(paused => this.scenes?.setPaused(paused));
+    const makeFriends=()=>new FriendsPopup(paused=>this.scenes?.setPaused(paused),
+      this.account?.user&&accountClient?new FriendsClient(this.account.user.id,friendsTransport(accountClient,this.account.user.id)):undefined,
+      ()=>this.settings?.openAccount(),()=>this.account?.nickname??null);
+    this.friends = makeFriends();
     this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
     const lobby = (returning = false, initialMenu?:'mode'|'multi'): void => {
       if (this.disposed) return;
@@ -236,7 +240,7 @@ export class Game {
       const look = character.restore(['corgi', 'myeongrang'], (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
       Object.assign(this.outfit, look.outfit);
       activePet = look.petId === this.myeongrang?.id ? this.myeongrang! : corgi;
-      this.friends = new FriendsPopup(paused => this.scenes?.setPaused(paused));
+      this.friends = makeFriends();
       this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
       const resumeInvitation=!!invitation.room&&!!this.account?.user&&this.account.status!=='loading';
       lobby(true,resumeInvitation?'multi':undefined);

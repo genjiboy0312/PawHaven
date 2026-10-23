@@ -497,6 +497,16 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .play-menu-back { left: 2cqw; right: auto; min-width: 36px; min-height: 36px; }
 .play-menu-back:focus-visible { outline: 2px solid #b67b3f; outline-offset: 2px; }
 .confirm-overlay{z-index:31;}
+.friend-toolbar,.friend-row,.friend-actions{display:flex;align-items:center;gap:1cqw;}
+.friend-toolbar{justify-content:space-between;margin-bottom:1.5cqh;}
+.friend-toolbar p{margin:0;font-size:clamp(10px,1.2cqw,17px);}
+.friend-row{justify-content:space-between;flex-wrap:wrap;}
+.friend-row>strong{min-width:0;overflow-wrap:anywhere;font:400 clamp(13px,1.7cqw,23px) var(--font-round);}
+.friend-actions{flex-wrap:wrap;font-size:clamp(10px,1.25cqw,17px);}
+.friend-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1cqw;}
+.friends-content .friend-search input{width:100%;min-width:0;padding:1cqh;border:1px solid #d8bf91;border-radius:1cqw;background:#fffaf0;color:var(--ui-ink);font:inherit;}
+.friend-search-query{color:#857149;}
+.friends-content>h3{font-family:var(--font-round);font-weight:400;}
 .confirm-panel>h2{padding:0 4cqw;font-size:clamp(18px,2.6cqw,34px);}
 .confirm-panel>p{margin:1cqh 0;padding:1cqh 0;font:400 clamp(12px,1.5cqw,20px)/1.5 var(--font-body);text-align:center;}
 .confirm-panel .purchase-actions button{min-height:36px;min-width:9cqw;}

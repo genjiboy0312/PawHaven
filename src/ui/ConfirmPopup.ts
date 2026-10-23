@@ -33,5 +33,6 @@ export class ConfirmPopup {
   destroy():void{
     this.abort.abort();this.element.remove();this.parent.inert=this.wasInert;
     if(this.opener?.isConnected)this.opener.focus();
+    else this.parent.querySelector<HTMLElement>('.settings-close')?.focus();
   }
 }

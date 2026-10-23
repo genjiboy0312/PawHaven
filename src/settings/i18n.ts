@@ -1,5 +1,9 @@
 export type Language = 'en' | 'ko';
 const en = {
+  friendsLogin:'Log in to find and add friends.',friendsNickname:'Set your nickname in Account settings before using Friends.',
+  friendsRefresh:'Refresh',friendsLoading:'Loading…',friendsSetup:'Friends setup is not complete yet. Please try again after the server update.',friendsOffline:'Unable to connect. Please refresh and try again.',
+  friendsQuery:'Enter 2–16 letters, numbers, Korean characters or underscores.',friendsLimit:'The friend or request limit has been reached.',friendsIncoming:'This player has already sent you a request. Refresh to accept it.',friendsNotFound:'This player or request is no longer available. Please refresh.',
+  friendsSearch:'Search',friendsResultsFor:'Results for: {query}',friendsNoResults:'No players found.',friendsSend:'Add friend',friendsAccept:'Accept',friendsDecline:'Decline',friendsCancel:'Cancel request',friendsRemove:'Remove',friendsPending:'Request sent',friendsReceived:'Received requests',friendsSent:'Sent requests',friendsSentEmpty:'No sent requests.',friendsRemoveTitle:'Remove friend?',friendsRemoveNote:'Remove this player from your friends list?',
   raceLivePlaces:'Live places · provisional', racePlacesSyncing:'Checking places…',
   singleGoals:'Map goals', singleGoalFinish:'Finish', singleGoalNoFalls:'No falls', singleGoalTime:'Within {seconds}s', singleGoalEarned:'Achieved', singleGoalPending:'Not achieved', singleGoalNew:'NEW',
   roomInvite:'Invite', roomInviteLink:'Room invitation link', roomInviteCopied:'Invitation link copied.', roomInviteShared:'Invitation link shared.', roomInviteManual:'Select and copy this link to invite a friend.',
@@ -95,6 +99,10 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  friendsLogin:'친구를 찾고 추가하려면 로그인해 주세요.',friendsNickname:'친구 기능을 사용하려면 계정 설정에서 닉네임을 정해 주세요.',
+  friendsRefresh:'새로고침',friendsLoading:'불러오는 중…',friendsSetup:'친구 기능 서버 설정이 아직 완료되지 않았어요. 서버 반영 후 다시 시도해 주세요.',friendsOffline:'연결하지 못했어요. 새로고침 후 다시 시도해 주세요.',
+  friendsQuery:'영문·숫자·한글·밑줄로 2~16자를 입력해 주세요.',friendsLimit:'친구 또는 요청 한도에 도달했어요.',friendsIncoming:'상대방이 이미 요청을 보냈어요. 새로고침 후 수락해 주세요.',friendsNotFound:'사용자 또는 요청이 더 이상 없어요. 새로고침해 주세요.',
+  friendsSearch:'검색',friendsResultsFor:'검색 결과: {query}',friendsNoResults:'검색된 사용자가 없어요.',friendsSend:'친구 요청',friendsAccept:'수락',friendsDecline:'거절',friendsCancel:'요청 취소',friendsRemove:'삭제',friendsPending:'요청 보냄',friendsReceived:'받은 요청',friendsSent:'보낸 요청',friendsSentEmpty:'보낸 요청이 없어요.',friendsRemoveTitle:'친구를 삭제할까요?',friendsRemoveNote:'이 사용자를 친구 목록에서 삭제합니다.',
   raceLivePlaces:'실시간 순위 · 잠정', racePlacesSyncing:'순위 확인 중…',
   singleGoals:'맵 달성 목표', singleGoalFinish:'완주', singleGoalNoFalls:'낙하 없이', singleGoalTime:'{seconds}초 이내', singleGoalEarned:'달성', singleGoalPending:'미달성', singleGoalNew:'새 달성',
   roomInvite:'초대', roomInviteLink:'방 초대 링크', roomInviteCopied:'초대 링크를 복사했어요.', roomInviteShared:'초대 링크를 공유했어요.', roomInviteManual:'이 링크를 선택해 복사한 뒤 친구에게 보내 주세요.',
