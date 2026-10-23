@@ -201,11 +201,12 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
   pointer-events: none; z-index: -1;
 }
 .character-screen > .character-close {
-  min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 0;
+  top:7cqh;right:4.5cqw;width:clamp(28px,3cqw,38px);height:clamp(28px,3cqw,38px);
+  min-width:0;min-height:0;display:grid;place-items:center;padding:0;
   border: max(1px, 0.14cqw) solid #dbc59b;
   background: radial-gradient(circle at 35% 22%, #fffdf4, #fff0d1); color: #8b7352;
   box-shadow: inset 0 0.2cqw 0 #ffffffd9, 0 0.3cqw 0 #bc9d6d65, 0 0.5cqw 0.8cqw #7f67451c;
-  font-size: clamp(24px, 3cqw, 38px); line-height: 1;
+  font-size:clamp(20px,2.2cqw,28px);line-height:1;
 }
 .character-screen > .character-close:active { transform: translateY(0.2cqw); box-shadow: inset 0 0.1cqw 0 #fffdf4, 0 0.1cqw 0 #bc9d6d65; }
 .character-screen .outfit-tabs {
@@ -583,6 +584,12 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .play-menu-panel[data-page="multi"]>.play-menu-content,.play-menu-panel[data-page="create"]>.play-menu-content{margin-top:2cqh;}
 .play-menu-panel .room-create{display:flex;align-items:center;justify-content:center;margin:0 0 2cqh auto;width:clamp(104px,12cqw,172px);max-width:100%;min-width:0;min-height:32px;height:clamp(32px,5cqh,44px);box-sizing:border-box;padding:.6cqh 1cqw;border-radius:1cqw;font:400 clamp(10px,1.25cqw,17px)/1.2 var(--font-round);white-space:normal;flex:none;}
 .play-menu-footer .room-create{grid-column:2;grid-row:1;justify-self:center;margin:0;}
+.play-menu-footer.room-menu-footer{display:flex;align-items:flex-start;max-height:28cqh;overflow-y:auto;}
+.room-footer-actions{display:flex;flex:1;min-width:0;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:1cqw;}
+.room-menu-footer .room-invite-actions{display:contents;}
+.room-menu-footer .room-invite-actions p:not(:empty),.room-menu-footer .room-invite-link{order:2;flex-basis:100%;text-align:right;}
+.room-menu-footer .room-invite-actions p:empty{display:none;}
+.play-menu-footer .commerce-primary.room-footer-primary{background:linear-gradient(#d8e9ac,#bad584);border-color:#92ad65;color:#526a35;}
 /* Shop title, coin balance and close share one aligned header. */
 .shop-screen{--shop-header-size:clamp(28px,3cqw,38px);--shop-header-top:7cqh;--shop-tabs-top:calc(var(--shop-header-top) + var(--shop-header-size) + 2cqh);--shop-content-top:calc(var(--shop-tabs-top) + max(40px,8cqh) + 2cqh);}
 .shop-screen .shop-title{top:3cqh;left:4cqw;height:var(--shop-header-size);display:flex;align-items:center;}

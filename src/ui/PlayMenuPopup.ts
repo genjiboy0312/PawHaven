@@ -216,6 +216,7 @@ export class PlayMenuPopup {
     this.signature=this.renderSignature();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
     this.footer.replaceChildren();this.footer.hidden=true;
+    this.footer.classList.remove('room-menu-footer');
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
     if(this.closeButton){const back=this.page!=='mode';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
@@ -233,11 +234,14 @@ export class PlayMenuPopup {
       input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map));
       this.footer.append(create);this.footer.hidden=false;
     }else if(room){
+      this.footer.classList.add('room-menu-footer');this.footer.hidden=false;
+      const actions=document.createElement('div');actions.className='room-footer-actions';
+      this.footer.append(this.button('leaveRoom',()=>this.navigateBack()),actions);
       root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
       if(room.phase==='waiting'){
         const href=this.options.inviteHref??window.location?.href;
-        if(href){this.inviteButton=new RoomInviteButton(room.id,href);root.append(this.inviteButton.element);}
-        if(room.host===client.owner&&this.options.inviteFriends){const invite=this.button('friendInvite',()=>this.options.inviteFriends?.());invite.disabled=client.busy||client.reconnecting||!!client.error||room.members.length>=4;(this.inviteButton?.element??root).prepend(invite);}
+        if(href){this.inviteButton=new RoomInviteButton(room.id,href);actions.append(this.inviteButton.element);}
+        if(room.host===client.owner&&this.options.inviteFriends){const invite=this.button('friendInvite',()=>this.options.inviteFriends?.());invite.disabled=client.busy||client.reconnecting||!!client.error||room.members.length>=4;actions.append(invite);}
       }
       if(this.options.invitation){root.append(this.text(t('roomInviteLeaveFirst')),this.cancelInvitation());}
       if(room.phase==='results'){
@@ -269,9 +273,9 @@ export class PlayMenuPopup {
         hint.className='room-start-hint';hint.setAttribute('role','status');root.append(hint);
         const mine=room.members.find(m=>m.id===client.owner);
         const start=this.button(host?'start':mine?.ready?'cancelReady':'ready',()=>{void client.command(host?'start':'ready',host?{}:{ready:!mine?.ready});});
-        start.disabled=client.busy||(host&&(room.members.length<2||room.members.some(m=>m.id!==room.host&&!m.ready)))||room.phase!=='waiting';root.append(start);
+        start.classList.add('room-footer-primary');
+        start.disabled=client.busy||(host&&(room.members.length<2||room.members.some(m=>m.id!==room.host&&!m.ready)))||room.phase!=='waiting';actions.append(start);
       }
-      root.append(this.button('leaveRoom',()=>this.navigateBack()));
       if(client.notice==='round'&&['countdown','playing'].includes(room.phase))root.append(this.button('raceResume',()=>client.clearNotice()));
       if(this.roomEvent){const event=this.text(t(this.roomEvent.key).replace('{name}',this.roomEvent.name));event.className='room-event';event.setAttribute('role','status');root.append(event);}
     }else{
