@@ -602,7 +602,9 @@ test('single and multiplayer use one top back action while preserving pagination
     env.host.querySelector('.room-map-picker').querySelector('.settings-close').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'single');
     setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (3) ▾');
-    assert.equal(env.host.querySelector('.play-menu-back').getAttribute('aria-label'),'뒤로');
+    assert.equal(env.host.querySelector('.play-menu-back').hidden,true);assert.equal(env.host.querySelector('.play-menu-back').disabled,true);
+    const leave=env.host.querySelector('.play-menu-exit');assert.equal(leave.textContent,'나가기');assert.equal(env.host.querySelector('.play-menu-footer').contains(leave),true);
+    leave.dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(menu.closeButton.hidden,false);
   }finally{menu?.destroy();client.destroy(false);setLanguage('en');env.restore();}
 });
 

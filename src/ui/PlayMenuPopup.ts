@@ -218,7 +218,7 @@ export class PlayMenuPopup {
     this.footer.replaceChildren();this.footer.hidden=true;
     this.footer.classList.remove('room-menu-footer');
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
-    if(this.closeButton){const back=this.page!=='mode';this.closeButton.hidden=this.page==='multi';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.closeButton.hidden||this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
+    if(this.closeButton){const back=this.page!=='mode';this.closeButton.hidden=this.page==='multi'||this.page==='single';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.closeButton.hidden||this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
     this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'singleplayer':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
     if(this.page==='mode'){
@@ -296,7 +296,7 @@ export class PlayMenuPopup {
       navigation.append(this.button('previous',()=>pager.scrollBy({left:-pager.clientWidth,behavior:'smooth'})),status,this.button('next',()=>pager.scrollBy({left:pager.clientWidth,behavior:'smooth'})));
       pager.addEventListener('scroll',update);update();this.footer.append(navigation);this.footer.hidden=false;
     }
-    if(this.page==='multi'&&!room){const leave=this.button('leaveRoom',()=>this.navigateBack());leave.classList.add('play-menu-exit');leave.setAttribute('data-recovery-control','true');this.footer.append(leave);this.footer.hidden=false;}
+    if(this.page==='single'||this.page==='multi'&&!room){const leave=this.button('leaveRoom',()=>this.navigateBack());leave.classList.add('play-menu-exit');leave.setAttribute('data-recovery-control','true');this.footer.append(leave);this.footer.hidden=false;}
     if(client?.error||client?.reconnecting){
       const key:TextKey=client.rejection==='already_in_room'?'multiAlreadyJoined':client.rejection==='room_closed'?'multiRoomClosed':client.rejection==='room_unavailable'?'multiRoomFull':client.rejection==='auth'?'multiAuthRetry':client.error==='setup'?'multiSetup':client.error==='rejected'?'multiRejected':'multiReconnecting';
       const p=this.text(t(key));p.setAttribute('role','status');const retry=this.button('economyRetry',()=>client.reconnect());retry.setAttribute('data-recovery-control','true');root.append(p,retry);
