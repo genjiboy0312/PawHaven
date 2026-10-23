@@ -25,7 +25,7 @@ export class HomeScene extends Scene {
     super(); this.map = new LobbyMap(textures); this.addChild(this.map);
     this.panel.className = 'home-screen'; bindAria(this.panel, 'home');
     const title = document.createElement('h2'); title.className = 'shop-title'; bindText(title, 'home');
-    const close = document.createElement('button'); close.type = 'button'; close.className = 'character-close'; bindText(close, 'close');
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'character-close'; close.textContent = '×'; bindAria(close, 'close');
     close.addEventListener('click', onClose, { once: true, signal: this.abort.signal });
     const drawer = document.createElement('div'); drawer.className = 'home-drawer';
     this.tabs.className = 'outfit-tabs home-tabs';
