@@ -210,7 +210,8 @@ export class PlayMenuPopup {
       const defaultName=()=>`${this.options.nickname?.()?.trim()||'Player '+client.owner.slice(0,4)}님의 방`;
       const input=document.createElement('input');input.maxLength=24;input.value=this.name;input.placeholder=defaultName();bindAria(input,'roomName');
       const create=this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name.trim()||defaultName(),map:this.map}))this.page='multi';});});create.classList.add('room-create');
-      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map),create);
+      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map));
+      this.footer.append(create);this.footer.hidden=false;
     }else if(room){
       root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
       if(room.phase==='waiting'){

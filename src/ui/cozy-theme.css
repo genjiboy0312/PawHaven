@@ -501,6 +501,13 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .single-map-choices .single-map-card { min-height: 0; font-size: 1.7cqw; }
 .single-map-choices .single-map-card::before { height: 9cqh; margin-bottom: 1cqh; }
 .single-map-choices .single-map-card p { font-size: clamp(9px,1.1cqw,16px); }
+/* Let map cards grow with their image and badges; scroll the choices, not the card contents. */
+.play-menu-panel[data-page="create"] .mode-cards>.map-card,.room-map-choices>.map-card{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;min-width:0;min-height:max-content;height:auto;box-sizing:border-box;}
+.play-menu-panel[data-page="create"] .mode-cards>.map-card::before,.room-map-choices>.map-card::before{height:auto;aspect-ratio:16/9;flex:0 0 auto;margin-bottom:1cqh;background-position:center;}
+.room-map-choices{grid-auto-rows:max-content;align-items:stretch;}
+.single-map-choices .single-map-card>p{flex:0 0 auto;}
+.single-map-choices .single-goals{flex:0 0 auto;margin:1cqh 0 0;}
+.single-map-choices .single-goal{max-width:100%;}
 .play-result .single-new-best { color: #728648; font-family: var(--font-round); }
 .map-forest { border-top: 0.5cqh solid #73977c !important; }
 .map-forest::before { filter: hue-rotate(18deg) saturate(0.8); background-position: center 30%; }
@@ -557,7 +564,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .play-menu-footer .commerce-primary{min-width:8cqw;min-height:36px;padding:1cqh 1.5cqw;border:1px solid #d6bc88;background:#fff4d8;color:#7b6748;font:400 clamp(10px,1.4cqw,18px) var(--font-round);}
 .play-menu-bottom-back{grid-column:3;grid-row:1;justify-self:end;}
 .play-menu-panel[data-page="multi"]>.play-menu-content,.play-menu-panel[data-page="create"]>.play-menu-content{margin-top:2cqh;}
-.play-menu-content .room-create{display:flex;align-items:center;justify-content:center;margin:0 0 2cqh auto;width:clamp(104px,12cqw,172px);max-width:100%;min-width:0;min-height:32px;height:clamp(32px,5cqh,44px);box-sizing:border-box;padding:.6cqh 1cqw;border-radius:1cqw;font:400 clamp(10px,1.25cqw,17px)/1.2 var(--font-round);white-space:normal;flex:none;}
+.play-menu-panel .room-create{display:flex;align-items:center;justify-content:center;margin:0 0 2cqh auto;width:clamp(104px,12cqw,172px);max-width:100%;min-width:0;min-height:32px;height:clamp(32px,5cqh,44px);box-sizing:border-box;padding:.6cqh 1cqw;border-radius:1cqw;font:400 clamp(10px,1.25cqw,17px)/1.2 var(--font-round);white-space:normal;flex:none;}
+.play-menu-footer .room-create{grid-column:2;grid-row:1;justify-self:center;margin:0;}
 /* Shop title, coin balance and close share one aligned header. */
 .shop-screen{--shop-header-size:clamp(28px,3cqw,38px);--shop-header-top:7cqh;--shop-tabs-top:calc(var(--shop-header-top) + var(--shop-header-size) + 2cqh);--shop-content-top:calc(var(--shop-tabs-top) + max(40px,8cqh) + 2cqh);}
 .shop-screen .shop-title{top:3cqh;left:4cqw;height:var(--shop-header-size);display:flex;align-items:center;}
