@@ -31,6 +31,10 @@ export class Animal extends Container {
   get state(): AnimalVisualState { return this.welcome.state ?? this.behavior.state; }
   get mode(): BehaviorMode { return this.behavior.mode; }
   get welcoming(): boolean { return this.welcome.active; }
+  feed():boolean{
+    if(this.welcoming||!this.behavior.canPet)return false;
+    this.dialogue.startSnack();this.behavior.pet(4.5);this.animation.restart();this.touchCooldown=1;this.touches=1;this.update(0);return true;
+  }
 
   constructor(private readonly config: AnimalConfig, random: () => number = Math.random, nickname?: () => string | null | undefined) {
     super();

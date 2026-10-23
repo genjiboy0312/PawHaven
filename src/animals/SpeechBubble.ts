@@ -38,6 +38,7 @@ export class SpeechBubble extends Container {
   private age = 0;
   private source = '';
   private bubbleWidth = 40;
+  get halfWidth(){return this.bubbleWidth/2;}
   halfHeight = 18;
   get text(): string { return this.source; }
   get displayText(): string { return this.caption.text; }

@@ -74,6 +74,7 @@ export class QuestPopup {
         const description = document.createElement('p'); description.textContent = t(quest.id === 'pet' ? 'dailyPetHint' : 'dailyRunHint');
         const progress = document.createElement('p'); coinAmount(progress, quest.reward, { prefix: `${quest.progress}/${quest.target} · ` });
         detail.append(name, description, progress);
+        if(this.state.snacksReady){const treat=document.createElement('p');treat.className='snack-quest-reward';const art=document.createElement('img');art.src='./assets/items/pet-treat.png';art.alt='';const text=document.createElement('span');text.textContent=t('snackReward');treat.append(art,text);detail.append(treat);}
         const claim = document.createElement('button'); claim.type = 'button'; claim.className = 'commerce-primary';
         claim.textContent = t(quest.claimed ? 'claimed' : 'claim'); claim.disabled = !quest.canClaim;
         claim.setAttribute('data-reward-ready', String(quest.canClaim));

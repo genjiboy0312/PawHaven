@@ -7,12 +7,20 @@ import { homeInitialStock, type PlaceableTab } from '../home/HomeCatalog';
 export class ServerShopState {
   private view = new ShopState();
   private runId?: string;
+  feedSerial=0;fedPet='';private feedRevision=-1;
+  get snacksReady(){return this.api.result?.snapshot.snacksReady===true;}
+  get snacks(){return this.api.result?.snapshot.snacks??0;}
+  async feed(petId:string):Promise<boolean>{
+    if(!this.ready||!this.snacksReady||this.snacks<=0||!['corgi','myeongrang'].includes(petId))return false;
+    return (await this.api.execute('feed',{petId}))?.outcome==='fed';
+  }
   private readonly listeners = new Set<() => void>();
   private readonly unsubscribe: () => void;
   constructor(private readonly api: EconomyClient) {
     this.unsubscribe = api.subscribe(() => {
       const result = api.result;
       if (result) {
+        if(result.outcome==='fed'&&result.petId&&result.revision!==this.feedRevision){this.feedRevision=result.revision;this.feedSerial++;this.fedPet=result.petId;}
         // Freeze the local view to the server day; only the server can roll a logged-in quest day.
         const fixedDay = Date.parse(result.snapshot.daily.day + 'T00:00:00Z');
         this.view = new ShopState({ getItem: () => JSON.stringify(result.snapshot), setItem() {} }, () => fixedDay);

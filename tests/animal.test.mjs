@@ -13,6 +13,20 @@ function createAnimal() {
     animations: { idle: { frames: [Texture.WHITE], fps: 3 }, walk: { frames: [Texture.WHITE], fps: 8 } } });
 }
 
+test('feeding reuses emotion without changing body bounds and permits normal petting after cooldown', () => {
+  const animal = createAnimal();
+  animal.setBounds(960, 389, 540);
+  const bounds = animal.touchBounds;
+  assert.equal(animal.feed(), true);
+  assert.equal(animal.state, 'EMOTE');
+  assert.equal(animal.touchBounds, bounds);
+  assert.equal(animal.pet(), false);
+  animal.update(1.1);
+  assert.equal(animal.pet(), true);
+  assert.equal(animal.touchBounds, bounds);
+  animal.destroy({ children: true });
+});
+
 test('walk remains inside viewport, turns both directions and survives resize', () => {
   const animal = createAnimal();
   animal.setBounds(390, 590);

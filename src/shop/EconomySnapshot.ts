@@ -1,12 +1,13 @@
 import { HOME_MAX_STOCK, homeInitialStock, homeKey, validHomeItem } from '../home/HomeCatalog';
 export interface EconomySnapshot {
+  snacks?:number;snacksReady?:boolean;
   homeItems?: Record<string, number>; homeShopReady?: boolean;
   coins: number; xp: number; premium: boolean; items: string[]; claimed: string[];
   daily: { day: string; pet: number; run: number; claimed: ('pet' | 'run')[]; lastPet: number | null };
 }
-export type EconomyAction = 'load' | 'buy' | 'buy_home' | 'pet' | 'claim_daily' | 'claim_pass' | 'unlock_pass' | 'run_start' | 'run_finish';
+export type EconomyAction = 'load' | 'buy' | 'buy_home' | 'feed' | 'pet' | 'claim_daily' | 'claim_pass' | 'unlock_pass' | 'run_start' | 'run_finish';
 export interface EconomyRequest { p_action: EconomyAction; p_request_id: string; p_payload: Record<string, unknown> }
-export interface EconomyResult { snapshot: EconomySnapshot; revision: number; outcome: string; run_id?: string }
+export interface EconomyResult { snapshot: EconomySnapshot; revision: number; outcome: string; run_id?: string;petId?:string }
 const integer = (value: unknown, max: number): value is number => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= max;
 const uniqueList = (value: unknown, max: number, valid: (item: unknown) => boolean): value is string[] =>
   Array.isArray(value) && value.length <= max && new Set(value).size === value.length && value.every(valid);
@@ -22,6 +23,7 @@ export function parseEconomyResult(input: unknown): EconomyResult {
       (daily.lastPet !== null && !integer(daily.lastPet, Number.MAX_SAFE_INTEGER)) ||
       (result.run_id !== undefined && !/^[0-9a-f-]{36}$/i.test(result.run_id))) throw Error('invalid_economy_response');
   if (value.homeShopReady !== undefined && value.homeShopReady !== true) throw Error('invalid_economy_response');
+  if((value.snacksReady!==undefined&&value.snacksReady!==true)||(value.snacksReady===true&&!integer(value.snacks,99))||(value.snacks!==undefined&&!integer(value.snacks,99))||(result.petId!==undefined&&!['corgi','myeongrang'].includes(result.petId)))throw Error('invalid_economy_response');
   if (value.homeShopReady === true || value.homeItems !== undefined) {
     if (!value.homeItems || Array.isArray(value.homeItems) || typeof value.homeItems !== 'object' || Object.keys(value.homeItems).length > 9) throw Error('invalid_economy_response');
     for (const [key, count] of Object.entries(value.homeItems)) {

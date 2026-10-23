@@ -1,4 +1,10 @@
 # Cozy UI 1차 (2026-10-17)
+## 로비 바탕·간식 (2026-10-24, 이전 CSS 바탕보다 우선)
+
+- 삼성 인터넷 강제 다크모드에서 Character/Friends 이미지 바탕이 유지된다는 사용자 확인에 따라 로비 모든 버튼을 이미지 바탕으로 통일했다. Home/Quest/Shop/Settings는 기존 Lobby_Button_Face.svg를 재사용한다. Play는 같은 형상의 연두색 Lobby_Button_Face_Play.svg, 보상 가능 Quest는 승인된 Control_Jump_Face.svg 사본인 Lobby_Button_Face_Reward.svg다.
+- 원본 Resources, 배포 사본 public/assets/icons. 기존 아이콘·배치·크기·라벨·사운드·배지·입력은 유지한다. image-rendering:auto를 유지하며 저해상도 확대나 새 동물 그림으로 되돌리지 않는다.
+- CSS 이미지 경로는 Vite가 Pages 기본 경로에 맞춰 처리한다. Chrome 기본/다크 색상 설정에서 연결을 확인했다. 삼성 인터넷 자체 강제 변환은 실기기 확인 대상이다.
+- 간식 버튼은 같은 바탕을 가로로 맞춰 재사용한다. 말풍선 오른쪽, 공간 부족 시 왼쪽에 놓고 화면 경계 안으로 제한한다. 기능·자원·SQL: [SNACKS.md](SNACKS.md).
 
 ## UI 작업 전 반드시 확인할 지속 기준 — 사용자 승인 (2026-10-24, 과거 시안보다 우선)
 - 사용자는 매끈한 벡터 시안과 단순 동물 기호를 거절하고, 촘촘한 픽셀 UI 및 명랑이·턱시도 고양이 얼굴 시안을 승인했다. 이후 UI 제작은 이 절과 [LOBBY_ICONS.md](LOBBY_ICONS.md), 실제 채택 리소스를 먼저 확인한다. 새 대화에서도 이 문서를 프로젝트의 UI 기억으로 사용한다.

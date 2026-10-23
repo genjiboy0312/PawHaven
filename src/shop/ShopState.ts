@@ -20,6 +20,15 @@ export class ShopState {
   readonly ready = true;
   readonly entitlementsKnown = true;
   readonly homeShopReady = true;
+  readonly snacksReady=true;
+  private treats=0;private lastSnack:number|null=null;
+  feedSerial=0;fedPet='';
+  get snacks(){return this.treats;}
+  feed(petId:string):boolean{
+    const now=this.now();
+    if(!['corgi','myeongrang'].includes(petId)||!Number.isFinite(now)||this.treats<=0||this.lastSnack!==null&&now-this.lastSnack<4000)return false;
+    this.treats--;this.lastSnack=now;this.feedSerial++;this.fedPet=petId;this.save();return true;
+  }
   readonly busy = false;
   readonly message = '';
   retry(): void {}
@@ -38,6 +47,8 @@ export class ShopState {
     try {
       const saved = JSON.parse(storage?.getItem(SHOP_STORAGE_KEY) ?? 'null');
       if (saved && typeof saved === 'object') {
+        if(Number.isSafeInteger(saved.snacks)&&saved.snacks>=0&&saved.snacks<=99)this.treats=saved.snacks;
+        if(Number.isFinite(saved.lastSnack)&&saved.lastSnack>=0)this.lastSnack=saved.lastSnack;
         if (Number.isSafeInteger(saved.coins) && saved.coins >= 0 && saved.coins <= 1000000) this.balance = saved.coins;
         if (Number.isSafeInteger(saved.xp) && saved.xp >= 0 && saved.xp <= 400) this.experience = saved.xp;
         if (typeof saved.premium === 'boolean') this.premium = saved.premium;
@@ -89,7 +100,7 @@ export class ShopState {
       if (rolled) this.save(); return false;
     }
     // Claim flag and coins are persisted in one storage record.
-    this.daily.claimed.push(id); this.balance += quest.reward; this.save(); return true;
+    this.daily.claimed.push(id);this.treats=Math.min(99,this.treats+1);this.balance += quest.reward; this.save(); return true;
   }
   get hasDailyRewards(): boolean { return this.dailyQuests.some(quest => quest.canClaim); }
   get hasPassRewards(): boolean {
@@ -133,7 +144,7 @@ export class ShopState {
   }
   subscribe(callback: () => void): () => void { this.listeners.add(callback); return () => { this.listeners.delete(callback); }; }
   private save(notify = true): void {
-    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], homeItems: this.homeItems, claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
+    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ snacks:this.treats,lastSnack:this.lastSnack,coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], homeItems: this.homeItems, claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
     if (notify) this.listeners.forEach(callback => callback());
   }
 }

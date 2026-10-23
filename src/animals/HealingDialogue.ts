@@ -19,11 +19,13 @@ const NAMED_LINES: Readonly<Partial<Record<number, Record<Language, string>>>> =
 export class HealingDialogue {
   private last = -1;
   private remaining = 0;
+  private snack=false;
   duration = 0;
   constructor(private readonly random: () => number = Math.random, private readonly nickname: () => string | null | undefined = () => undefined) {}
   get remainingTime(): number { return this.remaining; }
   get active(): boolean { return this.remaining > 0; }
   private line(language: Language): string {
+    if(this.snack)return language==='ko'?'간식 고마워!\n너랑 함께라 더 맛있어.':'Thanks for the treat!\nIt’s better with you here.';
     const name = this.nickname()?.trim();
     const named = NAMED_LINES[this.last]?.[language];
     return named && name && /^[A-Za-z0-9가-힣_]{2,16}$/.test(name)
@@ -32,6 +34,7 @@ export class HealingDialogue {
   get message(): string { return this.active ? this.line(getLanguage()) : ''; }
   start(replace = false): boolean {
     if (this.active && !replace) return false;
+    this.snack=false;
     // Sample from all entries except the previous one, including a constant RNG.
     const count = HEALING_LINES.length - (this.last < 0 ? 0 : 1);
     const sample = this.random();
@@ -46,5 +49,6 @@ export class HealingDialogue {
   update(seconds: number): void {
     if (Number.isFinite(seconds) && seconds > 0) this.remaining = Math.max(0, this.remaining - seconds);
   }
+  startSnack():void{this.snack=true;this.duration=this.remaining=4.5;}
   clear(): void { this.remaining = 0; }
 }
