@@ -1,5 +1,9 @@
 # Supabase 연결 (2026-10-17)
 
+## SQL 안내 이름 규칙 (사용자 요청, 2026-10-24)
+- 앞으로 새 SQL 실행을 안내할 때 파일 경로와 함께 SQL Editor에 저장할 영어 쿼리 제목을 정해서 제공한다. 형식은 `PawHaven - <Feature Name>`으로 기능을 알아볼 수 있게 한다.
+- 간식 011 SQL 제목: `PawHaven - Pet Treats`. 2026-10-24 사용자가 등록 완료를 확인했다. 실제 로그인 계정의 지급·차감 동작 확인과는 구분한다.
+
 ## 대시보드에서 필요한 설정
 1. 프로젝트 rgsbqfjnhdvmqxrlqawm → SQL Editor → New query.
 2. supabase/migrations/202610170001_player_accounts.sql 전체를 붙여 넣고 Run.

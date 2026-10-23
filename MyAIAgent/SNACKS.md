@@ -1,5 +1,7 @@
 # 로비 간식 (2026-10-24)
 
+- Supabase SQL Editor 제목: `PawHaven - Pet Treats`. 2026-10-24 사용자 SQL 등록 완료 보고. 실제 운영 계정의 지급·사용 확인은 별도다.
+
 - 승인 범위: 비스킷 한 종류, 강아지 터치 후 말풍선 옆 간식 버튼, 기존 EMOTE·하트·감사 대사 재사용, 일일 퀘스트 보상. 배고픔·접속 강요·광고·결제는 추가하지 않는다.
 - Resources/Pet_Treat_Biscuit.png 원본과 public/assets/items/pet-treat.png 배포 사본을 함께 보관한다. 승인된 검정·흰색 펫 소파를 스타일 참조로 생성했다. 꿀색 뼈 모양, 적은 명암, 촘촘한 윤곽, 투명 배경. 기존 동물 시트는 다시 생성하지 않았다.
 - 제작 프롬프트: small golden-brown rounded bone biscuit, head-on flat 2D pixel art, fine pixel contours matching approved pet sofa, limited warm shades, tiny baked dimples, transparent background, no face/text/frame/gloss/3D/coarse enlarged mosaic. 이미지 원본의 투명 여백은 CSS 표시 영역에서만 조정한다.
