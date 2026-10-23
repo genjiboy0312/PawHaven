@@ -7,7 +7,7 @@ export class RoomInviteButton {
   constructor(room: string, href = window.location.href) {
     const url = roomInvitationUrl(href, room);
     this.element.className = 'room-invite-actions';
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'commerce-primary'; bindText(button, 'roomInvite');
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'commerce-primary'; bindText(button, 'roomInviteShare');
     const status = document.createElement('p'); status.setAttribute('role', 'status');
     const link = document.createElement('textarea'); link.className = 'room-invite-link'; link.readOnly = true; link.rows = 2; link.value = url; link.hidden = true; bindAria(link, 'roomInviteLink');
     button.addEventListener('click', () => {

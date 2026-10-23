@@ -501,6 +501,9 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .friend-toolbar{justify-content:space-between;margin-bottom:1.5cqh;}
 .friend-toolbar p{margin:0;font-size:clamp(10px,1.2cqw,17px);}
 .friend-row{justify-content:space-between;flex-wrap:wrap;}
+.friend-presence{display:block;font:400 clamp(10px,1.1cqw,15px) var(--font-body);color:#928d7d;}
+.friend-presence[data-state="lobby"]{color:#6d8b48;}
+.friend-presence[data-state="playing"],.friend-presence[data-state="room"]{color:#b78544;}
 .friend-row>strong{min-width:0;overflow-wrap:anywhere;font:400 clamp(13px,1.7cqw,23px) var(--font-round);}
 .friend-actions{flex-wrap:wrap;font-size:clamp(10px,1.25cqw,17px);}
 .friend-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1cqw;}

@@ -39,6 +39,7 @@ export class PlayMenuPopup {
     goals?:(map:CourseId)=>readonly SingleGoal[];
     invitation?:{id:string;dismiss:()=>void};
     inviteHref?:string;
+    inviteFriends?:()=>void;
   }){}
   open(page:Page='mode'){
     if(this.overlay)return;this.page=page;
@@ -236,6 +237,7 @@ export class PlayMenuPopup {
       if(room.phase==='waiting'){
         const href=this.options.inviteHref??window.location?.href;
         if(href){this.inviteButton=new RoomInviteButton(room.id,href);root.append(this.inviteButton.element);}
+        if(room.host===client.owner&&this.options.inviteFriends){const invite=this.button('friendInvite',()=>this.options.inviteFriends?.());invite.disabled=client.busy||client.reconnecting||!!client.error||room.members.length>=4;(this.inviteButton?.element??root).prepend(invite);}
       }
       if(this.options.invitation){root.append(this.text(t('roomInviteLeaveFirst')),this.cancelInvitation());}
       if(room.phase==='results'){

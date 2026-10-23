@@ -1,6 +1,7 @@
 import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../settings/i18n';
 import { FriendsClient, type Friend, type FriendAction } from '../friends/FriendsClient';
 import { ConfirmPopup } from './ConfirmPopup';
+import type { FriendActivity } from '../friends/FriendActivity';
 const TABS = ['friendsList', 'addFriend', 'friendRequests'] as const;
 /** Reuses the existing popup; its account-owned client owns all server state. */
 export class FriendsPopup {
@@ -11,9 +12,9 @@ export class FriendsPopup {
   private blocked: { element: HTMLElement; inert: boolean }[] = [];
   private tab: typeof TABS[number] = 'friendsList';
   private panel?:HTMLElement;private tabs?:HTMLElement;private unsubscribe?:()=>void;
-  private draft='';private search?:HTMLInputElement;private confirm?:ConfirmPopup;
+  private draft='';private search?:HTMLInputElement;private confirm?:ConfirmPopup;private activityOff?:()=>void;
   private readonly localeOff = onLanguageChange(() => this.render());
-  constructor(private readonly pause: (paused: boolean) => void,private readonly client?:FriendsClient,private readonly account?:()=>void,private readonly nickname?:()=>string|null) {}
+  constructor(private readonly pause: (paused: boolean) => void,private readonly client?:FriendsClient,private readonly account?:()=>void,private readonly nickname?:()=>string|null,private readonly activity?:FriendActivity,private readonly canInvite?:()=>boolean) {}
   open(): void {
     if (this.overlay) return;
     const host = document.querySelector<HTMLElement>('#app'); if (!host) return;
@@ -53,6 +54,7 @@ export class FriendsPopup {
       else if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
     }, { signal });
     this.unsubscribe=this.client?.subscribe(()=>this.render());
+    this.activityOff=this.activity?.subscribe(()=>this.render());
     this.render();if(!this.nickname||this.nickname())this.client?.start();close.focus();
   }
   private render(): void {
@@ -75,10 +77,16 @@ export class FriendsPopup {
     const status=document.createElement('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
     const errors={setup:'friendsSetup',offline:'friendsOffline',auth:'friendsLogin',query:'friendsQuery',nickname:'friendsNickname',limit:'friendsLimit',incoming:'friendsIncoming',notFound:'friendsNotFound'} as const;
     status.textContent=client.error?t(errors[client.error]):client.busy?t('friendsLoading'):'';toolbar.append(status);this.content.append(toolbar);
+    if(this.activity?.error){const error=document.createElement('p');error.setAttribute('role','status');const keys={setup:'friendInviteSetup',offline:'friendsOffline',auth:'friendsLogin',expired:'friendInviteExpired',busy:'friendInviteBusy',cooldown:'friendInviteSent',unavailable:'friendInviteUnavailable'} as const;error.textContent=t(keys[this.activity.error]);this.content.append(error);}
     const row=(friend:Friend,actions:{key:TextKey;action:FriendAction}[])=>{
       const item=document.createElement('section');item.className='daily-quest friend-row';
       const name=document.createElement('strong');name.textContent=friend.nickname;
+      if(friend.relation==='friend'&&this.activity){const state=document.createElement('span');state.className='friend-presence';const keys={offline:'friendOffline',lobby:'friendOnline',room:'friendInRoom',playing:'friendPlaying',unknown:'friendUnknown'} as const;const current=this.activity.state(friend.id);state.textContent=t(keys[current]);state.dataset.state=current;name.append(state);}
       const controls=document.createElement('div');controls.className='friend-actions';
+      if(friend.relation==='friend'&&this.activity&&this.canInvite?.()){
+        const cooling=this.activity.cooling(friend.id),invite=button(cooling?'friendInviteSent':'friendInvite',()=>{void this.activity!.command('invite',friend.id);});
+        invite.disabled=invite.disabled||this.activity.busy||cooling||this.activity.state(friend.id)!=='lobby';controls.append(invite);
+      }
       for(const {key,action}of actions)controls.append(button(key,()=>{
         if(action!=='remove'){void client.command(action,friend.id);return;}
         if(this.confirm||!this.panel)return;
@@ -115,6 +123,7 @@ export class FriendsPopup {
   close(): void {
     if (!this.overlay) return;
     this.confirm?.destroy();this.confirm=undefined;this.unsubscribe?.();this.unsubscribe=undefined;this.client?.stop();
+    this.activityOff?.();this.activityOff=undefined;
     this.abort?.abort(); this.overlay.remove(); this.overlay = undefined; this.content = undefined;
     this.blocked.forEach(item => { item.element.inert = item.inert; }); this.blocked = []; this.pause(false);
     if (this.previousFocus?.isConnected) this.previousFocus.focus(); this.previousFocus = undefined;

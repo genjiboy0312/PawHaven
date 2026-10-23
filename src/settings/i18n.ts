@@ -1,5 +1,7 @@
 export type Language = 'en' | 'ko';
 const en = {
+  roomInviteShare:'Share link',
+  friendOnline:'Online',friendOffline:'Offline',friendInRoom:'In a room',friendPlaying:'Playing',friendUnknown:'Checking…',friendInvite:'Invite friend',friendInviteSent:'Invited · 30s cooldown',friendInviteTitle:'Play together?',friendInviteNote:'{nickname} invited you to {room}.',friendInviteAccept:'Join room',friendInviteDecline:'Decline',friendInviteExpired:'This invitation has expired.',friendInviteBusy:'This player is busy. Try again from the lobby.',friendInviteUnavailable:'The room is full, closed or already started.',friendInviteSetup:'Apply the friend invitation SQL update to use this feature.',
   friendsLogin:'Log in to find and add friends.',friendsNickname:'Set your nickname in Account settings before using Friends.',
   friendsRefresh:'Refresh',friendsLoading:'Loading…',friendsSetup:'Friends setup is not complete yet. Please try again after the server update.',friendsOffline:'Unable to connect. Please refresh and try again.',
   friendsQuery:'Enter 2–16 letters, numbers, Korean characters or underscores.',friendsLimit:'The friend or request limit has been reached.',friendsIncoming:'This player has already sent you a request. Refresh to accept it.',friendsNotFound:'This player or request is no longer available. Please refresh.',
@@ -99,6 +101,8 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  roomInviteShare:'링크 공유',
+  friendOnline:'온라인',friendOffline:'오프라인',friendInRoom:'대기방',friendPlaying:'플레이 중',friendUnknown:'확인 중…',friendInvite:'친구 초대',friendInviteSent:'초대 완료 · 30초 대기',friendInviteTitle:'함께 플레이할까요?',friendInviteNote:'{nickname}님이 {room}에 초대했어요.',friendInviteAccept:'방 입장',friendInviteDecline:'거절',friendInviteExpired:'초대가 만료됐어요.',friendInviteBusy:'지금은 참여할 수 없어요. 로비에서 다시 시도해 주세요.',friendInviteUnavailable:'방이 꽉 찼거나 종료 또는 시작됐어요.',friendInviteSetup:'친구 초대 SQL 업데이트를 적용해 주세요.',
   friendsLogin:'친구를 찾고 추가하려면 로그인해 주세요.',friendsNickname:'친구 기능을 사용하려면 계정 설정에서 닉네임을 정해 주세요.',
   friendsRefresh:'새로고침',friendsLoading:'불러오는 중…',friendsSetup:'친구 기능 서버 설정이 아직 완료되지 않았어요. 서버 반영 후 다시 시도해 주세요.',friendsOffline:'연결하지 못했어요. 새로고침 후 다시 시도해 주세요.',
   friendsQuery:'영문·숫자·한글·밑줄로 2~16자를 입력해 주세요.',friendsLimit:'친구 또는 요청 한도에 도달했어요.',friendsIncoming:'상대방이 이미 요청을 보냈어요. 새로고침 후 수락해 주세요.',friendsNotFound:'사용자 또는 요청이 더 이상 없어요. 새로고침해 주세요.',

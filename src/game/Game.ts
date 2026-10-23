@@ -21,6 +21,8 @@ import { ShopScene } from './scenes/ShopScene';
 import { QuestPopup } from '../ui/QuestPopup';
 import { FriendsPopup } from '../ui/FriendsPopup';
 import { FriendsClient, friendsTransport } from '../friends/FriendsClient';
+import { FriendActivity, activityTransport } from '../friends/FriendActivity';
+import { FriendInviteInbox } from '../ui/FriendInviteInbox';
 import { CharacterPresets } from '../animals/CharacterPresets';
 import { CharacterSelection } from '../animals/CharacterSelection';
 import { GameSettings, type GamePreferences } from '../settings/GameSettings';
@@ -53,6 +55,8 @@ export class Game {
   private settings?: SettingsPopup;
   private quests?: QuestPopup;
   private friends?: FriendsPopup;
+  private friendActivity?:FriendActivity;
+  private friendInbox?:FriendInviteInbox;
   private audio?: AudioSystem;
   private readonly outfit = createOutfit();
   private readonly app = new Application();
@@ -168,13 +172,25 @@ export class Game {
     const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab));
     };
-    const makeFriends=()=>new FriendsPopup(paused=>this.scenes?.setPaused(paused),
+    let inGame=false;let currentLobby:LobbyScene|undefined;
+    const makeActivity=()=>{
+      const owner=this.account?.user?.id;
+      if(!owner||!accountClient)return;
+      const activity=new FriendActivity(owner,activityTransport(accountClient,owner),()=>inGame?'playing':'lobby');
+      this.friendActivity=activity;
+      this.friendInbox=new FriendInviteInbox(activity,()=>!!currentLobby&&!!this.scenes?.isCurrent(currentLobby)&&!this.rooms?.room&&!document.hidden&&!document.querySelector('#app > .settings-overlay:not(.friend-invite-inbox)'),
+        paused=>this.scenes?.setPaused(paused),()=>{lobby(true,'multi');});
+      activity.start();
+    };
+    const makeFriends=()=>new FriendsPopup(paused=>this.scenes?.setPaused(paused||!!this.playMenu),
       this.account?.user&&accountClient?new FriendsClient(this.account.user.id,friendsTransport(accountClient,this.account.user.id)):undefined,
-      ()=>this.settings?.openAccount(),()=>this.account?.nickname??null);
+      ()=>this.settings?.openAccount(),()=>this.account?.nickname??null,this.friendActivity,()=>{const room=this.rooms?.room;return !!room&&room.host===this.account?.user?.id&&room.phase==='waiting'&&room.members.length<4;});
+    makeActivity();
     this.friends = makeFriends();
     this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
     const lobby = (returning = false, initialMenu?:'mode'|'multi'): void => {
       if (this.disposed) return;
+      inGame=false;
       const runCommerce = commerce;
       let starting = false;
       const launch = async (origin: LobbyScene | PlayScene, map:CourseId='garden'): Promise<boolean> => {
@@ -191,7 +207,7 @@ export class Game {
             record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),
             retry: async () => { await completion; return launch(play,map); },
           });
-          this.scenes.show(play); return true;
+          inGame=true;this.scenes.show(play);void this.friendActivity?.refresh();return true;
         } finally { starting = false; }
       };
       const openMenu=(page:'mode'|'multi'='mode'):void=>{
@@ -204,7 +220,9 @@ export class Game {
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
           invitation:invitation.room?{id:invitation.room,dismiss:clearInvitation}:undefined,
           rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
+          inviteFriends:()=>this.friends?.open(),
           race:(room,client)=>{
+            this.friends?.close();inGame=true;void this.friendActivity?.refresh();
             const look=room.members.find(m=>m.id===client.owner)?.look;
             const original=look?.petId===this.myeongrang?.id?this.myeongrang!:corgi;
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
@@ -223,7 +241,7 @@ export class Game {
       const scene = new LobbyScene(activePet, () => openMenu(), returning, () => {
         if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index), subscribe: callback => commerce.subscribe(callback) }));
       }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, friends: () => this.friends?.open(), rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback))); } }, () => this.account?.user ? this.account.nickname : null);
-      this.scenes?.show(scene);
+      currentLobby=scene;this.scenes?.show(scene);void this.friendActivity?.refresh();
       if(initialMenu)openMenu(initialMenu);
     };
     this.account.onLoaded(() => {
@@ -231,6 +249,7 @@ export class Game {
       this.playMenu?.destroy();this.rooms?.destroy();this.rooms=undefined;
       const reopenSettings = this.settings?.opened;
       this.settings?.close();
+      this.friendInbox?.destroy();this.friendActivity?.destroy();this.friendInbox=undefined;this.friendActivity=undefined;
       this.quests?.destroy(); this.friends?.destroy();
       presets = new CharacterPresets(playerStorage);
       home = new HomeState(playerStorage, (tab, index) => commerce.entitlementsKnown ? commerce.homeOwned(tab, index) : undefined);
@@ -240,7 +259,7 @@ export class Game {
       const look = character.restore(['corgi', 'myeongrang'], (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
       Object.assign(this.outfit, look.outfit);
       activePet = look.petId === this.myeongrang?.id ? this.myeongrang! : corgi;
-      this.friends = makeFriends();
+      inGame=false;makeActivity();this.friends = makeFriends();
       this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
       const resumeInvitation=!!invitation.room&&!!this.account?.user&&this.account.status!=='loading';
       lobby(true,resumeInvitation?'multi':undefined);
@@ -257,6 +276,7 @@ export class Game {
     if (this.disposed) return;
     this.disposed = true;
     this.installation.destroy();
+    this.friendInbox?.destroy();this.friendActivity?.destroy();
     this.playMenu?.destroy();this.rooms?.destroy();
     this.events.abort(); this.account?.destroy(); this.commerce?.destroy();
     document.removeEventListener('visibilitychange', this.visibility);
