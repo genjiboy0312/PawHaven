@@ -1,7 +1,7 @@
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
-import { OUTFIT_TABS, outfitReady, type OutfitTab } from '../../animals/OutfitState';
+import { OUTFIT_TABS, createOutfit, outfitReady, type OutfitTab } from '../../animals/OutfitState';
 import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { itemPrice } from '../../shop/ShopState';
 import type { CommerceState } from '../../shop/CommerceState';
@@ -19,6 +19,8 @@ const PURCHASE_LABELS = { owned: 'owned', purchased: 'shopPurchased', processing
 export class ShopScene extends Scene {
   private readonly preview = new Container();
   private readonly animation: AnimalAnimationController;
+  private readonly previewOutfit=createOutfit();
+  private readonly previewNote=document.createElement('p');
   private readonly platform = new Graphics().ellipse(235, 395, 150, 28).fill('#d5ddc8');
   private readonly panel = document.createElement('section');
   private readonly balance = document.createElement('p');
@@ -39,10 +41,11 @@ export class ShopScene extends Scene {
   private homeCategory: PlaceableTab = 'Furniture';
   private homeSelected = 5;
   private tab: 'Style' | 'Furniture' | 'Pass';
-  constructor(config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Style' | 'Pass' = 'Style') {
+  constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void) {
     super(); this.tab = initial;
     this.purchase = new PurchasePopup(state, this.panel);
-    this.animation = new AnimalAnimationController(config);
+    Object.assign(this.previewOutfit,config.wardrobe?.outfit);
+    this.animation = new AnimalAnimationController({...config,wardrobe:config.wardrobe?{...config.wardrobe,outfit:this.previewOutfit}:undefined});
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#edf0df'), this.platform, this.preview);
     this.preview.position.set(235, 385); this.preview.scale.set(1.45);
     this.preview.addChild(this.animation.sprite, this.animation.welcomeMark);
@@ -60,12 +63,19 @@ export class ShopScene extends Scene {
     }
     this.connection.className = 'shop-connection';
     this.homePreview.className = 'shop-home-preview';
-    this.panel.append(title, close, this.balance, this.tabs, this.content, this.connection, this.homePreview);
+    this.previewNote.className='shop-preview-note';this.previewNote.setAttribute('role','status');
+    this.panel.append(title, close, this.balance, this.tabs, this.content, this.connection, this.homePreview,this.previewNote);
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = state.subscribe(() => this.render());
     this.localeOff = onLanguageChange(() => this.render()); this.render(); this.update(0);
   }
   private render(): void {
+    Object.assign(this.previewOutfit,this.config.wardrobe?.outfit??createOutfit());
+    const previewReady=this.tab==='Style'&&!!this.config.wardrobe&&outfitReady(this.category,this.selected);
+    if(previewReady)this.previewOutfit[this.category]=this.selected;
+    this.previewNote.hidden=!previewReady;
+    this.previewNote.textContent=t(this.config.wardrobe?.outfit[this.category]===this.selected?'shopEquipped':'shopPreviewOnly');
+    this.update(0);
     const scroll = this.grid?.scrollTop ?? 0; this.grid = undefined;
     coinAmount(this.balance, this.state.entitlementsKnown ? this.state.coins : '—', { balance: true });
     this.balance.setAttribute('data-loading', String(!this.state.entitlementsKnown));
@@ -105,22 +115,28 @@ export class ShopScene extends Scene {
     const detail = document.createElement('span'); detail.className = 'shop-detail';
     const name = document.createElement('strong'); name.textContent = this.itemName(this.category, this.selected);
     const ready = outfitReady(this.category, this.selected);
+    const owned = this.state.entitlementsKnown && this.state.owns(this.category, this.selected);
     const cost = document.createElement('span'); cost.className = 'shop-cost';
-    if (ready) coinAmount(cost, itemPrice(this.selected));
+    if (ready && owned) cost.textContent=t('owned');
+    else if (ready) coinAmount(cost, itemPrice(this.selected));
     else cost.textContent = t('shopComingSoon') + (this.state.entitlementsKnown && this.state.owns(this.category, this.selected) ? ' · ' + t('owned') : '');
     detail.append(name, cost);
     const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
-    const owned = this.state.entitlementsKnown && this.state.owns(this.category, this.selected), enough = this.state.coins >= itemPrice(this.selected);
+    const enough = this.state.coins >= itemPrice(this.selected);
+    const equipped=this.config.wardrobe?.outfit[this.category]===this.selected;
     const purchased = owned && this.lastPurchase?.category === this.category && this.lastPurchase.index === this.selected;
     const status = !ready ? 'comingSoon' : !this.state.entitlementsKnown ? this.state.connection === 'loading' ? 'loading' : 'unavailable'
       : owned ? purchased ? 'purchased' : 'owned' : this.state.busy || this.state.connection === 'loading' ? 'processing'
       : !this.state.ready ? 'unavailable' : enough ? 'available' : 'insufficient';
     buy.setAttribute('data-purchase-state', status);
     footer.setAttribute('data-purchase-state', status);
-    buy.textContent = t(PURCHASE_LABELS[status]);
-    buy.disabled = !ready || owned || !enough || !this.state.ready;
+    buy.textContent = t(ready&&owned&&this.onEquip?(equipped?'shopEquipped':'shopEquip'):PURCHASE_LABELS[status]);
+    buy.disabled = owned ? !ready||!this.config.wardrobe||!this.onEquip||equipped||this.state.busy : !ready||!enough||!this.state.ready;
     buy.addEventListener('click', () => {
       const category = this.category, index = this.selected;
+      if(owned&&!this.destroyed&&!buy.disabled&&this.onEquip&&this.config.wardrobe&&this.config.wardrobe.outfit[category]!==index&&outfitReady(category,index)&&this.state.entitlementsKnown&&this.state.owns(category,index)){
+        this.onEquip(category,index);this.reaction=1.5;this.render();return;
+      }
       if (this.destroyed || buy.disabled || !outfitReady(category, index) || !this.state.ready || this.state.owns(category, index)) return;
       this.purchase.open({ name: () => this.itemName(category, index), icon: () => itemIcon(category, index), price: itemPrice(index),
         available: () => outfitReady(category, index) && !this.state.owns(category, index), fulfilled: () => this.state.owns(category, index),

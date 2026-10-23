@@ -323,6 +323,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .shop-home-preview > .outfit-object { position: relative; display: block; left: auto; bottom: auto; width: 24cqw; height: 20cqh; margin: 0 auto 3cqh; transform: none; object-fit: contain; }
 .shop-home-preview > .outfit-object.pet-sofa-icon { height: 9.37cqw; }
 .shop-home-preview p { margin: 1cqh 0; }
+.shop-preview-note{position:absolute;left:5%;width:40%;top:27cqh;margin:0;text-align:center;color:#87704d;font-size:clamp(10px,1.3cqw,16px);line-height:1.5;pointer-events:none;}
+.shop-preview-note[hidden]{display:none;}
 .shop-style .shop-grid {
   position: static; height: 100%; min-height: 0;
   grid-auto-rows: max(36px, calc((100% - 6cqh) / 4));

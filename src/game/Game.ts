@@ -171,7 +171,10 @@ export class Game {
     const pets = [{ config: corgi, name: 'Corgi', thumbnail: './assets/characters/corgi/corgi-idle-walk.png' },
       { config: this.myeongrang!, name: 'Myeongrang', thumbnail: './assets/characters/myeongrang/idle.png' }];
     const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
-      if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab));
+      if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab,(category,index)=>{
+        if(!commerce.entitlementsKnown||!commerce.owns(category,index))return;
+        this.outfit[category]=index;character.save({petId:activePet.id,outfit:this.outfit});
+      }));
     };
     let inGame=false;let currentLobby:LobbyScene|undefined;
     const saveRoomLook=async()=>{if(this.account?.pendingSave)await this.account.save();};

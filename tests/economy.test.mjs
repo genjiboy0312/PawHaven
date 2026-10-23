@@ -520,6 +520,40 @@ test('missing economy SQL reports setup failure, keeps local prototype coins unt
   } finally { state.destroy(); }
 });
 
+test('Shop try-on never equips on selection, cancellation or purchase; explicit Equip saves once without another charge',async()=>{
+  Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},configurable:true});
+  const {Texture}=await import('pixi.js');const {ShopScene}=await importTs('../src/game/scenes/ShopScene.ts',import.meta.url);
+  const {ShopState}=await importTs('../src/shop/ShopState.ts',import.meta.url);const {CharacterSelection}=await importTs('../src/animals/CharacterSelection.ts',import.meta.url);
+  class Element extends EventTarget{
+    children=[];style={};attributes=new Map();classList={add(){}};
+    append(...items){for(const item of items){item.parent=this;this.children.push(item);}}
+    replaceChildren(...items){this.children=[];this.append(...items);}
+    setAttribute(k,v){this.attributes.set(k,v);}getAttribute(k){return this.attributes.get(k)??null;}
+    querySelector(s){return this.children.find(c=>c.className?.split(' ').includes(s.slice(1)))??this.children.map(c=>c.querySelector(s)).find(Boolean);}
+    remove(){if(this.parent)this.parent.children=this.parent.children.filter(c=>c!==this);}
+    focus(){}get isConnected(){return !!this.parent;}
+  }
+  const previous=globalThis.document,host=new Element();globalThis.document={createElement:()=>new Element(),querySelector:()=>host};
+  const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},selection=new CharacterSelection(storage);
+  const state=new ShopState();state.items.clear();const outfit={Hat:0,Body:0,Acc:0,Etc:0};let saves=0,scene;
+  const config={id:'myeongrang',speed:90,scale:.62,wardrobe:{santaHat:Texture.WHITE,outfit},animations:{idle:{frames:[Texture.WHITE],fps:3,head:[{x:0,y:-1,width:1}]}}};
+  const click=e=>e.dispatchEvent(new Event('click'));
+  try{
+    scene=new ShopScene(config,state,()=>{},()=>{},'Style',(category,index)=>{outfit[category]=index;selection.save({petId:config.id,outfit});saves++;});
+    const panel=host.children[0],content=panel.children[4],action=()=>content.children[2].children[1];
+    assert.equal(scene.animation.hat.visible,true);assert.equal(outfit.Hat,0);assert.equal(state.owns('Hat',1),false);assert.equal(state.coins,1000);assert.equal(saves,0);
+    click(content.children[0].children[1]);assert.equal(scene.animation.hat.visible,false);assert.equal(outfit.Hat,0);
+    click(content.children[0].children[0]);assert.equal(scene.animation.hat.visible,true);
+    click(action());click(host.querySelector('.purchase-cancel'));assert.equal(state.coins,1000);assert.equal(outfit.Hat,0);
+    click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));
+    assert.equal(state.owns('Hat',1),true);assert.equal(state.coins,925);assert.equal(outfit.Hat,0);assert.equal(saves,0);assert.equal(action().textContent,'Equip');assert.equal(content.children[2].children[0].children[1].textContent,'Owned');
+    click(panel.children[3].children[1]);assert.equal(scene.previewOutfit.Hat,0);click(panel.children[3].children[0]);
+    const equip=action();click(equip);click(equip);assert.equal(outfit.Hat,1);assert.equal(saves,1);assert.equal(state.coins,925);assert.equal(action().textContent,'Equipped');assert.equal(action().disabled,true);
+    assert.equal(new CharacterSelection(storage).current.outfit.Hat,1);
+    scene.destroy({children:true});scene=undefined;assert.equal(config.wardrobe.santaHat.destroyed,false);
+  }finally{scene?.destroy({children:true});if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
+});
+
 test('server Shop blocks unfinished listings and preserves existing ownership without sending a purchase', async () => {
   Object.defineProperty(globalThis, 'navigator', { value: { userAgent: 'Node.js' }, configurable: true });
   const { Texture } = await import('pixi.js');

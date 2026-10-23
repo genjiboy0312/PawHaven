@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  shopEquip:'Equip',shopEquipped:'Equipped',shopPreviewOnly:'Try-on preview · Equip to save',
   snackGive:'Give treat',snackGet:'Get treats',snackSetup:'Treats are being prepared',snackReward:'+1 Biscuit',
   friendsRequestsReady:'Friends · incoming friend requests',
   roomInviteShare:'Share link',
@@ -103,6 +104,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  shopEquip:'착용하기',shopEquipped:'착용 중',shopPreviewOnly:'착용 미리보기 · 착용하기를 누르면 저장돼요',
   snackGive:'간식 주기',snackGet:'간식 받기',snackSetup:'간식 기능 준비 중',snackReward:'비스킷 +1개',
   friendsRequestsReady:'친구 · 받은 친구 요청이 있어요',
   roomInviteShare:'링크 공유',
