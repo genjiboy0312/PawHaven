@@ -5,7 +5,9 @@
 **Project Name:** Paw Haven (가칭)  
 **Genre:** Cozy 2D Pixel Art Animal Game  
 **Development:** Web First / Cross-platform Ready  
-**Last Updated:** 2026-10-16
+**Last Updated:** 2026-10-24
+
+UI 작업 전 필수 확인·사용자 승인 스타일 기억: [UI_STYLE.md](UI_STYLE.md)의 최상단 지속 기준과 [LOBBY_ICONS.md](LOBBY_ICONS.md). 촘촘한 픽셀 표현·채택 리소스 재사용을 우선하며 매끈한 벡터 동물로 되돌리지 않는다.
 
 최신 구현 범위와 후속 개발 순서: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md). 초기 마일스톤 외에 추가된 기능의 현재 상태는 이 문서와 개별 기능 문서를 우선 확인한다.
 

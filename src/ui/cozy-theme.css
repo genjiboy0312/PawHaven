@@ -172,6 +172,9 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
   box-shadow: inset 0 0.12cqw 0 #ffffffa0, 0 0.08cqw 0 #ac925e66, 0 0.2cqw 0.5cqw #7f67451a;
 }
 .hud-menu:enabled:active .hud-label { transform: translateY(0.12cqw); }
+.hud-menu-character .hud-icon,.hud-menu-friends .hud-icon{border:0;border-radius:0;background:transparent url('/assets/icons/lobby-button-face.svg?v=20261024') center/100% 100% no-repeat;box-shadow:none;image-rendering:auto;}
+.hud-menu-friends .hud-icon{padding:.35cqw;}
+.hud-menu-character:enabled:active .hud-icon,.hud-menu-friends:enabled:active .hud-icon{box-shadow:none;}
 .hud-menu:focus-visible { outline: none; }
 .hud-menu:focus-visible .hud-icon { outline: max(2px, 0.22cqw) solid #a96e36; outline-offset: 0.3cqw; }
 .hud-menu:disabled { opacity: 0.5; }

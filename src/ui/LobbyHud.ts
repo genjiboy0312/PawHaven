@@ -4,13 +4,14 @@ import type { AnimalVisualState } from '../animals/AnimalState';
 const ICONS = {
   home: '<path d="M16 29h32v23H16z" fill="#fff2d6"/><path d="m10 29 22-18 22 18-4 5-18-14-18 14z" fill="#e8ac93"/><path d="M27 52V37h10v15" fill="#b6cba1"/><path d="M21 23v-9h6"/>',
   quest: '<rect x="15" y="14" width="34" height="40" rx="5" fill="#b9cf9f"/><rect x="21" y="21" width="22" height="27" rx="2" fill="#fff9e7" stroke="none"/><rect x="24" y="10" width="16" height="11" rx="4" fill="#ecd095"/><path d="m25 34 5 5 10-12" stroke="#789461" stroke-width="4"/>',
-  character: '<path d="m21 15-11 9 8 12 6-4v21h24V32l6 4 8-12-11-9-9 6h-12z" fill="#cfbddb" transform="translate(-4 0)"/><ellipse cx="32" cy="40" rx="7" ry="5" fill="#fff6df" stroke="none"/><g fill="#fff6df" stroke="none"><ellipse cx="24" cy="32" rx="3" ry="4"/><ellipse cx="32" cy="29" rx="3" ry="4"/><ellipse cx="40" cy="32" rx="3" ry="4"/></g>',
+  character: '',
   shop: '<rect x="15" y="26" width="34" height="27" rx="3" fill="#fff0d2"/><path d="m11 27 6-14h30l6 14" fill="#e6a28c"/><path d="M22 14v13m10-13v13m10-13v13" stroke="#fff3dc" stroke-width="6"/><path d="M11 27c0 7 10 7 10 0 0 7 11 7 11 0 0 7 11 7 11 0 0 7 10 7 10 0" fill="#e6a28c"/><path d="M27 53V39h11v14" fill="#b8cda5"/>',
   settings: '<path d="m27 10 10 0 2 7 5 3 7-2 5 9-5 5v5l5 5-5 9-7-2-5 3-2 6H27l-2-6-5-3-7 2-5-9 5-5v-5l-5-5 5-9 7 2 5-3z" fill="#b5cfd7" transform="translate(0 -2)"/><circle cx="32" cy="32" r="9" fill="#fff9e7"/>',
-  friends: '<path d="M36 49v-7c0-10 20-10 20 0v7z" fill="#b7cda9"/><circle cx="45" cy="24" r="8" fill="#e8d3a9"/><path d="M8 52v-8c0-14 30-14 30 0v8z" fill="#c4bbdb"/><circle cx="23" cy="23" r="10" fill="#f1d2b3"/><path d="M20 24h0m6 0h0" stroke-width="3"/>',
+  friends: '',
   play: '<path d="M24 15q-4-2-4 3v28q0 5 4 3l25-15q4-2 0-4z" fill="#fffbee" stroke="#7e9953"/>',
 };
 type MenuId = keyof typeof ICONS;
+const PET_ICONS:Partial<Record<MenuId,string>>={character:'./assets/icons/lobby-character.svg?v=20261024',friends:'./assets/icons/lobby-friends.png?v=20261024'};
 
 export class LobbyHud {
   readonly element = document.createElement('section');
@@ -111,7 +112,7 @@ export class LobbyHud {
     const image = document.createElement('img');
     image.className = 'hud-icon';
     image.alt = '';
-    image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    image.src = PET_ICONS[id] ?? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="none" stroke="#917655" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + ICONS[id] + '</g></svg>',
     );
     const name = document.createElement('span');
