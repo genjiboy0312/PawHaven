@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {importTs} from './load-typescript.mjs';
-const {parkPose,parkStep}=await importTs('../src/park/ParkModel.ts',import.meta.url);
+const {parkPose,parkStep,parkCamera,PARK_WORLD}=await importTs('../src/park/ParkModel.ts',import.meta.url);
 const {ParkClient}=await importTs('../src/park/ParkClient.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
@@ -41,16 +41,26 @@ test('actor topics cannot impersonate peers or read another channel; stale tab c
  await db.exec(migration);assert.equal((await command(0,'sync',2,other)).members.length,1);
 });
 test('park movement clamps time/map/jumps and rejects malicious or reordered motion input',()=>{
- assert.equal(parkStep(894,0,0,1,1).x,895);assert.equal(parkStep(65,0,0,-1,.05).x,65);assert.equal(parkStep(400,1,-100,0,.05).height,0);
+ assert.equal(parkStep(1719,720,0,0,1,0,1).x,1720);assert.equal(parkStep(80,720,0,0,-1,0,.05).x,80);assert.equal(parkStep(400,720,1,-100,0,0,.05).height,0);
  for(const v of [null,{}, {x:NaN,height:0,direction:1,moving:true,seq:1},{x:1,height:0,direction:0,moving:true,seq:1}])assert.equal(parkPose(v),undefined);
- assert.deepEqual(parkPose({x:2000,height:999,direction:-1,moving:true,seq:3}),{x:895,height:160,direction:-1,moving:true,seq:3});
+ assert.deepEqual(parkPose({x:2000,y:-100,height:999,direction:-1,moving:true,seq:3}),{x:1720,y:600,height:160,direction:-1,moving:true,seq:3});
+ assert.equal(parkPose({x:300,y:NaN,height:0,direction:1,moving:false,seq:1}),undefined);
+ assert.equal(parkPose({x:300,height:0,direction:1,moving:false,seq:1}).y,PARK_WORLD.spawnY);
+});
+test('park ground movement supports both axes, stops before sky and keeps diagonal speed constant',()=>{
+ assert.equal(parkStep(900,600,0,0,0,-1,.05).y,600);assert.equal(parkStep(900,880,0,0,0,1,.05).y,880);
+ const up=parkStep(900,720,0,0,0,-1,.05),down=parkStep(900,720,0,0,0,1,.05);assert.equal(up.y,711);assert.equal(down.y,729);
+ const diagonal=parkStep(900,720,0,0,1,1,.05);assert.ok(Math.abs(Math.hypot(diagonal.x-900,diagonal.y-720)-9)<1e-8);
+ const jump=parkStep(900,600,0,440,0,-1,.05);assert.equal(jump.y,600);assert.ok(jump.height>0);assert.ok(PARK_WORLD.minY>PARK_WORLD.height*.44+100);
+ const a=parkCamera(900,600),b=parkCamera(1000,880);assert.ok(b.x>a.x);assert.ok(b.y>a.y);
+ for(const point of [[80,600],[1720,880]]){const camera=parkCamera(...point);assert.ok(camera.x>=0&&camera.x<=PARK_WORLD.width-960);assert.ok(camera.y>=0&&camera.y<=PARK_WORLD.height-540);}
 });
 test('park client cleans subscriptions, rejects old pose sequences and leaves with its own session',async()=>{
  const streams=[],calls=[];let removed=0;
  const snapshot={counts:[2,0,0,0],members:[{id:ids[0],session,name:'Player0'},{id:ids[1],session,name:'Player1'}],messages:[]};
  const transport={rpc:async(_fn,p)=>{calls.push(p);return{data:snapshot,error:null};},realtime:{setAuth:async()=>{}},channel(topic){const handlers={};const stream={topic,on(_type,{event},fn){handlers[event]=fn;return stream;},subscribe(fn){stream.status=fn;queueMicrotask(()=>fn('SUBSCRIBED'));return stream;},send:async()=> 'ok',handlers};streams.push(stream);return stream;},removeChannel:async()=>{removed++;}};
  const c=new ParkClient(transport,ids[0]);assert.equal(await c.join(1),true);await new Promise(r=>setTimeout(r,0));assert.equal(c.connected,true);
- const remote=streams[1];remote.handlers.pose({payload:{x:200,height:20,direction:1,moving:true,seq:5}});remote.handlers.pose({payload:{x:100,height:0,direction:1,moving:true,seq:4}});assert.equal(c.poses.get(ids[1]).x,200);
+ const remote=streams[1];remote.handlers.pose({payload:{x:200,y:800,height:20,direction:1,moving:true,seq:5}});remote.handlers.pose({payload:{x:100,y:600,height:0,direction:1,moving:true,seq:4}});assert.equal(c.poses.get(ids[1]).x,200);assert.equal(c.poses.get(ids[1]).y,800);
  assert.equal(await c.chat('hi'),true);c.destroy();assert.equal(removed,2);assert.equal(calls.at(-1).p_action,'leave');assert.equal(calls.at(-1).p_session,c.session);assert.notEqual(c.session,session);
  remote.handlers.pose({payload:{x:300,height:0,direction:1,moving:false,seq:6}});assert.equal(c.poses.get(ids[1]).x,200);
 });

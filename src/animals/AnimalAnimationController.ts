@@ -1,4 +1,5 @@
 import { t } from '../settings/i18n';
+import { GAME_FONT } from '../ui/GameFont';
 import { AnimatedSprite, Sprite, Text, Rectangle } from 'pixi.js';
 import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
@@ -13,7 +14,7 @@ export class AnimalAnimationController {
   readonly accessory: Sprite | undefined;
   readonly sleepMark = new Text({
     text: 'z z',
-    style: { fontFamily: 'Georgia, serif', fontSize: 20, fill: '#687b58' },
+    style: { fontFamily: GAME_FONT, fontSize: 20, fill: '#687b58' },
   });
   readonly welcomeMark = new SpeechBubble();
   private readonly touchBounds: Rectangle;

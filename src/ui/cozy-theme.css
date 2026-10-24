@@ -1,8 +1,7 @@
 @font-face { font-family: 'Jua'; src: url('/assets/fonts/Jua-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: 'Gowun Dodum'; src: url('/assets/fonts/GowunDodum-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
 :root {
   --font-round: 'Jua', 'Arial Rounded MT Bold', sans-serif;
-  --font-body: 'Gowun Dodum', system-ui, sans-serif;
+  --font-body: var(--font-round);
   --ui-ink: #665a45;
   --ui-cream: #fff8e5;
   --ui-butter: #ffe39a;

@@ -1,5 +1,10 @@
 # Cozy UI 1차 (2026-10-17)
 
+## 모든 텍스트의 공통 폰트 — 사용자 승인 (2026-10-24, 이전 폰트 분리 규칙보다 우선)
+- 사용자는 메시지창을 포함해 앞으로 모든 폰트를 게임의 둥근 Jua로 통일하도록 요청했다. 제목·본문·탭·버튼·입력·안내·채팅 기록·말풍선·닉네임 모두 동일한 폰트를 사용한다. Gowun Dodum, Georgia, system-ui로 용도를 나누지 않는다.
+- DOM은 --font-round를 사용하고 --font-body도 같은 변수의 별칭이다. Pixi Text는 src/ui/GameFont.ts의 GAME_FONT를 재사용한다. 신규 컴포넌트에 독립 font-family를 하드코딩하지 않는다. 글리프가 없는 이모지 등은 브라우저의 fallback만 허용한다.
+- Game 시작 시 Jua 로딩을 기다린 뒤 Pixi 텍스트를 만든다. 메시지 입력창·대화 기록·말풍선의 실제 Chrome 폰트를 확인했다. 글자 크기·줄바꿈·배치 규칙은 기존 컴포넌트를 유지한다.
+
 ## Home 닫기·안내 및 탑햇 보정 (2026-10-24, 이전 위치 규칙보다 우선)
 - Home ×와 drawer의 z-index가 같고 drawer가 뒤에 추가되어 버튼을 덮던 문제를 수정했다. 닫기는 z-index:5로 drawer/tabs/inventory의 4보다 앞에 둔다. PC·작은 화면에서 elementFromPoint로 실제 최상단 클릭 대상을 확인하고 닫기 콜백 호출까지 검증한다. 단순 button.click()만으로 레이어 문제 검증을 대체하지 않는다.
 - drawer 너비 85%·높이 31cqh는 유지한다. 목록 높이를 15cqh로 조정하고 자동 저장 안내를 top:28cqh, left:14%/right:5%로 패널 내부 하단에 배치한다. 글자 10~14px·line-height:1.2로 읽기 쉽게 유지한다.

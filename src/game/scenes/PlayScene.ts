@@ -23,6 +23,7 @@ import { RemoteMotion } from '../../multiplayer/RemoteMotion';
 import { raceCountdown } from '../../multiplayer/RaceCountdown';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
 import { Scene } from './Scene';
+import { GAME_FONT } from '../../ui/GameFont';
 
 export class PlayScene extends Scene {
   private readonly run:DummyRun;
@@ -145,7 +146,7 @@ export class PlayScene extends Scene {
     }
     this.world.addChild(terrain);
     for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
-      const flag = new Text({ text: t(label), style: { fontFamily: 'system-ui', fontSize: 23, fontWeight: 'bold', fill: '#455b3b' } });
+      const flag = new Text({ text: t(label), style: { fontFamily: GAME_FONT, fontSize: 23, fontWeight: '400', fill: '#455b3b' } });
       this.labels.push({ text: flag, key: label });
       flag.position.set(x - 40, 240);
       if(settings?.art){const marker=courseMarker(label,settings.art,x);this.world.addChild(marker,flag);if(label==='checkpoint')this.checkpointMarker=marker;}
@@ -302,7 +303,7 @@ export class PlayScene extends Scene {
     return {x:this.run.x,height:this.run.height,direction:this.run.direction,action,progress,vx:this.run.motionVelocity};
   }
   private playerName(value:string,self=false):Text{
-    const name=new Text({text:value,style:{fontFamily:'Jua, sans-serif',fontSize:22,fill:self?'#d7f4a8':'#fff9e5',stroke:{color:'#47513d',width:3,join:'round'}}});
+    const name=new Text({text:value,style:{fontFamily:GAME_FONT,fontSize:22,fill:self?'#d7f4a8':'#fff9e5',stroke:{color:'#47513d',width:3,join:'round'}}});
     name.anchor.set(0.5,1);return name;
   }
   private restoreRacePose(){

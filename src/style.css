@@ -1,4 +1,4 @@
-:root { color-scheme: light; color-scheme: only light; font-family: system-ui, sans-serif; color: #344b38; background: #242e26; }
+:root { color-scheme: light; color-scheme: only light; font-family: var(--font-round, Jua), sans-serif; color: #344b38; background: #242e26; }
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 body {
@@ -16,8 +16,8 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; }
 button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .title-screen { position: absolute; inset: 0; z-index: 4; }
 .title-copy { position: absolute; top: 31%; left: 16px; right: 16px; text-align: center; pointer-events: none; }
-.title-copy h1 { margin: 0; font: clamp(26px, 6.4cqw, 72px) Georgia, serif; letter-spacing: 0.04em; font-weight: 400; }
-.title-copy p { margin: 1.2cqw 0 0; font: clamp(11px, 1.8cqw, 22px) Georgia, serif; color: #778066; letter-spacing: 0.12em; }
+.title-copy h1 { margin: 0; font: clamp(26px, 6.4cqw, 72px) var(--font-round, Jua), sans-serif; letter-spacing: 0.04em; font-weight: 400; }
+.title-copy p { margin: 1.2cqw 0 0; font: clamp(11px, 1.8cqw, 22px) var(--font-round, Jua), sans-serif; color: #778066; letter-spacing: 0.12em; }
 .title-start {
   position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
   padding: 0 16px 11cqh; border: 0; border-radius: 0;
@@ -75,7 +75,7 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .play-settings { position: absolute; top: 3cqh; right: 3cqw; width: 7cqw; height: 7cqw; font-size: clamp(8px, 1.25cqw, 15px); }
 .play-stick { position: absolute; bottom: 5cqh; left: 4cqw; width: 13cqw; height: 13cqw; display: grid; place-items: center; padding: 0; }
 .stick-knob { display: block; width: 45%; height: 45%; border-radius: 50%; background: #8fa575; pointer-events: none; }
-.play-victory { position: absolute; top: 25%; width: 100%; margin: 0; text-align: center; font: bold 7cqw Georgia, serif; color: #fff9dc; text-shadow: 0 3px 4px #4f6445; }
+.play-victory { position: absolute; top: 25%; width: 100%; margin: 0; text-align: center; font: bold 7cqw var(--font-round, Jua), sans-serif; color: #fff9dc; text-shadow: 0 3px 4px #4f6445; }
 .scene-fade { position: absolute; inset: 0; z-index: 10; background: #242e26; pointer-events: none; }
 .fade-in { animation: scene-reveal 0.4s linear forwards; }
 @keyframes scene-reveal { from { opacity: 1; } to { opacity: 0; } }
@@ -184,7 +184,7 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .hud-menu-friends:enabled { pointer-events: auto; cursor: pointer; }
 .hud-menu-quest,.hud-menu-friends { position: relative; }
 .hud-menu-quest[data-reward-ready="true"] .hud-icon { background: #f4e4ad; border-color: #d7b454; }
-.hud-menu-quest[data-reward-ready="true"]::after,.hud-request-badge { position: absolute; top: -0.2cqw; right: 0.1cqw; min-width:1.8cqw;height:1.8cqw;display:grid;place-items:center;border-radius:50%;background:#bc6651;color:white;font:bold 1.2cqw system-ui; }
+.hud-menu-quest[data-reward-ready="true"]::after,.hud-request-badge { position: absolute; top: -0.2cqw; right: 0.1cqw; min-width:1.8cqw;height:1.8cqw;display:grid;place-items:center;border-radius:50%;background:#bc6651;color:white;font:bold 1.2cqw var(--font-round, Jua), sans-serif; }
 .hud-menu-quest[data-reward-ready="true"]::after{content:'!';width:1.8cqw;}
 .hud-request-badge{padding:0 .3cqw;pointer-events:none;}
 .hud-request-badge[hidden]{display:none;}

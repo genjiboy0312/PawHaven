@@ -1,5 +1,6 @@
 import { AccountStorage } from '../account/AccountStorage';
 import { PlayMenuPopup } from '../ui/PlayMenuPopup';
+import { GAME_FONT } from '../ui/GameFont';
 import { ParkClient } from '../park/ParkClient';
 import { ParkScene } from './scenes/ParkScene';
 import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
@@ -97,6 +98,8 @@ export class Game {
     this.initialized = true;
     if (this.disposed) { this.app.destroy(true, { children: true }); return; }
     host.appendChild(this.app.canvas);
+    await document.fonts.load(`18px ${GAME_FONT}`).catch(()=>{});
+    if(this.disposed)return;
     this.app.canvas.setAttribute('aria-label', 'Paw Haven 정원');
     this.scenes = new SceneManager(this.app);
     let storage: Storage | undefined;

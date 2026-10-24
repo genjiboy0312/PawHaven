@@ -1,4 +1,5 @@
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
+import { GAME_FONT } from '../ui/GameFont';
 
 // Conservative font widths keep layout deterministic before Pixi creates a canvas.
 const glyphWidth = (char: string): number => char === ' ' ? 5 : char.charCodeAt(0) > 255 ? 18 : 10;
@@ -27,10 +28,10 @@ export class SpeechBubble extends Container {
   private readonly plate = new Graphics();
   private readonly tail = new Graphics();
   private readonly caption = new Text({
-    text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 18, fontWeight: '600', lineHeight: 25, align: 'center', fill: '#59605b' },
+    text: '', style: { fontFamily: GAME_FONT, fontSize: 18, fontWeight: '400', lineHeight: 25, align: 'center', fill: '#59605b' },
   });
   private readonly reaction = new Text({
-    text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 22, fill: '#c5838a' },
+    text: '', style: { fontFamily: GAME_FONT, fontSize: 22, fill: '#c5838a' },
   });
   private reactionAge = 0;
   get reactionText(): string { return this.reaction.text; }
