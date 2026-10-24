@@ -11,6 +11,7 @@
   font-family: var(--font-body);
 }
 button, input, select { font-family: var(--font-round); }
+.home-hint { font-family: var(--font-round); font-weight: 400; }
 button { transition: background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease; }
 .hud-label, .shop-title, .pass-panel h3 { font-family: var(--font-round); font-weight: 400; }
 #status { font-family: var(--font-round); color: #76664d; }

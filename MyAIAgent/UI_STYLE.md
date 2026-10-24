@@ -3,7 +3,8 @@
 ## Home 닫기·안내 및 탑햇 보정 (2026-10-24, 이전 위치 규칙보다 우선)
 - Home ×와 drawer의 z-index가 같고 drawer가 뒤에 추가되어 버튼을 덮던 문제를 수정했다. 닫기는 z-index:5로 drawer/tabs/inventory의 4보다 앞에 둔다. PC·작은 화면에서 elementFromPoint로 실제 최상단 클릭 대상을 확인하고 닫기 콜백 호출까지 검증한다. 단순 button.click()만으로 레이어 문제 검증을 대체하지 않는다.
 - drawer 너비 85%·높이 31cqh는 유지한다. 목록 높이를 15cqh로 조정하고 자동 저장 안내를 top:28cqh, left:14%/right:5%로 패널 내부 하단에 배치한다. 글자 10~14px·line-height:1.2로 읽기 쉽게 유지한다.
-- Hat:2 한국어 이름은 검정 탑햇이다. 공용 부착 크기를 약 18% 줄여 Pixi·DOM 대기방이 같은 비율을 사용한다. 산타모자 크기는 유지한다. 목 부착은 [FORMAL_OUTFIT_ASSETS.md](FORMAL_OUTFIT_ASSETS.md)의 실제 프레임 좌표를 사용한다.
+- 자동 저장 안내는 게임 공통 둥근 폰트인 var(--font-round), Jua를 사용한다.
+- Hat:2 한국어 이름은 검정 탑햇이다. 사용자 추가 요청으로 기존 fitWidth:850일 때 크기의 60%로 축소한다(fitWidth:850/0.6). 머리 기준점은 유지하며 Pixi·DOM 대기방이 같은 비율을 사용한다. 산타모자 크기는 유지한다. 목 부착은 [FORMAL_OUTFIT_ASSETS.md](FORMAL_OUTFIT_ASSETS.md)의 실제 프레임 좌표를 사용한다.
 ## 로비 바탕·간식 (2026-10-24, 이전 CSS 바탕보다 우선)
 
 - 삼성 인터넷 강제 다크모드에서 Character/Friends 이미지 바탕이 유지된다는 사용자 확인에 따라 로비 모든 버튼을 이미지 바탕으로 통일했다. Home/Quest/Shop/Settings는 기존 Lobby_Button_Face.svg를 재사용한다. Play는 같은 형상의 연두색 Lobby_Button_Face_Play.svg, 보상 가능 Quest는 승인된 Control_Jump_Face.svg 사본인 Lobby_Button_Face_Reward.svg다.

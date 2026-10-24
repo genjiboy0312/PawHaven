@@ -5,7 +5,7 @@ import { SANTA_HAT } from './HatPlacement';
 /** Equipment art and attachment geometry shared by Pixi, inventory and DOM previews. */
 export const WEARABLES = [
   {category:'Hat',index:1,texture:'santaHat',name:'santaHat',file:'santa-hat.png',width:1536,height:1024,anchorX:SANTA_HAT.anchorX,anchorY:SANTA_HAT.anchorY,fitWidth:550,attachment:'head',offsetY:5},
-  {category:'Hat',index:2,texture:'topHat',name:'blackTopHat',file:'black-top-hat.png',width:1536,height:1024,anchorX:768/1536,anchorY:738/1024,fitWidth:850,attachment:'head',offsetY:5},
+  {category:'Hat',index:2,texture:'topHat',name:'blackTopHat',file:'black-top-hat.png',width:1536,height:1024,anchorX:768/1536,anchorY:738/1024,fitWidth:850/0.6,attachment:'head',offsetY:5},
   {category:'Acc',index:2,texture:'bowTie',name:'redBowTie',file:'red-bow-tie.png',width:1536,height:1024,anchorX:768/1536,anchorY:535/1024,fitWidth:995,attachment:'neck',offsetY:0},
 ] as const;
 export type Wearable=typeof WEARABLES[number];
