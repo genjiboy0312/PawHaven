@@ -15,6 +15,8 @@ UI 작업 전 필수 확인·사용자 승인 스타일 기억: [UI_STYLE.md](UI
 
 설정 팝업 구현 및 계정 연결 상태: [SETTINGS.md](SETTINGS.md)
 
+공원 채널·채팅 프로토타입 및 서버 적용: [PARK.md](PARK.md)
+
 ---
 
 # 1. 프로젝트 개요

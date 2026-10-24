@@ -1,5 +1,7 @@
 import { AccountStorage } from '../account/AccountStorage';
 import { PlayMenuPopup } from '../ui/PlayMenuPopup';
+import { ParkClient } from '../park/ParkClient';
+import { ParkScene } from './scenes/ParkScene';
 import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
 import { RoomInvitation } from '../multiplayer/RoomInvitation';
 import { roomStream, lobbyStream } from '../multiplayer/RoomStream';
@@ -227,6 +229,15 @@ export class Game {
           invitation:invitation.room?{id:invitation.room,dismiss:clearInvitation}:undefined,
           rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           inviteFriends:()=>this.friends?.open(),
+          park:()=>{
+            if(!owner||!accountClient||!this.account?.nickname){this.settings?.openAccount();return;}
+            const enter=async()=>{
+              await saveRoomLook();
+              if(this.disposed||!this.scenes?.isCurrent(scene)||this.account?.user?.id!==owner)return;
+              this.friendClient?.stop();inGame=true;void this.friendActivity?.refresh();
+              this.scenes.show(new ParkScene(new ParkClient(accountClient,owner),[corgi,this.myeongrang!],()=>lobby(true),this.homeTextures));
+            };void enter().catch(()=>this.settings?.openAccount());
+          },
           race:(room,client)=>{
             this.friends?.close();this.friendClient?.stop();inGame=true;void this.friendActivity?.refresh();
             const look=room.members.find(m=>m.id===client.owner)?.look;

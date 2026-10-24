@@ -41,6 +41,7 @@ export class PlayMenuPopup {
     invitation?:{id:string;dismiss:()=>void};
     inviteHref?:string;
     inviteFriends?:()=>void;
+    park?:()=>void;
   }){}
   open(page:Page='mode'){
     if(this.overlay)return;this.page=page;
@@ -225,6 +226,7 @@ export class PlayMenuPopup {
     if(this.page==='mode'){
       const cards=document.createElement('div');cards.className='mode-cards';
       cards.append(this.button('singleplayer',()=>{this.page='single';this.render();this.closeButton?.focus();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
+      if(this.options.park){cards.classList.add('with-park');cards.append(this.button('park',()=>{this.close(false);this.options.park?.();}));}
     }else if(this.page==='single')root.append(...this.singleMaps());
     else if(this.page==='multi'&&this.options.invitation&&!room)root.append(this.invitationCard());
     else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
