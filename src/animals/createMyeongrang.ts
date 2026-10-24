@@ -1,5 +1,6 @@
 import { Rectangle, Texture } from 'pixi.js';
 import type { AnimalAction, AnimalConfig, HeadAnchor } from './AnimalConfig';
+import { fitNeckAnchors } from './Wearables';
 export interface PetAtlasFrame { source: string; x: number; y: number; width: number; height: number; center: number; baseline: number; head: HeadAnchor; opaqueBounds?: { left: number; top: number; right: number; bottom: number } }
 export interface MyeongrangMap {
   sources: Record<string, { file: string; width: number; height: number }>;
@@ -30,5 +31,5 @@ export function createMyeongrang(atlases: Record<string, Texture>, map: Myeongra
   if (!config.animations.idle || !jump) throw new Error('Myeongrang idle/jump clips are missing.');
   config.animations.fall = { ...jump, frames: jump.frames.slice(2, 3), head: jump.head?.slice(2, 3), bodyBounds: jump.bodyBounds?.slice(2, 3) };
   config.animations.land = { ...jump, frames: jump.frames.slice(3, 4), head: jump.head?.slice(3, 4), bodyBounds: jump.bodyBounds?.slice(3, 4) };
-  return config;
+  fitNeckAnchors(config);return config;
 }

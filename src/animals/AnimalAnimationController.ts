@@ -3,13 +3,14 @@ import { AnimatedSprite, Sprite, Text, Rectangle } from 'pixi.js';
 import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
-import { SANTA_HAT, santaHatPose } from './HatPlacement';
+import { wornLayers } from './Wearables';
 
 export class AnimalAnimationController {
   readonly sprite: AnimatedSprite;
   readonly bodyHitArea = new Rectangle(-88, -136, 176, 176);
   restart(): void { this.framePosition = 0; }
   readonly hat: Sprite | undefined;
+  readonly accessory: Sprite | undefined;
   readonly sleepMark = new Text({
     text: 'z z',
     style: { fontFamily: 'Georgia, serif', fontSize: 20, fill: '#687b58' },
@@ -48,10 +49,11 @@ export class AnimalAnimationController {
     if (config.wardrobe) {
       this.hat = new Sprite(config.wardrobe.santaHat);
       // The full generated canvas is preserved; anchor is the centre of the brim.
-      this.hat.anchor.set(SANTA_HAT.anchorX, SANTA_HAT.anchorY);
       this.hat.visible = false;
       this.hat.label = 'santa-hat';
       this.sprite.addChild(this.hat);
+      this.accessory=new Sprite(config.wardrobe.bowTie??config.wardrobe.santaHat);
+      this.accessory.visible=false;this.accessory.label='bow-tie';this.sprite.addChild(this.accessory);
     }
     this.sleepMark.anchor.set(0.5);
     this.sleepMark.visible = false;
@@ -83,14 +85,12 @@ export class AnimalAnimationController {
       : Math.floor(this.framePosition);
     this.sprite.gotoAndStop(frame);
     const head = animation.head?.[frame];
-    if (this.hat) {
-      this.hat.visible = this.config.wardrobe?.outfit.Hat === 1 && !!head;
-      if (head) {
-        const pose=santaHatPose(head,this.config.scale*(animation.scale??1));
-        this.hat.position.set(pose.x,pose.y);
-        this.hat.scale.set(pose.scale);
-        this.hat.rotation=pose.rotation;
-      }
+    if(this.hat)this.hat.visible=false;
+    if(this.accessory)this.accessory.visible=false;
+    if(this.config.wardrobe)for(const {item,texture,pose}of wornLayers(this.config,this.config.wardrobe.outfit,animation,frame)){
+      const layer=item.category==='Hat'?this.hat:this.accessory;if(!layer)continue;
+      layer.visible=true;layer.texture=texture;layer.label=item.texture;
+      layer.anchor.set(item.anchorX,item.anchorY);layer.position.set(pose.x,pose.y);layer.scale.set(pose.scale);layer.rotation=pose.rotation;
     }
     this.sprite.anchor.set(0.5, animation.anchorY ?? 1);
     const breath = state === 'SLEEP' || state === 'REST' ? 1 + Math.sin(elapsed * 2) * 0.012 : 1;

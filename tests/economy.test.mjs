@@ -536,7 +536,7 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
   const previous=globalThis.document,host=new Element();globalThis.document={createElement:()=>new Element(),querySelector:()=>host};
   const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},selection=new CharacterSelection(storage);
   const state=new ShopState();state.items.clear();const outfit={Hat:0,Body:0,Acc:0,Etc:0};let saves=0,scene;
-  const config={id:'myeongrang',speed:90,scale:.62,wardrobe:{santaHat:Texture.WHITE,outfit},animations:{idle:{frames:[Texture.WHITE],fps:3,head:[{x:0,y:-1,width:1}]}}};
+  const config={id:'myeongrang',speed:90,scale:.62,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit},animations:{idle:{frames:[Texture.WHITE],fps:3,head:[{x:0,y:-1,width:1}]}}};
   const click=e=>e.dispatchEvent(new Event('click'));
   try{
     scene=new ShopScene(config,state,()=>{},()=>{},'Style',(category,index)=>{outfit[category]=index;selection.save({petId:config.id,outfit});saves++;});
@@ -550,6 +550,11 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
     click(panel.children[3].children[1]);assert.equal(scene.previewOutfit.Hat,0);click(panel.children[3].children[0]);
     const equip=action();click(equip);click(equip);assert.equal(outfit.Hat,1);assert.equal(saves,1);assert.equal(state.coins,925);assert.equal(action().textContent,'Equipped');assert.equal(action().disabled,true);
     assert.equal(new CharacterSelection(storage).current.outfit.Hat,1);
+    click(content.children[1].children[1]);assert.equal(scene.animation.hat.label,'topHat');assert.equal(outfit.Hat,1);
+    click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Hat,1);click(action());assert.equal(outfit.Hat,2);
+    click(content.children[0].children[2]);click(content.children[1].children[1]);assert.equal(scene.animation.accessory.visible,true);assert.equal(outfit.Acc,0);
+    click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Acc,0);click(action());assert.equal(outfit.Acc,2);assert.equal(outfit.Hat,2);assert.equal(state.coins,775);assert.equal(saves,3);
+    assert.deepEqual(new CharacterSelection(storage).current.outfit,outfit);
     scene.destroy({children:true});scene=undefined;assert.equal(config.wardrobe.santaHat.destroyed,false);
   }finally{scene?.destroy({children:true});if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
 });
@@ -586,15 +591,15 @@ test('server Shop blocks unfinished listings and preserves existing ownership wi
     assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'owned');
     assert.equal(content.children[2].children[0].children[0].textContent, 'Santa Hat');
     content.children[1].scrollTop = 77;
-    content.children[1].children[1].dispatchEvent(new Event('click'));
+    content.children[1].children[2].dispatchEvent(new Event('click'));
     const buy = content.children[2].children[1]; assert.equal(buy.disabled, true); assert.equal(buy.getAttribute('data-purchase-state'), 'comingSoon');
     buy.dispatchEvent(new Event('click'));
     await idle(api);
-    assert.equal(state.coins, 1000); assert.equal(state.owns('Hat', 2), false);
+    assert.equal(state.coins, 1000); assert.equal(state.owns('Hat', 3), false);
     assert.equal((await db.query("select count(*) as n from public.economy_requests where command='buy'")).rows[0].n, 0);
-    await command(A, 'buy', { category: 'Hat', index: 2 }); // Pre-existing entitlement loaded from another session.
+    await command(A, 'buy', { category: 'Hat', index: 3 }); // Pre-existing entitlement loaded from another session.
     await api.execute('load'); await idle(api);
-    assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true);
+    assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 3), true);
     assert.equal(content.children[2].children[1].disabled, true);
     assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'comingSoon');
     assert.equal(content.children[1].scrollTop, 77);

@@ -1,6 +1,7 @@
 import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { AnimalConfig, AnimalAction, HeadAnchor } from './AnimalConfig';
 import { createOutfit, type OutfitState } from './OutfitState';
+import { fitNeckAnchors } from './Wearables';
 
 interface FrameRect { x: number; y: number; width: number; height: number }
 interface CleanFrame extends FrameRect { center: number; baseline: number }
@@ -56,8 +57,10 @@ export async function loadCorgi(onProgress: (progress: number) => void, outfit: 
   });
   const santaHat = await Assets.load<Texture>(import.meta.env.BASE_URL + 'assets/items/santa-hat.png');
   santaHat.source.scaleMode = 'nearest';
+  const [topHat,bowTie]=await Promise.all(['black-top-hat.png','red-bow-tie.png'].map(file=>Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/'+file)));
+  topHat.source.scaleMode=bowTie.source.scaleMode='nearest';
   const config: AnimalConfig = {
-    wardrobe: { santaHat, outfit },
+    wardrobe: { santaHat, topHat,bowTie,outfit },
     id: 'corgi', speed: 90, scale: 0.62,
     effects: { attack: effectFrames(effectMap.attack), skill: effectFrames(effectMap.skill) },
     animations: {
@@ -78,6 +81,6 @@ export async function loadCorgi(onProgress: (progress: number) => void, outfit: 
     if (!animation || anchors.length !== animation.frames.length) throw new Error('Head attachment frames do not match the animation.');
     animation.head = anchors;
   }
-  onProgress(1);
+  fitNeckAnchors(config);onProgress(1);
   return config;
 }

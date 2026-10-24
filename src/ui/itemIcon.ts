@@ -1,4 +1,5 @@
 import { outfitColor, type OutfitTab } from '../animals/OutfitState';
+import { wearableItem } from '../animals/Wearables';
 
 const ITEM_ICONS: Record<OutfitTab, string> = {
   Hat: '<path d="M16 37h32L43 25H23z"/><path d="M9 39q23-9 46 0v5H9z"/>',
@@ -9,9 +10,10 @@ const ITEM_ICONS: Record<OutfitTab, string> = {
 
 export function itemIcon(category: OutfitTab, index: number): HTMLImageElement {
   const image = document.createElement('img'); image.className = 'outfit-object'; image.alt = '';
-  if (category === 'Hat' && index === 1) {
-    image.src = './assets/items/santa-hat.png';
-    image.classList.add('santa-hat-icon');
+  const item=wearableItem(category,index);
+  if (item) {
+    image.src = './assets/items/'+item.file;
+    image.classList.add(item.texture==='santaHat'?'santa-hat-icon':item.texture==='topHat'?'top-hat-icon':'bow-tie-icon');
     return image;
   }
   const color = '#' + outfitColor(index).toString(16).padStart(6, '0');

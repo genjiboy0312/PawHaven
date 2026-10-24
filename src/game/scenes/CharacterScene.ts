@@ -6,6 +6,7 @@ import { AnimalAnimationController } from '../../animals/AnimalAnimationControll
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { OUTFIT_TABS, type OutfitState, type OutfitTab } from '../../animals/OutfitState';
 import { Scene } from './Scene';
+import { wearableItem } from '../../animals/Wearables';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
 interface CharacterOptions { subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
@@ -98,7 +99,8 @@ export class CharacterScene extends Scene {
       else {
         button.append(itemIcon(category, index));
       }
-      button.setAttribute('aria-label', index === 0 ? t('none') : t(category) + ' ' + index);
+      const item=wearableItem(category,index);
+      button.setAttribute('aria-label', index === 0 ? t('none') : item?t(item.name):t(category) + ' ' + index);
       button.setAttribute('data-item', String(index));
       button.setAttribute('aria-pressed', String(this.outfit[category] === index));
       // The handler lives on its short-lived slot; discarding the slot releases it.

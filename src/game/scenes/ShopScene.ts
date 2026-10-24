@@ -12,6 +12,7 @@ import { passPanel } from '../../ui/PassPanel';
 import { homeOptions, homePrice, HOME_MAX_STOCK, type PlaceableTab } from '../../home/HomeCatalog';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { PurchasePopup } from '../../ui/PurchasePopup';
+import { wearableItem } from '../../animals/Wearables';
 import { Scene } from './Scene';
 
 const PURCHASE_LABELS = { owned: 'owned', purchased: 'shopPurchased', processing: 'economyWorking', loading: 'shopChecking', unavailable: 'shopUnavailable', available: 'buy', insufficient: 'notEnoughCoins', comingSoon: 'shopComingSoon' } as const;
@@ -190,7 +191,8 @@ export class ShopScene extends Scene {
     if (known && !this.state.homeShopReady) { const hint = document.createElement('p'); bindText(hint, 'homeShopSetup'); this.homePreview.append(hint); }
   }
   private itemName(category: OutfitTab, index: number): string {
-    return category === 'Hat' && index === 1 ? t('santaHat') : `${t(category)} ${String(index).padStart(2, '0')}`;
+    const item=wearableItem(category,index);
+    return item?t(item.name):`${t(category)} ${String(index).padStart(2, '0')}`;
   }
   private purchased(category: OutfitTab, index: number, result: string): void {
     if (this.destroyed || result !== 'purchased') return;

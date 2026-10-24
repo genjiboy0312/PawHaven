@@ -9,13 +9,13 @@ export const ACTIONS = [
   'hit', 'die', 'skill', 'emote', 'direction', 'climb', 'push', 'hurtLoop',
 ] as const;
 export type AnimalAction = typeof ACTIONS[number];
-export type AnimationSet = Partial<Record<AnimalAction, { frames: Texture[]; fps: number; scale?: number; anchorY?: number; head?: HeadAnchor[]; bodyBounds?: { x: number; y: number; width: number; height: number }[] }>>;
+export type AnimationSet = Partial<Record<AnimalAction, { frames: Texture[]; fps: number; scale?: number; anchorY?: number; head?: HeadAnchor[]; neck?: HeadAnchor[]; bodyBounds?: { x: number; y: number; width: number; height: number }[] }>>;
 export interface AnimalConfig {
   id: string;
   speed: number;
   scale: number;
   animations: AnimationSet;
-  wardrobe?: { santaHat: Texture; outfit: OutfitState };
+  wardrobe?: { santaHat: Texture; topHat?:Texture; bowTie?:Texture; outfit: OutfitState };
   effects?: Partial<Record<'attack' | 'skill', Texture[]>>;
   behavior?: BehaviorProfile;
   welcome?: WelcomeConfig;

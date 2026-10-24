@@ -13,6 +13,31 @@ function createAnimal() {
     animations: { idle: { frames: [Texture.WHITE], fps: 3 }, walk: { frames: [Texture.WHITE], fps: 8 } } });
 }
 
+test('formal outfit layers reuse all pet head frames, stay independent and share resources safely', async () => {
+  const {AnimalAnimationController}=await importTs('../src/animals/AnimalAnimationController.ts',import.meta.url);
+  const {neckAnchor,wearableItem}=await importTs('../src/animals/Wearables.ts',import.meta.url);
+  const corgi=JSON.parse(await readFile(new URL('../public/assets/characters/corgi/head-anchors.json',import.meta.url),'utf8'));
+  const personal=JSON.parse(await readFile(new URL('../public/assets/characters/myeongrang/frames.json',import.meta.url),'utf8'));
+  for(const id of ['corgi','myeongrang']){
+    const heads=id==='corgi'?corgi:Object.fromEntries(Object.entries(personal.actions).map(([key,clip])=>[key,clip.frames.map(frame=>frame.head)]));
+    const animations=Object.fromEntries(Object.entries(heads).map(([key,head])=>[key,{head,frames:head.map(()=>Texture.WHITE),fps:8,scale:id==='myeongrang'?personal.actions[key].scale:1}]));
+    const outfit={Hat:2,Acc:2,Body:0,Etc:0},view=new AnimalAnimationController({id,speed:90,scale:.62,animations,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit}});
+    try{
+      for(const [action,head]of Object.entries(heads))for(let frame=0;frame<head.length;frame++)for(const direction of [-1,1]){
+        view.update('IDLE',0,direction,0,0,0,action,(frame+.1)/head.length);
+        assert.equal(view.hat.visible,true);assert.equal(view.accessory.visible,true);assert.equal(view.hat.label,'topHat');
+        const neck=neckAnchor(head[frame],id);assert.equal(view.accessory.x,neck.x);assert.equal(view.accessory.y,neck.y);
+        assert.ok(Number.isFinite(view.accessory.scale.x)&&view.accessory.scale.x>0);assert.equal(Math.sign(view.sprite.scale.x),direction);
+      }
+      outfit.Hat=0;view.update('IDLE',0,1);assert.equal(view.hat.visible,false);assert.equal(view.accessory.visible,true);
+      outfit.Hat=1;outfit.Acc=0;view.update('IDLE',0,1);assert.equal(view.hat.visible,true);assert.equal(view.hat.label,'santaHat');assert.equal(view.accessory.visible,false);
+      const clip=animations.idle;clip.neck=clip.frames.map(()=>({x:7,y:-22,width:18,rotation:.2}));outfit.Acc=2;view.update('IDLE',0,1);assert.equal(view.accessory.x,7);assert.equal(view.accessory.y,-22);
+    }finally{view.sprite.destroy({children:true});view.sleepMark.destroy();view.welcomeMark.destroy({children:true});}
+  }
+  assert.equal(Texture.WHITE.destroyed,false);assert.equal(wearableItem('Hat',2).file,'black-top-hat.png');assert.equal(wearableItem('Acc',2).file,'red-bow-tie.png');
+  for(const [source,file]of [['Black_Top_Hat.png','black-top-hat.png'],['Red_Bow_Tie.png','red-bow-tie.png']])assert.deepEqual(await readFile(new URL('../Resources/'+source,import.meta.url)),await readFile(new URL('../public/assets/items/'+file,import.meta.url)));
+});
+
 test('feeding reuses emotion without changing body bounds and permits normal petting after cooldown', () => {
   const animal = createAnimal();
   animal.setBounds(960, 389, 540);
@@ -1212,7 +1237,7 @@ test('Shop blocks unfinished listings, preserves legacy items and links pass rew
     assert.equal(content.children[1].children.length, 20);
     click(content.children[1].children[1]); click(content.children[2].children[1]);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true); assert.equal(content.children[2].children[1].disabled, true);
-    assert.equal(content.children[2].children[1].textContent, 'Coming soon');
+    assert.equal(content.children[2].children[1].textContent, 'Owned');
     click(content.children[1].children[2]); click(content.children[2].children[1]);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 3), false);
     click(panel.children[3].children[2]);

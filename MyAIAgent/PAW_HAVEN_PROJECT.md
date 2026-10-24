@@ -1067,3 +1067,5 @@ Paw Haven Prototype v0.1의 성공은 기능 수가 아니라 사용자 경험�
 **End of Document — Paw Haven v0.1**
 
 2026-10-24 로비 간식·일일 퀘스트 보상·서버 수량 처리: [SNACKS.md](SNACKS.md). 계정 기능에는 011 간식 SQL 적용이 필요하다.
+
+2026-10-24 검정 실크해트(Hat:2)·빨간 나비넥타이(Acc:2) 구매/착용/공용 부착 연동: [FORMAL_OUTFIT_ASSETS.md](FORMAL_OUTFIT_ASSETS.md). 기존 서버 스키마를 사용하므로 추가 SQL은 없다.

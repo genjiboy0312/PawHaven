@@ -684,6 +684,10 @@ test('portraits attach each member hat to trimmed animated head anchors without 
   const config={id:'corgi',scale:.62,wardrobe:{santaHat:Texture.WHITE,outfit},animations:{idle:{frames:[frame,frame],fps:3,head}}};
   try{
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
+    config.wardrobe.topHat=Texture.WHITE;config.wardrobe.bowTie=Texture.WHITE;
+    paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:2,Acc:2});assert.equal(element.children.length,2);assert.match(element.querySelector('.pet-portrait-hat').style.backgroundImage,/black-top-hat/);assert.match(element.querySelector('.pet-portrait-acc').style.backgroundImage,/red-bow-tie/);
+    paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0,Acc:2});assert.equal(element.children.length,1);assert.ok(element.querySelector('.pet-portrait-acc'));
+    paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
     paintPetPortrait(element,config,'atlas.png',10,0,outfit);const hat=element.children[0];assert.ok(hat);const first=hat.style.left;
     paintPetPortrait(element,config,'atlas.png',10,1,outfit);assert.equal(element.children[0],hat);assert.notEqual(hat.style.left,first);assert.equal(hat.style.transform,'rotate(0.1rad)');
     const personal={...config,id:'myeongrang',animations:{idle:{...config.animations.idle,anchorY:870/1024,scale:1.3,frames:[{...frame,orig:{width:1024,height:1024},trim:{x:300,y:600}}]}}};

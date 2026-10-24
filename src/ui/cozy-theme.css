@@ -424,7 +424,10 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .room-slots .room-player[data-empty="true"] { justify-content: center; background: #eee5d348; color: #a4957d; border-style: dashed; }
 .room-pet-stage { display: flex; align-items: flex-end; justify-content: center; width: 13cqw; height: 14cqh; flex-shrink: 0; }
 .room-pet { position:relative;display: block; background-repeat: no-repeat; image-rendering: pixelated; }
-.pet-portrait-hat{position:absolute;display:block;pointer-events:none;background:url('/assets/items/santa-hat.png') center/100% 100% no-repeat;image-rendering:pixelated;}
+.pet-portrait-hat,.pet-portrait-acc{position:absolute;display:block;pointer-events:none;background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;}
+.outfit-object.top-hat-icon,.outfit-object.bow-tie-icon{width:12cqw;height:18cqh;bottom:-.5cqh;image-rendering:pixelated;}
+.shop-grid .outfit-object.top-hat-icon{width:7cqw;height:8cqh;bottom:2.6cqh;}
+.shop-grid .outfit-object.bow-tie-icon{width:9cqw;height:10cqh;bottom:1.8cqh;}
 .room-player-info { min-width: 0; overflow-wrap: anywhere; }
 .room-player-info strong { font-family: var(--font-round); font-weight: 400; font-size: clamp(12px,1.7cqw,23px); }
 .room-player-info p { margin: 0.4cqh 0; font-size: clamp(10px,1.2cqw,16px); color: #78865a; }
