@@ -238,7 +238,7 @@ export class Game {
               await saveRoomLook();
               if(this.disposed||!this.scenes?.isCurrent(scene)||this.account?.user?.id!==owner)return;
               this.friendClient?.stop();inGame=true;void this.friendActivity?.refresh();
-              this.scenes.show(new ParkScene(new ParkClient(accountClient,owner),[corgi,this.myeongrang!],()=>lobby(true),this.homeTextures));
+              this.scenes.show(new ParkScene(new ParkClient(accountClient,owner),[corgi,this.myeongrang!],()=>lobby(true),this.homeTextures,openSettings));
             };void enter().catch(()=>this.settings?.openAccount());
           },
           race:(room,client)=>{

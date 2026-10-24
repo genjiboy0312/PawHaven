@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  parkWrite:'Write message',parkHistory:'Recent chat',
   park:'Park',parkChannels:'Choose channel',parkChat:'Chat',parkMessage:'Message (up to 100 characters)',parkSend:'Send',parkConnecting:'Connecting to the park…',parkUnavailable:'Park setup or connection is unavailable. Please try again.',parkFull:'This channel is full. Please choose another.',parkOffline:'Connection interrupted. Reconnecting…',parkSessionLost:'Your park session ended. Please choose a channel again.',parkChatWait:'Please wait a moment before sending again.',
   blackTopHat:'Black Top Hat',redBowTie:'Red Bow Tie',
   shopEquip:'Equip',shopEquipped:'Equipped',shopPreviewOnly:'Try-on preview · Equip to save',
@@ -106,6 +107,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  parkWrite:'대화 입력',parkHistory:'최근 대화',
   park:'공원',parkChannels:'채널 선택',parkChat:'대화',parkMessage:'메시지 (최대 100자)',parkSend:'보내기',parkConnecting:'공원에 연결하고 있어요…',parkUnavailable:'공원 준비 또는 연결을 확인할 수 없어요. 다시 시도해 주세요.',parkFull:'인원이 가득 찼어요. 다른 채널을 선택해 주세요.',parkOffline:'연결이 끊겼어요. 다시 연결하고 있어요…',parkSessionLost:'공원 접속이 종료되었어요. 채널을 다시 선택해 주세요.',parkChatWait:'잠시 후 다시 보내 주세요.',
   blackTopHat:'검정 탑햇',redBowTie:'빨간 나비넥타이',
   shopEquip:'착용하기',shopEquipped:'착용 중',shopPreviewOnly:'착용 미리보기 · 착용하기를 누르면 저장돼요',

@@ -27,6 +27,11 @@ button, input, select { font-family: var(--font-round); }
 .park-chat-log{height:14cqh;overflow-y:auto;overflow-wrap:anywhere;color:#665a45;font:400 clamp(10px,1.25cqw,17px)/1.4 var(--font-body);}
 .park-chat-log p{margin:.5cqh 0;}
 .park-chat form{display:flex;gap:.6cqw;margin-top:.6cqh;}
+.park-chat form[hidden]{display:none;}
+.park-chat-toolbar{display:flex;justify-content:center;gap:.8cqw;}
+.park-chat[data-expanded="false"]{background:transparent;border:0;padding:0;}
+.park-chat-log:not([hidden]){margin-top:1cqh;}
+.park-chat .park-compose-close{flex:none;padding:.5cqh .8cqw;}
 .park-chat input{width:0;min-width:0;flex:1;border:1px solid #dcc599;border-radius:.7cqw;background:#fffdf5;padding:.5cqh .7cqw;font:400 clamp(11px,1.4cqw,19px) var(--font-body);color:#665a45;}
 .park-hud .play-actions{width:16cqw;height:16cqw;}
 .park-hud .play-actions .action-button[data-action="jump"]{left:0;right:auto;top:0;bottom:auto;}
