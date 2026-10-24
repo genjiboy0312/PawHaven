@@ -45,7 +45,8 @@ button, input, select { font-family: var(--font-round); }
 .park-chat-log p{margin:.5cqh 0;}
 .park-chat form{display:flex;gap:.6cqw;margin-top:.6cqh;}
 .park-chat form[hidden]{display:none;}
-.park-chat.keyboard-chat-docked{position:fixed;right:auto;bottom:auto;display:flex;flex-direction:column;z-index:60;padding:8px;border-radius:12px;overflow:hidden;box-sizing:border-box;}
+.park-chat.keyboard-chat-docked{position:fixed;right:auto;bottom:auto;margin:0;height:auto;display:flex;flex-direction:column;z-index:2147483647;padding:8px;border-radius:12px;overflow:hidden;box-sizing:border-box;}
+.park-chat.keyboard-chat-docked::backdrop{background:transparent;pointer-events:none;}
 .park-chat.keyboard-chat-docked .park-chat-log{font-size:16px;line-height:1.3;height:100px;min-height:0;flex:1 1 auto;}
 .park-chat.keyboard-chat-docked form{flex:0 0 auto;gap:6px;margin-top:6px;}
 .park-chat.keyboard-chat-docked input{font-size:16px;padding:8px;min-height:38px;}

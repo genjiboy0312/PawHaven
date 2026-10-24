@@ -2,7 +2,7 @@ import{test}from'node:test';import assert from'node:assert/strict';import{import
 import{setMaxListeners}from'node:events';setMaxListeners(30); // DOM-style listener groups legitimately exceed Node's default 10.
 const{KeyboardChatDock}=await importTs('../src/ui/KeyboardChatDock.ts',import.meta.url);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-function environment(){
+function environment(popover=false){
  const keys=['window','document','navigator','HTMLElement','requestAnimationFrame','cancelAnimationFrame'],saved=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let doc;
  class Element extends EventTarget{
   attrs=new Map();style={};parentElement=null;children=[];selectionStart=0;selectionEnd=0;clientWidth=1280;clientHeight=720;
@@ -22,6 +22,7 @@ function environment(){
  }
  doc=Object.assign(new EventTarget(),{body:new Element(),documentElement:new Element(),fullscreenElement:null,createComment:()=>new Element()});
  const host=new Element();host.setAttribute('id','app');doc.body.append(host);const chat=new Element(),input=new Element();host.append(chat);chat.append(input);doc.activeElement=doc.body;
+ if(popover){chat.open=false;chat.shows=0;chat.matches=selector=>selector===':popover-open'&&chat.open;chat.showPopover=()=>{chat.open=true;chat.shows++;};chat.hidePopover=()=>{chat.open=false;};}
  const view=Object.assign(new EventTarget(),{width:1280,height:720,offsetLeft:0,offsetTop:0}),keyboard=Object.assign(new EventTarget(),{overlaysContent:false,boundingRect:{left:0,top:0,width:0,height:0}}),orientation=new EventTarget();
  const win=Object.assign(new EventTarget(),{innerHeight:720,innerWidth:1280,visualViewport:view,matchMedia:()=>({matches:true}),screen:{orientation}});
  const values={window:win,document:doc,navigator:{virtualKeyboard:keyboard},HTMLElement:Element,requestAnimationFrame:fn=>setTimeout(fn,0),cancelAnimationFrame:clearTimeout};for(const k of keys)Object.defineProperty(globalThis,k,{configurable:true,writable:true,value:values[k]});
@@ -47,4 +48,19 @@ test('sending waits for keyboard dismissal and focus loss before restoring the o
 });
 test('short focus loss followed by refocus cancels automatic restoration',async()=>{
  const e=environment();try{e.pointer();e.input.blur();await wait(80);e.input.focus();await wait(450);assert.equal(e.chat.parentElement,e.doc.body);assert.equal(e.doc.activeElement,e.input);}finally{e.restore();}
+});
+
+test('manual top layer survives geometry changes without reopening or losing focus',async()=>{
+ const e=environment(true);try{
+  e.pointer();assert.equal(e.chat.getAttribute('popover'),'manual');assert.equal(e.chat.open,true);
+  await e.geometry(true);await e.geometry(false);assert.equal(e.chat.shows,1);assert.equal(e.doc.activeElement,e.input);
+  // A fullscreen transition can remove an element from the top layer: restore it once.
+  e.chat.open=false;e.doc.dispatchEvent(new Event('fullscreenchange'));await wait(8);
+  assert.equal(e.chat.open,true);assert.equal(e.chat.shows,2);assert.equal(e.doc.activeElement,e.input);
+  e.dock.reset();assert.equal(e.chat.open,false);assert.equal(e.chat.getAttribute('popover'),null);assert.equal(e.chat.parentElement,e.host);
+ }finally{e.restore();}
+});
+
+test('destroy restores an existing popover attribute',()=>{
+ const e=environment(true);try{e.chat.setAttribute('popover','auto');e.pointer();e.dock.destroy();assert.equal(e.chat.open,false);assert.equal(e.chat.getAttribute('popover'),'auto');}finally{e.restore();}
 });

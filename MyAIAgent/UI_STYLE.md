@@ -1,6 +1,7 @@
 # Cozy UI 1차 (2026-10-17)
 
 ## 공원 모바일 채팅 (2026-10-24, 접이식 기획 대체)
+- 전체화면 채팅 레이어: 입력 중 같은 채팅 노드를 manual popover로 top layer에 올린다. 일반 z-index만으로 fullscreen 앞에 표시된다고 가정하지 않는다. 열린 상태에서는 재개방하지 않고, 종료 시 원래 popover 속성도 복원한다. 미지원 환경의 fullscreen 내부 portal fallback은 유지한다. 검증 시 실제 fullscreen + 캔버스 위 elementFromPoint hit test를 포함한다.
 - 입력 끊김 후속 수정: viewport/geometry/fullscreen/회전 이벤트만으로 input.blur/reset을 호출하지 않는다. Android 키보드 영역 값은 애니메이션 도중 잠깐 0/원래 높이로 돌아올 수 있다. 한글 조합/입력 포커스가 살아 있는 동안 같은 노드·같은 포커스를 유지하고 위치만 갱신한다. 첫 터치는 기본 포커스 동작 전에 mount하고 preventDefault하여 이전 좌표의 기본 동작과 충돌하지 않게 한다. 이후 터치는 네이티브 커서 동작을 유지한다.
 - 키보드가 닫히면 대화창은 아래로 돌아가지만, DOM/정책/게임 스타일 복원은 실제 focus 이탈·조합 종료·키보드 닫힘 뒤에 한다. 전송/Escape/설정/퇴장 등 명시적 종료는 기존대로 처리한다. tests/keyboard.test.mjs의 포커스 회귀 검증을 유지한다.
 - 전체화면 입력은 VirtualKeyboard geometry(지원 시)와 VisualViewport를 함께 처리한다. viewport가 줄지 않는 overlay 키보드도 가림 영역에서 제외한다. 입력 중 게임 크기를 고정하고 종료 때 원래 스타일/키보드 정책을 복원한다. 전체화면 해제나 게임 강제 축소로 해결하지 않는다.

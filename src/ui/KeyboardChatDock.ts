@@ -19,6 +19,7 @@ export class KeyboardChatDock {
  private frame=0;private closed=false;
  private readonly keyboard?:KeyboardGeometry;private overlayBefore?:boolean;
  private frozenHost?:HTMLElement;private hostStyle:string|null=null;
+ private popoverBefore:string|null=null;private ownsPopover=false;
  constructor(private readonly element:HTMLElement,private readonly input:HTMLInputElement){
   input.setAttribute('data-keyboard-chat','true');
   this.keyboard=(navigator as Navigator&{virtualKeyboard?:KeyboardGeometry}).virtualKeyboard;
@@ -71,9 +72,19 @@ export class KeyboardChatDock {
   if(focused){this.input.focus({preventScroll:true});if(start!==null&&end!==null)this.input.setSelectionRange(start,end);}
   this.moving=false;
  }
+ private elevate(){
+  // Fullscreen lives in the browser top layer, beyond ordinary z-index stacking.
+  // A manual popover lifts the SAME input without a modal, light-dismiss or DOM moves.
+  if(typeof this.element.showPopover!=='function')return;
+  if(!this.ownsPopover){this.popoverBefore=this.element.getAttribute('popover');this.element.setAttribute('popover','manual');this.ownsPopover=true;}
+  if(!this.element.matches(':popover-open')){
+   try{this.element.showPopover();}catch{/* Older fullscreen implementations retain the portal fallback. */}
+  }
+ }
  private schedule(){if(!this.marker||this.closed)return;cancelAnimationFrame(this.frame);this.frame=requestAnimationFrame(()=>this.layout());}
  private layout(){
   if(!this.marker||this.closed)return;
+  this.elevate();
   const view=this.visibleView();
   // Never blur/reparent a focused input because of a geometry change. When the keyboard
   // closes, this same node moves down; reparenting waits until the user leaves the input.
@@ -85,6 +96,11 @@ export class KeyboardChatDock {
  reset(){
   if(!this.marker)return;this.moving=true;clearTimeout(this.blurTimer);cancelAnimationFrame(this.frame);this.input.blur();
   const marker=this.marker;this.marker=undefined;this.element.classList.remove('keyboard-chat-docked');
+  if(this.ownsPopover){
+   if(this.element.matches(':popover-open'))this.element.hidePopover();
+   if(this.popoverBefore===null)this.element.removeAttribute('popover');else this.element.setAttribute('popover',this.popoverBefore);
+   this.ownsPopover=false;
+  }
   if(this.savedStyle===null)this.element.removeAttribute('style');else this.element.setAttribute('style',this.savedStyle);
   if(marker.isConnected)marker.replaceWith(this.element);else this.element.remove();this.composing=false;this.moving=false;
   if(this.frozenHost){if(this.hostStyle===null)this.frozenHost.removeAttribute('style');else this.frozenHost.setAttribute('style',this.hostStyle);this.frozenHost=undefined;}

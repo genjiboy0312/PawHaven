@@ -1,6 +1,9 @@
 # 공원 프로토타입 (2026-10-24)
 
 ## 모바일 키보드·상시 대화창 (최신 사용자 수정, 이전 접이식 기획 대체)
+- 2026-10-25 레이어 후속 수정: 사용자 실기기에서 입력 끊김은 해결됐지만 채팅이 게임 뒤로 가려졌다. 일반 z-index에만 의존하지 않고 기존 채팅 노드에 manual popover를 적용해 브라우저 top layer로 올린다. fullscreen 요소 내부 portal도 유지하며 API 미지원 환경은 높은 z-index를 사용한다. 자동 닫힘/모달/입력 복제는 추가하지 않는다.
+- geometry 갱신마다 열린 popover를 다시 열지 않는다. fullscreen 전환으로 닫힌 경우에만 다시 올리고, 종료 시 popover 상태·원래 속성·DOM·스타일을 복원한다. 입력 포커스와 한글 조합 유지 규칙은 그대로 지킨다.
+- 검증: 관련 자동 테스트 14개와 타입 검사/빌드 통과. 실제 Chrome fullscreen의 높은 z-index 캔버스 앞에서 elementFromPoint로 입력창 터치 가능 여부를 확인했다. 네이티브 한글 조합·키보드 geometry 반전 중 blur 0회, 입력/기록 유지, 전송 후 popover 해제·fullscreen 유지·원위치 복원을 확인했다. 키보드 영역은 모의하므로 Android 실기기 키보드 검증을 대체하지 않는다.
 - 입력 끊김 후속 원인: keyboardSeen 후 viewport/geometry가 정상 높이로 잠깐 돌아오면 layout에서 reset→input.blur를 실행했고 orientationchange도 reset했다. 사용자 실기기에서 키보드 닫힘/입력 중단을 확인했다. 이 자동 종료 경로를 제거했다.
 - 현재 규칙: resize/geometrychange/fullscreenchange/회전은 위치만 조정한다. 포커스/한글 조합 중에는 DOM을 다시 옮기거나 blur하지 않는다. 첫 pointerdown만 preventDefault 후 mount→focus를 수행해 이전 좌표의 기본 터치 포커스와 충돌하지 않는다. 다음 터치는 브라우저의 커서/선택 동작을 그대로 쓴다.
 - 키보드를 닫아도 포커스가 남아 있으면 동일 노드를 아래에 계속 표시한다. 실제 포커스 이탈·조합 종료·키보드 닫힘을 확인한 뒤 400ms 후 원래 DOM/게임 스타일/keyboard 정책을 복원한다. 짧은 blur→focus 복귀는 정리를 취소한다. 명시적 전송/Escape/설정/퇴장은 별도 종료 경로를 유지한다.
