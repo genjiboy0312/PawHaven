@@ -5,7 +5,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {importTs} from './load-typescript.mjs';
 const {parkPose,parkStep,parkCamera,PARK_WORLD}=await importTs('../src/park/ParkModel.ts',import.meta.url);
 const {ParkClient}=await importTs('../src/park/ParkClient.ts',import.meta.url);
-const {chatDockBounds}=await importTs('../src/ui/KeyboardChatDock.ts',import.meta.url);
+const {chatDockBounds,chatVisibleViewport}=await importTs('../src/ui/KeyboardChatDock.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 await db.exec(await readFile(new URL('../supabase/migrations/202610170001_player_accounts.sql',import.meta.url),'utf8'));
@@ -20,6 +20,14 @@ test('keyboard chat layout stays inside the visible viewport, including pan offs
  for(const view of [{width:1280,height:310,offsetLeft:0,offsetTop:0},{width:400,height:350,offsetLeft:0,offsetTop:160},{width:360,height:150,offsetLeft:35,offsetTop:45}]){
   const b=chatDockBounds(view);assert.ok(b.left>=view.offsetLeft+8);assert.ok(b.left+b.width<=view.offsetLeft+view.width-8);assert.equal(b.bottom,view.offsetTop+view.height-8);assert.ok(b.maxHeight<=view.height-16);assert.ok(b.bottom-b.maxHeight>=view.offsetTop+8);
  }
+});
+test('fullscreen overlay keyboard and resized viewport use the smaller visible area exactly once',()=>{
+ const full={width:1280,height:720,offsetLeft:0,offsetTop:0},keyboard={left:0,top:390,width:1280,height:330};
+ assert.equal(chatVisibleViewport(full,keyboard).height,390);
+ assert.equal(chatVisibleViewport({...full,height:390},keyboard).height,390);
+ assert.equal(chatVisibleViewport({...full,offsetTop:80},keyboard).height,310);
+ assert.deepEqual(chatVisibleViewport(full,{...keyboard,height:0}),full);assert.deepEqual(chatVisibleViewport(full,{...keyboard,left:1500}),full);
+ const bounds=chatDockBounds(chatVisibleViewport(full,keyboard));assert.ok(bounds.bottom<keyboard.top);
 });
 test('park joins have strict capacity, server nickname/appearance and atomic switching',async()=>{
  for(let n=0;n<8;n++)await command(n,'join');
