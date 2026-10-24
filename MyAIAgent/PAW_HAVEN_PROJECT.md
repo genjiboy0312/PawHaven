@@ -17,6 +17,8 @@ UI 작업 전 필수 확인·사용자 승인 스타일 기억: [UI_STYLE.md](UI
 
 공원 채널·채팅 프로토타입 및 서버 적용: [PARK.md](PARK.md)
 
+로비 우편함·서버 보상 발송/수령: [MAILBOX.md](MAILBOX.md)
+
 ---
 
 # 1. 프로젝트 개요

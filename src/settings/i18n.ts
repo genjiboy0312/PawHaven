@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  mail:'Mail',mailLogin:'Log in to check your mailbox.',mailEmpty:'No mail yet. Event and server rewards will arrive here.',mailSetup:'Mailbox setup is not complete yet. Please try again after the server update.',mailOffline:'Unable to check mail. Please retry; received rewards will not be granted twice.',mailClaim:'Receive',mailClaimAll:'Receive all',mailClaimed:'Received',mailExpired:'Expired',mailWaiting:'Unclaimed',mailExpires:'Available until',mailTreats:'Treats',mailNotice:'Notice · no attachments',mailReceived:'Mail received. Rewards are reflected in your inventory.',mailCapacity:'Storage or currency limit reached. Affected mail remains unclaimed.',mailUnavailable:'This mail is expired, already received or unavailable.',
   park:'Park',parkChannels:'Choose channel',parkChat:'Chat',parkMessage:'Message (up to 100 characters)',parkSend:'Send',parkConnecting:'Connecting to the park…',parkUnavailable:'Park setup or connection is unavailable. Please try again.',parkFull:'This channel is full. Please choose another.',parkOffline:'Connection interrupted. Reconnecting…',parkSessionLost:'Your park session ended. Please choose a channel again.',parkChatWait:'Please wait a moment before sending again.',
   blackTopHat:'Black Top Hat',redBowTie:'Red Bow Tie',
   shopEquip:'Equip',shopEquipped:'Equipped',shopPreviewOnly:'Try-on preview · Equip to save',
@@ -106,6 +107,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  mail:'우편함',mailLogin:'로그인 후 우편함을 확인해 주세요.',mailEmpty:'아직 도착한 우편이 없어요. 이벤트·서버 보상이 이곳으로 도착해요.',mailSetup:'우편함 서버 준비가 필요해요. 서버 업데이트 후 다시 확인해 주세요.',mailOffline:'우편을 확인할 수 없어요. 다시 시도해 주세요. 수령한 보상은 중복 지급되지 않아요.',mailClaim:'받기',mailClaimAll:'모두 받기',mailClaimed:'수령 완료',mailExpired:'기간 만료',mailWaiting:'미수령',mailExpires:'수령 기한',mailTreats:'간식',mailNotice:'안내 우편 · 첨부 없음',mailReceived:'우편을 수령했어요. 보상이 인벤토리에 반영됩니다.',mailCapacity:'보관함 또는 재화가 가득 찼어요. 해당 우편은 미수령 상태로 유지됩니다.',mailUnavailable:'기간이 지났거나 이미 수령한 우편입니다.',
   park:'공원',parkChannels:'채널 선택',parkChat:'대화',parkMessage:'메시지 (최대 100자)',parkSend:'보내기',parkConnecting:'공원에 연결하고 있어요…',parkUnavailable:'공원 준비 또는 연결을 확인할 수 없어요. 다시 시도해 주세요.',parkFull:'인원이 가득 찼어요. 다른 채널을 선택해 주세요.',parkOffline:'연결이 끊겼어요. 다시 연결하고 있어요…',parkSessionLost:'공원 접속이 종료되었어요. 채널을 다시 선택해 주세요.',parkChatWait:'잠시 후 다시 보내 주세요.',
   blackTopHat:'검정 탑햇',redBowTie:'빨간 나비넥타이',
   shopEquip:'착용하기',shopEquipped:'착용 중',shopPreviewOnly:'착용 미리보기 · 착용하기를 누르면 저장돼요',

@@ -1,5 +1,8 @@
 # 로비 아이콘 — 사용자 승인·적용 기준 (2026-10-24)
 
+## Mail 추가 (후속 승인)
+- 사용자가 승인한 접힌 종이 형태를 사용한다. Resources/Lobby_Mail_Note.svg 및 .png, 배포 public/assets/icons/lobby-mail.svg. 기존 원형 바탕·Jua 라벨을 재사용하며 Quest 아래 두 번째 줄에 배치한다. 새 봉투/문서 모양으로 재생성하지 않는다. 기능·SQL: [MAILBOX.md](MAILBOX.md).
+
 - 사용자 승인: 단순 동물 기호 대신 기존 턱시도 고양이와 명랑이 얼굴을 활용한 시안을 로비에 적용한다. 캐릭터 버튼은 보라색 발바닥만 사용한다.
 - 참조: Resources/Cat_Tuxedo_Action_Art_Sheet.png의 정면 DIRECTION 얼굴, Resources/PawHaven_Myeongrang_Icon.png.
 - 제작: imagegen 스킬의 built-in image_gen 편집. 원본 픽셀을 그대로 잘라 붙인 결과가 아니라, 두 리소스를 참조해 합성한 파생 이미지다. 생성 결과의 투명도를 유지해 Resources/Lobby_Friends_Myeongrang_Cat.png로 보관한다. 원본 리소스는 보존했다. 이후 작업에서는 이 승인 PNG를 재사용한다.

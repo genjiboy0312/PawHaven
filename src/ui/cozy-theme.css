@@ -11,6 +11,23 @@
 }
 button, input, select { font-family: var(--font-round); }
 .home-hint { font-family: var(--font-round); font-weight: 400; }
+.hud-utilities.has-mail{display:grid;grid-template-columns:repeat(4,auto);row-gap:1.4cqh;}
+.hud-menu-mail{grid-column:1;grid-row:2;position:relative;}
+.settings-panel.mailbox-panel{width:82%;height:84%;}
+.settings-content.mailbox-content{display:grid;grid-template-columns:36% minmax(0,1fr);gap:2cqw;min-height:0;overflow:hidden;margin-top:4cqh;}
+.mailbox-list,.mailbox-detail{min-width:0;min-height:0;overflow-y:auto;scrollbar-width:thin;}
+.mailbox-list{display:flex;flex-direction:column;gap:1cqh;padding:.5cqh .5cqw 1cqh;}
+.settings-content .mailbox-row{display:flex;flex-direction:column;align-items:flex-start;gap:.6cqh;text-align:left;flex:none;}
+.mailbox-row strong{font-weight:400;overflow-wrap:anywhere;}.mailbox-row span{font-size:1.15cqw;color:#92816a;}
+.mailbox-row[aria-pressed="true"]{background:#ffe1a8;border-color:#cda96d;}
+.mailbox-detail{padding:1cqh 1cqw;overflow-wrap:anywhere;}.mailbox-detail h3{font-weight:400;margin:0 0 1cqh;font-size:2cqw;}
+.mailbox-body{white-space:pre-wrap;line-height:1.5;}
+.mailbox-detail>button:last-child{position:sticky;bottom:0;}
+.mailbox-rewards{display:flex;flex-wrap:wrap;gap:1cqw;align-items:center;margin:2cqh 0;}
+.mailbox-item{display:flex;align-items:center;gap:.5cqw;border:1px solid #e4d3aa;border-radius:1cqw;padding:.5cqh .6cqw;}
+.mailbox-rewards .mailbox-item .outfit-object{position:relative;inset:auto;transform:none;width:4cqw;height:5cqw;flex:none;}
+.mailbox-item p{font-size:1.25cqw;}.mailbox-footer{display:flex;align-items:center;justify-content:flex-end;gap:1cqw;padding-top:1.5cqh;flex:none;}
+.mailbox-footer p{margin:0 auto 0 0;font-size:1.2cqw;max-width:60%;}.mailbox-footer button{margin:0;white-space:nowrap;}
 .play-menu-panel[data-page="mode"] .with-park{grid-template-columns:repeat(3,minmax(0,1fr));}
 .park-hud .park-header{position:absolute;top:3cqh;left:3cqw;right:3cqw;display:flex;align-items:center;gap:1cqw;pointer-events:auto;font:400 clamp(12px,2cqw,24px) var(--font-round);}
 .park-header strong{margin-right:auto;color:#675a43;}

@@ -8,10 +8,11 @@ const ICONS = {
   shop: '<rect x="15" y="26" width="34" height="27" rx="3" fill="#fff0d2"/><path d="m11 27 6-14h30l6 14" fill="#e6a28c"/><path d="M22 14v13m10-13v13m10-13v13" stroke="#fff3dc" stroke-width="6"/><path d="M11 27c0 7 10 7 10 0 0 7 11 7 11 0 0 7 11 7 11 0 0 7 10 7 10 0" fill="#e6a28c"/><path d="M27 53V39h11v14" fill="#b8cda5"/>',
   settings: '<path d="m27 10 10 0 2 7 5 3 7-2 5 9-5 5v5l5 5-5 9-7-2-5 3-2 6H27l-2-6-5-3-7 2-5-9 5-5v-5l-5-5 5-9 7 2 5-3z" fill="#b5cfd7" transform="translate(0 -2)"/><circle cx="32" cy="32" r="9" fill="#fff9e7"/>',
   friends: '',
+  mail: '',
   play: '<path d="M24 15q-4-2-4 3v28q0 5 4 3l25-15q4-2 0-4z" fill="#fffbee" stroke="#7e9953"/>',
 };
 type MenuId = keyof typeof ICONS;
-const PET_ICONS:Partial<Record<MenuId,string>>={character:'./assets/icons/lobby-character.svg?v=20261024',friends:'./assets/icons/lobby-friends.png?v=20261024'};
+const PET_ICONS:Partial<Record<MenuId,string>>={character:'./assets/icons/lobby-character.svg?v=20261024',friends:'./assets/icons/lobby-friends.png?v=20261024',mail:'./assets/icons/lobby-mail.svg?v=20261024'};
 
 export class LobbyHud {
   readonly element = document.createElement('section');
@@ -32,9 +33,11 @@ export class LobbyHud {
   private requestCount=-1;
   private readonly requests?:()=>number;
   private readonly clickSound?: () => void;
+  private readonly mailBadge=document.createElement('span');private readonly mailPending?:()=>number;private mailCount=-1;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; mail?:()=>void; mailPending?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void) {
     this.requests=commerce?.requests;
+    this.mailPending=commerce?.mailPending;
     this.rewards = commerce?.rewards;
     this.clickSound = commerce?.click;
     this.readNotice = commerce?.notice; this.economyBusy = commerce?.busy;
@@ -72,6 +75,7 @@ export class LobbyHud {
     this.friendsButton=friends;this.requestBadge.className='hud-request-badge';this.requestBadge.hidden=true;this.requestBadge.setAttribute('aria-hidden','true');friends.append(this.requestBadge);
     if (commerce?.friends) { friends.disabled = false; friends.addEventListener('click', commerce.friends); }
     utilities.append(quest, friends, shop, settings);
+    if(commerce?.mail){const mail=this.menu('mail','Mail');mail.disabled=false;mail.addEventListener('click',commerce.mail);this.mailBadge.className='hud-request-badge';this.mailBadge.hidden=true;this.mailBadge.setAttribute('aria-hidden','true');mail.append(this.mailBadge);utilities.classList.add('has-mail');utilities.append(mail);}
     const play = document.createElement('div');
     play.className = 'hud-play';
     const playButton = this.menu('play', 'Play');
@@ -122,6 +126,7 @@ export class LobbyHud {
     return button;
   }
   update(state: AnimalVisualState): void {
+    const pending=this.mailPending?.()??0,mailCount=Number.isFinite(pending)?Math.max(0,Math.floor(pending)):0;if(mailCount!==this.mailCount){this.mailCount=mailCount;this.mailBadge.hidden=mailCount===0;this.mailBadge.textContent=mailCount>99?'99+':String(mailCount);}
     const value=this.requests?.()??0,count=Number.isFinite(value)?Math.max(0,Math.min(100,Math.floor(value))):0;
     if(count!==this.requestCount){this.requestCount=count;this.requestBadge.hidden=count===0;this.requestBadge.textContent=count>99?'99+':String(count);if(this.friendsButton)bindAria(this.friendsButton,count?'friendsRequestsReady':'friends');}
     const message = this.readNotice?.() ?? '';

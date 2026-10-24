@@ -38,6 +38,7 @@ export class ServerShopState {
     return this.connection === 'ready' || (this.connection === 'loading' && this.api.result) ? '' : t(('economy.' + this.connection) as Parameters<typeof t>[0]);
   }
   retry(): void { void this.api.retry(); }
+  async reload():Promise<void>{if(!await this.api.execute('load'))throw Error('economy_reload_failed');}
   refreshDaily(): void { this.api.refresh(); }
   get dailyQuests() { this.api.refresh(); return this.view.dailyQuests.map(quest => ({ ...quest, canClaim: this.ready && quest.canClaim })); }
   get hasDailyRewards(): boolean { this.api.refresh(); return !!this.api.result && this.view.hasDailyRewards; }

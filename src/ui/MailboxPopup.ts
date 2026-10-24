@@ -1,0 +1,63 @@
+import {bindAria,bindText,onLanguageChange,t,type TextKey} from '../settings/i18n';
+import {MailboxClient,type PlayerMail} from '../mail/MailboxClient';
+import {itemIcon} from './itemIcon';
+import {homeIcon,homeItemName} from './homeIcon';
+import {wearableItem} from '../animals/Wearables';
+import {coinAmount} from './CoinAmount';
+
+export class MailboxPopup {
+ private overlay?:HTMLElement;private list?:HTMLElement;private detail?:HTMLElement;private footer?:HTMLElement;private selected?:string;
+ private previousFocus?:HTMLElement;private blocked:{element:HTMLElement;inert:boolean}[]=[];private abort?:AbortController;
+ private readonly unsubscribe?:()=>void;private readonly localeOff:()=>void;
+ constructor(private readonly pause:(paused:boolean)=>void,private readonly state:MailboxClient|undefined,private readonly login:()=>void){this.unsubscribe=state?.subscribe(()=>this.render());this.localeOff=onLanguageChange(()=>this.render());}
+ private button(key:TextKey,action:()=>void){const b=document.createElement('button');b.type='button';b.className='settings-feedback';bindText(b,key);b.addEventListener('click',action);return b;}
+ open(){
+  if(this.overlay)return;const host=document.querySelector('#app');if(!host)return;this.abort=new AbortController();
+  this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
+  this.blocked=Array.from(host.children).filter((e):e is HTMLElement=>e instanceof HTMLElement).map(element=>({element,inert:element.inert}));this.blocked.forEach(b=>{b.element.inert=true;});this.pause(true);
+  const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
+  const panel=document.createElement('section');panel.className='settings-panel mailbox-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'mail');
+  const title=document.createElement('h2');bindText(title,'mail');const close=this.button('close',()=>this.close());close.removeAttribute('data-i18n');close.textContent='×';close.className='settings-close';bindAria(close,'close');
+  const content=document.createElement('div');content.className='settings-content mailbox-content';this.list=document.createElement('div');this.list.className='mailbox-list';this.detail=document.createElement('section');this.detail.className='mailbox-detail';content.append(this.list,this.detail);
+  this.footer=document.createElement('footer');this.footer.className='mailbox-footer';panel.append(title,close,content,this.footer);overlay.append(panel);host.append(overlay);
+  panel.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();this.close();}if(event.key!=='Tab')return;const controls=Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled)'));if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}},{signal:this.abort.signal});
+  this.render();close.focus();void this.state?.run('load');
+ }
+ private paragraph(value:string){const p=document.createElement('p');p.textContent=value;return p;}
+ private render(){
+  if(!this.overlay||!this.list||!this.detail||!this.footer)return;const scroll=this.list.scrollTop;this.list.replaceChildren();this.detail.replaceChildren();this.footer.replaceChildren();
+  const s=this.state;
+  if(!s){this.detail.append(this.paragraph(t('mailLogin')),this.button('login',()=>{this.close();this.login();}));return;}
+  if(s.error){const status=this.paragraph(t(s.error));status.setAttribute('role','status');this.footer.append(status,this.button('economyRetry',()=>void s.run('load')));}
+  else if(s.busy){const status=this.paragraph(t('friendsLoading'));status.setAttribute('role','status');this.footer.append(status);}
+  else if(s.snapshot?.outcome==='capacity')this.footer.append(this.paragraph(t('mailCapacity')));
+  else if(s.snapshot?.outcome==='claimed')this.footer.append(this.paragraph(t('mailReceived')));
+  else if(s.snapshot?.outcome==='unavailable')this.footer.append(this.paragraph(t('mailUnavailable')));
+  const mails=s.snapshot?.mail??[];
+  if(!mails.length){this.detail.append(this.paragraph(t(s.snapshot?'mailEmpty':'friendsLoading')));}
+  else{
+   if(!mails.some(m=>m.id===this.selected))this.selected=mails[0]!.id;
+   for(const mail of mails){
+    const row=this.button('mail',()=>{this.selected=mail.id;this.render();if(!mail.readAt)void s.run('read',mail.id);});row.className='mailbox-row';row.setAttribute('aria-pressed',String(mail.id===this.selected));row.disabled=s.busy;
+    const title=document.createElement('strong');title.textContent=mail.title;const status=document.createElement('span');status.textContent=t(mail.claimedAt?'mailClaimed':s.expired(mail)?'mailExpired':'mailWaiting');row.replaceChildren(title,status);this.list.append(row);
+   }
+   this.showMail(mails.find(m=>m.id===this.selected)!);
+  }
+  const refresh=this.button('friendsRefresh',()=>void s.run('load'));refresh.disabled=s.busy;
+  const all=this.button('mailClaimAll',()=>void s.run('claim_all'));all.disabled=s.busy||!s.pending||!!s.error;this.footer.append(refresh,all);this.list.scrollTop=scroll;
+ }
+ private showMail(mail:PlayerMail){
+  const s=this.state!,title=document.createElement('h3');title.textContent=mail.title;
+  const body=this.paragraph(mail.body);body.className='mailbox-body';
+  const expires=this.paragraph(t('mailExpires')+' '+new Date(mail.expiresAt).toLocaleDateString());
+  const rewards=document.createElement('div');rewards.className='mailbox-rewards';
+  if(mail.rewards.coins){const coins=document.createElement('span');coinAmount(coins,mail.rewards.coins);rewards.append(coins);}
+  if(mail.rewards.snacks)rewards.append(this.paragraph(`${t('mailTreats')} × ${mail.rewards.snacks}`));
+  for(const item of mail.rewards.items??[]){const chip=document.createElement('div');chip.className='mailbox-item';const name=wearableItem(item.category,item.index)?.name;chip.append(itemIcon(item.category,item.index),this.paragraph(name?t(name):`${t(item.category)} #${item.index}`));rewards.append(chip);}
+  for(const item of mail.rewards.home??[]){const chip=document.createElement('div');chip.className='mailbox-item';chip.append(homeIcon(item.category,item.index),this.paragraph(`${homeItemName(item.category,item.index)} × ${item.quantity}`));rewards.append(chip);}
+  if(!rewards.childElementCount)rewards.append(this.paragraph(t('mailNotice')));
+  const claim=this.button(mail.claimedAt?'mailClaimed':s.expired(mail)?'mailExpired':'mailClaim',()=>void s.run('claim',mail.id));claim.disabled=s.busy||!!s.error||!!mail.claimedAt||s.expired(mail);this.detail!.append(title,body,expires,rewards,claim);
+ }
+ close(){if(!this.overlay)return;this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.list=this.detail=this.footer=undefined;this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);if(this.previousFocus?.isConnected)this.previousFocus.focus();}
+ destroy(){this.close();this.unsubscribe?.();this.localeOff();}
+}
