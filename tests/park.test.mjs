@@ -5,6 +5,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {importTs} from './load-typescript.mjs';
 const {parkPose,parkStep,parkCamera,PARK_WORLD}=await importTs('../src/park/ParkModel.ts',import.meta.url);
 const {ParkClient}=await importTs('../src/park/ParkClient.ts',import.meta.url);
+const {chatDockBounds}=await importTs('../src/ui/KeyboardChatDock.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 await db.exec(await readFile(new URL('../supabase/migrations/202610170001_player_accounts.sql',import.meta.url),'utf8'));
@@ -15,6 +16,11 @@ await db.query('insert into public.player_saves(user_id,snapshot)values($1,$2)',
 async function as(n,sql,args=[],role='authenticated'){await db.exec('set role '+role);try{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[n===null?'':ids[n]]);return await db.query(sql,args);}finally{await db.exec('reset role');}}
 async function command(n,action,channel=1,lease=session,text=''){return(await as(n,'select public.park_command($1,$2,$3,$4) as data',[action,channel,lease,text])).rows[0].data;}
 
+test('keyboard chat layout stays inside the visible viewport, including pan offsets',()=>{
+ for(const view of [{width:1280,height:310,offsetLeft:0,offsetTop:0},{width:400,height:350,offsetLeft:0,offsetTop:160},{width:360,height:150,offsetLeft:35,offsetTop:45}]){
+  const b=chatDockBounds(view);assert.ok(b.left>=view.offsetLeft+8);assert.ok(b.left+b.width<=view.offsetLeft+view.width-8);assert.equal(b.bottom,view.offsetTop+view.height-8);assert.ok(b.maxHeight<=view.height-16);assert.ok(b.bottom-b.maxHeight>=view.offsetTop+8);
+ }
+});
 test('park joins have strict capacity, server nickname/appearance and atomic switching',async()=>{
  for(let n=0;n<8;n++)await command(n,'join');
  const snapshot=await command(0,'sync');assert.deepEqual(snapshot.counts,[8,0,0,0]);assert.equal(snapshot.members[0].name,'Player0');assert.equal(snapshot.members[0].look.petId,'myeongrang');assert.equal(snapshot.members[0].look.outfit.Hat,2);

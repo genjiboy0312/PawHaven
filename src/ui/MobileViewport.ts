@@ -39,6 +39,7 @@ export function installMobileViewport(host:HTMLElement):()=>void{
     const target=event.target;
     if(editor||!(target instanceof HTMLElement)||target.tagName!=='INPUT'||!host.contains(target)||!portraitTouch())return;
     const input=target as HTMLInputElement;
+    if(input.getAttribute('data-keyboard-chat')==='true')return;
     if(!['text','search','email','password','url','tel','number',''].includes(input.type))return;
     source=input;wasInert=host.inert;host.inert=true;
     editor=document.createElement('section');editor.className='mobile-text-editor';editor.setAttribute('role','dialog');editor.setAttribute('aria-modal','true');editor.setAttribute('aria-label',t('textEntry'));
