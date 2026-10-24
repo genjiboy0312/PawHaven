@@ -1,7 +1,7 @@
 import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { AnimalConfig, AnimalAction, HeadAnchor } from './AnimalConfig';
 import { createOutfit, type OutfitState } from './OutfitState';
-import { fitNeckAnchors } from './Wearables';
+import { applyNeckAnchors, type NeckAnchorMap } from './Wearables';
 
 interface FrameRect { x: number; y: number; width: number; height: number }
 interface CleanFrame extends FrameRect { center: number; baseline: number }
@@ -81,6 +81,6 @@ export async function loadCorgi(onProgress: (progress: number) => void, outfit: 
     if (!animation || anchors.length !== animation.frames.length) throw new Error('Head attachment frames do not match the animation.');
     animation.head = anchors;
   }
-  fitNeckAnchors(config);onProgress(1);
+  applyNeckAnchors(config,await Assets.load<NeckAnchorMap>(base+'neck-anchors.json?v=20261024-chest'));onProgress(1);
   return config;
 }

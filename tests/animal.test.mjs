@@ -15,20 +15,26 @@ function createAnimal() {
 
 test('formal outfit layers reuse all pet head frames, stay independent and share resources safely', async () => {
   const {AnimalAnimationController}=await importTs('../src/animals/AnimalAnimationController.ts',import.meta.url);
-  const {neckAnchor,wearableItem}=await importTs('../src/animals/Wearables.ts',import.meta.url);
+  const {applyNeckAnchors,wearableItem}=await importTs('../src/animals/Wearables.ts',import.meta.url);
   const corgi=JSON.parse(await readFile(new URL('../public/assets/characters/corgi/head-anchors.json',import.meta.url),'utf8'));
   const personal=JSON.parse(await readFile(new URL('../public/assets/characters/myeongrang/frames.json',import.meta.url),'utf8'));
   for(const id of ['corgi','myeongrang']){
     const heads=id==='corgi'?corgi:Object.fromEntries(Object.entries(personal.actions).map(([key,clip])=>[key,clip.frames.map(frame=>frame.head)]));
     const animations=Object.fromEntries(Object.entries(heads).map(([key,head])=>[key,{head,frames:head.map(()=>Texture.WHITE),fps:8,scale:id==='myeongrang'?personal.actions[key].scale:1}]));
-    const outfit={Hat:2,Acc:2,Body:0,Etc:0},view=new AnimalAnimationController({id,speed:90,scale:.62,animations,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit}});
+    const necks=JSON.parse(await readFile(new URL('../public/assets/characters/'+id+'/neck-anchors.json',import.meta.url),'utf8'));
+    const outfit={Hat:2,Acc:2,Body:0,Etc:0},config={id,speed:90,scale:.62,animations,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit}};
+    applyNeckAnchors(config,Object.fromEntries(Object.entries(necks).filter(([action])=>animations[action])));
+    const view=new AnimalAnimationController(config);
     try{
       for(const [action,head]of Object.entries(heads))for(let frame=0;frame<head.length;frame++)for(const direction of [-1,1]){
         view.update('IDLE',0,direction,0,0,0,action,(frame+.1)/head.length);
         assert.equal(view.hat.visible,true);assert.equal(view.accessory.visible,true);assert.equal(view.hat.label,'topHat');
-        const neck=neckAnchor(head[frame],id);assert.equal(view.accessory.x,neck.x);assert.equal(view.accessory.y,neck.y);
+        const neck=necks[action][frame];assert.equal(view.accessory.x,neck.x);assert.equal(view.accessory.y,neck.y);
         assert.ok(Number.isFinite(view.accessory.scale.x)&&view.accessory.scale.x>0);assert.equal(Math.sign(view.sprite.scale.x),direction);
       }
+      const previous=animations.idle.head;animations.idle.head=previous.map(h=>({...h,x:h.x+100,y:h.y-200}));view.update('IDLE',0,1);assert.equal(view.accessory.x,necks.idle[0].x);assert.equal(view.accessory.y,necks.idle[0].y);animations.idle.head=previous;
+      assert.throws(()=>applyNeckAnchors(config,{idle:[]}),/Invalid neck/);
+      assert.deepEqual(await readFile(new URL('../Resources/Actions/'+id+'-neck-anchors.json',import.meta.url)),await readFile(new URL('../public/assets/characters/'+id+'/neck-anchors.json',import.meta.url)));
       outfit.Hat=0;view.update('IDLE',0,1);assert.equal(view.hat.visible,false);assert.equal(view.accessory.visible,true);
       outfit.Hat=1;outfit.Acc=0;view.update('IDLE',0,1);assert.equal(view.hat.visible,true);assert.equal(view.hat.label,'santaHat');assert.equal(view.accessory.visible,false);
       const clip=animations.idle;clip.neck=clip.frames.map(()=>({x:7,y:-22,width:18,rotation:.2}));outfit.Acc=2;view.update('IDLE',0,1);assert.equal(view.accessory.x,7);assert.equal(view.accessory.y,-22);

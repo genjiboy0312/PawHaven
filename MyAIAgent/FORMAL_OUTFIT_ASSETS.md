@@ -1,11 +1,12 @@
 # 정장 아이템 리소스 (2026-10-24)
 
 ## 게임 연동 (후속 사용자 승인, 2026-10-24)
-- 원본 PNG를 변경하지 않고 public/assets/items/black-top-hat.png, red-bow-tie.png에 복사했다. Hat:2 검정 실크해트 / Acc:2 빨간 나비넥타이다. 기본 소유 슬롯 1번은 유지한다. 이전 프로토타입에서 2번을 이미 소유했다면 기존 권리를 유지한다.
+- 원본 PNG를 변경하지 않고 public/assets/items/black-top-hat.png, red-bow-tie.png에 복사했다. Hat:2 검정 탑햇 / Acc:2 빨간 나비넥타이다. 기본 소유 슬롯 1번은 유지한다. 이전 프로토타입에서 2번을 이미 소유했다면 기존 권리를 유지한다.
 - 기존 상품 가격 함수·구매 확인·소유권·캐릭터 저장·공용 프리셋·서버 외형을 재사용한다. 각 아이템은 현재 공통 가격 규칙상 75 Coins다. 새 SQL은 필요 없다. 상점 선택은 사본 미리보기, 구매 후 착용하기로 실제 저장한다.
 - Wearables.ts에 이미지·아이템 이름·크기·기준점·부착 위치를 모았다. AnimalAnimationController와 PetPortrait가 같은 wornLayers를 사용한다. 모자·넥타이는 독립 레이어이며 로비·Character·Shop·Play·멀티 원격 동물·대기방·결과 화면에 재사용한다.
-- 실크해트: 전체 1536×1024, 챙 기준 (768,738), 맞춤 폭 700. 나비넥타이: 매듭 기준 (768,535), 맞춤 폭 995. 산타모자 기존 수치는 유지한다. 원본을 타이트하게 자르지 않는다.
-- 목 위치는 기존 프레임별 머리 기준점에서 동물·자세에 맞춰 fitNeckAnchors로 계산한다. Idle/Emote와 이동/공격/점프 자세를 나눠 얼굴 위로 올라오는 현상을 보정했다. 클립의 neck 배열을 제공하면 그 측정값을 우선하므로 후속 목걸이·스카프에도 재사용할 수 있다.
+- 검정 탑햇: 전체 1536×1024, 챙 기준 (768,738), 맞춤 폭 850. 사용자 요청으로 700→850으로 변경해 실제 크기를 약 18% 줄였다. 나비넥타이: 매듭 기준 (768,535), 맞춤 폭 995. 산타모자 기존 수치는 유지한다. 원본을 타이트하게 자르지 않는다.
+- 최초 연결의 머리 위치 기반 추정은 사용자가 이동 시 어색함을 확인해 제거했다. 코기 40개·명랑이 32개 실제 몸체 프레임의 목/가슴 위치를 8×8 검토 격자에서 수동 선택했다. scripts/measure-neck-points.mjs가 이 선택값을 발 원점 기준 좌표로 변환한다. 원본은 Resources/Actions/<pet>-neck-anchors.json, 사본은 public/assets/characters/<pet>/neck-anchors.json이다. Fall/Land는 해당 Jump 프레임 좌표를 공유한다.
+- applyNeckAnchors가 프레임 수·유한값·양수 폭을 검증해 각 클립에 지정한다. 머리 앵커 변화가 넥타이에 전파되지 않으며, 목 좌표가 없는 클립에는 넥타이를 임의로 그리지 않는다. 폭도 동작별 배율을 고려해 일정하게 정규화한다. 같은 neck 데이터는 후속 목걸이·스카프에 재사용한다.
 - 몸체·점프·좌우 반전을 자식 Sprite로 함께 따르고, DOM에서도 동일한 trim/orig 좌표를 적용한다. 각 참가자의 outfit을 사용해 내 외형이 타인에게 누출되지 않게 한다. 클립·장착 변경 시 미사용 레이어를 숨기거나 제거한다. 공용 텍스처는 Game 종료 때 한 번만 정리한다.
 - Chrome 실제 리소스 합성으로 코기·명랑이 Idle/Walk/Run/Jump/Attack/Skill 첫 프레임과 마지막 프레임 좌우 반전, 600×480 상점 Acc 탭을 확인했다. 실기기·운영 두 계정 실시간 확인은 별도다.
 - 최종 검증: 전체 232개 자동 테스트·타입 검사·프로덕션 빌드 통과. 동물별 전 동작 부착·방향 반전·모자/넥타이 독립 해제·측정 neck 우선·리소스 복사 일치·미리보기 외형 분리·구매 후 명시적 착용 저장·대기방 DOM 두 레이어 분리를 검증했다.
@@ -32,3 +33,5 @@ Use case: stylized-concept. Create ONE isolated black top hat equipment sprite f
 ## Red Bow Tie 최종 프롬프트
 
 Use case: stylized-concept. Create ONE isolated red bow tie equipment sprite for PawHaven, a cozy 2D pixel-art pet game. Both input images are STYLE REFERENCES ONLY: match the existing Santa hat's fine stepped pixel clusters and warm red palette, and the black-and-white pet sofa's modest 2–3 shade levels. Do not reproduce either reference object. Subject: a small classic red bow tie for a puppy's neck, two short rounded triangular cloth wings, one small squared central knot, clean balanced nearly symmetrical silhouette. Straight-on front view, almost horizontal, compact proportions; standalone bow tie ONLY, no collar strap, shirt collar, body, neck, suit or hat. Flat 2D inventory/attachment sprite with simple pixel clusters, warm cherry-red main color, muted dark red folds and a tiny soft lighter-red highlight, only 2–3 restrained shade levels. Fine readable slightly stepped edges like the approved game assets, no big coarse mosaic grid, no smooth vector outline, no painterly brush or blur. Entire single bow tie centered occupying about 60% of canvas width with generous transparent padding. Truly transparent background. NO text, badge, paw symbol, watermark, UI frame, glow, halo, floor, ground shadow, extra ribbons or dangling tails. NO realistic silk sheen, glossy 3D rendering or complex fabric texture.
+
+- 2026-10-24 위치 수정 검증: 전체 232개 테스트·타입 검사·빌드 통과. 목 좌표가 머리 변화에 영향을 받지 않는 회귀·잘못된 프레임 수 거부·원본/배포 JSON 일치를 확인했다. Home 1000×700/600×480에서 실제 hit test와 안내 영역 포함을 확인했다. DB 테스트 동시 실행으로 메모리 부족이 발생해 npm test를 동시 2개로 제한한 뒤 전부 통과했다.

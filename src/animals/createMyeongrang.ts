@@ -1,13 +1,13 @@
 import { Rectangle, Texture } from 'pixi.js';
 import type { AnimalAction, AnimalConfig, HeadAnchor } from './AnimalConfig';
-import { fitNeckAnchors } from './Wearables';
+import { applyNeckAnchors, type NeckAnchorMap } from './Wearables';
 export interface PetAtlasFrame { source: string; x: number; y: number; width: number; height: number; center: number; baseline: number; head: HeadAnchor; opaqueBounds?: { left: number; top: number; right: number; bottom: number } }
 export interface MyeongrangMap {
   sources: Record<string, { file: string; width: number; height: number }>;
   actions: Partial<Record<AnimalAction, { fps: number; scale: number; frames: PetAtlasFrame[] }>>;
 }
 /** Keep complete source cells; independent foot anchors normalize the approved art. */
-export function createMyeongrang(atlases: Record<string, Texture>, map: MyeongrangMap, shared: Pick<AnimalConfig, 'effects' | 'wardrobe'>): AnimalConfig {
+export function createMyeongrang(atlases: Record<string, Texture>, map: MyeongrangMap, shared: Pick<AnimalConfig, 'effects' | 'wardrobe'>,necks?:NeckAnchorMap): AnimalConfig {
   const config: AnimalConfig = { id: 'myeongrang', speed: 90, scale: 0.62, animations: {}, effects: shared.effects, wardrobe: shared.wardrobe };
   for (const [key, clip] of Object.entries(map.actions)) {
     if (!clip.frames.length || !Number.isFinite(clip.scale) || clip.scale <= 0 || !Number.isFinite(clip.fps) || clip.fps <= 0) throw new Error('Invalid Myeongrang animation.');
@@ -31,5 +31,5 @@ export function createMyeongrang(atlases: Record<string, Texture>, map: Myeongra
   if (!config.animations.idle || !jump) throw new Error('Myeongrang idle/jump clips are missing.');
   config.animations.fall = { ...jump, frames: jump.frames.slice(2, 3), head: jump.head?.slice(2, 3), bodyBounds: jump.bodyBounds?.slice(2, 3) };
   config.animations.land = { ...jump, frames: jump.frames.slice(3, 4), head: jump.head?.slice(3, 4), bodyBounds: jump.bodyBounds?.slice(3, 4) };
-  fitNeckAnchors(config);return config;
+  if(necks)applyNeckAnchors(config,necks);return config;
 }

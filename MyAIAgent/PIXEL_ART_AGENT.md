@@ -4,6 +4,8 @@
 
 ## 먼저 확인할 파일
 
+- 목 액세서리: Resources/Actions/<animal>-neck-anchors.json 및 [FORMAL_OUTFIT_ASSETS.md](FORMAL_OUTFIT_ASSETS.md). 머리 위치에 상수 오프셋을 더해 목을 추정하지 않는다. 실제 프레임의 목/가슴 좌표를 지정하고 모자와 독립적으로 재생한다.
+
 - Resources/Actions/<animal>-actions.json: 동작별 참고 아트/런타임 준비 상태. 동물별 추가 하위 폴더를 만들지 않고 Actions 하나를 사용한다.
 - Resources/<Animal>_Art_Sheet.png: 승인된 캐릭터와 행동 참고. 원본은 보존한다.
 - public/assets/characters/<animal>/: 배포용 PNG·프레임 JSON.

@@ -155,9 +155,9 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .home-drawer { position: absolute; left: 12%; right: 3%; top: 2cqh; height: 31cqh; border-radius: 2cqw; background: #f3f3e6d9; }
 .home-tabs { left: 14%; right: 11%; top: 4cqh; gap: 0.3cqw; }
 .home-tabs button { font-size: 1.15cqw; white-space: nowrap; }
-.home-inventory { left: 14%; right: 5%; top: 12cqh; height: 19cqh; grid-template-columns: none; grid-template-rows: 1fr; grid-auto-flow: column; grid-auto-columns: 9cqw; grid-auto-rows: 1fr; gap: 1cqw; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; }
+.home-inventory { left: 14%; right: 5%; top: 12cqh; height: 15cqh; grid-template-columns: none; grid-template-rows: 1fr; grid-auto-flow: column; grid-auto-columns: 9cqw; grid-auto-rows: 1fr; gap: 1cqw; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; }
 .home-inventory .outfit-object { width: 6cqw; height: 10cqh; }
-.home-hint { position: absolute; left: 19%; right: 11%; top: 34cqh; margin: 0; font-size: 1.1cqw; color: #7e8877; }.outfit-object.santa-hat-icon { width: 12cqw; height: 18cqh; bottom: -0.5cqh; image-rendering: pixelated; }
+.home-hint { position: absolute; left: 14%; right: 5%; top: 28cqh; margin: 0; font-size: clamp(10px,1.1cqw,14px); line-height:1.2; color: #69765f; }.outfit-object.santa-hat-icon { width: 12cqw; height: 18cqh; bottom: -0.5cqh; image-rendering: pixelated; }
 .home-placements { position: absolute; inset: 0; pointer-events: none; }
 .home-placement { position: absolute; width: 16.6667%; height: 25.9259%; padding: 0; border: 1px solid transparent; border-radius: 1cqw; background: transparent; pointer-events: auto; touch-action: none; cursor: grab; }
 .home-placement[aria-pressed="true"] { border: 1px dashed #63785580; background: #eaf2d10a; }

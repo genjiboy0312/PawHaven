@@ -536,7 +536,7 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
   const previous=globalThis.document,host=new Element();globalThis.document={createElement:()=>new Element(),querySelector:()=>host};
   const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},selection=new CharacterSelection(storage);
   const state=new ShopState();state.items.clear();const outfit={Hat:0,Body:0,Acc:0,Etc:0};let saves=0,scene;
-  const config={id:'myeongrang',speed:90,scale:.62,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit},animations:{idle:{frames:[Texture.WHITE],fps:3,head:[{x:0,y:-1,width:1}]}}};
+  const config={id:'myeongrang',speed:90,scale:.62,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit},animations:{idle:{frames:[Texture.WHITE],fps:3,head:[{x:0,y:-1,width:1}],neck:[{x:0,y:-.3,width:.5}]}}};
   const click=e=>e.dispatchEvent(new Event('click'));
   try{
     scene=new ShopScene(config,state,()=>{},()=>{},'Style',(category,index)=>{outfit[category]=index;selection.save({petId:config.id,outfit});saves++;});

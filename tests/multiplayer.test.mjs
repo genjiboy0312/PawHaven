@@ -685,6 +685,7 @@ test('portraits attach each member hat to trimmed animated head anchors without 
   try{
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
     config.wardrobe.topHat=Texture.WHITE;config.wardrobe.bowTie=Texture.WHITE;
+    config.animations.idle.neck=[{x:12,y:-35,width:20},{x:13,y:-32,width:20}];
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:2,Acc:2});assert.equal(element.children.length,2);assert.match(element.querySelector('.pet-portrait-hat').style.backgroundImage,/black-top-hat/);assert.match(element.querySelector('.pet-portrait-acc').style.backgroundImage,/red-bow-tie/);
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0,Acc:2});assert.equal(element.children.length,1);assert.ok(element.querySelector('.pet-portrait-acc'));
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);

@@ -105,7 +105,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
-  blackTopHat:'검정 실크해트',redBowTie:'빨간 나비넥타이',
+  blackTopHat:'검정 탑햇',redBowTie:'빨간 나비넥타이',
   shopEquip:'착용하기',shopEquipped:'착용 중',shopPreviewOnly:'착용 미리보기 · 착용하기를 누르면 저장돼요',
   snackGive:'간식 주기',snackGet:'간식 받기',snackSetup:'간식 기능 준비 중',snackReward:'비스킷 +1개',
   friendsRequestsReady:'친구 · 받은 친구 요청이 있어요',
