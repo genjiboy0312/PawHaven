@@ -64,3 +64,15 @@ test('manual top layer survives geometry changes without reopening or losing foc
 test('destroy restores an existing popover attribute',()=>{
  const e=environment(true);try{e.chat.setAttribute('popover','auto');e.pointer();e.dock.destroy();assert.equal(e.chat.open,false);assert.equal(e.chat.getAttribute('popover'),'auto');}finally{e.restore();}
 });
+
+test('fullscreen keyboard-local top=0 cannot collapse the chat into a clipped strip',async()=>{
+ const e=environment(true);try{
+  e.pointer();let blurs=0;e.input.addEventListener('blur',()=>blurs++);
+  e.keyboard.boundingRect={left:0,top:0,width:1280,height:330};e.keyboard.dispatchEvent(new Event('geometrychange'));await wait(8);
+  assert.equal(e.chat.style.maxHeight,'190px');assert.equal(e.chat.style.top,'212px');
+  e.view.height=390;e.view.dispatchEvent(new Event('resize'));await wait(8);
+  assert.equal(e.chat.style.maxHeight,'190px');assert.equal(e.chat.style.top,'212px');
+  e.view.height=0;window.innerHeight=0;e.view.dispatchEvent(new Event('resize'));await wait(8);
+  assert.equal(e.chat.style.maxHeight,'190px');assert.equal(e.doc.activeElement,e.input);assert.equal(blurs,0);
+ }finally{e.restore();}
+});

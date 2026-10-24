@@ -29,6 +29,14 @@ test('fullscreen overlay keyboard and resized viewport use the smaller visible a
  assert.deepEqual(chatVisibleViewport(full,{...keyboard,height:0}),full);assert.deepEqual(chatVisibleViewport(full,{...keyboard,left:1500}),full);
  const bounds=chatDockBounds(chatVisibleViewport(full,keyboard));assert.ok(bounds.bottom<keyboard.top);
 });
+
+test('keyboard-local or stale fullscreen rectangles never produce a one-pixel chat viewport',()=>{
+ const full={width:1280,height:720,offsetLeft:0,offsetTop:0},local={left:0,top:0,width:1280,height:330};
+ assert.equal(chatVisibleViewport(full,local,720).height,390);
+ assert.equal(chatVisibleViewport({...full,height:390},local,720).height,390);
+ assert.deepEqual(chatVisibleViewport(full,{...local,height:720},720),full);
+ assert.equal(chatVisibleViewport(full,{...local,top:12},720).height,390);
+});
 test('park joins have strict capacity, server nickname/appearance and atomic switching',async()=>{
  for(let n=0;n<8;n++)await command(n,'join');
  const snapshot=await command(0,'sync');assert.deepEqual(snapshot.counts,[8,0,0,0]);assert.equal(snapshot.members[0].name,'Player0');assert.equal(snapshot.members[0].look.petId,'myeongrang');assert.equal(snapshot.members[0].look.outfit.Hat,2);

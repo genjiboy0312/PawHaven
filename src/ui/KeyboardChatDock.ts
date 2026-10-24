@@ -2,9 +2,14 @@ export interface ChatViewport {width:number;height:number;offsetLeft:number;offs
 interface KeyboardRect {left:number;top:number;width:number;height:number}
 interface KeyboardGeometry extends EventTarget {overlaysContent:boolean;readonly boundingRect:KeyboardRect}
 /** Both overlay keyboards (fullscreen) and resized visual viewports use layout CSS coordinates. */
-export function chatVisibleViewport(view:ChatViewport,keyboard?:KeyboardRect):ChatViewport{
+export function chatVisibleViewport(view:ChatViewport,keyboard?:KeyboardRect,layoutHeight=view.offsetTop+view.height):ChatViewport{
  if(!keyboard||keyboard.height<=0||keyboard.width<=0||keyboard.left>=view.offsetLeft+view.width||keyboard.left+keyboard.width<=view.offsetLeft||keyboard.top>=view.offsetTop+view.height||keyboard.top+keyboard.height<=view.offsetTop)return view;
- return {...view,height:Math.max(0,keyboard.top-view.offsetTop)};
+ // Treat top=0 as potentially resized/keyboard-local coordinates during IME transitions.
+ // Do not collapse the entire conversation to 1px; reconcile against the pre-IME layout.
+ const top=keyboard.top-view.offsetTop;
+ const available=top>=96?top:layoutHeight-keyboard.height-view.offsetTop;
+ if(available<96)return view;
+ return {...view,height:Math.min(view.height,available)};
 }
 /** Layout viewport coordinates for a panel above the software keyboard. */
 export function chatDockBounds(view:ChatViewport){
@@ -20,6 +25,7 @@ export class KeyboardChatDock {
  private readonly keyboard?:KeyboardGeometry;private overlayBefore?:boolean;
  private frozenHost?:HTMLElement;private hostStyle:string|null=null;
  private popoverBefore:string|null=null;private ownsPopover=false;
+ private lastView?:ChatViewport;
  constructor(private readonly element:HTMLElement,private readonly input:HTMLInputElement){
   input.setAttribute('data-keyboard-chat','true');
   this.keyboard=(navigator as Navigator&{virtualKeyboard?:KeyboardGeometry}).virtualKeyboard;
@@ -42,9 +48,14 @@ export class KeyboardChatDock {
   this.keyboard?.addEventListener('geometrychange',layout,options);document.addEventListener('fullscreenchange',layout,options);
  }
  private touch(){return window.matchMedia?.('(any-pointer: coarse)').matches??false;}
- private view():ChatViewport{const v=window.visualViewport;return v?{width:v.width,height:v.height,offsetLeft:v.offsetLeft,offsetTop:v.offsetTop}:{width:window.innerWidth,height:window.innerHeight,offsetLeft:0,offsetTop:0};}
+ private view():ChatViewport{
+  const v=window.visualViewport;
+  const next=v&&v.width>=96&&v.height>=96?{width:v.width,height:v.height,offsetLeft:v.offsetLeft,offsetTop:v.offsetTop}:{width:window.innerWidth,height:window.innerHeight,offsetLeft:0,offsetTop:0};
+  if(next.width>=96&&next.height>=96)this.lastView=next;
+  return this.lastView??next;
+ }
  private shrunk(){return this.view().height<this.baseline-80;}
- private visibleView(){return chatVisibleViewport(this.view(),this.keyboard?.boundingRect);}
+ private visibleView(){return chatVisibleViewport(this.view(),this.keyboard?.boundingRect,this.baseline);}
  private keyboardOpen(){return this.shrunk()||this.visibleView().height<this.view().height;}
  private scheduleReset(){
   clearTimeout(this.blurTimer);

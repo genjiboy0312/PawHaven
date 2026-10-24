@@ -1,6 +1,9 @@
 # 공원 프로토타입 (2026-10-24)
 
 ## 모바일 키보드·상시 대화창 (최신 사용자 수정, 이전 접이식 기획 대체)
+- 2026-10-25 사진 제보 후속: 화면 상단에 얇게 잘린 채팅창은 레이어와 별개로 높이 계산도 확인해야 한다. 기존 코드에서 keyboard.top=0이면 가용 높이 0→maxHeight=1px이 되어 같은 형태로 잘릴 수 있었다. 실기기 좌표를 직접 수집한 것은 아니므로 사진만으로 특정 브라우저 원인을 확정하지 않는다.
+- keyboard.top이 최소 입력 영역(96px)보다 작으면 입력 전 layout 높이와 keyboard.height로 영역을 재계산하고, 이미 축소된 VisualViewport 높이와 작은 쪽을 사용한다. 화면 전체를 덮는 비정상 rect는 무시한다. VisualViewport/innerHeight가 순간적으로 0이면 마지막 유효 viewport를 유지한다. 포커스·DOM·fullscreen은 변경하지 않는다.
+- Chrome fullscreen 검증: 정상 overlay, top=0, top=0+축소 viewport, 비정상 전체 높이 rect에서 대화창 높이 180px·키보드 위 bottom=382px·입력창 hit test·기록 유지 확인. 네이티브 한글 조합 중 blur 0회, 전송 후 원위치 복원 확인. OS 키보드 영역은 모의했으며 사용자 실기기 재확인이 필요하다.
 - 2026-10-25 레이어 후속 수정: 사용자 실기기에서 입력 끊김은 해결됐지만 채팅이 게임 뒤로 가려졌다. 일반 z-index에만 의존하지 않고 기존 채팅 노드에 manual popover를 적용해 브라우저 top layer로 올린다. fullscreen 요소 내부 portal도 유지하며 API 미지원 환경은 높은 z-index를 사용한다. 자동 닫힘/모달/입력 복제는 추가하지 않는다.
 - geometry 갱신마다 열린 popover를 다시 열지 않는다. fullscreen 전환으로 닫힌 경우에만 다시 올리고, 종료 시 popover 상태·원래 속성·DOM·스타일을 복원한다. 입력 포커스와 한글 조합 유지 규칙은 그대로 지킨다.
 - 검증: 관련 자동 테스트 14개와 타입 검사/빌드 통과. 실제 Chrome fullscreen의 높은 z-index 캔버스 앞에서 elementFromPoint로 입력창 터치 가능 여부를 확인했다. 네이티브 한글 조합·키보드 geometry 반전 중 blur 0회, 입력/기록 유지, 전송 후 popover 해제·fullscreen 유지·원위치 복원을 확인했다. 키보드 영역은 모의하므로 Android 실기기 키보드 검증을 대체하지 않는다.
