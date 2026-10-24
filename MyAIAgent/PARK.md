@@ -1,12 +1,16 @@
 # 공원 프로토타입 (2026-10-24)
 
 ## 모바일 키보드·상시 대화창 (최신 사용자 수정, 이전 접이식 기획 대체)
+- 입력 끊김 후속 원인: keyboardSeen 후 viewport/geometry가 정상 높이로 잠깐 돌아오면 layout에서 reset→input.blur를 실행했고 orientationchange도 reset했다. 사용자 실기기에서 키보드 닫힘/입력 중단을 확인했다. 이 자동 종료 경로를 제거했다.
+- 현재 규칙: resize/geometrychange/fullscreenchange/회전은 위치만 조정한다. 포커스/한글 조합 중에는 DOM을 다시 옮기거나 blur하지 않는다. 첫 pointerdown만 preventDefault 후 mount→focus를 수행해 이전 좌표의 기본 터치 포커스와 충돌하지 않는다. 다음 터치는 브라우저의 커서/선택 동작을 그대로 쓴다.
+- 키보드를 닫아도 포커스가 남아 있으면 동일 노드를 아래에 계속 표시한다. 실제 포커스 이탈·조합 종료·키보드 닫힘을 확인한 뒤 400ms 후 원래 DOM/게임 스타일/keyboard 정책을 복원한다. 짧은 blur→focus 복귀는 정리를 취소한다. 명시적 전송/Escape/설정/퇴장은 별도 종료 경로를 유지한다.
+- 검증: 관련 자동 테스트 12개 통과(포커스 회귀 4개 + 기존 공원/키보드 8개), 타입 검사/빌드 통과. 실제 Chrome fullscreen과 네이티브 Input.imeSetComposition으로 한글 조합을 생성하고 viewport/키보드/회전 이벤트를 모의했다. 조합 시작 1회·의도치 않은 blur 0회·'명랑이 안녕' 입력 유지·대화 유지·키보드 위 위치·전송 후 복원을 확인했다. Android 실기기 IME 자체를 자동화한 것은 아니므로 사용자 재확인이 필요하다.
 - 전체화면 후속 보정: 화면 높이가 바뀌지 않고 키보드가 겹치는 경우를 추가로 처리한다. 지원되는 VirtualKeyboard API의 geometrychange/boundingRect로 가려진 영역을 제외하고 overlaysContent 정책은 입력 중에만 적용한 뒤 원복한다. VisualViewport 축소와 중복으로 키보드 높이를 빼지 않는다. API 미지원이면 기존 VisualViewport 경로를 사용한다.
 - 입력 동안 #app의 실제 크기·중심 위치를 고정해 키보드/주소창 변화가 게임·카메라까지 재배치하지 않게 한다. CSS 회전은 유지하고 키보드 종료 시 기존 인라인 스타일과 키보드 정책을 복원한다. 전체화면을 강제로 해제하지 않는다. 채팅은 활성 fullscreen 요소 내부에 배치해 top layer 뒤에 숨지 않게 한다.
 - Chrome에서 실제 requestFullscreen 진입 후 키보드 geometry/viewport를 모의해 전체화면 유지·게임 크기 고정·입력 가시성·전송 중 dock 유지·닫힘 복원·cleanup을 확인했다. 관련 자동 테스트 8개와 타입 검사/빌드 통과. 실제 모바일 OS 키보드 검증을 대체하지 않는다. API 근거: [Chrome VirtualKeyboard 문서](https://developer.chrome.com/docs/web-platform/virtual-keyboard/).
 - 사용자 실기기 제보: 키보드가 하단 대화창을 가렸다. 대화 입력 / 최근 대화 버튼과 입력창 닫기 버튼은 제거했다. 대화 기록과 입력창을 항상 함께 표시한다.
 - KeyboardChatDock 컴포넌트가 모바일 입력 시 기존 대화창 노드 전체를 body로 잠시 옮겨 VisualViewport의 실제 보이는 영역 하단에 배치한다. 게임 컨테이너의 회전·overflow에 잘리지 않으며 별도 대화창 복사본이나 배경 가림막을 만들지 않는다. 따라서 기록·새 메시지·초안·전송 이벤트가 그대로 유지된다.
-- 키보드로 줄어든 viewport가 돌아오면 입력 포커스를 해제하고 원래 위치/스타일로 복귀한다. 전송 성공 시 입력만 비우고 키보드를 닫는다. 초안을 전송 중 바꿨거나 실패했다면 지우지 않는다. Escape는 입력을 종료하며 대화창은 숨기지 않는다. 채널 변경 성공 시 초안·이력을 초기화한다.
+- 키보드로 줄어든 viewport가 돌아오면 표시 위치만 아래로 복원하고 포커스를 강제로 해제하지 않는다. 전송 성공 시 입력만 비우고 키보드를 닫는다. 초안을 전송 중 바꿨거나 실패했다면 지우지 않는다. Escape는 입력을 종료하며 대화창은 숨기지 않는다. 채널 변경 성공 시 초안·이력을 초기화한다.
 - installMobileViewport는 data-keyboard-chat=true 입력을 기존 별도 입력 편집기로 바꾸지 않는다. 방 제목 등 다른 입력의 기존 동작은 유지한다. 세로 접속 시 게임은 가로 회전을 유지하되 대화 입력 중에는 키보드 방향에서 원래 대화창 전체가 보이게 한다.
 - 우측 상단 Settings 버튼은 기존 팝업을 재사용한다. 설정·채널 선택 전 dock을 원복하고 이동 입력을 해제한다. 퇴장 시 dock·viewport 구독·예약 프레임·타이머를 정리해 body에 UI가 남지 않는다.
 - Jua와 기존 commerce 버튼 스타일을 유지했다. dock 중 입력은 16px로 표시한다. SQL 변경 없음.

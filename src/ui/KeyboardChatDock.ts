@@ -15,7 +15,7 @@ export function chatDockBounds(view:ChatViewport){
 /** Temporarily dock the SAME chat node outside the rotated/clipped game surface. */
 export class KeyboardChatDock {
  private readonly abort=new AbortController();private marker?:Comment;private savedStyle:string|null=null;
- private moving=false;private keyboardSeen=false;private baseline=0;private blurTimer?:ReturnType<typeof setTimeout>;
+ private moving=false;private composing=false;private baseline=0;private blurTimer?:ReturnType<typeof setTimeout>;
  private frame=0;private closed=false;
  private readonly keyboard?:KeyboardGeometry;private overlayBefore?:boolean;
  private frozenHost?:HTMLElement;private hostStyle:string|null=null;
@@ -23,16 +23,21 @@ export class KeyboardChatDock {
   input.setAttribute('data-keyboard-chat','true');
   this.keyboard=(navigator as Navigator&{virtualKeyboard?:KeyboardGeometry}).virtualKeyboard;
   const options={signal:this.abort.signal};
-  input.addEventListener('pointerdown',()=>{if(this.touch()){this.mount();input.focus({preventScroll:true});}},options);
-  input.addEventListener('focus',()=>{if(this.touch()&&!this.moving)this.mount();},options);
+  input.addEventListener('pointerdown',event=>{
+   if(!this.touch()||event.button!==0||this.marker)return;
+   // Move before native focus, then suppress the default focus action on the old coordinates.
+   event.preventDefault();this.mount();input.focus({preventScroll:true});
+  },options);
+  input.addEventListener('focus',()=>{clearTimeout(this.blurTimer);if(this.touch()&&!this.moving)this.mount();},options);
+  input.addEventListener('compositionstart',()=>{this.composing=true;clearTimeout(this.blurTimer);},options);
+  input.addEventListener('compositionend',()=>{this.composing=false;this.schedule();},options);
+  input.addEventListener('input',()=>clearTimeout(this.blurTimer),options);
   input.addEventListener('blur',()=>{
-   if(this.moving)return;clearTimeout(this.blurTimer);
-   // Let Send's click/submit complete before reparenting its target.
-   this.blurTimer=setTimeout(()=>{if(document.activeElement!==input&&!this.keyboardOpen())this.reset();},220);
+   if(!this.moving)this.scheduleReset();
   },options);
   const layout=()=>this.schedule();
   window.visualViewport?.addEventListener('resize',layout,options);window.visualViewport?.addEventListener('scroll',layout,options);
-  window.addEventListener('resize',layout,options);window.screen?.orientation?.addEventListener('change',()=>this.reset(),options);
+  window.addEventListener('resize',layout,options);window.screen?.orientation?.addEventListener('change',layout,options);
   this.keyboard?.addEventListener('geometrychange',layout,options);document.addEventListener('fullscreenchange',layout,options);
  }
  private touch(){return window.matchMedia?.('(any-pointer: coarse)').matches??false;}
@@ -40,6 +45,12 @@ export class KeyboardChatDock {
  private shrunk(){return this.view().height<this.baseline-80;}
  private visibleView(){return chatVisibleViewport(this.view(),this.keyboard?.boundingRect);}
  private keyboardOpen(){return this.shrunk()||this.visibleView().height<this.view().height;}
+ private scheduleReset(){
+  clearTimeout(this.blurTimer);
+  // Viewport/keyboard geometry can bounce during Android IME transitions. Only real focus loss
+  // after composition and keyboard dismissal can end the editing session automatically.
+  this.blurTimer=setTimeout(()=>{if(!this.composing&&document.activeElement!==this.input&&!this.keyboardOpen())this.reset();},400);
+ }
  private freezeGame(){
   const host=this.element.closest<HTMLElement>('#app');if(!host)return;
   this.frozenHost=host;this.hostStyle=host.getAttribute('style');const rect=host.getBoundingClientRect();
@@ -49,7 +60,7 @@ export class KeyboardChatDock {
  }
  private mount(){
   if(this.closed||this.marker||!this.element.isConnected)return;
-  this.baseline=Math.max(this.view().height,window.innerHeight);this.keyboardSeen=false;
+  this.baseline=Math.max(this.view().height,window.innerHeight);
   if(this.keyboard){try{this.overlayBefore=this.keyboard.overlaysContent;this.keyboard.overlaysContent=true;}catch{this.overlayBefore=undefined;}}
   this.freezeGame();
   this.savedStyle=this.element.getAttribute('style');this.marker=document.createComment('keyboard-chat-home');this.element.before(this.marker);
@@ -64,8 +75,9 @@ export class KeyboardChatDock {
  private layout(){
   if(!this.marker||this.closed)return;
   const view=this.visibleView();
-  if(this.shrunk()||view.height<this.view().height)this.keyboardSeen=true;
-  else if(this.keyboardSeen){this.reset();return;}
+  // Never blur/reparent a focused input because of a geometry change. When the keyboard
+  // closes, this same node moves down; reparenting waits until the user leaves the input.
+  if(!this.moving&&document.activeElement!==this.input&&!this.composing&&!this.keyboardOpen())this.scheduleReset();
   const bounds=chatDockBounds(view);
   this.element.style.left=bounds.left+'px';this.element.style.width=bounds.width+'px';this.element.style.maxHeight=bounds.maxHeight+'px';
   this.element.style.top=Math.max(view.offsetTop+8,bounds.bottom-this.element.getBoundingClientRect().height)+'px';
@@ -74,7 +86,7 @@ export class KeyboardChatDock {
   if(!this.marker)return;this.moving=true;clearTimeout(this.blurTimer);cancelAnimationFrame(this.frame);this.input.blur();
   const marker=this.marker;this.marker=undefined;this.element.classList.remove('keyboard-chat-docked');
   if(this.savedStyle===null)this.element.removeAttribute('style');else this.element.setAttribute('style',this.savedStyle);
-  if(marker.isConnected)marker.replaceWith(this.element);else this.element.remove();this.keyboardSeen=false;this.moving=false;
+  if(marker.isConnected)marker.replaceWith(this.element);else this.element.remove();this.composing=false;this.moving=false;
   if(this.frozenHost){if(this.hostStyle===null)this.frozenHost.removeAttribute('style');else this.frozenHost.setAttribute('style',this.hostStyle);this.frozenHost=undefined;}
   if(this.keyboard&&this.overlayBefore!==undefined){try{this.keyboard.overlaysContent=this.overlayBefore;}catch{/* Browser changed keyboard policy. */}this.overlayBefore=undefined;}
  }
