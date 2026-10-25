@@ -26,6 +26,7 @@ import { ShopScene } from './scenes/ShopScene';
 import { QuestPopup } from '../ui/QuestPopup';
 import { FriendsPopup } from '../ui/FriendsPopup';
 import { FriendsClient, friendsTransport } from '../friends/FriendsClient';
+import {readFriendHome} from '../friends/FriendHome';
 import { FriendActivity, activityTransport } from '../friends/FriendActivity';
 import { FriendInviteInbox } from '../ui/FriendInviteInbox';
 import { CharacterPresets } from '../animals/CharacterPresets';
@@ -198,7 +199,18 @@ export class Game {
     const makeFriends=()=>{
       this.friendClient=this.account?.user&&accountClient?new FriendsClient(this.account.user.id,friendsTransport(accountClient,this.account.user.id)):undefined;
       return new FriendsPopup(paused=>this.scenes?.setPaused(paused||!!this.playMenu),this.friendClient,
-        ()=>this.settings?.openAccount(),()=>this.account?.nickname??null,this.friendActivity,()=>{const room=this.rooms?.room;return !!room&&room.host===this.account?.user?.id&&room.phase==='waiting'&&room.members.length<4;},true);
+        ()=>this.settings?.openAccount(),()=>this.account?.nickname??null,this.friendActivity,()=>{const room=this.rooms?.room;return !!room&&room.host===this.account?.user?.id&&room.phase==='waiting'&&room.members.length<4;},true,{
+          available:()=>!!currentLobby&&!!this.scenes?.isCurrent(currentLobby)&&!this.playMenu&&!this.rooms?.room,
+          open:async(id,signal)=>{
+            const owner=this.account?.user?.id,origin=currentLobby;if(!owner||!accountClient||!origin||!this.scenes?.isCurrent(origin))return;
+            const saved=await readFriendHome(accountClient,owner,id,signal);
+            if(signal.aborted||this.disposed||this.account?.user?.id!==owner||!this.scenes?.isCurrent(origin))return;
+            const source=saved.character.petId===this.myeongrang?.id?this.myeongrang!:corgi;
+            const config={...source,wardrobe:source.wardrobe?{...source.wardrobe,outfit:{...saved.character.outfit}}:undefined};
+            this.friends?.close();
+            this.scenes.show(new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:saved.home,textures:this.homeTextures,open:()=>{}},undefined,{name:saved.nickname,leave:()=>lobby(true)}));
+          }
+        });
     };
     const makeMailbox=()=>{
       const owner=this.account?.user?.id,state=commerce;

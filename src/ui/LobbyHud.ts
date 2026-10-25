@@ -35,7 +35,7 @@ export class LobbyHud {
   private readonly clickSound?: () => void;
   private readonly mailBadge=document.createElement('span');private readonly mailPending?:()=>number;private mailCount=-1;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; mail?:()=>void; mailPending?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; mail?:()=>void; mailPending?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void,private readonly visit?:{name:string;leave:()=>void}) {
     this.requests=commerce?.requests;
     this.mailPending=commerce?.mailPending;
     this.rewards = commerce?.rewards;
@@ -46,6 +46,13 @@ export class LobbyHud {
     this.economyRetry.addEventListener('click', () => commerce?.retry?.(), { signal: this.abort.signal });
     this.economyNote.append(this.economyCaption, this.economyRetry);
     this.element.className = 'lobby-hud';
+    if(visit){
+      this.element.classList.add('home-visit-hud');
+      const heading=document.createElement('header'),label=document.createElement('span'),name=document.createElement('strong'),note=document.createElement('p');
+      bindText(label,'homeVisitLabel');name.textContent=visit.name;bindText(note,'homeVisitNote');heading.append(label,name,note);
+      const back=document.createElement('button');back.type='button';back.className='settings-feedback home-visit-back';bindText(back,'leaveRoom');back.addEventListener('click',visit.leave,{signal:this.abort.signal});
+      this.element.append(heading,back);document.querySelector('#app')?.append(this.element);return;
+    }
     this.element.setAttribute('aria-label', 'Lobby menu layout');
     const character = document.createElement('div');
     character.className = 'hud-character';
@@ -126,6 +133,7 @@ export class LobbyHud {
     return button;
   }
   update(state: AnimalVisualState): void {
+    if(this.visit)return;
     const pending=this.mailPending?.()??0,mailCount=Number.isFinite(pending)?Math.max(0,Math.floor(pending)):0;if(mailCount!==this.mailCount){this.mailCount=mailCount;this.mailBadge.hidden=mailCount===0;this.mailBadge.textContent=mailCount>99?'99+':String(mailCount);}
     const value=this.requests?.()??0,count=Number.isFinite(value)?Math.max(0,Math.min(100,Math.floor(value))):0;
     if(count!==this.requestCount){this.requestCount=count;this.requestBadge.hidden=count===0;this.requestBadge.textContent=count>99?'99+':String(count);if(this.friendsButton)bindAria(this.friendsButton,count?'friendsRequestsReady':'friends');}
@@ -144,6 +152,7 @@ export class LobbyHud {
     }
   }
   placePet(x: number, y: number, bounds: { x: number; y: number; width: number; height: number }, width: number, height: number, enabled: boolean): void {
+    if(this.visit)return;
     this.petTarget.disabled = !enabled;
     this.petTarget.setAttribute('style', 'left:' + (x + bounds.x) / width * 100 + '%;top:' + (y + bounds.y) / height * 100 +
       '%;width:' + bounds.width / width * 100 + '%;height:' + bounds.height / height * 100 + '%');

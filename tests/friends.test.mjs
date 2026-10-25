@@ -120,6 +120,17 @@ test('lobby-owned friends polling survives popup close and is disposed with the 
   popup.destroy();assert.equal(client.timer._destroyed,true);assert.deepEqual(client.snapshot,blank());assert.equal(await client.refresh(),false);
  }finally{popup.destroy();env.restore();}
 });
+
+test('friend home actions are lobby-only, serialize visits, show setup errors and cancel on close',async()=>{
+ const env=dom(),client=new FriendsClient(users[0],async()=>({...blank(),friends:[friend()]}));let available=true,calls=0,release,signal;
+ const popup=new FriendsPopup(()=>{},client,undefined,()=> 'Myeongrang',undefined,undefined,true,{available:()=>available,open:async(id,abort)=>{assert.equal(id,users[1]);calls++;signal=abort;return new Promise((resolve,reject)=>release={resolve,reject});}});
+ const visit=()=>env.host.all().find(e=>e.tag==='button'&&e.textContent==='Visit home');
+ try{
+  popup.open();await idle(client);assert.ok(visit());visit().dispatchEvent(new Event('click'));assert.equal(calls,1);assert.equal(visit().disabled,true);visit().dispatchEvent(new Event('click'));assert.equal(calls,1);
+  release.reject({code:'PGRST202'});await new Promise(r=>setTimeout(r,0));assert.ok(env.host.all().some(e=>e.textContent==='Home visits need a server update. Please try again later.'));
+  available=false;await client.refresh();assert.equal(visit(),undefined);available=true;await client.refresh();visit().dispatchEvent(new Event('click'));popup.close();assert.equal(signal.aborted,true);release.resolve();await new Promise(r=>setTimeout(r,0));assert.equal(env.host.querySelector('.friends-panel'),undefined);
+ }finally{popup.destroy();env.restore();}
+});
 test('Friends popup searches, sends, cancels, accepts and confirms deletion with the real RPC state',async()=>{
  const env=dom(),hud=new Element();env.host.append(hud);const pauses=[];
  const client=new FriendsClient(users[0],(action,target,query)=>command(0,action,target===null?null:users.indexOf(target),query));

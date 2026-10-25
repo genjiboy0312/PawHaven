@@ -12,6 +12,9 @@
 button, input, select { font-family: var(--font-round); }
 .home-hint { font-family: var(--font-round); font-weight: 400; }
 .hud-menu-mail{position:relative;}
+.home-visit-hud>header{position:absolute;left:3cqw;top:3cqh;max-width:75%;padding:1.5cqh 1.5cqw;border:1px solid var(--ui-edge);border-radius:12px;background:#fff8e5ed;color:var(--ui-ink);font:400 clamp(14px,2cqw,26px) var(--font-round);overflow-wrap:anywhere;}
+.home-visit-hud strong{font-weight:400;}.home-visit-hud p{margin:1cqh 0 0;font:400 clamp(11px,1.3cqw,18px) var(--font-body);}
+.home-visit-hud .home-visit-back{position:absolute;left:3cqw;bottom:3cqh;margin:0;min-height:38px;padding:1cqh 2cqw;font:400 clamp(13px,1.7cqw,22px) var(--font-round);pointer-events:auto;}
 .settings-panel.park-profile-panel{width:44%;height:auto;max-height:88%;box-sizing:border-box;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:3cqh 2cqw;gap:1cqh;}
 .park-profile-panel h2{align-self:stretch;margin:0;padding-right:5cqw;}
 .park-profile-panel .park-profile-pet{width:100%;height:24cqh;flex:none;}

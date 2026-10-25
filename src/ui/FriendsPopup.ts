@@ -14,7 +14,8 @@ export class FriendsPopup {
   private panel?:HTMLElement;private tabs?:HTMLElement;private unsubscribe?:()=>void;
   private draft='';private search?:HTMLInputElement;private confirm?:ConfirmPopup;private activityOff?:()=>void;
   private readonly localeOff = onLanguageChange(() => this.render());
-  constructor(private readonly pause: (paused: boolean) => void,private readonly client?:FriendsClient,private readonly account?:()=>void,private readonly nickname?:()=>string|null,private readonly activity?:FriendActivity,private readonly canInvite?:()=>boolean,private readonly keepAlive=false) {}
+  private visitRequest?:AbortController;private visitError?:TextKey;
+  constructor(private readonly pause: (paused: boolean) => void,private readonly client?:FriendsClient,private readonly account?:()=>void,private readonly nickname?:()=>string|null,private readonly activity?:FriendActivity,private readonly canInvite?:()=>boolean,private readonly keepAlive=false,private readonly visit?:{available:()=>boolean;open:(id:string,signal:AbortSignal)=>Promise<void>}) {}
   open(): void {
     if (this.overlay) return;
     const host = document.querySelector<HTMLElement>('#app'); if (!host) return;
@@ -77,12 +78,16 @@ export class FriendsPopup {
     const status=document.createElement('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
     const errors={setup:'friendsSetup',offline:'friendsOffline',auth:'friendsLogin',query:'friendsQuery',nickname:'friendsNickname',limit:'friendsLimit',incoming:'friendsIncoming',notFound:'friendsNotFound',blocked:'friendsBlockedNotice'} as const;
     status.textContent=client.error?t(errors[client.error]):client.busy?t('friendsLoading'):'';toolbar.append(status);this.content.append(toolbar);
+    if(this.visitRequest||this.visitError){const state=document.createElement('p');state.setAttribute('role','status');state.textContent=t(this.visitRequest?'homeVisitLoading':this.visitError!);this.content.append(state);}
     if(this.activity?.error){const error=document.createElement('p');error.setAttribute('role','status');const keys={setup:'friendInviteSetup',offline:'friendsOffline',auth:'friendsLogin',expired:'friendInviteExpired',busy:'friendInviteBusy',cooldown:'friendInviteSent',unavailable:'friendInviteUnavailable'} as const;error.textContent=t(keys[this.activity.error]);this.content.append(error);}
     const row=(friend:Friend,actions:{key:TextKey;action:FriendAction}[])=>{
       const item=document.createElement('section');item.className='daily-quest friend-row';
       const name=document.createElement('strong');name.textContent=friend.nickname;
       if(friend.relation==='friend'&&this.activity){const state=document.createElement('span');state.className='friend-presence';const keys={offline:'friendOffline',lobby:'friendOnline',room:'friendInRoom',playing:'friendPlaying',unknown:'friendUnknown'} as const;const current=this.activity.state(friend.id);state.textContent=t(keys[current]);state.dataset.state=current;name.append(state);}
       const controls=document.createElement('div');controls.className='friend-actions';
+      if(friend.relation==='friend'&&this.visit?.available()){
+        const visit=button('homeVisit',()=>void this.visitHome(friend.id));visit.disabled=visit.disabled||!!this.visitRequest;controls.append(visit);
+      }
       if(friend.relation==='friend'&&this.activity&&this.canInvite?.()){
         const cooling=this.activity.cooling(friend.id),invite=button(cooling?'friendInviteSent':'friendInvite',()=>{void this.activity!.command('invite',friend.id);});
         invite.disabled=invite.disabled||this.activity.busy||cooling||this.activity.state(friend.id)!=='lobby';controls.append(invite);
@@ -126,12 +131,20 @@ export class FriendsPopup {
   }
   close(): void {
     if (!this.overlay) return;
+    this.visitRequest?.abort();this.visitRequest=undefined;this.visitError=undefined;
     this.confirm?.destroy();this.confirm=undefined;this.unsubscribe?.();this.unsubscribe=undefined;if(!this.keepAlive)this.client?.stop();
     this.activityOff?.();this.activityOff=undefined;
     this.abort?.abort(); this.overlay.remove(); this.overlay = undefined; this.content = undefined;
     this.blocked.forEach(item => { item.element.inert = item.inert; }); this.blocked = []; this.pause(false);
     if (this.previousFocus?.isConnected) this.previousFocus.focus(); this.previousFocus = undefined;
     this.panel=this.tabs=undefined;this.search=undefined;
+  }
+  private async visitHome(id:string){
+    if(this.visitRequest||!this.visit?.available()||!this.client?.snapshot.friends.some(f=>f.id===id))return;
+    const request=new AbortController();this.visitRequest=request;this.visitError=undefined;this.render();
+    try{await this.visit.open(id,request.signal);}
+    catch(error){if(!request.signal.aborted){const e=error as {code?:string;message?:string};this.visitError=['PGRST202','PGRST205','42883','42P01'].includes(e.code??'')?'homeVisitSetup':e.message==='home_unavailable'?'homeVisitUnavailable':'homeVisitOffline';}}
+    finally{if(this.visitRequest===request){this.visitRequest=undefined;this.render();}}
   }
   destroy(): void { this.close(); this.client?.destroy();this.localeOff(); }
 }

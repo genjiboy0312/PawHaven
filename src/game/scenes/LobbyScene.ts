@@ -24,15 +24,15 @@ export class LobbyScene extends Scene {
 
   override setPaused(paused: boolean): void { this.paused = paused; }
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void;snacks?:CommerceState; friends?: () => void; mail?:()=>void; mailPending?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }, nickname?: () => string | null | undefined) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void;snacks?:CommerceState; friends?: () => void; mail?:()=>void; mailPending?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }, nickname?: () => string | null | undefined, visit?:{name:string;leave:()=>void}) {
     super(); this.garden = new LobbyMap(home?.textures);
     const pet = (): void => { if (!this.paused && this.animal.pet()){commerce?.pet?.();this.snacks?.reveal();} };
-    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open, pet);
+    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open, pet,visit);
     this.welcomeStarted = returning;
     this.animal = new Animal(config, Math.random, nickname);
     if(commerce?.snacks){this.snacks=new SnackButton(commerce.snacks,config.id,()=>{this.feedReaction=true;},commerce.quest);this.hud.element.append(this.snacks.element);}
     // Animal owns a stable rectangular body target across animation frames.
-    this.animal.eventMode = 'static';
+    this.animal.eventMode = visit?'none':'static';
     this.animal.cursor = 'pointer';
     this.animal.on('pointerdown', event => {
       if (event.button === 0) pet();
