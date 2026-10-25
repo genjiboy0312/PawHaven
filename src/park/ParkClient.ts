@@ -4,6 +4,7 @@ import { parkPose,type ParkPose,type ParkSnapshot } from './ParkModel';
 export class ParkClient {
  readonly session=crypto.randomUUID();
  snapshot:ParkSnapshot={counts:[0,0,0,0]}; channel=0; connected=false; error='';busy=false;
+ chatError='';private chatting=false;
  readonly poses=new Map<string,ParkPose>();
  private readonly listeners=new Set<()=>void>();private readonly streams=new Map<string,RealtimeChannel>();
  private timer?:ReturnType<typeof setInterval>;private closed=false;private pending=false;private generation=0;private seq=0;
@@ -21,7 +22,7 @@ export class ParkClient {
   try{
    const next=await this.request('join',channel);
    if(this.closed){void this.request('leave',channel).catch(()=>{});return false;}
-   this.clearStreams();this.channel=channel;this.snapshot=next;this.error='';this.poses.clear();await this.client.realtime.setAuth();
+   this.clearStreams();this.channel=channel;this.snapshot=next;this.error='';this.chatError='';this.poses.clear();await this.client.realtime.setAuth();
    if(this.closed)return false;this.syncStreams();clearInterval(this.timer);this.timer=setInterval(()=>void this.refresh(),2000);return true;
   }catch(error){this.error=String((error as {message?:string}).message).includes('park_full')?'parkFull':'parkUnavailable';return false;}
   finally{this.busy=false;this.emit();}
@@ -52,10 +53,21 @@ export class ParkClient {
  }
  private ownTopic(){return `paw-park:${this.channel}:${this.owner}:${this.session}`;}
  send(pose:Omit<ParkPose,'seq'>){const topic=this.ownTopic();if(this.closed||this.error||!this.ready.has(topic))return;void this.streams.get(topic)?.send({type:'broadcast',event:'pose',payload:{...pose,seq:++this.seq}}).catch(()=>{});}
- async chat(text:string){
-  if(this.closed||!this.channel||this.busy||!text.trim())return false;
-  try{const gen=this.generation,next=await this.request('chat',this.channel,text);if(this.closed||gen!==this.generation)return false;this.snapshot=next;this.error='';this.emit();void this.streams.get(this.ownTopic())?.send({type:'broadcast',event:'chat',payload:{}}).catch(()=>{});return true;}
-  catch{this.error='parkChatWait';this.emit();return false;}
+ async chat(text:string,target?:string){
+  if(this.closed||!this.channel||this.busy||this.chatting||!text.trim())return false;
+  this.chatting=true;this.chatError='';const gen=this.generation;
+  try{
+   let next:ParkSnapshot;
+   if(target){const {data,error}=await this.client.rpc('park_whisper',{p_channel:this.channel,p_session:this.session,p_target:target,p_text:text});if(error)throw error;next=data as ParkSnapshot;}
+   else next=await this.request('chat',this.channel,text);
+   if(this.closed||gen!==this.generation)return false;
+   this.snapshot=next;this.error='';this.emit();
+   // The shared actor topic carries only an empty refresh hint, never private text/recipient.
+   void this.streams.get(this.ownTopic())?.send({type:'broadcast',event:'chat',payload:{}}).catch(()=>{});return true;
+  }catch(error){
+   if(this.closed||gen!==this.generation)return false;
+   const e=error as {code?:string;message?:string};this.chatError=e.message?.includes('whisper_target_left')?'parkWhisperLeft':['42883','PGRST202'].includes(e.code??'')?'parkWhisperSetup':'parkChatWait';this.emit();return false;
+  }finally{this.chatting=false;}
  }
  private clearStreams(){this.generation++;for(const stream of this.streams.values())void this.client.removeChannel(stream).catch(()=>{});this.streams.clear();this.ready.clear();this.connected=false;}
  destroy(){if(this.closed)return;this.closed=true;clearInterval(this.timer);this.clearStreams();this.listeners.clear();if(this.channel)void this.request('leave').catch(()=>{});}

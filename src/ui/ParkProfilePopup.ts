@@ -8,11 +8,11 @@ import { paintPetPortrait } from './PetPortrait';
 /** Public park appearance + the existing account-owned friend observer/RPC. */
 export class ParkProfilePopup {
  private overlay?:HTMLElement;private panel?:HTMLElement;private member?:ParkMember;
- private action?:HTMLButtonElement;private status?:HTMLElement;private label?:HTMLElement;
+ private action?:HTMLButtonElement;private whisperButton?:HTMLButtonElement;private status?:HTMLElement;private label?:HTMLElement;
  private abort?:AbortController;private off?:()=>void;private previousFocus?:HTMLElement;
  private blocked:{element:HTMLElement;inert:boolean}[]=[];
  private readonly localeOff=onLanguageChange(()=>this.render());
- constructor(private readonly owner:string,private readonly pets:AnimalConfig[],private readonly friends?:FriendsClient){}
+ constructor(private readonly owner:string,private readonly pets:AnimalConfig[],private readonly friends?:FriendsClient,private readonly whisper?:(member:ParkMember)=>void){}
  get isOpen(){return !!this.overlay;}
  get memberId(){return this.member?.id;}
  open(member:ParkMember){
@@ -39,6 +39,8 @@ export class ParkProfilePopup {
    if(client.error||!client.loaded){void client.refresh();return;}
    const relation=this.relation();if(relation==='none'||relation==='incoming')void client.command(relation==='incoming'?'accept':'send',member.id);
   },{signal});actions.append(this.action);
+  this.whisperButton=document.createElement('button');this.whisperButton.type='button';this.whisperButton.className='commerce-primary';
+  this.whisperButton.addEventListener('click',()=>{this.close();this.whisper?.(member);},{signal});actions.append(this.whisperButton);
   panel.append(title,close,stage,name,this.label,this.status,actions);overlay.append(panel);host.append(overlay);
   let backdrop=false;
   overlay.addEventListener('pointerdown',event=>{backdrop=event.target===overlay;},{signal});
@@ -61,6 +63,7 @@ export class ParkProfilePopup {
   if(!this.member||!this.action||!this.status||!this.label)return;
   const title=this.panel?.querySelector<HTMLElement>('[data-profile-title]');if(title)title.textContent=t('parkProfile');
   const own=this.member.id===this.owner,c=this.friends,relation=this.relation();
+  if(this.whisperButton){this.whisperButton.hidden=own||!this.whisper;this.whisperButton.textContent=t('parkWhisper');}
   this.action.hidden=own;this.label.textContent=own?t('parkYou'):relation==='friend'?t('parkFriend'):relation==='outgoing'?t('friendsPending'):relation==='incoming'?t('parkRequestReceived'):'';
   const errors:Record<string,TextKey>={setup:'friendsSetup',offline:'friendsOffline',auth:'friendsLogin',query:'friendsQuery',nickname:'friendsNickname',limit:'friendsLimit',incoming:'friendsIncoming',notFound:'friendsNotFound'};
   this.status.textContent=own?'':!c?t('friendsLogin'):c.error?t(errors[c.error]!):c.busy?t('friendsLoading'):'';

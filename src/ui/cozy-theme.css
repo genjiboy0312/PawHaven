@@ -51,6 +51,13 @@ button, input, select { font-family: var(--font-round); }
 .park-chat-log p{margin:0;}
 .park-chat form{display:flex;flex:0 0 auto;gap:6px;margin-top:6px;}
 .park-chat form[hidden]{display:none;}
+.park-chat-log .park-chat-name{display:inline;padding:0;min-height:0;border:0;border-radius:0;background:none;box-shadow:none;font:inherit;color:#665a45;-webkit-text-fill-color:#665a45;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.park-chat-log .park-chat-name:focus-visible{outline:2px solid #b67b3f;outline-offset:1px;}
+.park-chat .park-whisper-target{flex:none;min-height:20px;padding:0 6px;margin-top:2px;font-size:12px;line-height:16px;text-align:left;overflow-wrap:anywhere;}
+.park-chat .park-whisper-target[hidden]{display:none;}
+.park-whisper-row{font-style:italic;}
+.park-chat-prefix{margin-right:.25em;}
+.park-profile-actions{gap:1cqw;flex-wrap:wrap;}
 .park-chat.keyboard-chat-docked{position:fixed;right:auto;bottom:auto;margin:0;height:auto;transform:none;z-index:2147483647;}
 .park-chat.keyboard-chat-docked::backdrop{background:transparent;pointer-events:none;}
 .park-chat button{color-scheme:only light;forced-color-adjust:none;-webkit-text-fill-color:#786749;font:400 16px/20px var(--font-body);padding:6px 12px;min-height:38px;border:1px solid var(--ui-edge);border-radius:10px;background:#fff8e5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3Cpath fill='%23fff8e5' d='M0 0h1v1H0z'/%3E%3C/svg%3E") center/100% 100% no-repeat;color:#786749;box-sizing:border-box;}

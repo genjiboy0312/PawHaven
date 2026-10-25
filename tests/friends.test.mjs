@@ -126,7 +126,7 @@ test('Friends popup searches, sends, cancels, accepts and confirms deletion with
   popup.open();await idle(client);assert.equal(hud.inert,true);assert.equal(pauses.at(-1),true);
   click('Add Friend');let input=env.host.querySelector('.friend-search').children[0];input.value='Corgi';input.dispatchEvent(new Event('input'));
   env.host.querySelector('.friend-search').dispatchEvent(new Event('submit',{cancelable:true}));await idle(client);assert.equal(client.snapshot.matches.length,2);
-  click('Add friend');await idle(client);assert.equal(client.snapshot.outgoing.length,1);
+  click('Friend request');await idle(client);assert.equal(client.snapshot.outgoing.length,1);
   click('Requests');click('Cancel request');await idle(client);assert.equal(client.snapshot.outgoing.length,0);
   await command(1,'send',0);await client.refresh();assert.ok(env.host.all().some(item=>item.textContent==='Requests (1)'));
   click('Accept');await idle(client);click('Friends');assert.equal(client.snapshot.friends.length,1);
@@ -150,7 +150,7 @@ test('park profile reuses worn portraits and server friend requests, acceptance 
   popup.open(member);await idle(client);assert.equal(background.inert,true);assert.equal(popup.memberId,users[1]);
   assert.ok(env.host.querySelector('.pet-portrait-hat').style.backgroundImage.includes('santa-hat.png'));
   assert.ok(env.host.querySelector('.pet-portrait-acc').style.backgroundImage.includes('red-bow-tie.png'));
-  click('Add friend');await idle(client);assert.equal(client.snapshot.outgoing.length,1);assert.ok(env.host.all().some(e=>e.tag==='button'&&e.textContent==='Request sent'&&e.disabled));
+  click('Friend request');await idle(client);assert.equal(client.snapshot.outgoing.length,1);assert.ok(env.host.all().some(e=>e.tag==='button'&&e.textContent==='Request sent'&&e.disabled));
   await client.command('cancel',users[1]);await command(1,'send',0);await client.refresh();click('Accept');await idle(client);
   assert.equal(client.snapshot.friends.length,1);assert.ok(env.host.all().some(e=>e.tag==='button'&&e.textContent==='Friends'&&e.disabled));
   setLanguage('ko');assert.ok(env.host.all().some(e=>e.tag==='button'&&e.textContent==='친구'));

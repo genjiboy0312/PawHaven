@@ -31,9 +31,13 @@ export class ParkScene extends Scene {
  private paused=false;private elapsed=0;private sent=0;private chatAt=-Infinity;private sending=false;private lastMessage=0;
  private choosing=true;private signature='';private historyLoaded=false;
  private readonly profile:ParkProfilePopup;
+ private whisperTarget?:ParkMember;
+ private readonly recipient=document.createElement('button');
  constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},friends?:FriendsClient){
   super();this.map=new LobbyMap(textures);this.actorLayer.sortableChildren=true;this.world.addChild(this.map,this.actorLayer);this.addChild(this.world);
-  this.profile=new ParkProfilePopup(client.owner,pets,friends);
+  this.profile=new ParkProfilePopup(client.owner,pets,friends,member=>{
+   this.whisperTarget=member;this.client.chatError='';this.refresh();this.input.focus({preventScroll:true});
+  });
   this.world.position.set(-this.camera.x,-this.camera.y);
   this.hud.className='play-hud park-hud';
   this.header.className='park-header';this.status.className='park-status';this.status.setAttribute('role','status');
@@ -44,7 +48,9 @@ export class ParkScene extends Scene {
   form.append(this.input,this.sendButton);form.addEventListener('submit',event=>{event.preventDefault();void this.sendChat();},{signal:this.abort.signal});
   this.input.enterKeyHint='send';
   this.input.addEventListener('keydown',event=>{if(event.key==='Enter'&&event.isComposing)event.preventDefault();if(event.key==='Escape'){event.preventDefault();this.input.blur();this.chatDock.reset();}},{signal:this.abort.signal});
-  this.input.addEventListener('focus',()=>this.blur(),{signal:this.abort.signal});this.chat.append(this.log,form);
+  this.recipient.type='button';this.recipient.className='park-whisper-target';this.recipient.hidden=true;
+  this.recipient.addEventListener('click',()=>{this.whisperTarget=undefined;this.client.chatError='';this.refresh();},{signal:this.abort.signal});
+  this.input.addEventListener('focus',()=>this.blur(),{signal:this.abort.signal});this.chat.append(this.log,this.recipient,form);
   this.chatDock=new KeyboardChatDock(this.chat,this.input);
   this.stick.type='button';this.stick.className='play-stick';bindAria(this.stick,'joystick');this.knob.className='stick-knob';this.stick.append(this.knob);
   const actions=document.createElement('div');actions.className='play-actions';actions.append(this.jumpButton.element);
@@ -77,7 +83,7 @@ export class ParkScene extends Scene {
  private jump(){if(this.active()&&this.jumpHeight===0)this.velocity=440;}
  override setPaused(paused:boolean){this.paused=paused;this.blur();}
  private async choose(channel:number){
-  this.blur();this.chatDock.reset();if(await this.client.join(channel)){this.choosing=false;this.lastMessage=0;this.historyLoaded=false;this.log.replaceChildren();this.input.value='';this.playerX=620+(Number.parseInt(this.client.owner.slice(0,4),16)%6)*115;this.playerY=PARK_WORLD.spawnY;this.camera=parkCamera(this.playerX,this.playerY);this.jumpHeight=this.velocity=0;this.signature='';this.refresh();}
+  this.blur();this.chatDock.reset();if(await this.client.join(channel)){this.whisperTarget=undefined;this.choosing=false;this.lastMessage=0;this.historyLoaded=false;this.log.replaceChildren();this.input.value='';this.playerX=620+(Number.parseInt(this.client.owner.slice(0,4),16)%6)*115;this.playerY=PARK_WORLD.spawnY;this.camera=parkCamera(this.playerX,this.playerY);this.jumpHeight=this.velocity=0;this.signature='';this.refresh();}
  }
  private refresh(){
   if(this.destroyed)return;
@@ -101,16 +107,33 @@ export class ParkScene extends Scene {
   this.stick.disabled=!this.active();this.jumpButton.update(this.active()&&this.jumpHeight===0);
   if(!c.channel){this.profile.close();return;}
   const members=c.snapshot.members??[];
+  const target=this.whisperTarget,missing=!!target&&!members.some(m=>m.id===target.id&&m.session===target.session);
+  this.recipient.hidden=!target;this.recipient.textContent=target?t('parkWhisperTo').replace('{name}',target.name)+' ×':'';
+  this.recipient.setAttribute('aria-label',t('parkWhisperCancel'));
+  this.sendButton.disabled=this.sending||missing;
+  this.status.textContent=missing?t('parkWhisperLeft'):c.chatError?t(c.chatError as 'parkChatWait'):c.error?t(c.error as 'parkUnavailable'):c.channel&&!c.connected?t('parkConnecting'):'';
   if(this.profile.memberId&&!members.some(m=>m.id===this.profile.memberId))this.profile.close();
   for(const [id,actor]of this.actors)if(!members.some(m=>m.id===id)){actor.box.destroy({children:true});this.actors.delete(id);}
   for(const member of members)this.actor(member);
   const initial=!this.historyLoaded;this.historyLoaded=true;
   for(const message of c.snapshot.messages??[]){
    if(message.id<=this.lastMessage)continue;this.lastMessage=message.id;
-   const row=document.createElement('p');row.textContent=`${message.name}: ${message.message}`;this.log.append(row);while(this.log.childElementCount>30)this.log.firstElementChild?.remove();
-   const actor=this.actors.get(message.user_id);if(actor&&!initial){actor.message=message.message;actor.until=this.elapsed+6;}
+   if(message.recipient_id&&message.user_id!==c.owner&&message.recipient_id!==c.owner)continue;
+   const row=document.createElement('p'),name=document.createElement('button');name.type='button';name.className='park-chat-name';
+   const outgoing=!!message.recipient_id&&message.user_id===c.owner;
+   const id=outgoing?message.recipient_id!:message.user_id;
+   name.textContent=outgoing?message.recipient_name??message.name:message.name;
+   name.addEventListener('click',()=>this.openProfile(id));
+   if(message.recipient_id){const prefix=document.createElement('span');prefix.className='park-chat-prefix';bindText(prefix,outgoing?'parkWhisperSent':'parkWhisperReceived');row.append(prefix);row.className='park-whisper-row';}
+   const text=document.createElement('span');text.textContent=': '+message.message;row.append(name,text);this.log.append(row);while(this.log.childElementCount>30)this.log.firstElementChild?.remove();
+   const actor=this.actors.get(message.user_id);if(actor&&!initial&&!message.recipient_id){actor.message=message.message;actor.until=this.elapsed+6;}
   }
   this.log.scrollTop=this.log.scrollHeight;
+ }
+ private openProfile(id:string){
+  const member=this.client.snapshot.members?.find(m=>m.id===id);
+  if(!member){this.status.textContent=t('parkPlayerLeft');return;}
+  this.blur();this.chatDock.reset();this.profile.open(member);
  }
  private actor(member:ParkMember){
   const signature=JSON.stringify([member.session,member.look,member.name]),old=this.actors.get(member.id);if(old?.signature===signature)return;
@@ -123,7 +146,7 @@ export class ParkScene extends Scene {
   box.on('pointertap',event=>{
    if(event.button!==0||!this.active())return;
    const current=this.client.snapshot.members?.find(m=>m.id===member.id);if(!current)return;
-   this.blur();this.chatDock.reset();this.profile.open(current);
+   this.openProfile(current.id);
   });
   if(member.id!==this.client.owner)animation.sprite.tint=0xc9c9c9;
   const name=new Text({text:member.name,style:{fontFamily:GAME_FONT,fontSize:18,fill:member.id===this.client.owner?'#665039':'#67685d',stroke:{color:'#fff9e9',width:2}}});name.anchor.set(.5);name.y=-145;
@@ -132,9 +155,10 @@ export class ParkScene extends Scene {
  }
  private async sendChat(){
   if(this.sending||!this.active()||this.elapsed-this.chatAt<2||!this.input.value.trim())return;
+  const target=this.whisperTarget;if(target&&!this.client.snapshot.members?.some(m=>m.id===target.id&&m.session===target.session)){this.status.textContent=t('parkWhisperLeft');return;}
   this.sending=true;this.sendButton.disabled=true;const text=this.input.value.trim();
-  if(await this.client.chat(text)){if(this.input.value.trim()===text){this.input.value='';this.input.blur();}this.chatAt=this.elapsed;const me=this.actors.get(this.client.owner);if(me){me.message=text;me.until=this.elapsed+6;}}
-  this.sending=false;if(!this.destroyed)this.sendButton.disabled=false;
+  if(await this.client.chat(text,target?.id)){if(this.input.value.trim()===text&&this.whisperTarget?.id===target?.id){this.input.value='';this.input.blur();}this.chatAt=this.elapsed;const me=this.actors.get(this.client.owner);if(me&&!target){me.message=text;me.until=this.elapsed+6;}}
+  this.sending=false;if(!this.destroyed)this.refresh();
  }
  resize(_width:number,_height:number){this.map.draw(PARK_WORLD.width,PARK_WORLD.height,{Background:0,Floor:0});}
  override update(dt:number){

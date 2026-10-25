@@ -10,6 +10,7 @@ const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 await db.exec(await readFile(new URL('../supabase/migrations/202610170001_player_accounts.sql',import.meta.url),'utf8'));
 const migration=await readFile(new URL('../supabase/migrations/202610240012_park_channels.sql',import.meta.url),'utf8');await db.exec(migration);
+const whispers=await readFile(new URL('../supabase/migrations/202610250014_park_whispers.sql',import.meta.url),'utf8');await db.exec(whispers);
 const ids=Array.from({length:10},(_,n)=>`11111111-1111-4111-8111-${String(n).padStart(12,'0')}`),session='22222222-2222-4222-8222-222222222222',other='33333333-3333-4333-8333-333333333333';
 for(const [i,id]of ids.entries()){await db.query('insert into auth.users values($1)',[id]);await db.query('insert into public.player_profiles(user_id,nickname)values($1,$2)',[id,'Player'+i]);}
 await db.query('insert into public.player_saves(user_id,snapshot)values($1,$2)',[ids[0],JSON.stringify({version:1,character:{petId:'myeongrang',outfit:{Hat:2,Acc:2,Body:0,Etc:0}}})]);
@@ -60,7 +61,7 @@ test('actor topics cannot impersonate peers or read another channel; stale tab c
  assert.equal(await allowed(0,2,0,true,session),false);assert.equal(await allowed(0,2,0,true,other),true);
  await db.query("update public.park_members set seen_at=now()-interval '46 seconds' where user_id=$1",[ids[1]]);assert.equal(await allowed(1,1,2,false),false);
  await command(8,'join');assert.equal((await command(8,'sync')).members.length,7); // expired member removed and free slot reused
- await db.exec(migration);assert.equal((await command(0,'sync',2,other)).members.length,1);
+ await db.exec(migration);await db.exec(whispers);assert.equal((await command(0,'sync',2,other)).members.length,1);
 });
 test('park movement clamps time/map/jumps and rejects malicious or reordered motion input',()=>{
  assert.equal(parkStep(1719,720,0,0,1,0,1).x,1720);assert.equal(parkStep(80,720,0,0,-1,0,.05).x,80);assert.equal(parkStep(400,720,1,-100,0,0,.05).height,0);
@@ -85,4 +86,28 @@ test('park client cleans subscriptions, rejects old pose sequences and leaves wi
  const remote=streams[1];remote.handlers.pose({payload:{x:200,y:800,height:20,direction:1,moving:true,seq:5}});remote.handlers.pose({payload:{x:100,y:600,height:0,direction:1,moving:true,seq:4}});assert.equal(c.poses.get(ids[1]).x,200);assert.equal(c.poses.get(ids[1]).y,800);
  assert.equal(await c.chat('hi'),true);c.destroy();assert.equal(removed,2);assert.equal(calls.at(-1).p_action,'leave');assert.equal(calls.at(-1).p_session,c.session);assert.notEqual(c.session,session);
  remote.handlers.pose({payload:{x:300,height:0,direction:1,moving:false,seq:6}});assert.equal(c.poses.get(ids[1]).x,200);
+});
+
+test('whispers are visible only to sender/recipient, never public history, and share the public rate limit',async()=>{
+ await db.exec('delete from public.park_members;delete from public.park_chat;');
+ for(let n=0;n<3;n++)await command(n,'join',1);await command(3,'join',2);
+ const whisper=(n,target,text='private hello',lease=session)=>(async()=>{return(await as(n,'select public.park_whisper($1,$2,$3,$4) as data',[1,lease,ids[target],text])).rows[0].data;})();
+ const sent=await whisper(0,1);assert.equal(sent.messages.length,1);assert.equal(sent.messages[0].recipient_id,ids[1]);assert.equal(sent.messages[0].recipient_name,'Player1');assert.equal(sent.messages[0].name,'Player0');
+ assert.equal((await command(1,'sync')).messages[0].message,'private hello');assert.equal((await command(2,'sync')).messages.length,0);assert.equal((await command(3,'sync',2)).messages.length,0);
+ await assert.rejects(whisper(0,1),/chat_cooldown/);await assert.rejects(command(0,'chat',1,session,'public'),/chat_cooldown/);
+ await db.query("update public.park_members set last_chat=now()-interval '3 seconds' where user_id=$1",[ids[0]]);
+ await command(0,'chat',1,session,'public');const bystander=await command(2,'sync');assert.equal(bystander.messages.length,1);assert.equal(bystander.messages[0].message,'public');assert.equal(bystander.messages[0].recipient_id,null);
+ await assert.rejects(whisper(0,1),/chat_cooldown/);await assert.rejects(whisper(0,3),/whisper_target_left/);await assert.rejects(whisper(0,0),/whisper_target_left/);await assert.rejects(whisper(0,1,'secret',other),/park_session_lost/);
+ await assert.rejects(as(null,'select public.park_whisper(1,$1,$2,$3)',[session,ids[1],'secret'],'anon'),/permission denied/);await assert.rejects(as(2,'select * from public.park_chat'),/permission denied/);
+ await command(1,'leave');await assert.rejects(whisper(0,1),/whisper_target_left/);
+ await command(1,'join',1);await db.query("update public.park_members set last_chat=null where user_id=$1",[ids[0]]);await assert.rejects(whisper(0,1,'x'.repeat(101)),/invalid_message/);await assert.rejects(whisper(0,1,' '),/invalid_message/);
+ await db.exec(whispers);assert.equal((await command(2,'sync')).messages.some(m=>m.recipient_id),false);
+});
+
+test('private chat RPC sends only an empty shared notification, and never falls back to public on errors',async()=>{
+ const calls=[],broadcasts=[];let fail=false;
+ const c=new ParkClient({rpc:async(fn,p)=>{calls.push({fn,p});return{data:{counts:[1,0,0,0],members:[],messages:[]},error:fail?{message:'whisper_target_left'}:null}}},ids[0]);c.channel=1;
+ c.streams.set(`paw-park:1:${ids[0]}:${c.session}`,{send:async value=>{broadcasts.push(value)}});
+ assert.equal(await c.chat('secret',ids[1]),true);assert.equal(calls[0].fn,'park_whisper');assert.equal(calls[0].p.p_target,ids[1]);assert.deepEqual(broadcasts[0].payload,{});assert.equal(JSON.stringify(broadcasts).includes('secret'),false);
+ fail=true;assert.equal(await c.chat('secret',ids[1]),false);assert.equal(c.chatError,'parkWhisperLeft');assert.equal(calls.every(c=>c.fn==='park_whisper'),true);assert.equal(c.error,'');c.closed=true;
 });
