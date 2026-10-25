@@ -1,11 +1,12 @@
 import type { SupabaseClient,RealtimeChannel } from '@supabase/supabase-js';
-import { parkPose,type ParkPose,type ParkSnapshot } from './ParkModel';
+import { parkPose,parkEmote,PARK_EMOTE_MS,type ParkPose,type ParkSnapshot,type ParkEmote,type ParkEmoteKind } from './ParkModel';
 /** Server membership/chat plus owner-authorized actor streams; one disposable client per visit. */
 export class ParkClient {
  readonly session=crypto.randomUUID();
  snapshot:ParkSnapshot={counts:[0,0,0,0]}; channel=0; connected=false; error='';busy=false;
  chatError='';private chatting=false;
  readonly poses=new Map<string,ParkPose>();
+ private readonly emotes=new Map<string,ParkEmote&{until:number}>();private emoteSeq=0;private nextEmote=0;
  private readonly listeners=new Set<()=>void>();private readonly streams=new Map<string,RealtimeChannel>();
  private timer?:ReturnType<typeof setInterval>;private closed=false;private pending=false;private generation=0;private seq=0;
  private ready=new Set<string>();
@@ -36,15 +37,20 @@ export class ParkClient {
  private syncStreams(){
   const members=this.snapshot.members??[],topics=new Set(members.map(m=>`paw-park:${this.channel}:${m.id}:${m.session}`));
   for(const [topic,stream]of this.streams)if(!topics.has(topic)){this.streams.delete(topic);this.ready.delete(topic);void this.client.removeChannel(stream).catch(()=>{});}
-  const ids=new Set(members.map(m=>m.id));for(const id of this.poses.keys())if(!ids.has(id))this.poses.delete(id);
+  const ids=new Set(members.map(m=>m.id));for(const id of this.poses.keys())if(!ids.has(id))this.poses.delete(id);for(const id of this.emotes.keys())if(!ids.has(id))this.emotes.delete(id);
   for(const member of members){
    const topic=`paw-park:${this.channel}:${member.id}:${member.session}`;if(this.streams.has(topic))continue;
-   this.poses.delete(member.id);const gen=this.generation;
+   this.poses.delete(member.id);this.emotes.delete(member.id);const gen=this.generation;
    const stream=this.client.channel(topic,{config:{private:true,broadcast:{self:false,ack:false}}})
     .on('broadcast',{event:'pose'},event=>{
      if(this.closed||gen!==this.generation||!this.streams.has(topic)||member.id===this.owner)return;
      const pose=parkPose(event.payload),last=this.poses.get(member.id);
      if(pose&&(!last||pose.seq>last.seq))this.poses.set(member.id,pose);
+    }).on('broadcast',{event:'emote'},event=>{
+     if(this.closed||gen!==this.generation||!this.streams.has(topic)||member.id===this.owner)return;
+     const next=parkEmote(event.payload),last=this.emotes.get(member.id),now=Date.now();
+     if(!next||(last&&(next.seq<=last.seq||now<last.until)))return;
+     this.emotes.set(member.id,{...next,until:now+PARK_EMOTE_MS});this.emit();
     }).on('broadcast',{event:'chat'},()=>{if(!this.closed&&gen===this.generation&&this.streams.has(topic))void this.refresh();})
     .subscribe(status=>{if(this.closed||gen!==this.generation||!this.streams.has(topic))return;if(status==='SUBSCRIBED')this.ready.add(topic);else this.ready.delete(topic);this.connected=this.ready.size===this.streams.size&&this.ready.size>0;this.emit();});
    this.streams.set(topic,stream);
@@ -52,6 +58,14 @@ export class ParkClient {
   this.connected=this.ready.size===this.streams.size&&this.ready.size>0;
  }
  private ownTopic(){return `paw-park:${this.channel}:${this.owner}:${this.session}`;}
+ get canEmote(){return !this.closed&&!this.error&&!this.busy&&this.channel>0&&this.ready.has(this.ownTopic())&&Date.now()>=this.nextEmote;}
+ getEmote(id:string){const emote=this.emotes.get(id);return emote&&emote.until>Date.now()?emote:undefined;}
+ emote(kind:ParkEmoteKind):boolean{
+  if(!parkEmote({kind,seq:1})||!this.canEmote)return false;
+  const value={kind,seq:++this.emoteSeq};this.nextEmote=Date.now()+PARK_EMOTE_MS;
+  this.emotes.set(this.owner,{...value,until:this.nextEmote});this.emit();
+  void this.streams.get(this.ownTopic())?.send({type:'broadcast',event:'emote',payload:value}).catch(()=>{});return true;
+ }
  send(pose:Omit<ParkPose,'seq'>){const topic=this.ownTopic();if(this.closed||this.error||!this.ready.has(topic))return;void this.streams.get(topic)?.send({type:'broadcast',event:'pose',payload:{...pose,seq:++this.seq}}).catch(()=>{});}
  async chat(text:string,target?:string){
   if(this.closed||!this.channel||this.busy||this.chatting||!text.trim())return false;
@@ -69,6 +83,6 @@ export class ParkClient {
    const e=error as {code?:string;message?:string};this.chatError=e.message?.includes('friend_blocked')?'friendsBlockedNotice':e.message?.includes('whisper_target_left')?'parkWhisperLeft':['42883','PGRST202'].includes(e.code??'')?'parkWhisperSetup':'parkChatWait';this.emit();return false;
   }finally{this.chatting=false;}
  }
- private clearStreams(){this.generation++;for(const stream of this.streams.values())void this.client.removeChannel(stream).catch(()=>{});this.streams.clear();this.ready.clear();this.connected=false;}
+ private clearStreams(){this.generation++;for(const stream of this.streams.values())void this.client.removeChannel(stream).catch(()=>{});this.streams.clear();this.ready.clear();this.emotes.clear();this.nextEmote=0;this.connected=false;}
  destroy(){if(this.closed)return;this.closed=true;clearInterval(this.timer);this.clearStreams();this.listeners.clear();if(this.channel)void this.request('leave').catch(()=>{});}
 }

@@ -37,6 +37,11 @@ button, input, select { font-family: var(--font-round); }
 .play-menu-panel[data-page="mode"] .with-park{grid-template-columns:repeat(3,minmax(0,1fr));}
 .park-hud .park-header{position:absolute;top:3cqh;left:3cqw;right:3cqw;display:flex;align-items:center;gap:1cqw;pointer-events:auto;font:400 clamp(12px,2cqw,24px) var(--font-round);}
 .park-header strong{margin-right:auto;color:#675a43;}
+.park-hud .park-emote-toggle{min-width:38px;font-size:22px;line-height:1;}
+.settings-panel.park-emote-menu{position:absolute;right:3cqw;top:11cqh;width:auto;max-width:94%;height:auto;padding:1.5cqh 1cqw;display:grid;grid-template-columns:repeat(3,auto);gap:1cqw;pointer-events:auto;z-index:9;}
+.park-emote-menu[hidden]{display:none;}
+.park-emote-menu .commerce-primary{font:400 clamp(11px,1.5cqw,20px) var(--font-round);min-height:38px;padding:1cqh 1cqw;}
+.park-emote-menu p{grid-column:1/-1;margin:0;text-align:center;font:400 clamp(10px,1.2cqw,16px) var(--font-body);}
 .park-header .commerce-primary,.park-chat button,.park-picker .commerce-primary{font:400 clamp(11px,1.5cqw,20px) var(--font-round);padding:1cqh 1.5cqw;min-height:0;min-width:0;}
 .park-status{position:absolute;top:10cqh;left:20%;right:20%;text-align:center;font:400 clamp(10px,1.3cqw,18px) var(--font-round);color:#70593d;}
 .park-hud .park-picker{position:absolute;left:24%;top:20%;width:52%;height:auto;max-height:65%;padding:3cqh 3cqw;box-sizing:border-box;pointer-events:auto;z-index:8;display:block;}

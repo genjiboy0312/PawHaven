@@ -4,6 +4,16 @@ export interface ParkMessage {id:number;user_id:string;name:string;message:strin
 export interface ParkSnapshot {counts:number[];members?:ParkMember[];messages?:ParkMessage[]}
 export interface ParkPose {x:number;y:number;height:number;direction:number;moving:boolean;seq:number}
 export const PARK_CHANNELS=[1,2,3,4] as const;
+export const PARK_EMOTES=['wave','heart','music'] as const;
+export type ParkEmoteKind=typeof PARK_EMOTES[number];
+export interface ParkEmote {kind:ParkEmoteKind;seq:number}
+export const PARK_EMOTE_MS=3000;
+/** Only fixed reactions may cross the shared actor stream; never arbitrary chat text. */
+export function parkEmote(value:unknown):ParkEmote|undefined{
+ const e=value as ParkEmote;
+ if(!e||!PARK_EMOTES.includes(e.kind)||!Number.isSafeInteger(e.seq)||e.seq<1)return;
+ return {kind:e.kind,seq:e.seq};
+}
 export const PARK_WORLD={width:1800,height:1100,minX:80,maxX:1720,minY:600,maxY:880,spawnY:720} as const;
 const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,value));
 /** Validate untrusted broadcast data before it reaches the scene graph. */

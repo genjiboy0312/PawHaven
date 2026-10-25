@@ -38,6 +38,7 @@ export class SpeechBubble extends Container {
   private tailX = NaN;
   private age = 0;
   private source = '';
+  private reactionHeader = false;
   private bubbleWidth = 40;
   get halfWidth(){return this.bubbleWidth/2;}
   halfHeight = 18;
@@ -54,16 +55,17 @@ export class SpeechBubble extends Container {
   }
 
   present(message: string, seconds: number, hold = false, lifetime = 1.1, remaining?: number, reaction = ''): void {
-    const changed = message !== this.source;
+    const changed = message !== this.source || !!reaction !== this.reactionHeader;
     if (changed) {
       this.source = message;
+      this.reactionHeader = !!reaction;
       const wrapped = wrapSpeech(message);
       this.caption.text = wrapped;
       this.age = 0;
       const lines = wrapped.split('\n');
       this.bubbleWidth = Math.max(40, ...lines.map(line => lineWidth(line) + 24));
-      const header = lines.length > 1 ? 28 : 0;
-      this.halfHeight = lines.length === 1 ? 18 : (lines.length * 25 + 20 + header) / 2;
+      const header = lines.length > 1 || reaction ? 28 : 0;
+      this.halfHeight = lines.length === 1 && !reaction ? 18 : (lines.length * 25 + 20 + header) / 2;
       this.caption.y = header / 2;
       this.reaction.y = -this.halfHeight + 19;
       this.plate.clear().roundRect(-this.bubbleWidth / 2, -this.halfHeight, this.bubbleWidth, this.halfHeight * 2, 10)

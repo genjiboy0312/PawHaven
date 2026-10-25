@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {importTs} from './load-typescript.mjs';
-const {parkPose,parkStep,parkCamera,PARK_WORLD}=await importTs('../src/park/ParkModel.ts',import.meta.url);
+const {parkPose,parkStep,parkCamera,PARK_WORLD,parkEmote}=await importTs('../src/park/ParkModel.ts',import.meta.url);
 const {ParkClient}=await importTs('../src/park/ParkClient.ts',import.meta.url);
 const {chatDockBounds,chatVisibleViewport}=await importTs('../src/ui/KeyboardChatDock.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
@@ -110,4 +110,25 @@ test('private chat RPC sends only an empty shared notification, and never falls 
  c.streams.set(`paw-park:1:${ids[0]}:${c.session}`,{send:async value=>{broadcasts.push(value)}});
  assert.equal(await c.chat('secret',ids[1]),true);assert.equal(calls[0].fn,'park_whisper');assert.equal(calls[0].p.p_target,ids[1]);assert.deepEqual(broadcasts[0].payload,{});assert.equal(JSON.stringify(broadcasts).includes('secret'),false);
  fail=true;assert.equal(await c.chat('secret',ids[1]),false);assert.equal(c.chatError,'parkWhisperLeft');assert.equal(calls.every(c=>c.fn==='park_whisper'),true);assert.equal(c.error,'');c.closed=true;
+});
+
+test('park reactions accept only fixed IDs and strip arbitrary broadcast text/identity',()=>{
+ for(const value of[null,{}, {kind:'custom',seq:1},{kind:'heart',seq:-1},{kind:'heart',seq:NaN},{kind:'music',seq:1.5}])assert.equal(parkEmote(value),undefined);
+ assert.deepEqual(parkEmote({kind:'wave',seq:1,user_id:ids[5],message:'private text'}),{kind:'wave',seq:1});
+});
+
+test('reactions reuse owned actor streams, throttle both sides and discard stale sessions and departed players',async()=>{
+ const originalNow=Date.now;let now=10000;Date.now=()=>now;const streams=[],sent=[],removed=[];
+ let snapshot={counts:[2,0,0,0],members:[{id:ids[0],session,name:'Player0'},{id:ids[1],session,name:'Player1'}],messages:[]};
+ const transport={rpc:async()=>({data:snapshot,error:null}),realtime:{setAuth:async()=>{}},channel(topic){const handlers={};const stream={topic,handlers,on(_type,{event},fn){handlers[event]=fn;return stream},subscribe(fn){queueMicrotask(()=>fn('SUBSCRIBED'));return stream},send:async value=>{sent.push(value)}};streams.push(stream);return stream},removeChannel:async stream=>removed.push(stream)};
+ const c=new ParkClient(transport,ids[0]);
+ try{
+  assert.equal(c.emote('wave'),false);snapshot.members[0].session=c.session;await c.join(1);await new Promise(r=>setTimeout(r,0));
+  assert.equal(c.emote('wave'),true);assert.deepEqual(sent[0],{type:'broadcast',event:'emote',payload:{kind:'wave',seq:1}});assert.equal(c.getEmote(ids[0]).kind,'wave');assert.equal(c.emote('heart'),false);assert.equal(c.emote('unknown'),false);
+  const remote=streams[1];remote.handlers.emote({payload:{kind:'heart',seq:2}});assert.equal(c.getEmote(ids[1]).kind,'heart');remote.handlers.emote({payload:{kind:'music',seq:3}});assert.equal(c.getEmote(ids[1]).kind,'heart');
+  now+=3001;assert.equal(c.getEmote(ids[1]),undefined);assert.equal(c.emote('music'),true);remote.handlers.emote({payload:{kind:'wave',seq:1}});assert.equal(c.getEmote(ids[1]),undefined);remote.handlers.emote({payload:{kind:'music',seq:3}});assert.equal(c.getEmote(ids[1]).kind,'music');
+  snapshot={...snapshot,members:[snapshot.members[0],{...snapshot.members[1],session:other}]};c.snapshot=snapshot;c.syncStreams();remote.handlers.emote({payload:{kind:'wave',seq:9}});assert.equal(c.getEmote(ids[1]),undefined);
+  snapshot={...snapshot,members:[snapshot.members[0]]};c.snapshot=snapshot;c.syncStreams();streams.at(-1).handlers.emote({payload:{kind:'wave',seq:10}});assert.equal(c.getEmote(ids[1]),undefined);assert.ok(removed.length>=2);
+  c.destroy();assert.equal(c.getEmote(ids[0]),undefined);assert.equal(c.emote('wave'),false);
+ }finally{c.destroy();Date.now=originalNow;}
 });

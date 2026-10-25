@@ -1866,6 +1866,16 @@ test('healing dialogue never repeats consecutively and locks its text until read
   setLanguage('en');
 });
 
+test('single-line reaction bubbles reserve separate space and relayout when a symbol appears or disappears',async()=>{
+ const {SpeechBubble}=await importTs('../src/animals/SpeechBubble.ts',import.meta.url);const bubble=new SpeechBubble();
+ try{
+  bubble.present('좋아요!',0,false,3);assert.equal(bubble.halfHeight,18);
+  bubble.present('좋아요!',0,false,3,3,'♡');assert.ok(bubble.halfHeight>18);assert.ok(bubble.reaction.y+11<bubble.caption.y-12);
+  bubble.present('좋아요!',0,false,3,3,'♪');assert.equal(bubble.reactionText,'♪');assert.ok(bubble.reaction.y+11<bubble.caption.y-12);
+  bubble.present('좋아요!',0,false,3);assert.equal(bubble.halfHeight,18);assert.equal(bubble.reaction.visible,false);
+ }finally{bubble.destroy();}
+});
+
 test('healing speech keeps semantic breaks, fits in two or three lines and remains inside viewport edges', async () => {
   const { SpeechBubble, wrapSpeech } = await importTs('../src/animals/SpeechBubble.ts', import.meta.url);
   const { HEALING_LINES } = await importTs('../src/animals/HealingDialogue.ts', import.meta.url);
