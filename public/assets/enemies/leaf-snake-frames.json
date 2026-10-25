@@ -1,0 +1,77 @@
+{
+  "imageHeight": 887,
+  "version": 1,
+  "tongue": [
+    {
+      "y": 540,
+      "x": 53,
+      "baseline": 820,
+      "height": 280,
+      "width": 315,
+      "center": 228.5
+    },
+    {
+      "y": 542,
+      "x": 490,
+      "baseline": 820,
+      "height": 278,
+      "width": 327,
+      "center": 671.5
+    },
+    {
+      "y": 544,
+      "x": 938,
+      "baseline": 819,
+      "height": 275,
+      "width": 352,
+      "center": 1115.0
+    },
+    {
+      "y": 541,
+      "x": 1397,
+      "baseline": 819,
+      "height": 278,
+      "width": 313,
+      "center": 1559.5
+    }
+  ],
+  "logicalWidth": 512,
+  "imageWidth": 1774,
+  "move": [
+    {
+      "y": 120,
+      "x": 50,
+      "baseline": 388,
+      "height": 268,
+      "width": 318,
+      "center": 226.0
+    },
+    {
+      "y": 114,
+      "x": 495,
+      "baseline": 388,
+      "height": 274,
+      "width": 320,
+      "center": 666.5
+    },
+    {
+      "y": 114,
+      "x": 925,
+      "baseline": 388,
+      "height": 274,
+      "width": 341,
+      "center": 1109.0
+    },
+    {
+      "y": 111,
+      "x": 1384,
+      "baseline": 388,
+      "height": 277,
+      "width": 325,
+      "center": 1551.0
+    }
+  ],
+  "visibleHeight": 280,
+  "logicalHeight": 384,
+  "foot": 360
+}

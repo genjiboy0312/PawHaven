@@ -628,6 +628,25 @@ test('hit visuals reuse attack textures and restore alpha and filters without re
 const flatCourse = [{ x: 0, width: 2850, top: 0, bottom: -300 }];
 const {SINGLE_SNAKES}=await importTs('../src/game/PatrolSnake.ts',import.meta.url);
 const snakeRun=()=>new DummyRun(flatCourse,1,{snakes:SINGLE_SNAKES.garden,snakeHeight:60});
+test('snake animation preserves its foot and scale across all wriggle and tongue frames',async()=>{
+ const {TextureSource}=await import('pixi.js');const {createSnakeArt,SnakeView,snakeFrame}=await importTs('../src/game/SnakeView.ts',import.meta.url);
+ const map=JSON.parse(await readFile(new URL('../public/assets/enemies/leaf-snake-frames.json',import.meta.url),'utf8'));
+ const atlas=new Texture({source:new TextureSource({width:map.imageWidth,height:map.imageHeight})}),art=createSnakeArt(atlas,map),snake=snakeRun().snakes[0],view=new SnakeView(art,snake);
+ const textures=new Set();for(const time of[0,.18,.35,.52,2.81,2.91,3.01,3.11,3.21,3.31]){
+  view.update(time);textures.add(view.texture);assert.equal(view.y,390);assert.equal(view.scale.y,snake.height/map.visibleHeight);assert.equal(view.anchor.y,map.foot/map.logicalHeight);
+  const trim=view.texture.trim;assert.equal(trim.y+trim.height,map.foot);assert.equal(view.texture.orig.width,512);assert.equal(view.texture.orig.height,384);
+ }
+ assert.equal(textures.size,8);assert.deepEqual(snakeFrame(0,true),{clip:'tongue',index:0});assert.deepEqual(snakeFrame(NaN),{clip:'move',index:0});assert.deepEqual(snakeFrame(3.01,false,true),{clip:'tongue',index:0});
+ view.update(3.01,false);assert.equal(view.texture,art.tongue[2]);snake.defeat();snake.update(.31);view.update(1);assert.equal(view.visible,false);
+ view.destroy();[...art.move,...art.tongue].forEach(t=>t.destroy(false));atlas.destroy(true);
+});
+test('snake atlas rejects clipped or inconsistent frames before creating render textures',async()=>{
+ const {TextureSource}=await import('pixi.js');const {createSnakeArt}=await importTs('../src/game/SnakeView.ts',import.meta.url);
+ const map=JSON.parse(await readFile(new URL('../public/assets/enemies/leaf-snake-frames.json',import.meta.url),'utf8'));
+ const atlas=new Texture({source:new TextureSource({width:map.imageWidth,height:map.imageHeight})});
+ for(const mutate of[m=>{m.move.pop();},m=>{m.imageWidth++;},m=>{m.move[0].x=-1;},m=>{m.move[0].width=2000;},m=>{m.move[0].baseline++;},m=>{m.move[0].center=99999;},m=>{m.visibleHeight=1;}]){const bad=structuredClone(map);mutate(bad);assert.throws(()=>createSnakeArt(atlas,bad),/invalid_snake/);}
+ atlas.destroy(true);
+});
 test('snakes patrol a bounded short route and pause before turning without chasing',()=>{
  const run=snakeRun(),s=run.snakes[0];let stopped=false,turned=false;run.x=120;
  for(let i=0;i<2400;i++){run.update(1/120,0);assert.ok(s.x>=300&&s.x<=540);if(s.waiting>0)stopped=true;if(s.direction===-1)turned=true;}

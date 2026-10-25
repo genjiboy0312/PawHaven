@@ -1,8 +1,8 @@
 import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../../settings/i18n';
 import type { GamePreferences } from '../../settings/GameSettings';
-import { Container, Graphics, Text, type DestroyOptions,type Texture } from 'pixi.js';
+import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
 import {SINGLE_SNAKES} from '../PatrolSnake';
-import {SnakeView,snakeHeight} from '../SnakeView';
+import {SnakeView,snakeHeight,type SnakeArt} from '../SnakeView';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
 import type { PlayerHit } from '../HitReaction';
@@ -115,11 +115,11 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; snakeTexture?:Texture; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
-      snakes:settings?.snakeTexture&&!settings.multiplayer?SINGLE_SNAKES[settings.map??'garden']:[],snakeHeight:snakeHeight(config)});
+      snakes:settings?.snakeArt&&!settings.multiplayer?SINGLE_SNAKES[settings.map??'garden']:[],snakeHeight:snakeHeight(config)});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
@@ -165,7 +165,7 @@ export class PlayScene extends Scene {
       view.position.set(target.x, COURSE_GROUND);
       this.targetViews.push(view); this.world.addChild(view);
     }
-    if(settings?.snakeTexture)for(const snake of this.run.snakes){const view=new SnakeView(settings.snakeTexture,snake);this.snakeViews.push(view);this.world.addChild(view);}
+    if(settings?.snakeArt)for(const snake of this.run.snakes){const view=new SnakeView(settings.snakeArt,snake);this.snakeViews.push(view);this.world.addChild(view);}
     this.world.addChild(this.pet);
     this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
     if(this.run.hitReaction.enabled){this.hitEffect=new HitReactionEffect(this.pet,config.effects);this.pet.addChild(this.hitEffect);}
