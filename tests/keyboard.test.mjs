@@ -2,6 +2,45 @@ import{test}from'node:test';import assert from'node:assert/strict';import{import
 import{setMaxListeners}from'node:events';setMaxListeners(30); // DOM-style listener groups legitimately exceed Node's default 10.
 const{KeyboardChatDock}=await importTs('../src/ui/KeyboardChatDock.ts',import.meta.url);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const{ChatHistory}=await importTs('../src/ui/ChatHistory.ts',import.meta.url);
+function historyEnvironment(){
+ const previous=globalThis.HTMLElement;
+ class Row extends EventTarget{
+  parentElement=null;height=20;
+  getBoundingClientRect(){const top=this.parentElement?this.parentElement.children.slice(0,this.parentElement.children.indexOf(this)).reduce((n,r)=>n+r.height,0)-this.parentElement.scrollTop:0;return {top,bottom:top+this.height};}
+  remove(){const p=this.parentElement;if(p)p.children.splice(p.children.indexOf(this),1);this.parentElement=null;}
+ }
+ globalThis.HTMLElement=Row;
+ const log=new EventTarget();Object.assign(log,{children:[],clientHeight:100,_top:0});
+ Object.defineProperties(log,{scrollHeight:{get(){return this.children.reduce((n,r)=>n+r.height,0);}},scrollTop:{get(){return this._top;},set(v){this._top=Math.max(0,Math.min(v,this.scrollHeight-this.clientHeight));}},childElementCount:{get(){return this.children.length;}},firstElementChild:{get(){return this.children[0];}}});
+ log.getBoundingClientRect=()=>({top:0});log.append=(...rows)=>rows.forEach(r=>{r.parentElement=log;log.children.push(r);});log.replaceChildren=()=>{log.children.forEach(r=>r.parentElement=null);log.children=[];log.scrollTop=0;};
+ const latest=new EventTarget();latest.hidden=true;const history=new ChatHistory(log,latest);
+ return {log,latest,history,rows:n=>Array.from({length:n},()=>new Row()),scroll:y=>{log.scrollTop=y;log.dispatchEvent(new Event('scroll'));},restore(){history.destroy();if(previous===undefined)delete globalThis.HTMLElement;else globalThis.HTMLElement=previous;}};
+}
+test('chat follows new messages only at the bottom and preserves history during idle refresh',()=>{
+ const e=historyEnvironment();try{
+  e.history.append(e.rows(12),true);assert.equal(e.log.scrollTop,140);assert.equal(e.latest.hidden,true);
+  e.scroll(40);const anchor=e.log.children[2];e.history.append(e.rows(2));assert.equal(e.log.scrollTop,40);assert.equal(anchor.getBoundingClientRect().top,0);assert.equal(e.latest.hidden,false);
+  e.history.append([]);assert.equal(e.log.scrollTop,40);assert.equal(e.latest.hidden,false);
+  e.latest.dispatchEvent(new Event('click'));assert.equal(e.log.scrollTop,180);assert.equal(e.latest.hidden,true);
+  e.history.append(e.rows(1));assert.equal(e.log.scrollTop,200);assert.equal(e.latest.hidden,true);
+ }finally{e.restore();}
+});
+test('bounded chat preserves a wrapped row anchor when old rows are pruned',()=>{
+ const e=historyEnvironment();try{
+  const rows=e.rows(30);rows[7].height=60;e.history.append(rows,true);e.scroll(220);
+  const anchor=rows[9],top=anchor.getBoundingClientRect().top;e.history.append(e.rows(3));
+  assert.equal(e.log.children.length,30);assert.equal(anchor.getBoundingClientRect().top,top);assert.equal(e.latest.hidden,false);
+  e.scroll(e.log.scrollHeight);assert.equal(e.latest.hidden,true);e.history.append(e.rows(1));assert.equal(e.log.scrollTop,e.log.scrollHeight-e.log.clientHeight);
+ }finally{e.restore();}
+});
+test('pruned anchors, channel reset and destroy do not retain stale new-message state',()=>{
+ const e=historyEnvironment();try{
+  e.history.append(e.rows(30),true);e.scroll(0);e.history.append(e.rows(2));assert.equal(e.log.scrollTop,0);assert.equal(e.latest.hidden,false);
+  e.history.reset();assert.equal(e.latest.hidden,true);assert.equal(e.log.children.length,0);e.history.append(e.rows(10),true);assert.equal(e.log.scrollTop,100);
+  e.scroll(0);e.history.append(e.rows(1));e.history.destroy();e.latest.dispatchEvent(new Event('click'));assert.equal(e.log.scrollTop,0);
+ }finally{e.restore();}
+});
 function environment(popover=false){
  const keys=['window','document','navigator','HTMLElement','requestAnimationFrame','cancelAnimationFrame'],saved=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let doc;
  class Element extends EventTarget{

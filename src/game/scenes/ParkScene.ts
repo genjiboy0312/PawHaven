@@ -14,6 +14,7 @@ import { ParkProfilePopup } from '../../ui/ParkProfilePopup';
 import type { FriendsClient } from '../../friends/FriendsClient';
 import {ParkEmoteMenu,PARK_EMOTE_MESSAGES,PARK_EMOTE_MARKS} from '../../ui/ParkEmoteMenu';
 import {ParkParticipants} from '../../ui/ParkParticipants';
+import {ChatHistory} from '../../ui/ChatHistory';
 
 /** Shared lobby art, wardrobe renderer and touch controls; park owns only social movement. */
 export class ParkScene extends Scene {
@@ -24,6 +25,7 @@ export class ParkScene extends Scene {
  private readonly status=document.createElement('p');private readonly picker=document.createElement('section');
  private readonly chat=document.createElement('section');private readonly log=document.createElement('div');
  private readonly chatForm=document.createElement('form');private readonly chatDock:KeyboardChatDock;
+ private readonly history:ChatHistory;
  private readonly input=document.createElement('input');private readonly sendButton=document.createElement('button');
  private readonly stick=document.createElement('button');private readonly knob=document.createElement('span');
  private readonly jumpButton=new ActionButton('jump');private readonly abort=new AbortController();
@@ -60,7 +62,10 @@ export class ParkScene extends Scene {
   this.input.addEventListener('keydown',event=>{if(event.key==='Enter'&&event.isComposing)event.preventDefault();if(event.key==='Escape'){event.preventDefault();this.input.blur();this.chatDock.reset();}},{signal:this.abort.signal});
   this.recipient.type='button';this.recipient.className='park-whisper-target';this.recipient.hidden=true;
   this.recipient.addEventListener('click',()=>{this.whisperTarget=undefined;this.client.chatError='';this.refresh();},{signal:this.abort.signal});
-  this.input.addEventListener('focus',()=>{this.blur();this.emotions.close();this.participants.close();},{signal:this.abort.signal});this.chat.append(this.log,this.recipient,form);
+  const history=document.createElement('div');history.className='park-chat-history';
+  const latest=document.createElement('button');latest.type='button';latest.className='park-chat-latest';bindText(latest,'parkNewMessages');
+  history.append(this.log,latest);this.history=new ChatHistory(this.log,latest);
+  this.input.addEventListener('focus',()=>{this.blur();this.emotions.close();this.participants.close();},{signal:this.abort.signal});this.chat.append(history,this.recipient,form);
   this.chatDock=new KeyboardChatDock(this.chat,this.input);
   this.stick.type='button';this.stick.className='play-stick';bindAria(this.stick,'joystick');this.knob.className='stick-knob';this.stick.append(this.knob);
   const actions=document.createElement('div');actions.className='play-actions';actions.append(this.jumpButton.element);
@@ -91,7 +96,7 @@ export class ParkScene extends Scene {
  private syncBlocks(){
   if(this.destroyed)return;const ids=this.friends?.snapshot.blocked?.map(f=>f.id).sort()??[],signature=JSON.stringify(ids);
   if(signature===this.blockSignature)return;this.blockSignature=signature;this.blockedIds=new Set(ids);
-  this.log.replaceChildren();this.lastMessage=0;this.historyLoaded=false;
+  this.history.reset();this.lastMessage=0;this.historyLoaded=false;
   for(const [id,actor]of this.actors)if(this.blockedIds.has(id)){actor.message=undefined;actor.until=0;}
   this.refresh();
  }
@@ -101,7 +106,7 @@ export class ParkScene extends Scene {
  private jump(){if(this.active()&&this.jumpHeight===0)this.velocity=440;}
  override setPaused(paused:boolean){this.paused=paused;this.blur();if(paused){this.emotions.close();this.participants.close();}}
  private async choose(channel:number){
-  this.blur();this.chatDock.reset();if(await this.client.join(channel)){this.whisperTarget=undefined;this.choosing=false;this.lastMessage=0;this.historyLoaded=false;this.log.replaceChildren();this.input.value='';this.playerX=620+(Number.parseInt(this.client.owner.slice(0,4),16)%6)*115;this.playerY=PARK_WORLD.spawnY;this.camera=parkCamera(this.playerX,this.playerY);this.jumpHeight=this.velocity=0;this.signature='';this.refresh();}
+  this.blur();this.chatDock.reset();if(await this.client.join(channel)){this.whisperTarget=undefined;this.choosing=false;this.lastMessage=0;this.historyLoaded=false;this.history.reset();this.input.value='';this.playerX=620+(Number.parseInt(this.client.owner.slice(0,4),16)%6)*115;this.playerY=PARK_WORLD.spawnY;this.camera=parkCamera(this.playerX,this.playerY);this.jumpHeight=this.velocity=0;this.signature='';this.refresh();}
  }
  private refresh(){
   if(this.destroyed)return;
@@ -133,7 +138,7 @@ export class ParkScene extends Scene {
   if(this.profile.memberId&&!members.some(m=>m.id===this.profile.memberId))this.profile.close();
   for(const [id,actor]of this.actors)if(!members.some(m=>m.id===id)){actor.box.destroy({children:true});this.actors.delete(id);}
   for(const member of members)this.actor(member);
-  const initial=!this.historyLoaded;this.historyLoaded=true;
+  const initial=!this.historyLoaded;this.historyLoaded=true;const rows:HTMLElement[]=[];
   for(const message of c.snapshot.messages??[]){
    if(message.id<=this.lastMessage)continue;this.lastMessage=message.id;
    if(this.blockedIds.has(message.user_id))continue;
@@ -144,10 +149,10 @@ export class ParkScene extends Scene {
    name.textContent=outgoing?message.recipient_name??message.name:message.name;
    name.addEventListener('click',()=>this.openProfile(id));
    if(message.recipient_id){const prefix=document.createElement('span');prefix.className='park-chat-prefix';bindText(prefix,outgoing?'parkWhisperSent':'parkWhisperReceived');row.append(prefix);row.className='park-whisper-row';}
-   const text=document.createElement('span');text.textContent=': '+message.message;row.append(name,text);this.log.append(row);while(this.log.childElementCount>30)this.log.firstElementChild?.remove();
+   const text=document.createElement('span');text.textContent=': '+message.message;row.append(name,text);rows.push(row);
    const actor=this.actors.get(message.user_id);if(actor&&!initial&&!message.recipient_id){actor.message=message.message;actor.until=this.elapsed+6;}
   }
-  this.log.scrollTop=this.log.scrollHeight;
+  this.history.append(rows,initial);
  }
  private openProfile(id:string){
   const member=this.client.snapshot.members?.find(m=>m.id===id);
@@ -207,5 +212,5 @@ export class ParkScene extends Scene {
   this.emotions.update(this.active()&&this.jumpHeight===0,this.client.canEmote);
   this.participants.setEnabled(this.active());
  }
- override destroy(options?:DestroyOptions){this.participants.destroy();this.emotions.destroy();this.friendOff?.();this.profile.destroy();this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
+ override destroy(options?:DestroyOptions){this.history.destroy();this.participants.destroy();this.emotions.destroy();this.friendOff?.();this.profile.destroy();this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
 }
