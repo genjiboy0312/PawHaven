@@ -1,7 +1,8 @@
 import type { AnimalAction } from '../animals/AnimalConfig';
 import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
 import { HitReaction, type PlayerHit } from './HitReaction';
-export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean }
+import {PatrolSnake,type SnakePatrol} from './PatrolSnake';
+export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
@@ -23,6 +24,7 @@ export class DummyRun {
   checkpoint = this.start;
   elapsed = 0;
   readonly targets: { x: number; broken: boolean }[];
+  readonly snakes:PatrolSnake[];private snakeHitSequence=0;
   private exitTime = -1;
   readonly attackDuration = 0.48;
   readonly dashDuration = 0.32;
@@ -30,7 +32,8 @@ export class DummyRun {
   victoryTime = -1;
   constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1, private readonly options: RunOptions = {}) {
     this.finish = options.finish ?? 2520;
-    this.hitReaction = new HitReaction(options.playerCombat === true);
+    this.snakes=(options.snakes??[]).map(patrol=>new PatrolSnake(patrol,options.snakeHeight));
+    this.hitReaction = new HitReaction(options.playerCombat === true||this.snakes.length>0);
     this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));
   }
   private overlaps(solid: CourseSolid, x = this.x): boolean {
@@ -137,6 +140,14 @@ export class DummyRun {
         const distance = (target.x - this.x) * this.direction;
         if (distance >= -this.halfWidth && distance <= 125) target.broken = true;
       }
+    }
+    for(const snake of this.snakes){
+      snake.update(seconds);if(snake.defeated||this.height>=snake.height||this.height+this.bodyHeight<=0)continue;
+      const distance=(snake.x-this.x)*this.direction;
+      // Reuse the existing attack's forward reach. Resolve attack before body contact.
+      if(this.attack>0&&distance>=-this.halfWidth&&distance<=125+snake.halfWidth){snake.defeat();continue;}
+      if(Math.abs(snake.x-this.x)<snake.halfWidth+this.halfWidth)
+        this.receivePlayerHit({sequence:++this.snakeHitSequence,direction:this.x<snake.x?-1:1});
     }
     if (this.x >= this.finish - 0.000001 && this.grounded) {
       this.hitReaction.reset();

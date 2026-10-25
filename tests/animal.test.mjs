@@ -626,6 +626,36 @@ test('hit visuals reuse attack textures and restore alpha and filters without re
   } finally { DOMAdapter.set(adapter); }
 });
 const flatCourse = [{ x: 0, width: 2850, top: 0, bottom: -300 }];
+const {SINGLE_SNAKES}=await importTs('../src/game/PatrolSnake.ts',import.meta.url);
+const snakeRun=()=>new DummyRun(flatCourse,1,{snakes:SINGLE_SNAKES.garden,snakeHeight:60});
+test('snakes patrol a bounded short route and pause before turning without chasing',()=>{
+ const run=snakeRun(),s=run.snakes[0];let stopped=false,turned=false;run.x=120;
+ for(let i=0;i<2400;i++){run.update(1/120,0);assert.ok(s.x>=300&&s.x<=540);if(s.waiting>0)stopped=true;if(s.direction===-1)turned=true;}
+ assert.equal(stopped,true);assert.equal(turned,true);assert.equal(run.x,120);
+ const defaults=new DummyRun(flatCourse);assert.equal(defaults.snakes.length,0);assert.equal(defaults.hitReaction.enabled,false);
+});
+test('attacks defeat only reachable snakes before contact; jumping can clear them',()=>{
+ const attack=snakeRun();attack.x=400;attack.startAttack();attack.update(.01,0);assert.equal(attack.snakes[0].defeated,true);assert.equal(attack.hitReaction.protected,false);
+ const back=snakeRun();back.x=470;back.direction=1;back.startAttack();back.update(.01,0);assert.equal(back.snakes[0].defeated,false);
+ const above=snakeRun();above.x=420;above.height=90;above.velocity=100;above.startAttack();above.update(.01,0);assert.equal(above.snakes[0].defeated,false);assert.equal(above.hitReaction.protected,false);
+ const jump=snakeRun();jump.x=300;jump.jump();for(let i=0;i<35;i++)jump.update(1/120,1);assert.ok(jump.x>360);assert.equal(jump.hitReaction.protected,false);
+});
+test('snake contact reuses knockback/protection and cannot be bypassed by a long dash frame',()=>{
+ const run=snakeRun();run.x=425;run.update(.01,0);assert.equal(run.hitReaction.protected,true);assert.ok(run.hitReaction.velocity>0);const remaining=run.hitReaction.protectionRemaining;
+ run.x=run.snakes[0].x;run.update(.1,0);assert.ok(run.hitReaction.protectionRemaining<remaining);assert.ok(run.hitReaction.protectionRemaining>0);
+ const dash=snakeRun();dash.x=280;dash.startDash();dash.update(.4,0);assert.equal(dash.dash,0);assert.equal(dash.hitReaction.protected,true);assert.equal(dash.snakes[0].defeated,false);
+});
+test('defeated enemies stay gone for this run, but retry state is independent',()=>{
+ const run=snakeRun();run.x=400;run.startAttack();run.update(.02,0);run.height=-210;run.update(.01,0);assert.equal(run.respawns,1);assert.equal(run.snakes[0].defeated,true);
+ const retry=snakeRun();assert.equal(retry.snakes[0].defeated,false);assert.notEqual(retry.snakes[0],run.snakes[0]);assert.deepEqual(SINGLE_SNAKES.garden,[{left:300,right:540}]);
+});
+test('snake size uses half of each pet idle body, and prototype patrols avoid pits and solid obstacles',async()=>{
+ const {snakeHeight}=await importTs('../src/game/SnakeView.ts',import.meta.url);
+ assert.equal(snakeHeight({scale:.62,animations:{idle:{frames:[{trim:{height:200}}]}}}),62);
+ assert.equal(snakeHeight({scale:.62,animations:{idle:{scale:.5,frames:[{orig:{height:1024}}],bodyBounds:[{height:400}]}}}),62);
+ const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
+ for(const [id,spawns]of Object.entries(SINGLE_SNAKES))for(const p of spawns){const solids=COURSES[id].solids;assert.ok(solids.some(s=>s.top===0&&s.x<=p.left-40&&s.x+s.width>=p.right+40));assert.equal(solids.some(s=>s.top>0&&p.right+40>s.x&&p.left-40<s.x+s.width),false);}
+});
 test('dummy course takes ten seconds and returns only after victory and fade', () => {
   const run = new DummyRun(flatCourse);
   for (let i = 0; i < 599; i++) run.update(1 / 60, 1);

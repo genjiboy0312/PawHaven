@@ -27,6 +27,7 @@ import { QuestPopup } from '../ui/QuestPopup';
 import { FriendsPopup } from '../ui/FriendsPopup';
 import { FriendsClient, friendsTransport } from '../friends/FriendsClient';
 import {readFriendHome} from '../friends/FriendHome';
+import {loadSnakeTexture} from './SnakeView';
 import { FriendActivity, activityTransport } from '../friends/FriendActivity';
 import { FriendInviteInbox } from '../ui/FriendInviteInbox';
 import { CharacterPresets } from '../animals/CharacterPresets';
@@ -44,7 +45,7 @@ import { TitleScene } from './scenes/TitleScene';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { loadMyeongrang } from '../animals/loadMyeongrang';
 import { loadCorgi } from '../animals/loadCorgi';
-import { Application, type Ticker } from 'pixi.js';
+import { Application,type Texture, type Ticker } from 'pixi.js';
 import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
 import { PreloadScene } from './scenes/PreloadScene';
@@ -59,6 +60,7 @@ export class Game {
   private commerce?: CommerceState;
   private homeTextures?: HomeTextures;
   private courseArt?:CourseArt;
+  private snakeTexture?:Texture;
   private settings?: SettingsPopup;
   private quests?: QuestPopup;
   private friends?: FriendsPopup;
@@ -74,6 +76,7 @@ export class Game {
   private corgi: AnimalConfig | undefined;
   private myeongrang: AnimalConfig | undefined;
   private releaseFrames(): void {
+    this.snakeTexture?.destroy(false);this.snakeTexture=undefined;
     if(this.courseArt){[this.courseArt.grass,this.courseArt.soil,...Object.values(this.courseArt.markers).map(marker=>marker.texture)].forEach(texture=>{if(!texture.destroyed)texture.destroy(false);});this.courseArt=undefined;}
     if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => texture.destroy(false)); this.homeTextures = undefined; }
     const configs = [this.corgi, this.myeongrang].filter((config): config is AnimalConfig => !!config);
@@ -172,6 +175,7 @@ export class Game {
     if (!this.disposed) preload.setProgress(0.9);
     if (!this.disposed) this.homeTextures = await loadHome();
     if (!this.disposed) this.courseArt = await loadCourseArt();
+    if (!this.disposed) this.snakeTexture = await loadSnakeTexture();
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
@@ -250,7 +254,7 @@ export class Game {
           let completion = Promise.resolve();
           const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
-            open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,
+            open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,snakeTexture:this.snakeTexture,
             sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
             complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
             record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),

@@ -4,6 +4,8 @@
 
 ## 먼저 확인할 파일
 
+- 잎사귀 뱀: [LEAF_SNAKE.md](LEAF_SNAKE.md). 승인 PNG 원본을 재사용하고 강아지 idle 몸체 높이의 50%로 표시한다. 현재 싱글 초반 한 마리·좁은 순찰·기존 어택/피격 효과 연결까지 적용했으며 전용 애니메이션 시트나 멀티 적 동기화는 아직 없다.
+
 - 목 액세서리: Resources/Actions/<animal>-neck-anchors.json 및 [FORMAL_OUTFIT_ASSETS.md](FORMAL_OUTFIT_ASSETS.md). 머리 위치에 상수 오프셋을 더해 목을 추정하지 않는다. 실제 프레임의 목/가슴 좌표를 지정하고 모자와 독립적으로 재생한다.
 
 - Resources/Actions/<animal>-actions.json: 동작별 참고 아트/런타임 준비 상태. 동물별 추가 하위 폴더를 만들지 않고 Actions 하나를 사용한다.
