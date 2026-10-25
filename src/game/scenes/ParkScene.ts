@@ -40,11 +40,14 @@ export class ParkScene extends Scene {
  private friendOff?:()=>void;private blockedIds=new Set<string>();private blockSignature='';
  private readonly emotions:ParkEmoteMenu;
  private readonly participants:ParkParticipants;
- constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},private readonly friends?:FriendsClient){
+ constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},private readonly friends?:FriendsClient,options?:{channel?:number;visit?:(id:string,channel:number,signal:AbortSignal)=>Promise<void>}){
   super();this.map=new LobbyMap(textures);this.actorLayer.sortableChildren=true;this.world.addChild(this.map,this.actorLayer);this.addChild(this.world);
   this.profile=new ParkProfilePopup(client.owner,pets,friends,member=>{
    this.whisperTarget=member;this.client.chatError='';this.refresh();this.input.focus({preventScroll:true});
-  },true);
+  },true,options?.visit?async(id,signal)=>{
+   if(this.paused||this.choosing||!client.channel||client.busy||client.error||!client.snapshot.members?.some(m=>m.id===id))throw Error('home_unavailable');
+   this.blur();this.chatDock.reset();this.emotions.close();this.participants.close();await options.visit!(id,client.channel,signal);
+  }:undefined);
   this.emotions=new ParkEmoteMenu(kind=>{
    if(!this.active()||this.jumpHeight>0)return false;
    this.blur();this.chatDock.reset();return this.client.emote(kind);
@@ -90,7 +93,8 @@ export class ParkScene extends Scene {
   window.addEventListener('keyup',event=>{this.keys.delete(event.code);},{signal:this.abort.signal});
   window.addEventListener('blur',()=>this.blur(),{signal:this.abort.signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)this.blur();},{signal:this.abort.signal});
-  this.unsubscribe=client.subscribe(()=>this.refresh());this.localeOff=onLanguageChange(()=>{this.signature='';this.refresh();});this.refresh();void client.list();
+  this.unsubscribe=client.subscribe(()=>this.refresh());this.localeOff=onLanguageChange(()=>{this.signature='';this.refresh();});this.refresh();
+  void client.list().then(()=>{if(!this.destroyed&&!client.channel&&!client.busy&&this.choosing&&options?.channel&&PARK_CHANNELS.some(n=>n===options.channel))void this.choose(options.channel);});
   this.friendOff=friends?.subscribe(()=>this.syncBlocks());this.syncBlocks();friends?.start();
  }
  private syncBlocks(){

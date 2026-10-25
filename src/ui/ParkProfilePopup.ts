@@ -12,8 +12,9 @@ export class ParkProfilePopup {
  private action?:HTMLButtonElement;private whisperButton?:HTMLButtonElement;private blockButton?:HTMLButtonElement;private confirm?:ConfirmPopup;private status?:HTMLElement;private label?:HTMLElement;
  private abort?:AbortController;private off?:()=>void;private previousFocus?:HTMLElement;
  private blocked:{element:HTMLElement;inert:boolean}[]=[];
+ private visitButton?:HTMLButtonElement;private visitRequest?:AbortController;private visitError?:TextKey;
  private readonly localeOff=onLanguageChange(()=>this.render());
- constructor(private readonly owner:string,private readonly pets:AnimalConfig[],private readonly friends?:FriendsClient,private readonly whisper?:(member:ParkMember)=>void,private readonly keepAlive=false){}
+ constructor(private readonly owner:string,private readonly pets:AnimalConfig[],private readonly friends?:FriendsClient,private readonly whisper?:(member:ParkMember)=>void,private readonly keepAlive=false,private readonly visit?:(id:string,signal:AbortSignal)=>Promise<void>){}
  get isOpen(){return !!this.overlay;}
  get memberId(){return this.member?.id;}
  open(member:ParkMember){
@@ -48,6 +49,7 @@ export class ParkProfilePopup {
    const action=this.isBlocked()?'unblock':'block',close=()=>{this.confirm?.destroy();this.confirm=undefined;};
    this.confirm=new ConfirmPopup(this.panel,action==='block'?'friendsBlockTitle':'friendsUnblockTitle',action==='block'?'friendsBlockNote':'friendsUnblockNote',action==='block'?'friendsBlock':'friendsUnblock',()=>{close();void this.friends?.command(action,member.id);},close);
   },{signal});actions.append(this.blockButton);
+  this.visitButton=document.createElement('button');this.visitButton.type='button';this.visitButton.className='commerce-primary';this.visitButton.addEventListener('click',()=>void this.visitHome(),{signal});actions.append(this.visitButton);
   panel.append(title,close,stage,name,this.label,this.status,actions);overlay.append(panel);host.append(overlay);
   let backdrop=false;
   overlay.addEventListener('pointerdown',event=>{backdrop=event.target===overlay;},{signal});
@@ -71,20 +73,31 @@ export class ParkProfilePopup {
   if(!this.member||!this.action||!this.status||!this.label)return;
   const title=this.panel?.querySelector<HTMLElement>('[data-profile-title]');if(title)title.textContent=t('parkProfile');
   const own=this.member.id===this.owner,c=this.friends,relation=this.relation(),blocked=this.isBlocked();
+  if(this.visitButton){this.visitButton.textContent=t('homeVisit');this.visitButton.hidden=own||blocked||relation!=='friend'||!this.visit;this.visitButton.disabled=!c||!c.loaded||c.busy||!!c.error||!!this.visitRequest;}
+  if(this.visitRequest&&(blocked||relation!=='friend')){this.visitRequest.abort();this.visitRequest=undefined;this.visitError='homeVisitUnavailable';}
   if(this.whisperButton){this.whisperButton.hidden=own||!this.whisper;this.whisperButton.textContent=t('parkWhisper');this.whisperButton.disabled=blocked||!!c?.busy;}
   if(this.blockButton){this.blockButton.hidden=own;this.blockButton.textContent=t(blocked?'friendsUnblock':'friendsBlock');this.blockButton.disabled=!c||c.busy||!c.loaded||!!c.error||c.snapshot.blocked===undefined;}
   this.action.hidden=own||blocked;this.label.textContent=own?t('parkYou'):blocked?t('friendsBlockState'):relation==='friend'?t('parkFriend'):relation==='outgoing'?t('friendsPending'):relation==='incoming'?t('parkRequestReceived'):'';
   const errors:Record<string,TextKey>={setup:'friendsSetup',offline:'friendsOffline',auth:'friendsLogin',query:'friendsQuery',nickname:'friendsNickname',limit:'friendsLimit',incoming:'friendsIncoming',notFound:'friendsNotFound',blocked:'friendsBlockedNotice'};
-  this.status.textContent=own?'':!c?t('friendsLogin'):c.error?t(errors[c.error]!):c.busy?t('friendsLoading'):'';
+  this.status.textContent=own?'':this.visitRequest?t('homeVisitLoading'):this.visitError?t(this.visitError):!c?t('friendsLogin'):c.error?t(errors[c.error]!):c.busy?t('friendsLoading'):'';
   this.action.textContent=t(c?.error||!c?.loaded?'friendsRefresh':relation==='friend'?'parkFriend':relation==='outgoing'?'friendsPending':relation==='incoming'?'friendsAccept':'friendsSend');
   this.action.disabled=own||!c||c.busy||(!c.error&&(relation==='friend'||relation==='outgoing'));
+  if(this.visitRequest){this.action.disabled=true;if(this.whisperButton)this.whisperButton.disabled=true;if(this.blockButton)this.blockButton.disabled=true;}
+ }
+ private async visitHome(){
+  const id=this.member?.id;if(!id||id===this.owner||!this.visit||this.visitRequest||this.isBlocked()||this.relation()!=='friend'||!this.friends?.loaded||this.friends.busy||this.friends.error)return;
+  const request=new AbortController();this.visitRequest=request;this.visitError=undefined;this.render();
+  try{await this.visit(id,request.signal);}
+  catch(error){if(!request.signal.aborted){const e=error as {code?:string;message?:string};this.visitError=['PGRST202','PGRST205','42883','42P01'].includes(e.code??'')?'homeVisitSetup':e.message==='home_unavailable'?'homeVisitUnavailable':'homeVisitOffline';}}
+  finally{if(this.visitRequest===request){this.visitRequest=undefined;this.render();}}
  }
  close(){
   if(!this.overlay)return;const own=this.member?.id===this.owner;
+  this.visitRequest?.abort();this.visitRequest=undefined;this.visitError=undefined;
   this.confirm?.destroy();this.confirm=undefined;this.off?.();this.off=undefined;if(!own&&!this.keepAlive)this.friends?.stop();this.abort?.abort();this.overlay.remove();this.overlay=this.panel=undefined;
   this.blocked.forEach(item=>{item.element.inert=item.inert;});this.blocked=[];
   if(this.previousFocus?.isConnected)this.previousFocus.focus();this.previousFocus=undefined;
-  this.member=undefined;this.action=this.status=this.label=undefined;
+  this.member=undefined;this.action=this.status=this.label=undefined;this.visitButton=undefined;
  }
  destroy(){this.close();this.localeOff();}
 }

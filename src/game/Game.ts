@@ -187,6 +187,22 @@ export class Game {
     };
     let inGame=false;let currentLobby:LobbyScene|undefined;
     const saveRoomLook=async()=>{if(this.account?.pendingSave)await this.account.save();};
+    const showFriendHome=(saved:Awaited<ReturnType<typeof readFriendHome>>,leave:()=>void)=>{
+      const source=saved.character.petId===this.myeongrang?.id?this.myeongrang!:corgi;
+      const config={...source,wardrobe:source.wardrobe?{...source.wardrobe,outfit:{...saved.character.outfit}}:undefined};
+      this.scenes?.show(new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:saved.home,textures:this.homeTextures,open:()=>{}},undefined,{name:saved.nickname,leave}));
+    };
+    const showPark=(channel?:number)=>{
+      const owner=this.account?.user?.id;if(this.disposed||!owner||!accountClient)return;
+      const park=new ParkScene(new ParkClient(accountClient,owner),[corgi,this.myeongrang!],()=>lobby(true),this.homeTextures,openSettings,this.friendClient,{
+        channel,visit:async(id,originChannel,signal)=>{
+          const saved=await readFriendHome(accountClient,owner,id,signal);
+          if(signal.aborted||this.disposed||this.account?.user?.id!==owner||!this.scenes?.isCurrent(park))return;
+          showFriendHome(saved,()=>showPark(originChannel));
+        }
+      });
+      inGame=true;this.scenes?.show(park);void this.friendActivity?.refresh();
+    };
     const makeActivity=()=>{
       const owner=this.account?.user?.id;
       if(!owner||!accountClient)return;
@@ -205,10 +221,8 @@ export class Game {
             const owner=this.account?.user?.id,origin=currentLobby;if(!owner||!accountClient||!origin||!this.scenes?.isCurrent(origin))return;
             const saved=await readFriendHome(accountClient,owner,id,signal);
             if(signal.aborted||this.disposed||this.account?.user?.id!==owner||!this.scenes?.isCurrent(origin))return;
-            const source=saved.character.petId===this.myeongrang?.id?this.myeongrang!:corgi;
-            const config={...source,wardrobe:source.wardrobe?{...source.wardrobe,outfit:{...saved.character.outfit}}:undefined};
             this.friends?.close();
-            this.scenes.show(new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:saved.home,textures:this.homeTextures,open:()=>{}},undefined,{name:saved.nickname,leave:()=>lobby(true)}));
+            showFriendHome(saved,()=>lobby(true));
           }
         });
     };
@@ -259,8 +273,7 @@ export class Game {
             const enter=async()=>{
               await saveRoomLook();
               if(this.disposed||!this.scenes?.isCurrent(scene)||this.account?.user?.id!==owner)return;
-              inGame=true;void this.friendActivity?.refresh();
-              this.scenes.show(new ParkScene(new ParkClient(accountClient,owner),[corgi,this.myeongrang!],()=>lobby(true),this.homeTextures,openSettings,this.friendClient));
+              showPark();
             };void enter().catch(()=>this.settings?.openAccount());
           },
           race:(room,client)=>{

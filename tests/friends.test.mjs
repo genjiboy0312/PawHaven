@@ -131,6 +131,21 @@ test('friend home actions are lobby-only, serialize visits, show setup errors an
   available=false;await client.refresh();assert.equal(visit(),undefined);available=true;await client.refresh();visit().dispatchEvent(new Event('click'));popup.close();assert.equal(signal.aborted,true);release.resolve();await new Promise(r=>setTimeout(r,0));assert.equal(env.host.querySelector('.friends-panel'),undefined);
  }finally{popup.destroy();env.restore();}
 });
+
+test('park home visits require accepted friends, serialize requests and cancel on close or removal',async()=>{
+ const env=dom();let accepted=false,blocked=false,calls=0,release,signal;
+ const client=new FriendsClient(users[0],async()=>({...blank(),friends:accepted?[friend()]:[],blocked:blocked?[{...friend(),relation:'blocked'}]:[]}));
+ const profile=new ParkProfilePopup(users[0],[],client,()=>{},true,async(id,abort)=>{assert.equal(id,users[1]);calls++;signal=abort;return new Promise((resolve,reject)=>release={resolve,reject});});
+ const member={id:users[1],name:'Corgi',session:'lease'};
+ try{
+  profile.open(member);await idle(client);assert.equal(profile.visitButton.hidden,true);
+  accepted=true;await client.refresh();assert.equal(profile.visitButton.hidden,false);profile.visitButton.dispatchEvent(new Event('click'));assert.equal(calls,1);assert.equal(profile.visitButton.disabled,true);assert.equal(profile.whisperButton.disabled,true);
+  profile.visitButton.dispatchEvent(new Event('click'));assert.equal(calls,1);release.reject({code:'PGRST202'});await new Promise(r=>setTimeout(r,0));assert.equal(profile.status.textContent,'Home visits need a server update. Please try again later.');
+  profile.visitButton.dispatchEvent(new Event('click'));profile.close();assert.equal(signal.aborted,true);release.resolve();await new Promise(r=>setTimeout(r,0));assert.equal(profile.isOpen,false);
+  profile.open(member);profile.visitButton.dispatchEvent(new Event('click'));accepted=false;await client.refresh();assert.equal(signal.aborted,true);assert.equal(profile.visitButton.hidden,true);release.resolve();await new Promise(r=>setTimeout(r,0));
+  accepted=true;blocked=true;await client.refresh();assert.equal(profile.visitButton.hidden,true);profile.close();profile.open({id:users[0],name:'Me',session:'mine'});assert.equal(profile.visitButton.hidden,true);
+ }finally{profile.destroy();client.destroy();env.restore();}
+});
 test('Friends popup searches, sends, cancels, accepts and confirms deletion with the real RPC state',async()=>{
  const env=dom(),hud=new Element();env.host.append(hud);const pauses=[];
  const client=new FriendsClient(users[0],(action,target,query)=>command(0,action,target===null?null:users.indexOf(target),query));
