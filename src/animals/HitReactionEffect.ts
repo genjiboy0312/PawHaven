@@ -1,17 +1,18 @@
-import { ColorMatrixFilter, Container, Sprite, Texture, type DestroyOptions, type Filter } from 'pixi.js';
+import { ColorMatrixFilter, Container, type DestroyOptions, type Filter } from 'pixi.js';
 import type { AnimalConfig } from './AnimalConfig';
-import { HIT_RULES, type HitReaction } from '../game/HitReaction';
+import type { HitReaction } from '../game/HitReaction';
+import { ImpactBurst } from './ImpactBurst';
 
 /** Reuses attack frames; never changes body size, animation or equipment. */
 export class HitReactionEffect extends Container {
-  private readonly burst = new Sprite(Texture.EMPTY);
+  private readonly burst: ImpactBurst;
   private readonly bright = new ColorMatrixFilter();
   private readonly baseAlpha: number;
   private readonly baseFilters: Filter[] | null;
   private flashing = false;
-  constructor(private readonly target: Container, private readonly frames: AnimalConfig['effects']) {
+  constructor(private readonly target: Container, frames: AnimalConfig['effects']) {
     super(); this.baseAlpha = target.alpha; this.baseFilters = target.filters ? [...target.filters] : null;
-    this.burst.anchor.set(0.5); this.burst.position.set(0, -60); this.burst.visible = false;
+    this.burst = new ImpactBurst(frames?.attack); this.burst.position.set(0, -60);
     this.addChild(this.burst);
   }
   update(reaction: HitReaction, effects = true): void {
@@ -22,13 +23,7 @@ export class HitReactionEffect extends Container {
       this.bright.matrix = [original,0,0,0,white, 0,original,0,0,white, 0,0,original,0,white, 0,0,0,1,0];
       if (!this.flashing) { this.target.filters = [...(this.baseFilters ?? []), this.bright]; this.flashing = true; }
     } else if (this.flashing) { this.target.filters = this.baseFilters; this.flashing = false; }
-    const frames = this.frames?.attack;
-    this.burst.visible = effects && age < HIT_RULES.effect && !!frames?.length;
-    if (this.burst.visible && frames) {
-      this.burst.texture = frames[Math.min(frames.length - 1, Math.floor(age / HIT_RULES.effect * frames.length))];
-      const scale = 125 / Math.max(1, this.burst.texture.orig.width);
-      this.burst.scale.set(scale); this.burst.alpha = 0.55 * (1 - age / HIT_RULES.effect);
-    }
+    this.burst.update(age, effects);
   }
   override destroy(options?: DestroyOptions): void {
     if (!this.target.destroyed) { this.target.alpha = this.baseAlpha; this.target.filters = this.baseFilters; }

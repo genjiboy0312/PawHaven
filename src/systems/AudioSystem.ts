@@ -34,16 +34,16 @@ export class AudioSystem {
       return this.context;
     } catch { return; }
   }
-  play(kind: 'click' | 'jump' | 'dash' | 'attack' | 'bgm'): void {
+  play(kind: 'click' | 'jump' | 'dash' | 'attack' | 'hit' | 'bgm'): void {
     const context = this.init();
     if (!context || !this.sfx || !this.bgm) return;
-    const notes = kind === 'bgm' ? [262, 330, 392, 330] : [kind === 'jump' ? 420 : kind === 'dash' ? 180 : kind === 'attack' ? 240 : 660];
+    const notes = kind === 'bgm' ? [262, 330, 392, 330] : [kind === 'jump' ? 420 : kind === 'dash' ? 180 : kind === 'attack' ? 240 : kind === 'hit' ? 520 : 660];
     notes.forEach((frequency, index) => {
       const oscillator = context.createOscillator(), gain = context.createGain();
-      const time = context.currentTime + index * 0.2, duration = kind === 'bgm' ? 0.22 : 0.11;
-      oscillator.type = kind === 'attack' ? 'triangle' : 'sine';
+      const time = context.currentTime + index * 0.2, duration = kind === 'bgm' ? 0.22 : kind === 'hit' ? .075 : 0.11;
+      oscillator.type = kind === 'attack' || kind === 'hit' ? 'triangle' : 'sine';
       oscillator.frequency.setValueAtTime(frequency, time);
-      oscillator.frequency.exponentialRampToValueAtTime(kind === 'jump' ? frequency * 1.6 : frequency * 0.8, time + duration);
+      oscillator.frequency.exponentialRampToValueAtTime(kind === 'jump' ? frequency * 1.6 : kind === 'hit' ? 170 : frequency * 0.8, time + duration);
       gain.gain.setValueAtTime(0, time); gain.gain.linearRampToValueAtTime(0.12, time + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
       oscillator.connect(gain); gain.connect(kind === 'bgm' ? this.bgm! : this.sfx!);

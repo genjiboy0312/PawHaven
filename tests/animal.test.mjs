@@ -629,6 +629,27 @@ const flatCourse = [{ x: 0, width: 2850, top: 0, bottom: -300 }];
 const {COURSE_SNAKES}=await importTs('../src/game/PatrolSnake.ts',import.meta.url);
 const snakeRun=()=>new DummyRun(flatCourse,1,{snakes:COURSE_SNAKES.garden,snakeHeight:60});
 
+test('snake defeat feedback reuses attack art, expires with the death animation and notifies only its own run once',async()=>{
+ const {SnakeDefeatFeedback}=await importTs('../src/game/SnakeDefeatFeedback.ts',import.meta.url);
+ const mine=snakeRun(),peer=snakeRun();let sounds=0,peerSounds=0;
+ const texture=new Texture({source:Texture.WHITE.source});
+ const feedback=new SnakeDefeatFeedback(mine.snakes,{attack:[texture]},()=>sounds++);
+ const remote=new SnakeDefeatFeedback(peer.snakes,{attack:[texture]},()=>peerSounds++);
+ feedback.render();assert.equal(feedback.children[0].visible,false);
+ mine.x=400;mine.startAttack();mine.update(.01,0);feedback.observe();feedback.render();
+ const burst=feedback.children[0];assert.equal(burst.visible,true);assert.equal(burst.texture,texture);assert.equal(sounds,1);
+ assert.equal(burst.x,mine.snakes[0].x);assert.ok(burst.y<390);assert.ok(burst.width<=90.001);
+ remote.observe();remote.render();assert.equal(peerSounds,0);assert.equal(remote.children[0].visible,false);
+ for(let i=0;i<10;i++){feedback.render();feedback.observe();}assert.equal(sounds,1);
+ feedback.render(false);assert.equal(burst.visible,false);assert.equal(sounds,1);
+ feedback.render(true);assert.equal(burst.visible,true);
+ mine.update(.25,0);feedback.observe();feedback.render();assert.equal(burst.visible,false);assert.equal(sounds,1);
+ mine.height=-210;mine.update(.01,0);feedback.observe();assert.equal(sounds,1);
+ feedback.destroy({children:true});remote.destroy({children:true});assert.equal(texture.destroyed,false);texture.destroy();
+ const retry=snakeRun();const next=new SnakeDefeatFeedback(retry.snakes,undefined,()=>sounds++);
+ retry.x=400;retry.startAttack();retry.update(.01,0);next.observe();next.render();assert.equal(sounds,2);assert.equal(next.children[0].visible,false);next.destroy({children:true});
+});
+
 test('shared race clock aligns snakes at different frame rates and after a late load or recovery',()=>{
  const fast=snakeRun(),slow=snakeRun(),late=snakeRun();
  for(let i=1;i<=1200;i++)fast.update(1/120,0,i/120);

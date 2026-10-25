@@ -1,5 +1,12 @@
 # 잎사귀 뱀 프로토타입 (2026-10-25)
 
+## 처치 피드백 (2026-10-25)
+- 기존 attack 효과 프레임의 재생 로직을 ImpactBurst 컴포넌트로 분리해 HitReactionEffect와 SnakeDefeatFeedback이 공유한다. 새 이미지/오디오 파일은 생성하지 않는다.
+- 처치 위치에 폭 90 world units의 작은 타격 효과를 0.22초간 표시한다. 현재 뱀의 0.3초 squash/fade는 유지한다. effects=false에서는 타격 효과와 squash를 생략하고 기본 fade는 유지한다.
+- SnakeDefeatFeedback은 현재 DummyRun의 적 상태만 관찰하며, 새 처치가 있을 때 한 번만 hit 사운드를 요청한다. resize/render·같은 씬 재접속·이미 처치한 적과의 재접촉은 소리를 반복하지 않는다. 같은 프레임의 여러 처치는 한 번으로 합친다. 재경기는 새 관찰 상태를 생성한다.
+- hit는 AudioSystem의 기존 SFX 경로에서 75ms의 짧은 삼각파 하강음을 합성한다. 마스터/SFX 볼륨·음소거 설정을 따른다. 다른 참가자의 처치는 내 효과/사운드를 만들지 않는다. 코인·퀘스트 보상이나 네트워크 호출은 추가하지 않는다.
+- 전체 287개 테스트 통과. Chrome/Pixi에서 실제 명랑이·기존 attack 텍스처의 폭/위치, attack→hit 콜백 1회씩, 반복 resize 시 무음, effects 끄기, Web Audio 실행을 확인했다.
+
 ## 멀티 레이스 적용 (2026-10-25, 아래 싱글 전용 범위 설명보다 우선)
 - 기존 시트/manifest/SnakeArt/SnakeView/접촉 효과를 그대로 재사용한다. 멀티 garden/practice도 COURSE_SNAKES의 같은 좁은 구간에 한 마리를 생성한다. 싱글 forest 포함 기존 배치는 유지한다.
 - 공통 startsAt과 RoomClient.serverTime의 차이를 초로 계산해 순찰 위치·방향·끝 대기·꿈틀/혀 애니메이션을 결정한다. 물리 단계별 절대 시각을 사용하므로 프레임 속도·늦은 씬 로드·재접속으로 순찰 시간이 누적해서 어긋나지 않는다. 카운트다운 동안 멈춘다. 적 위치·처치용 신규 네트워크 호출/SQL은 없다.

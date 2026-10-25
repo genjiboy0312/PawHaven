@@ -3,6 +3,7 @@ import type { GamePreferences } from '../../settings/GameSettings';
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
 import {COURSE_SNAKES} from '../PatrolSnake';
 import {SnakeView,snakeHeight,type SnakeArt} from '../SnakeView';
+import { SnakeDefeatFeedback } from '../SnakeDefeatFeedback';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
 import type { PlayerHit } from '../HitReaction';
@@ -70,6 +71,7 @@ export class PlayScene extends Scene {
   private readonly back = document.createElement('button');
   private readonly targetViews: Graphics[] = [];
   private readonly snakeViews:SnakeView[]=[];
+  private readonly snakeFeedback: SnakeDefeatFeedback;
   private readonly checkpointFlag = new Graphics();
   private checkpointLit?: boolean;
   private checkpointMarker?:ReturnType<typeof courseMarker>;
@@ -115,7 +117,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
@@ -169,6 +171,8 @@ export class PlayScene extends Scene {
     this.world.addChild(this.pet);
     this.pet.addChild(...this.effect.ghosts, this.animation.sprite, this.animation.sleepMark, this.animation.welcomeMark, this.effect);
     if(this.run.hitReaction.enabled){this.hitEffect=new HitReactionEffect(this.pet,config.effects);this.pet.addChild(this.hitEffect);}
+    this.snakeFeedback = new SnakeDefeatFeedback(this.run.snakes, config.effects, () => this.settings?.sound?.('hit'));
+    if(this.run.snakes.length)this.world.addChild(this.snakeFeedback);
     if(settings?.multiplayer){
       const mine=settings.multiplayer.client.room?.members.find(member=>member.id===settings.multiplayer?.client.owner);
       this.localName=this.playerName(mine?.name??'',true);this.nameLayer.addChild(this.localName);
@@ -406,6 +410,7 @@ export class PlayScene extends Scene {
     const raceClient=this.settings?.multiplayer?.client,start=raceClient?.room?.startsAt;
     const enemyTime=raceClient&&start!=null?Math.max(0,(raceClient.serverTime-start)/1000):undefined;
     if(this.raceStarted||this.run.won)this.run.update(seconds, axis,enemyTime);
+    this.snakeFeedback.observe();
     if(this.settings?.multiplayer&&!this.startPoseSent&&this.raceStarted&&!this.run.won){this.startPoseSent=true;this.settings.multiplayer.client.publishStartPose();}
     const multi=this.settings?.multiplayer,room=multi?.client.room;
     if(this.courseProgress&&multi&&room){
@@ -466,6 +471,7 @@ export class PlayScene extends Scene {
     this.effect.visible = preferences?.effects !== false;
     this.hitEffect?.update(run.hitReaction,preferences?.effects!==false);
     this.snakeViews.forEach(view=>view.update(run.enemyTime,preferences?.effects!==false));
+    this.snakeFeedback.render(preferences?.effects!==false);
     if (preferences?.effects === false) this.effect.ghosts.forEach(ghost => { ghost.visible = false; });
     this.victory.hidden = !run.won;
     this.result.hidden = !run.won;
@@ -484,6 +490,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    if(!this.snakeFeedback.parent)this.snakeFeedback.destroy({children:true});
     this.standings?.destroy();
     this.closeRecovery();
     this.courseProgress?.destroy();
