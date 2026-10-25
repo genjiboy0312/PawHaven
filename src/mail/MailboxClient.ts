@@ -4,15 +4,15 @@ import { validHomeItem,type PlaceableTab } from '../home/HomeCatalog';
 export interface MailRewards {coins?:number;snacks?:number;items?:{category:OutfitTab;index:number}[];home?:{category:PlaceableTab;index:number;quantity:number}[]}
 export interface PlayerMail {id:string;title:string;body:string;rewards:MailRewards;createdAt:string;expiresAt:string;readAt:string|null;claimedAt:string|null}
 export interface MailboxSnapshot {mail:PlayerMail[];pending:number;revision:number;now:string;outcome:string;granted:number;blocked:number}
-type Action='load'|'read'|'claim'|'claim_all';
-type Request={p_action:Action;p_mail_id:string|null};
+type Action='load'|'read'|'claim'|'claim_all'|'redeem';
+type Request={p_action:Action;p_mail_id:string|null;p_code?:string};
 type Transport=(request:Request,signal:AbortSignal)=>Promise<unknown>;
 const integer=(v:unknown,max:number)=>Number.isSafeInteger(v)&&Number(v)>=0&&Number(v)<=max;
 const date=(v:unknown)=>typeof v==='string'&&Number.isFinite(Date.parse(v));
 const id=(v:unknown)=>typeof v==='string'&&/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(v);
 export function parseMailbox(value:unknown):MailboxSnapshot{
  const s=value as MailboxSnapshot;
- if(!s||!Array.isArray(s.mail)||s.mail.length>100||!integer(s.pending,1e7)||!integer(s.revision,Number.MAX_SAFE_INTEGER)||!date(s.now)||!integer(s.granted,100)||!integer(s.blocked,100)||!['loaded','claimed','capacity','unavailable'].includes(s.outcome))throw Error('invalid_mailbox');
+ if(!s||!Array.isArray(s.mail)||s.mail.length>100||!integer(s.pending,1e7)||!integer(s.revision,Number.MAX_SAFE_INTEGER)||!date(s.now)||!integer(s.granted,100)||!integer(s.blocked,100)||!['loaded','claimed','capacity','unavailable','couponSent','couponUsed','couponInvalid','couponExpired','couponExhausted','couponSlow'].includes(s.outcome))throw Error('invalid_mailbox');
  const seen=new Set<string>();
  for(const m of s.mail){
   if(!id(m.id)||seen.has(m.id)||typeof m.title!=='string'||!m.title.length||Array.from(m.title).length>80||typeof m.body!=='string'||Array.from(m.body).length>2000||!date(m.createdAt)||!date(m.expiresAt)||(m.readAt!==null&&!date(m.readAt))||(m.claimedAt!==null&&!date(m.claimedAt)))throw Error('invalid_mail');seen.add(m.id);
@@ -27,7 +27,7 @@ export function mailboxTransport(client:SupabaseClient,owner:string):Transport{
  return async(request,signal)=>{
   const {data,error}=await client.auth.getSession();if(error)throw error;
   if(signal.aborted||data.session?.user.id!==owner)throw {code:'42501',message:'account_changed'};
-  const response=await client.rpc('mailbox_command',request).setHeader('Authorization','Bearer '+data.session.access_token).abortSignal(signal);
+  const response=await (request.p_action==='redeem'?client.rpc('redeem_coupon',{p_code:request.p_code}):client.rpc('mailbox_command',request)).setHeader('Authorization','Bearer '+data.session.access_token).abortSignal(signal);
   if(response.error)throw response.error;return response.data;
  };
 }
@@ -43,7 +43,7 @@ export class MailboxClient {
  start(){if(this.timer||this.disposed)return;void this.run('load');this.timer=setInterval(()=>{if(!this.pendingRequest&&!this.busy)void this.run('load');},30000);}
  async run(action:Action,id:string|null=null){
   if(this.busy||this.disposed)return false;this.busy=true;this.error=undefined;
-  const request=this.pendingRequest??{p_action:action,p_mail_id:id};this.pendingRequest=request;this.emit();
+  const request=this.pendingRequest??(action==='redeem'?{p_action:action,p_mail_id:null,p_code:(id??'').trim().toUpperCase()}:{p_action:action,p_mail_id:id});this.pendingRequest=request;this.emit();
   try{
    const next=parseMailbox(await this.transport(request,this.abort.signal));if(this.disposed)return false;
    this.snapshot=next;this.receivedAt=Date.now();this.pendingRequest=undefined;

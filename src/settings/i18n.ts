@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  couponEntry:'Enter coupon',couponCode:'Coupon code',couponRedeem:'Redeem',couponSent:'Reward mail has arrived. Receive it from your mailbox.',couponUsed:'You have already used this coupon. Check your mailbox.',couponInvalid:'Please check the coupon code.',couponExpired:'This coupon has expired or is not available yet.',couponExhausted:'This coupon has reached its redemption limit.',couponSlow:'Please wait a moment before trying again.',
   parkParticipants:'Participants',
   parkEmotes:'Emotions',parkEmoteWave:'! Hello',parkEmoteHeart:'♡ Like',parkEmoteMusic:'♪ Happy',parkEmoteHello:'Hello!',parkEmoteLike:'I like it!',parkEmoteHappy:'So happy!',parkEmoteHint:'One expression every 3 seconds.',
   friendsBlocked:'Blocked friends',friendsBlockedEmpty:'No blocked players.',friendsBlock:'Block',friendsUnblock:'Unblock',friendsBlockState:'Blocked',friendsBlockedNotice:'Messages and friend requests are unavailable for this blocked relationship.',friendsBlockTitle:'Block this player?',friendsBlockNote:'Hide their chat and prevent private messages and friend requests. Existing friendship and pending requests will be removed.',friendsUnblockTitle:'Unblock this player?',friendsUnblockNote:'Allow chat and friend requests again? Your previous friendship will not be restored.',
@@ -112,6 +113,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  couponEntry:'쿠폰 입력',couponCode:'쿠폰 코드',couponRedeem:'등록',couponSent:'보상 우편이 도착했어요. 우편함에서 받아 주세요.',couponUsed:'이미 사용한 쿠폰이에요. 우편함을 확인해 주세요.',couponInvalid:'쿠폰 코드를 확인해 주세요.',couponExpired:'사용 기간이 아니거나 만료된 쿠폰이에요.',couponExhausted:'쿠폰의 사용 가능 수량이 모두 소진됐어요.',couponSlow:'잠시 후 다시 시도해 주세요.',
   mail:'우편함',mailLogin:'로그인 후 우편함을 확인해 주세요.',mailEmpty:'아직 도착한 우편이 없어요. 이벤트·서버 보상이 이곳으로 도착해요.',mailSetup:'우편함 서버 준비가 필요해요. 서버 업데이트 후 다시 확인해 주세요.',mailOffline:'우편을 확인할 수 없어요. 다시 시도해 주세요. 수령한 보상은 중복 지급되지 않아요.',mailClaim:'받기',mailClaimAll:'모두 받기',mailClaimed:'수령 완료',mailExpired:'기간 만료',mailWaiting:'미수령',mailExpires:'수령 기한',mailTreats:'간식',mailNotice:'안내 우편 · 첨부 없음',mailReceived:'우편을 수령했어요. 보상이 인벤토리에 반영됩니다.',mailCapacity:'보관함 또는 재화가 가득 찼어요. 해당 우편은 미수령 상태로 유지됩니다.',mailUnavailable:'기간이 지났거나 이미 수령한 우편입니다.',
   parkWhisper:'귓속말',parkWhisperTo:'받는 사람: {name}',parkWhisperCancel:'전체 채팅으로 돌아가기',parkWhisperSent:'[귓속말 →]',parkWhisperReceived:'[귓속말 ←]',parkWhisperLeft:'상대가 공원을 떠났어요. 받는 사람을 해제하면 전체 채팅으로 돌아가요.',parkPlayerLeft:'공원을 떠난 친구예요.',parkWhisperSetup:'귓속말 서버 설정이 필요해요. 서버 업데이트 후 다시 시도해 주세요.',
   parkProfile:'프로필',parkYou:'내 캐릭터예요',parkFriend:'친구',parkRequestReceived:'받은 친구 요청이 있어요',

@@ -3,8 +3,9 @@ const {MailboxClient,parseMailbox}=await importTs('../src/mail/MailboxClient.ts'
 const db=new PGlite(),users=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'];let sequence=0;
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;");
 for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610210008_home_shop.sql','202610240011_snacks.sql','202610240013_mailbox.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/202610250016_mail_coupons.sql',import.meta.url),'utf8'));
 for(const id of users)await db.query('insert into auth.users values($1)',[id]);after(()=>db.close());
-beforeEach(()=>db.exec('truncate public.player_mail,public.economy_requests,public.economy_runs,public.economy_claims,public.economy_items,public.economy_home_items,public.economy_wallets'));
+beforeEach(()=>db.exec('truncate public.mail_coupon_redemptions,public.mail_coupon_attempts,public.mail_coupons,public.player_mail,public.economy_requests,public.economy_runs,public.economy_claims,public.economy_items,public.economy_home_items,public.economy_wallets'));
 async function as(n,sql,args=[],role='authenticated'){await db.exec('set role '+role);try{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[n===null?'':users[n]]);return await db.query(sql,args);}finally{await db.exec('reset role');}}
 async function command(n,action='load',id=null){return(await as(n,'select public.mailbox_command($1,$2) as data',[action,id])).rows[0].data;}
 async function send(n,rewards={},key='delivery-'+(++sequence)){return(await as(null,'select public.send_player_mail($1,$2,$3,$4,$5) as id',[users[n],key,'Server gift','A little present for your pet.',JSON.stringify(rewards)],'service_role')).rows[0].id;}
@@ -45,4 +46,50 @@ test('lost claim responses retry the same IDs, refresh inventory and cannot doub
 test('malformed snapshots never enter the client and disposed account responses are ignored',async()=>{
  const data=await command(0);assert.deepEqual(parseMailbox(data).mail,[]);for(const change of [{pending:-1},{mail:[{id:'bad'}]},{revision:1.5}])assert.throws(()=>parseMailbox({...data,...change}));
  let resolve;let reloads=0;const client=new MailboxClient(()=>new Promise(r=>{resolve=r;}),async()=>{reloads++;});const pending=client.run('load');client.destroy();resolve(data);assert.equal(await pending,false);assert.equal(client.snapshot,undefined);assert.equal(reloads,0);
+});
+
+async function coupon(code='PAW-TEST',rewards={coins:100},limit=null){
+ return (await db.query("insert into public.mail_coupons(code,title,body,rewards,expires_at,max_uses) values($1,'Coupon gift','A gift for your pet.',$2,now()+interval '1 day',$3) returning id",[code,JSON.stringify(rewards),limit])).rows[0].id;
+}
+async function redeem(n,code){return(await as(n,'select public.redeem_coupon($1) as data',[code])).rows[0].data;}
+async function cooldown(){await db.exec("update public.mail_coupon_attempts set attempted_at=now()-interval '3 seconds'");}
+
+test('coupons deliver private mail once per account, and only claiming grants inventory',async()=>{
+ await coupon('PAW-TEST',{coins:125,items:[{category:'Hat',index:2}],home:[{category:'Furniture',index:5,quantity:1}]});
+ const sent=await redeem(0,'  paw-test  ');assert.equal(sent.outcome,'couponSent');assert.equal(sent.pending,1);assert.equal(sent.granted,0);parseMailbox(sent);
+ assert.equal((await db.query('select coins from public.economy_wallets where user_id=$1',[users[0]])).rows[0].coins,1000);
+ assert.equal((await command(1)).mail.length,0);
+ await cooldown();const used=await redeem(0,'PAW-TEST');assert.equal(used.outcome,'couponUsed');assert.equal(used.mail.length,1);
+ assert.equal((await redeem(1,'PAW-TEST')).outcome,'couponSent');
+ assert.equal((await command(0,'claim',sent.mail[0].id)).granted,1);assert.equal((await command(0,'claim',sent.mail[0].id)).granted,0);
+ assert.equal((await db.query('select coins from public.economy_wallets where user_id=$1',[users[0]])).rows[0].coins,1125);
+ assert.equal((await db.query('select used_count from public.mail_coupons')).rows[0].used_count,2);
+ await db.exec(await readFile(new URL('../supabase/migrations/202610250016_mail_coupons.sql',import.meta.url),'utf8'));
+ await cooldown();assert.equal((await redeem(0,'PAW-TEST')).outcome,'couponUsed');
+});
+
+test('coupons enforce server quota, validity, rate limit and trusted definitions',async()=>{
+ const id=await coupon('LIMITED',{coins:10},1);
+ assert.equal((await redeem(0,'LIMITED')).outcome,'couponSent');assert.equal((await redeem(1,'LIMITED')).outcome,'couponExhausted');
+ assert.equal((await redeem(1,'MISSING')).outcome,'couponSlow');await cooldown();
+ for(const code of [null,'','bad code','x'.repeat(41),'MISSING']){assert.equal((await redeem(1,code)).outcome,'couponInvalid');await cooldown();}
+ await db.query("update public.mail_coupons set expires_at=now()-interval '1 second',starts_at=now()-interval '1 day' where id=$1",[id]);
+ assert.equal((await redeem(1,'LIMITED')).outcome,'couponExpired');await cooldown();
+ await db.query("update public.mail_coupons set expires_at=now()+interval '2 days',starts_at=now()+interval '1 day' where id=$1",[id]);
+ assert.equal((await redeem(1,'LIMITED')).outcome,'couponExpired');await cooldown();
+ await db.query('update public.mail_coupons set enabled=false where id=$1',[id]);assert.equal((await redeem(1,'LIMITED')).outcome,'couponInvalid');
+ for(const table of ['mail_coupons','mail_coupon_redemptions','mail_coupon_attempts'])await assert.rejects(as(0,'select * from public.'+table),/permission denied/);
+ await assert.rejects(as(null,"select public.redeem_coupon('LIMITED')",[],'anon'),/permission denied/);
+ await assert.rejects(as(null,"select public.redeem_coupon('LIMITED')"),/not_authenticated/);
+ await coupon('INVALID',{coins:-20});await cooldown();await assert.rejects(redeem(1,'INVALID'),/invalid_rewards/);
+ assert.equal((await db.query("select used_count from public.mail_coupons where code='INVALID'")).rows[0].used_count,0);
+ assert.equal((await command(1)).mail.length,0);
+});
+
+test('lost coupon responses retry the same code and cannot create a second delivery',async()=>{
+ await coupon();let lost=true;const requests=[];
+ const client=new MailboxClient(async request=>{requests.push(request);if(request.p_action!=='redeem')return command(0,request.p_action,request.p_mail_id);const result=await redeem(0,request.p_code);if(lost){lost=false;throw Error('lost response');}return result;});
+ assert.equal(await client.run('redeem',' paw-test '),false);await cooldown();assert.equal(await client.run('load'),true);
+ assert.deepEqual(requests.at(-1),{p_action:'redeem',p_mail_id:null,p_code:'PAW-TEST'});assert.equal(client.snapshot.outcome,'couponUsed');assert.equal(client.pending,1);assert.equal(client.snapshot.mail.length,1);
+ assert.equal((await db.query('select used_count from public.mail_coupons')).rows[0].used_count,1);client.destroy();
 });

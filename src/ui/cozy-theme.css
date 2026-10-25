@@ -34,6 +34,11 @@ button, input, select { font-family: var(--font-round); }
 .mailbox-rewards .mailbox-item .outfit-object{position:relative;inset:auto;transform:none;width:4cqw;height:5cqw;flex:none;}
 .mailbox-item p{font-size:1.25cqw;}.mailbox-footer{display:flex;align-items:center;justify-content:flex-end;gap:1cqw;padding-top:1.5cqh;flex:none;}
 .mailbox-footer p{margin:0 auto 0 0;font-size:1.2cqw;max-width:60%;}.mailbox-footer button{margin:0;white-space:nowrap;}
+.mailbox-footer{flex-wrap:wrap;gap:1cqh 1cqw;}.mailbox-footer p{flex:1 0 100%;max-width:100%;}
+.mailbox-coupon{display:flex;align-items:center;gap:1cqw;flex:none;margin-top:1cqh;font:400 clamp(12px,1.5cqw,20px) var(--font-body);}
+.mailbox-coupon[hidden]{display:none;}.mailbox-coupon label{white-space:nowrap;}
+.mailbox-coupon input{flex:1;min-width:0;min-height:38px;box-sizing:border-box;padding:6px 10px;border:1px solid var(--ui-edge);border-radius:10px;background:#fffdf5;color:#000;-webkit-text-fill-color:#000;caret-color:#000;font:inherit;color-scheme:only light;}
+.mailbox-coupon button{flex:none;min-height:38px;margin:0;font:inherit;}
 .play-menu-panel[data-page="mode"] .with-park{grid-template-columns:repeat(3,minmax(0,1fr));}
 .park-hud .park-header{position:absolute;top:3cqh;left:3cqw;right:3cqw;display:flex;align-items:center;gap:1cqw;pointer-events:auto;font:400 clamp(12px,2cqw,24px) var(--font-round);}
 .park-header strong{margin-right:auto;color:#675a43;}
