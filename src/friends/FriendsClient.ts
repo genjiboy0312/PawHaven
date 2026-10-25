@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-export type FriendAction='send'|'accept'|'reject'|'cancel'|'remove';
-export interface Friend { id:string;nickname:string;relation:'none'|'friend'|'incoming'|'outgoing' }
-export interface FriendsSnapshot { friends:Friend[];incoming:Friend[];outgoing:Friend[];matches:Friend[] }
+export type FriendAction='send'|'accept'|'reject'|'cancel'|'remove'|'block'|'unblock';
+export interface Friend { id:string;nickname:string;relation:'none'|'friend'|'incoming'|'outgoing'|'blocked' }
+export interface FriendsSnapshot { friends:Friend[];incoming:Friend[];outgoing:Friend[];matches:Friend[];blocked?:Friend[] }
 type Transport=(action:string,target:string|null,query:string,signal:AbortSignal)=>Promise<unknown>;
 const empty=():FriendsSnapshot=>({friends:[],incoming:[],outgoing:[],matches:[]});
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,12 +18,13 @@ export function friendsTransport(client:SupabaseClient,owner:string):Transport{
 function snapshot(value:unknown,owner:string):FriendsSnapshot{
   if(!value||typeof value!=='object')throw Error('invalid_snapshot');
   const result=empty();
-  for(const key of ['friends','incoming','outgoing','matches'] as const){
+  for(const key of ['friends','incoming','outgoing','matches','blocked'] as const){
     const rows=(value as FriendsSnapshot)[key];
+    if(key==='blocked'&&rows===undefined)continue; // Older servers keep existing friend features working.
     if(!Array.isArray(rows)||rows.length>(key==='matches'?20:key==='outgoing'?20:100))throw Error('invalid_snapshot');
     const ids=new Set<string>();
     result[key]=rows.filter(row=>{
-      if(!row||typeof row.id!=='string'||!uuid.test(row.id)||typeof row.nickname!=='string'||!/^[A-Za-z0-9가-힣_]{2,16}$/.test(row.nickname)||!['none','friend','incoming','outgoing'].includes(row.relation)||ids.has(row.id))throw Error('invalid_snapshot');
+      if(!row||typeof row.id!=='string'||!uuid.test(row.id)||typeof row.nickname!=='string'||!/^[A-Za-z0-9가-힣_]{2,16}$/.test(row.nickname)||!['none','friend','incoming','outgoing','blocked'].includes(row.relation)||ids.has(row.id))throw Error('invalid_snapshot');
       if(key!=='matches'&&row.relation!==(key==='friends'?'friend':key))throw Error('invalid_snapshot');
       ids.add(row.id);return row.id!==owner;
     }).map(row=>({...row}));
@@ -32,7 +33,7 @@ function snapshot(value:unknown,owner:string):FriendsSnapshot{
 }
 export class FriendsClient {
   snapshot=empty();busy=false;loaded=false;query='';
-  error:''|'setup'|'offline'|'auth'|'query'|'nickname'|'limit'|'incoming'|'notFound'='';
+  error:''|'setup'|'offline'|'auth'|'query'|'nickname'|'limit'|'incoming'|'notFound'|'blocked'='';
   private readonly listeners=new Set<()=>void>();
   private generation=0;private disposed=false;private started=false;
   private request?:AbortController;private timer?:ReturnType<typeof setTimeout>;private events?:AbortController;
@@ -72,7 +73,7 @@ export class FriendsClient {
       const {code,message=''}=error as {code?:string;message?:string};
       this.error=['42883','PGRST202','PGRST205'].includes(code??'')?'setup':code==='42501'?'auth'
         :message.includes('friend_invalid_query')?'query':message.includes('friend_nickname_required')?'nickname'
-        :message.includes('friend_limit')?'limit':message.includes('friend_incoming')?'incoming'
+        :message.includes('friend_invalid_action')?'setup':message.includes('friend_blocked')?'blocked':message.includes('friend_limit')?'limit':message.includes('friend_incoming')?'incoming'
         :message.includes('friend_not_found')||message.includes('friend_invalid_target')?'notFound':'offline';
       if(this.error==='auth'){this.snapshot=empty();this.loaded=false;}
       return false;

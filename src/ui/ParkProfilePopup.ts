@@ -4,15 +4,16 @@ import type { ParkMember } from '../park/ParkModel';
 import type { FriendsClient } from '../friends/FriendsClient';
 import { bindAria,onLanguageChange,t,type TextKey } from '../settings/i18n';
 import { paintPetPortrait } from './PetPortrait';
+import { ConfirmPopup } from './ConfirmPopup';
 
 /** Public park appearance + the existing account-owned friend observer/RPC. */
 export class ParkProfilePopup {
  private overlay?:HTMLElement;private panel?:HTMLElement;private member?:ParkMember;
- private action?:HTMLButtonElement;private whisperButton?:HTMLButtonElement;private status?:HTMLElement;private label?:HTMLElement;
+ private action?:HTMLButtonElement;private whisperButton?:HTMLButtonElement;private blockButton?:HTMLButtonElement;private confirm?:ConfirmPopup;private status?:HTMLElement;private label?:HTMLElement;
  private abort?:AbortController;private off?:()=>void;private previousFocus?:HTMLElement;
  private blocked:{element:HTMLElement;inert:boolean}[]=[];
  private readonly localeOff=onLanguageChange(()=>this.render());
- constructor(private readonly owner:string,private readonly pets:AnimalConfig[],private readonly friends?:FriendsClient,private readonly whisper?:(member:ParkMember)=>void){}
+ constructor(private readonly owner:string,private readonly pets:AnimalConfig[],private readonly friends?:FriendsClient,private readonly whisper?:(member:ParkMember)=>void,private readonly keepAlive=false){}
  get isOpen(){return !!this.overlay;}
  get memberId(){return this.member?.id;}
  open(member:ParkMember){
@@ -41,6 +42,12 @@ export class ParkProfilePopup {
   },{signal});actions.append(this.action);
   this.whisperButton=document.createElement('button');this.whisperButton.type='button';this.whisperButton.className='commerce-primary';
   this.whisperButton.addEventListener('click',()=>{this.close();this.whisper?.(member);},{signal});actions.append(this.whisperButton);
+  this.blockButton=document.createElement('button');this.blockButton.type='button';this.blockButton.className='commerce-primary';
+  this.blockButton.addEventListener('click',()=>{
+   if(this.confirm||!this.panel||!this.friends||this.friends.busy)return;
+   const action=this.isBlocked()?'unblock':'block',close=()=>{this.confirm?.destroy();this.confirm=undefined;};
+   this.confirm=new ConfirmPopup(this.panel,action==='block'?'friendsBlockTitle':'friendsUnblockTitle',action==='block'?'friendsBlockNote':'friendsUnblockNote',action==='block'?'friendsBlock':'friendsUnblock',()=>{close();void this.friends?.command(action,member.id);},close);
+  },{signal});actions.append(this.blockButton);
   panel.append(title,close,stage,name,this.label,this.status,actions);overlay.append(panel);host.append(overlay);
   let backdrop=false;
   overlay.addEventListener('pointerdown',event=>{backdrop=event.target===overlay;},{signal});
@@ -59,20 +66,22 @@ export class ParkProfilePopup {
   const id=this.member?.id,s=this.friends?.snapshot;
   return s?.friends.some(f=>f.id===id)?'friend':s?.incoming.some(f=>f.id===id)?'incoming':s?.outgoing.some(f=>f.id===id)?'outgoing':'none';
  }
+ private isBlocked(){return this.friends?.snapshot.blocked?.some(f=>f.id===this.member?.id)??false;}
  private render(){
   if(!this.member||!this.action||!this.status||!this.label)return;
   const title=this.panel?.querySelector<HTMLElement>('[data-profile-title]');if(title)title.textContent=t('parkProfile');
-  const own=this.member.id===this.owner,c=this.friends,relation=this.relation();
-  if(this.whisperButton){this.whisperButton.hidden=own||!this.whisper;this.whisperButton.textContent=t('parkWhisper');}
-  this.action.hidden=own;this.label.textContent=own?t('parkYou'):relation==='friend'?t('parkFriend'):relation==='outgoing'?t('friendsPending'):relation==='incoming'?t('parkRequestReceived'):'';
-  const errors:Record<string,TextKey>={setup:'friendsSetup',offline:'friendsOffline',auth:'friendsLogin',query:'friendsQuery',nickname:'friendsNickname',limit:'friendsLimit',incoming:'friendsIncoming',notFound:'friendsNotFound'};
+  const own=this.member.id===this.owner,c=this.friends,relation=this.relation(),blocked=this.isBlocked();
+  if(this.whisperButton){this.whisperButton.hidden=own||!this.whisper;this.whisperButton.textContent=t('parkWhisper');this.whisperButton.disabled=blocked||!!c?.busy;}
+  if(this.blockButton){this.blockButton.hidden=own;this.blockButton.textContent=t(blocked?'friendsUnblock':'friendsBlock');this.blockButton.disabled=!c||c.busy||!c.loaded||!!c.error||c.snapshot.blocked===undefined;}
+  this.action.hidden=own||blocked;this.label.textContent=own?t('parkYou'):blocked?t('friendsBlockState'):relation==='friend'?t('parkFriend'):relation==='outgoing'?t('friendsPending'):relation==='incoming'?t('parkRequestReceived'):'';
+  const errors:Record<string,TextKey>={setup:'friendsSetup',offline:'friendsOffline',auth:'friendsLogin',query:'friendsQuery',nickname:'friendsNickname',limit:'friendsLimit',incoming:'friendsIncoming',notFound:'friendsNotFound',blocked:'friendsBlockedNotice'};
   this.status.textContent=own?'':!c?t('friendsLogin'):c.error?t(errors[c.error]!):c.busy?t('friendsLoading'):'';
   this.action.textContent=t(c?.error||!c?.loaded?'friendsRefresh':relation==='friend'?'parkFriend':relation==='outgoing'?'friendsPending':relation==='incoming'?'friendsAccept':'friendsSend');
   this.action.disabled=own||!c||c.busy||(!c.error&&(relation==='friend'||relation==='outgoing'));
  }
  close(){
   if(!this.overlay)return;const own=this.member?.id===this.owner;
-  this.off?.();this.off=undefined;if(!own)this.friends?.stop();this.abort?.abort();this.overlay.remove();this.overlay=this.panel=undefined;
+  this.confirm?.destroy();this.confirm=undefined;this.off?.();this.off=undefined;if(!own&&!this.keepAlive)this.friends?.stop();this.abort?.abort();this.overlay.remove();this.overlay=this.panel=undefined;
   this.blocked.forEach(item=>{item.element.inert=item.inert;});this.blocked=[];
   if(this.previousFocus?.isConnected)this.previousFocus.focus();this.previousFocus=undefined;
   this.member=undefined;this.action=this.status=this.label=undefined;

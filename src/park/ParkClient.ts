@@ -66,7 +66,7 @@ export class ParkClient {
    void this.streams.get(this.ownTopic())?.send({type:'broadcast',event:'chat',payload:{}}).catch(()=>{});return true;
   }catch(error){
    if(this.closed||gen!==this.generation)return false;
-   const e=error as {code?:string;message?:string};this.chatError=e.message?.includes('whisper_target_left')?'parkWhisperLeft':['42883','PGRST202'].includes(e.code??'')?'parkWhisperSetup':'parkChatWait';this.emit();return false;
+   const e=error as {code?:string;message?:string};this.chatError=e.message?.includes('friend_blocked')?'friendsBlockedNotice':e.message?.includes('whisper_target_left')?'parkWhisperLeft':['42883','PGRST202'].includes(e.code??'')?'parkWhisperSetup':'parkChatWait';this.emit();return false;
   }finally{this.chatting=false;}
  }
  private clearStreams(){this.generation++;for(const stream of this.streams.values())void this.client.removeChannel(stream).catch(()=>{});this.streams.clear();this.ready.clear();this.connected=false;}

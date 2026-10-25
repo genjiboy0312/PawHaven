@@ -33,11 +33,12 @@ export class ParkScene extends Scene {
  private readonly profile:ParkProfilePopup;
  private whisperTarget?:ParkMember;
  private readonly recipient=document.createElement('button');
- constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},friends?:FriendsClient){
+ private friendOff?:()=>void;private blockedIds=new Set<string>();private blockSignature='';
+ constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},private readonly friends?:FriendsClient){
   super();this.map=new LobbyMap(textures);this.actorLayer.sortableChildren=true;this.world.addChild(this.map,this.actorLayer);this.addChild(this.world);
   this.profile=new ParkProfilePopup(client.owner,pets,friends,member=>{
    this.whisperTarget=member;this.client.chatError='';this.refresh();this.input.focus({preventScroll:true});
-  });
+  },true);
   this.world.position.set(-this.camera.x,-this.camera.y);
   this.hud.className='play-hud park-hud';
   this.header.className='park-header';this.status.className='park-status';this.status.setAttribute('role','status');
@@ -76,6 +77,14 @@ export class ParkScene extends Scene {
   window.addEventListener('blur',()=>this.blur(),{signal:this.abort.signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)this.blur();},{signal:this.abort.signal});
   this.unsubscribe=client.subscribe(()=>this.refresh());this.localeOff=onLanguageChange(()=>{this.signature='';this.refresh();});this.refresh();void client.list();
+  this.friendOff=friends?.subscribe(()=>this.syncBlocks());this.syncBlocks();friends?.start();
+ }
+ private syncBlocks(){
+  if(this.destroyed)return;const ids=this.friends?.snapshot.blocked?.map(f=>f.id).sort()??[],signature=JSON.stringify(ids);
+  if(signature===this.blockSignature)return;this.blockSignature=signature;this.blockedIds=new Set(ids);
+  this.log.replaceChildren();this.lastMessage=0;this.historyLoaded=false;
+  for(const [id,actor]of this.actors)if(this.blockedIds.has(id)){actor.message=undefined;actor.until=0;}
+  this.refresh();
  }
  private button(key:Parameters<typeof t>[0],action:()=>void){const b=document.createElement('button');b.type='button';b.className='commerce-primary';bindText(b,key);b.addEventListener('click',action,{signal:this.abort.signal});return b;}
  private active(){return !this.paused&&!this.choosing&&!this.profile.isOpen&&!!this.client.channel&&!this.client.error&&!this.client.busy;}
@@ -107,17 +116,18 @@ export class ParkScene extends Scene {
   this.stick.disabled=!this.active();this.jumpButton.update(this.active()&&this.jumpHeight===0);
   if(!c.channel){this.profile.close();return;}
   const members=c.snapshot.members??[];
-  const target=this.whisperTarget,missing=!!target&&!members.some(m=>m.id===target.id&&m.session===target.session);
+  const target=this.whisperTarget,blocked=!!target&&this.blockedIds.has(target.id),missing=!!target&&!members.some(m=>m.id===target.id&&m.session===target.session);
   this.recipient.hidden=!target;this.recipient.textContent=target?t('parkWhisperTo').replace('{name}',target.name)+' ×':'';
   this.recipient.setAttribute('aria-label',t('parkWhisperCancel'));
-  this.sendButton.disabled=this.sending||missing;
-  this.status.textContent=missing?t('parkWhisperLeft'):c.chatError?t(c.chatError as 'parkChatWait'):c.error?t(c.error as 'parkUnavailable'):c.channel&&!c.connected?t('parkConnecting'):'';
+  this.sendButton.disabled=this.sending||missing||blocked;
+  this.status.textContent=blocked?t('friendsBlockedNotice'):missing?t('parkWhisperLeft'):c.chatError?t(c.chatError as 'parkChatWait'):c.error?t(c.error as 'parkUnavailable'):c.channel&&!c.connected?t('parkConnecting'):'';
   if(this.profile.memberId&&!members.some(m=>m.id===this.profile.memberId))this.profile.close();
   for(const [id,actor]of this.actors)if(!members.some(m=>m.id===id)){actor.box.destroy({children:true});this.actors.delete(id);}
   for(const member of members)this.actor(member);
   const initial=!this.historyLoaded;this.historyLoaded=true;
   for(const message of c.snapshot.messages??[]){
    if(message.id<=this.lastMessage)continue;this.lastMessage=message.id;
+   if(this.blockedIds.has(message.user_id))continue;
    if(message.recipient_id&&message.user_id!==c.owner&&message.recipient_id!==c.owner)continue;
    const row=document.createElement('p'),name=document.createElement('button');name.type='button';name.className='park-chat-name';
    const outgoing=!!message.recipient_id&&message.user_id===c.owner;
@@ -155,7 +165,7 @@ export class ParkScene extends Scene {
  }
  private async sendChat(){
   if(this.sending||!this.active()||this.elapsed-this.chatAt<2||!this.input.value.trim())return;
-  const target=this.whisperTarget;if(target&&!this.client.snapshot.members?.some(m=>m.id===target.id&&m.session===target.session)){this.status.textContent=t('parkWhisperLeft');return;}
+  const target=this.whisperTarget;if(target&&this.blockedIds.has(target.id)){this.status.textContent=t('friendsBlockedNotice');return;}if(target&&!this.client.snapshot.members?.some(m=>m.id===target.id&&m.session===target.session)){this.status.textContent=t('parkWhisperLeft');return;}
   this.sending=true;this.sendButton.disabled=true;const text=this.input.value.trim();
   if(await this.client.chat(text,target?.id)){if(this.input.value.trim()===text&&this.whisperTarget?.id===target?.id){this.input.value='';this.input.blur();}this.chatAt=this.elapsed;const me=this.actors.get(this.client.owner);if(me&&!target){me.message=text;me.until=this.elapsed+6;}}
   this.sending=false;if(!this.destroyed)this.refresh();
@@ -184,5 +194,5 @@ export class ParkScene extends Scene {
   }
   this.jumpButton.update(this.active()&&this.jumpHeight===0);
  }
- override destroy(options?:DestroyOptions){this.profile.destroy();this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
+ override destroy(options?:DestroyOptions){this.friendOff?.();this.profile.destroy();this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
 }

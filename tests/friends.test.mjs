@@ -166,3 +166,16 @@ test('closing a park profile during a request restores the park and ignores late
  try{popup.open({id:users[1],name:'Corgi',session:'lease'});assert.equal(client.busy,true);popup.close();resolve(blank());await new Promise(r=>setTimeout(r,0));assert.equal(popup.isOpen,false);assert.equal(background.inert,false);assert.equal(client.busy,false);assert.equal(client.loaded,false);assert.equal(env.host.querySelector('.park-profile-overlay'),undefined);}
  finally{popup.destroy();client.destroy();env.restore();}
 });
+
+test('profile block confirmation and fourth friends tab unblock reuse shared state without restoring friendship',async()=>{
+ const env=dom();let blocked=false;
+ const client=new FriendsClient(users[0],async action=>{if(action==='block')blocked=true;if(action==='unblock')blocked=false;return{...blank(),blocked:blocked?[{id:users[1],nickname:'Corgi',relation:'blocked'}]:[]};});
+ const profile=new ParkProfilePopup(users[0],[],client,()=>{}),popup=new FriendsPopup(()=>{},client);
+ const clickClass=name=>{const el=env.host.querySelector(name);assert.ok(el,name);el.dispatchEvent(new Event('click'));};
+ try{
+  profile.open({id:users[1],name:'Corgi',session:'lease'});await idle(client);profile.blockButton.dispatchEvent(new Event('click'));assert.equal(profile.panel.inert,true);clickClass('.confirm-cancel');assert.equal(blocked,false);assert.equal(profile.panel.inert,false);
+  profile.blockButton.dispatchEvent(new Event('click'));clickClass('.confirm-accept');await idle(client);assert.equal(blocked,true);assert.equal(profile.whisperButton.disabled,true);assert.equal(profile.action.hidden,true);profile.close();
+  popup.open();await idle(client);assert.equal(popup.tabs.children[3].textContent,'Blocked friends');popup.tabs.children[3].dispatchEvent(new Event('click'));
+  const unblock=env.host.all().find(e=>e.tag==='button'&&e.textContent==='Unblock');assert.ok(unblock);unblock.dispatchEvent(new Event('click'));clickClass('.confirm-accept');await idle(client);assert.equal(blocked,false);assert.equal(client.snapshot.friends.length,0);assert.ok(env.host.all().some(e=>e.textContent==='No blocked players.'));
+ }finally{profile.destroy();popup.destroy();env.restore();}
+});

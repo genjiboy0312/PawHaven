@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  friendsBlocked:'Blocked friends',friendsBlockedEmpty:'No blocked players.',friendsBlock:'Block',friendsUnblock:'Unblock',friendsBlockState:'Blocked',friendsBlockedNotice:'Messages and friend requests are unavailable for this blocked relationship.',friendsBlockTitle:'Block this player?',friendsBlockNote:'Hide their chat and prevent private messages and friend requests. Existing friendship and pending requests will be removed.',friendsUnblockTitle:'Unblock this player?',friendsUnblockNote:'Allow chat and friend requests again? Your previous friendship will not be restored.',
   parkWhisper:'Whisper',parkWhisperTo:'To: {name}',parkWhisperCancel:'Return to public chat',parkWhisperSent:'[Whisper →]',parkWhisperReceived:'[Whisper ←]',parkWhisperLeft:'This player has left. Cancel the recipient to return to public chat.',parkPlayerLeft:'This player has left the park.',parkWhisperSetup:'Private chat setup is not complete yet. Please try again after the server update.',
   parkProfile:'Profile',parkYou:'This is you',parkFriend:'Friends',parkRequestReceived:'Friend request received',
   mail:'Mail',mailLogin:'Log in to check your mailbox.',mailEmpty:'No mail yet. Event and server rewards will arrive here.',mailSetup:'Mailbox setup is not complete yet. Please try again after the server update.',mailOffline:'Unable to check mail. Please retry; received rewards will not be granted twice.',mailClaim:'Receive',mailClaimAll:'Receive all',mailClaimed:'Received',mailExpired:'Expired',mailWaiting:'Unclaimed',mailExpires:'Available until',mailTreats:'Treats',mailNotice:'Notice · no attachments',mailReceived:'Mail received. Rewards are reflected in your inventory.',mailCapacity:'Storage or currency limit reached. Affected mail remains unclaimed.',mailUnavailable:'This mail is expired, already received or unavailable.',
@@ -194,6 +195,7 @@ const ko: Record<TextKey, string> = {
   freeTrack: '무료', premiumTrack: '프리미엄', rewardPreview: '보상 미리보기', claim: '받기', claimed: '수령 완료',
   coins: '코인', testCoins: '테스트 코인', owned: '보유 중', buy: '구매', notEnoughCoins: '코인 부족',
   questRewardReady: '퀘스트 · 받을 수 있는 보상이 있어요',
+  friendsBlocked:'차단한 친구',friendsBlockedEmpty:'차단한 사용자가 없어요.',friendsBlock:'차단',friendsUnblock:'차단 해제',friendsBlockState:'차단한 친구예요',friendsBlockedNotice:'차단 관계에서는 귓속말과 친구 요청을 보낼 수 없어요.',friendsBlockTitle:'이 사용자를 차단할까요?',friendsBlockNote:'상대 채팅을 숨기고 귓속말과 친구 요청을 막아요. 기존 친구 관계와 대기 중인 요청은 삭제돼요.',friendsUnblockTitle:'차단을 해제할까요?',friendsUnblockNote:'이 사용자의 채팅과 친구 요청을 다시 허용할까요? 이전 친구 관계는 자동으로 복구되지 않아요.',
   friendsList: '친구 목록', addFriend: '친구 추가', friendRequests: '받은 요청',
   friendsEmpty: '친구가 생기면 여기에 표시돼요.', requestsEmpty: '아직 받은 친구 요청이 없어요.',
   friendsPrototype: '친구 기능 미리보기 · 계정 연동은 추후 지원됩니다.', friendSearch: '닉네임으로 검색', friendSearchSoon: '로그인 연동 후 친구를 검색할 수 있어요.',

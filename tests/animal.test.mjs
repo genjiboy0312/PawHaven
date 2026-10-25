@@ -2309,7 +2309,7 @@ test('Friends opens as an accessible paused lobby overlay and Quest badge clears
     assert.deepEqual([animal.x, animal.y], position); assert.equal(animal.state, 'IDLE');
     const overlay = host.children[1], panel = overlay.children[0], tabs = panel.children[2], content = panel.children[3];
     assert.equal(panel.getAttribute('role'), 'dialog');
-    assert.deepEqual(tabs.children.map(button => button.textContent), ['Friends', 'Add Friend', 'Requests']);
+    assert.deepEqual(tabs.children.map(button => button.textContent), ['Friends', 'Add Friend', 'Requests','Blocked friends']);
     assert.equal(content.children[1].textContent, 'Your friends will appear here.');
     overlay.dispatchEvent(new Event('pointerup')); assert.equal(host.children.length, 2);
     tabs.children[1].dispatchEvent(new Event('click')); assert.equal(content.children[1].disabled, true);
