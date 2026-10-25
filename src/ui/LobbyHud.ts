@@ -75,7 +75,7 @@ export class LobbyHud {
     this.friendsButton=friends;this.requestBadge.className='hud-request-badge';this.requestBadge.hidden=true;this.requestBadge.setAttribute('aria-hidden','true');friends.append(this.requestBadge);
     if (commerce?.friends) { friends.disabled = false; friends.addEventListener('click', commerce.friends); }
     utilities.append(quest, friends, shop, settings);
-    if(commerce?.mail){const mail=this.menu('mail','Mail');mail.disabled=false;mail.addEventListener('click',commerce.mail);this.mailBadge.className='hud-request-badge';this.mailBadge.hidden=true;this.mailBadge.setAttribute('aria-hidden','true');mail.append(this.mailBadge);utilities.classList.add('has-mail');utilities.append(mail);}
+    if(commerce?.mail){const mail=this.menu('mail','Mail');mail.disabled=false;mail.addEventListener('click',commerce.mail);this.mailBadge.className='hud-request-badge';this.mailBadge.hidden=true;this.mailBadge.setAttribute('aria-hidden','true');mail.append(this.mailBadge);utilities.prepend(mail);}
     const play = document.createElement('div');
     play.className = 'hud-play';
     const playButton = this.menu('play', 'Play');

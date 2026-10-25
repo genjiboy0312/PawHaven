@@ -12,8 +12,8 @@ export function chatVisibleViewport(view:ChatViewport,keyboard?:KeyboardRect,lay
  return {...view,height:Math.min(view.height,available)};
 }
 /** Layout viewport coordinates for a panel above the software keyboard. */
-export function chatDockBounds(view:ChatViewport){
- const margin=8,width=Math.max(1,Math.min(700,view.width-margin*2));
+export function chatDockBounds(view:ChatViewport,preferredWidth=700){
+ const margin=8,width=Math.max(1,Math.min(preferredWidth,view.width-margin*2));
  return {left:view.offsetLeft+(view.width-width)/2,bottom:view.offsetTop+view.height-margin,width,maxHeight:Math.max(1,Math.min(190,view.height-margin*2))};
 }
 
@@ -26,6 +26,7 @@ export class KeyboardChatDock {
  private frozenHost?:HTMLElement;private hostStyle:string|null=null;
  private popoverBefore:string|null=null;private ownsPopover=false;
  private lastView?:ChatViewport;
+ private panelWidth=700;
  constructor(private readonly element:HTMLElement,private readonly input:HTMLInputElement){
   input.setAttribute('data-keyboard-chat','true');
   this.keyboard=(navigator as Navigator&{virtualKeyboard?:KeyboardGeometry}).virtualKeyboard;
@@ -72,6 +73,7 @@ export class KeyboardChatDock {
  }
  private mount(){
   if(this.closed||this.marker||!this.element.isConnected)return;
+  this.panelWidth=Math.min(700,this.element.offsetWidth||this.element.clientWidth);
   this.baseline=Math.max(this.view().height,window.innerHeight);
   if(this.keyboard){try{this.overlayBefore=this.keyboard.overlaysContent;this.keyboard.overlaysContent=true;}catch{this.overlayBefore=undefined;}}
   this.freezeGame();
@@ -100,7 +102,7 @@ export class KeyboardChatDock {
   // Never blur/reparent a focused input because of a geometry change. When the keyboard
   // closes, this same node moves down; reparenting waits until the user leaves the input.
   if(!this.moving&&document.activeElement!==this.input&&!this.composing&&!this.keyboardOpen())this.scheduleReset();
-  const bounds=chatDockBounds(view);
+  const bounds=chatDockBounds(view,this.panelWidth);
   this.element.style.left=bounds.left+'px';this.element.style.width=bounds.width+'px';this.element.style.maxHeight=bounds.maxHeight+'px';
   this.element.style.top=Math.max(view.offsetTop+8,bounds.bottom-this.element.getBoundingClientRect().height)+'px';
  }
