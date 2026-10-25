@@ -626,8 +626,34 @@ test('hit visuals reuse attack textures and restore alpha and filters without re
   } finally { DOMAdapter.set(adapter); }
 });
 const flatCourse = [{ x: 0, width: 2850, top: 0, bottom: -300 }];
-const {SINGLE_SNAKES}=await importTs('../src/game/PatrolSnake.ts',import.meta.url);
-const snakeRun=()=>new DummyRun(flatCourse,1,{snakes:SINGLE_SNAKES.garden,snakeHeight:60});
+const {COURSE_SNAKES}=await importTs('../src/game/PatrolSnake.ts',import.meta.url);
+const snakeRun=()=>new DummyRun(flatCourse,1,{snakes:COURSE_SNAKES.garden,snakeHeight:60});
+
+test('shared race clock aligns snakes at different frame rates and after a late load or recovery',()=>{
+ const fast=snakeRun(),slow=snakeRun(),late=snakeRun();
+ for(let i=1;i<=1200;i++)fast.update(1/120,0,i/120);
+ for(let i=1;i<=300;i++)slow.update(1/30,0,i/30);
+ late.update(1/60,0,10);
+ for(const run of[slow,late]){
+  assert.ok(Math.abs(run.snakes[0].x-fast.snakes[0].x)<1e-8);
+  assert.equal(run.snakes[0].direction,fast.snakes[0].direction);
+  assert.equal(run.enemyTime,10);
+ }
+ fast.update(1/60,0,40);late.update(1/30,0,40);
+ assert.ok(Math.abs(fast.snakes[0].x-late.snakes[0].x)<1e-8);
+ assert.equal(fast.x,120);assert.equal(late.x,120);
+ const start=snakeRun();start.update(1/60,0,0);assert.equal(start.snakes[0].x,420);
+});
+
+test('multiplayer enemies keep kills and contact local, recover without resurrecting, and reset on rematch',()=>{
+ const mine=snakeRun(),other=snakeRun();mine.x=400;mine.startAttack();mine.update(.02,0,.02);
+ other.update(.02,0,.02);assert.equal(mine.snakes[0].defeated,true);assert.equal(other.snakes[0].defeated,false);
+ mine.update(.02,0,20);other.update(.02,0,20);assert.equal(mine.snakes[0].defeated,true);
+ other.x=other.snakes[0].x;other.update(.01,0,20.01);assert.equal(other.hitReaction.protected,true);assert.equal(mine.hitReaction.protected,false);
+ assert.equal(mine.receivePlayerHit({sequence:999,direction:1}),false);
+ const next=snakeRun();next.update(.02,0,.02);assert.equal(next.snakes[0].defeated,false);
+ assert.notEqual(next.snakes[0],mine.snakes[0]);assert.equal(next.hitReaction.protected,false);
+});
 test('snake animation preserves its foot and scale across all wriggle and tongue frames',async()=>{
  const {TextureSource}=await import('pixi.js');const {createSnakeArt,SnakeView,snakeFrame}=await importTs('../src/game/SnakeView.ts',import.meta.url);
  const map=JSON.parse(await readFile(new URL('../public/assets/enemies/leaf-snake-frames.json',import.meta.url),'utf8'));
@@ -666,14 +692,14 @@ test('snake contact reuses knockback/protection and cannot be bypassed by a long
 });
 test('defeated enemies stay gone for this run, but retry state is independent',()=>{
  const run=snakeRun();run.x=400;run.startAttack();run.update(.02,0);run.height=-210;run.update(.01,0);assert.equal(run.respawns,1);assert.equal(run.snakes[0].defeated,true);
- const retry=snakeRun();assert.equal(retry.snakes[0].defeated,false);assert.notEqual(retry.snakes[0],run.snakes[0]);assert.deepEqual(SINGLE_SNAKES.garden,[{left:300,right:540}]);
+ const retry=snakeRun();assert.equal(retry.snakes[0].defeated,false);assert.notEqual(retry.snakes[0],run.snakes[0]);assert.deepEqual(COURSE_SNAKES.garden,[{left:300,right:540}]);
 });
 test('snake size uses half of each pet idle body, and prototype patrols avoid pits and solid obstacles',async()=>{
  const {snakeHeight}=await importTs('../src/game/SnakeView.ts',import.meta.url);
  assert.equal(snakeHeight({scale:.62,animations:{idle:{frames:[{trim:{height:200}}]}}}),62);
  assert.equal(snakeHeight({scale:.62,animations:{idle:{scale:.5,frames:[{orig:{height:1024}}],bodyBounds:[{height:400}]}}}),62);
  const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
- for(const [id,spawns]of Object.entries(SINGLE_SNAKES))for(const p of spawns){const solids=COURSES[id].solids;assert.ok(solids.some(s=>s.top===0&&s.x<=p.left-40&&s.x+s.width>=p.right+40));assert.equal(solids.some(s=>s.top>0&&p.right+40>s.x&&p.left-40<s.x+s.width),false);}
+ for(const [id,spawns]of Object.entries(COURSE_SNAKES))for(const p of spawns){const solids=COURSES[id].solids;assert.ok(solids.some(s=>s.top===0&&s.x<=p.left-40&&s.x+s.width>=p.right+40));assert.equal(solids.some(s=>s.top>0&&p.right+40>s.x&&p.left-40<s.x+s.width),false);}
 });
 test('dummy course takes ten seconds and returns only after victory and fade', () => {
   const run = new DummyRun(flatCourse);

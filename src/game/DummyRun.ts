@@ -23,6 +23,7 @@ export class DummyRun {
   respawns = 0;
   checkpoint = this.start;
   elapsed = 0;
+  enemyTime = 0;
   readonly targets: { x: number; broken: boolean }[];
   readonly snakes:PatrolSnake[];private snakeHitSequence=0;
   private exitTime = -1;
@@ -45,6 +46,9 @@ export class DummyRun {
   get won(): boolean { return this.victoryTime >= 0; }
   get motionVelocity(): number { return this.horizontalVelocity + this.hitReaction.velocity * this.movementScale; }
   receivePlayerHit(hit: PlayerHit): boolean {
+    return this.options.playerCombat===true && this.receiveHit(hit);
+  }
+  private receiveHit(hit: PlayerHit): boolean {
     if (this.won || !this.hitReaction.receive(hit)) return false;
     // Cancel an existing burst, without imposing a stun or changing vertical motion.
     if (this.dash > 0) this.horizontalVelocity = 0;
@@ -78,16 +82,18 @@ export class DummyRun {
     this.velocity = this.horizontalVelocity = this.dash = this.dashCooldown = this.attack = this.land = 0;
     this.victoryTime = -1;
   }
-  update(seconds: number, axis: number): void {
+  update(seconds: number, axis: number, enemyTime?:number): void {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     const input = Number.isFinite(axis) ? Math.max(-1, Math.min(1, axis)) : 0;
     // Small physics steps prevent dash tunnelling and keep collisions stable at low FPS.
     let remaining = seconds;
+    const enemyStart=this.enemyTime;
     while (remaining > 0.0000001) {
       const step = Math.min(remaining, 1 / 120);
       remaining -= step;
       if (this.won) { this.victoryTime += step; if (this.exitTime >= 0) this.exitTime += step; continue; }
       this.elapsed += step;
+      this.enemyTime=Number.isFinite(enemyTime)?Math.max(0,enemyTime!-remaining):enemyStart+seconds-remaining;
       if (this.step(step, input)) return;
     }
   }
@@ -142,12 +148,12 @@ export class DummyRun {
       }
     }
     for(const snake of this.snakes){
-      snake.update(seconds);if(snake.defeated||this.height>=snake.height||this.height+this.bodyHeight<=0)continue;
+      snake.update(seconds,this.enemyTime);if(snake.defeated||this.height>=snake.height||this.height+this.bodyHeight<=0)continue;
       const distance=(snake.x-this.x)*this.direction;
       // Reuse the existing attack's forward reach. Resolve attack before body contact.
       if(this.attack>0&&distance>=-this.halfWidth&&distance<=125+snake.halfWidth){snake.defeat();continue;}
       if(Math.abs(snake.x-this.x)<snake.halfWidth+this.halfWidth)
-        this.receivePlayerHit({sequence:++this.snakeHitSequence,direction:this.x<snake.x?-1:1});
+        this.receiveHit({sequence:++this.snakeHitSequence,direction:this.x<snake.x?-1:1});
     }
     if (this.x >= this.finish - 0.000001 && this.grounded) {
       this.hitReaction.reset();

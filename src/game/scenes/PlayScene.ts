@@ -1,7 +1,7 @@
 import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../../settings/i18n';
 import type { GamePreferences } from '../../settings/GameSettings';
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
-import {SINGLE_SNAKES} from '../PatrolSnake';
+import {COURSE_SNAKES} from '../PatrolSnake';
 import {SnakeView,snakeHeight,type SnakeArt} from '../SnakeView';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
@@ -119,7 +119,7 @@ export class PlayScene extends Scene {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
-      snakes:settings?.snakeArt&&!settings.multiplayer?SINGLE_SNAKES[settings.map??'garden']:[],snakeHeight:snakeHeight(config)});
+      snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config)});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
@@ -403,7 +403,9 @@ export class PlayScene extends Scene {
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
     const respawns = this.run.respawns;
-    if(this.raceStarted||this.run.won)this.run.update(seconds, axis);
+    const raceClient=this.settings?.multiplayer?.client,start=raceClient?.room?.startsAt;
+    const enemyTime=raceClient&&start!=null?Math.max(0,(raceClient.serverTime-start)/1000):undefined;
+    if(this.raceStarted||this.run.won)this.run.update(seconds, axis,enemyTime);
     if(this.settings?.multiplayer&&!this.startPoseSent&&this.raceStarted&&!this.run.won){this.startPoseSent=true;this.settings.multiplayer.client.publishStartPose();}
     const multi=this.settings?.multiplayer,room=multi?.client.room;
     if(this.courseProgress&&multi&&room){
@@ -463,7 +465,7 @@ export class PlayScene extends Scene {
     this.effect.update(action, progress ?? 0, run.direction, this.animation.sprite, run.horizontalVelocity);
     this.effect.visible = preferences?.effects !== false;
     this.hitEffect?.update(run.hitReaction,preferences?.effects!==false);
-    this.snakeViews.forEach(view=>view.update(run.elapsed,preferences?.effects!==false));
+    this.snakeViews.forEach(view=>view.update(run.enemyTime,preferences?.effects!==false));
     if (preferences?.effects === false) this.effect.ghosts.forEach(ghost => { ghost.visible = false; });
     this.victory.hidden = !run.won;
     this.result.hidden = !run.won;

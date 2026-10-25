@@ -4,7 +4,7 @@
 
 ## 먼저 확인할 파일
 
-- 잎사귀 뱀: [LEAF_SNAKE.md](LEAF_SNAKE.md). 최종 선택은 코기 기준 디자인 + 최초 큰 눈 조합이다. 공용 8프레임 시트(꿈틀4/혀4)와 Resources/Actions/leaf-snake-frames.json을 재사용하고 강아지 idle 몸체 높이의 약 50%로 표시한다. 논리 캔버스/바닥/배율을 모든 프레임에서 고정한다. 싱글 초반 한 마리·좁은 순찰·기존 어택/피격 효과를 유지하며 멀티 적 동기화는 아직 없다.
+- 잎사귀 뱀: [LEAF_SNAKE.md](LEAF_SNAKE.md). 최종 선택은 코기 기준 디자인 + 최초 큰 눈 조합이다. 공용 8프레임 시트(꿈틀4/혀4)와 Resources/Actions/leaf-snake-frames.json을 재사용한다. 싱글은 강아지 idle 몸체 높이 약 50%, 멀티는 공통 높이 60 world units다. 논리 캔버스/바닥/배율을 모든 프레임에서 고정한다. 싱글/멀티 초반 한 마리·좁은 순찰·기존 어택/피격 효과를 유지한다. 멀티 순찰/애니메이션은 공통 레이스 출발 시각 기준으로 계산하며 처치/접촉은 개인별이다. 추가 적 네트워크 호출은 없다.
 
 - 목 액세서리: Resources/Actions/<animal>-neck-anchors.json 및 [FORMAL_OUTFIT_ASSETS.md](FORMAL_OUTFIT_ASSETS.md). 머리 위치에 상수 오프셋을 더해 목을 추정하지 않는다. 실제 프레임의 목/가슴 좌표를 지정하고 모자와 독립적으로 재생한다.
 

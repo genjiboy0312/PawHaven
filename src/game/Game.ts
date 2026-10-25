@@ -287,7 +287,7 @@ export class Game {
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
             this.scenes?.show(new PlayScene(racePet,()=>{
               lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
-            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,
+            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,snakeArt:this.snakeArt,
               sound:kind=>{this.audio?.play(kind);},
               multiplayer:{client,pets:[corgi,this.myeongrang!],leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
                 failed:()=>{client.destroy();this.rooms=undefined;lobby(true,'multi');}},
