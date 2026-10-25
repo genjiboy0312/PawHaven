@@ -10,6 +10,8 @@ import { PARK_CHANNELS,PARK_WORLD,parkCamera,parkStep,type ParkMember } from '..
 import { ParkClient } from '../../park/ParkClient';
 import { GAME_FONT } from '../../ui/GameFont';
 import { KeyboardChatDock } from '../../ui/KeyboardChatDock';
+import { ParkProfilePopup } from '../../ui/ParkProfilePopup';
+import type { FriendsClient } from '../../friends/FriendsClient';
 
 /** Shared lobby art, wardrobe renderer and touch controls; park owns only social movement. */
 export class ParkScene extends Scene {
@@ -28,8 +30,10 @@ export class ParkScene extends Scene {
  private camera=parkCamera(this.playerX,this.playerY);
  private paused=false;private elapsed=0;private sent=0;private chatAt=-Infinity;private sending=false;private lastMessage=0;
  private choosing=true;private signature='';private historyLoaded=false;
- constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{}){
+ private readonly profile:ParkProfilePopup;
+ constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},friends?:FriendsClient){
   super();this.map=new LobbyMap(textures);this.actorLayer.sortableChildren=true;this.world.addChild(this.map,this.actorLayer);this.addChild(this.world);
+  this.profile=new ParkProfilePopup(client.owner,pets,friends);
   this.world.position.set(-this.camera.x,-this.camera.y);
   this.hud.className='play-hud park-hud';
   this.header.className='park-header';this.status.className='park-status';this.status.setAttribute('role','status');
@@ -68,7 +72,7 @@ export class ParkScene extends Scene {
   this.unsubscribe=client.subscribe(()=>this.refresh());this.localeOff=onLanguageChange(()=>{this.signature='';this.refresh();});this.refresh();void client.list();
  }
  private button(key:Parameters<typeof t>[0],action:()=>void){const b=document.createElement('button');b.type='button';b.className='commerce-primary';bindText(b,key);b.addEventListener('click',action,{signal:this.abort.signal});return b;}
- private active(){return !this.paused&&!this.choosing&&!!this.client.channel&&!this.client.error&&!this.client.busy;}
+ private active(){return !this.paused&&!this.choosing&&!this.profile.isOpen&&!!this.client.channel&&!this.client.error&&!this.client.busy;}
  private blur(){this.keys.clear();this.axis=this.axisY=0;const pointer=this.pointer;this.pointer=undefined;this.knob.style.transform='';if(pointer!==undefined&&this.stick.hasPointerCapture(pointer))this.stick.releasePointerCapture(pointer);}
  private jump(){if(this.active()&&this.jumpHeight===0)this.velocity=440;}
  override setPaused(paused:boolean){this.paused=paused;this.blur();}
@@ -95,8 +99,9 @@ export class ParkScene extends Scene {
   }
   this.chat.hidden=!c.channel||this.choosing;
   this.stick.disabled=!this.active();this.jumpButton.update(this.active()&&this.jumpHeight===0);
-  if(!c.channel)return;
+  if(!c.channel){this.profile.close();return;}
   const members=c.snapshot.members??[];
+  if(this.profile.memberId&&!members.some(m=>m.id===this.profile.memberId))this.profile.close();
   for(const [id,actor]of this.actors)if(!members.some(m=>m.id===id)){actor.box.destroy({children:true});this.actors.delete(id);}
   for(const member of members)this.actor(member);
   const initial=!this.historyLoaded;this.historyLoaded=true;
@@ -114,6 +119,12 @@ export class ParkScene extends Scene {
   const outfit={...createOutfit(),...member.look?.outfit};
   const config={...source,wardrobe:source.wardrobe?{...source.wardrobe,outfit}:undefined};
   const animation=new AnimalAnimationController(config),box=new Container();box.scale.set(.7);
+  box.eventMode='static';box.cursor='pointer';box.hitArea=animation.bodyHitArea;box.interactiveChildren=false;
+  box.on('pointertap',event=>{
+   if(event.button!==0||!this.active())return;
+   const current=this.client.snapshot.members?.find(m=>m.id===member.id);if(!current)return;
+   this.blur();this.chatDock.reset();this.profile.open(current);
+  });
   if(member.id!==this.client.owner)animation.sprite.tint=0xc9c9c9;
   const name=new Text({text:member.name,style:{fontFamily:GAME_FONT,fontSize:18,fill:member.id===this.client.owner?'#665039':'#67685d',stroke:{color:'#fff9e9',width:2}}});name.anchor.set(.5);name.y=-145;
   box.addChild(animation.sprite,animation.welcomeMark,name);this.actorLayer.addChild(box);
@@ -149,5 +160,5 @@ export class ParkScene extends Scene {
   }
   this.jumpButton.update(this.active()&&this.jumpHeight===0);
  }
- override destroy(options?:DestroyOptions){this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
+ override destroy(options?:DestroyOptions){this.profile.destroy();this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
 }

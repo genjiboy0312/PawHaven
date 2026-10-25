@@ -6,6 +6,7 @@ import {importTs} from './load-typescript.mjs';
 const db=new PGlite(),users=[1,2,3,4].map(n=>`${n}`.repeat(8)+'-1111-4111-8111-111111111111');
 const {FriendsClient,friendsTransport}=await importTs('../src/friends/FriendsClient.ts',import.meta.url);
 const {FriendsPopup}=await importTs('../src/ui/FriendsPopup.ts',import.meta.url);
+const {ParkProfilePopup}=await importTs('../src/ui/ParkProfilePopup.ts',import.meta.url);
 const {setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
 const blank=()=>({friends:[],incoming:[],outgoing:[],matches:[]});
 const friend=(id=users[1],relation='friend')=>({id,nickname:'Corgi',relation});
@@ -87,7 +88,7 @@ test('friends errors recover without accepting malformed data or invalid searche
 });
 
 class Element extends EventTarget{
- children=[];attributes=new Map();className='';textContent='';inert=false;disabled=false;scrollTop=0;value='';
+ children=[];attributes=new Map();className='';textContent='';inert=false;disabled=false;scrollTop=0;value='';style={};dataset={};
  constructor(tag='div'){super();this.tag=tag;}
  classList={contains:name=>this.className.split(' ').includes(name)};
  append(...items){for(const item of items){item.parent=this;this.children.push(item);}}
@@ -136,4 +137,32 @@ test('Friends popup searches, sends, cancels, accepts and confirms deletion with
   popup.close();assert.equal(hud.inert,false);assert.equal(pauses.at(-1),false);assert.equal(client.busy,false);
   const timer=client.timer;assert.ok(timer);assert.equal(timer._destroyed,true);
  }finally{popup.destroy();setLanguage('en');env.restore();}
+});
+
+test('park profile reuses worn portraits and server friend requests, acceptance and self-only display',async()=>{
+ const env=dom(),background=new Element();env.host.append(background);
+ const client=new FriendsClient(users[0],(action,target,query)=>command(0,action,target===null?null:users.indexOf(target),query));
+ const texture={frame:{x:0,y:0,width:64,height:64},orig:{width:64,height:64},source:{width:128,height:64}};
+ const pet={id:'corgi',scale:1,animations:{idle:{frames:[texture],fps:4,head:[{x:0,y:-48,width:30}],neck:[{x:0,y:-30,width:20}]}},wardrobe:{santaHat:{},bowTie:{},outfit:{Hat:0,Acc:0,Body:0,Etc:0}}};
+ const popup=new ParkProfilePopup(users[0],[pet],client),member={id:users[1],name:'Corgi',session:'lease',look:{petId:'corgi',outfit:{Hat:1,Acc:2,Body:0,Etc:0}}};
+ const click=label=>{const button=env.host.all().find(e=>e.tag==='button'&&e.textContent===label);assert.ok(button,label);assert.equal(button.disabled,false);button.dispatchEvent(new Event('click'));};
+ try{
+  popup.open(member);await idle(client);assert.equal(background.inert,true);assert.equal(popup.memberId,users[1]);
+  assert.ok(env.host.querySelector('.pet-portrait-hat').style.backgroundImage.includes('santa-hat.png'));
+  assert.ok(env.host.querySelector('.pet-portrait-acc').style.backgroundImage.includes('red-bow-tie.png'));
+  click('Add friend');await idle(client);assert.equal(client.snapshot.outgoing.length,1);assert.ok(env.host.all().some(e=>e.tag==='button'&&e.textContent==='Request sent'&&e.disabled));
+  await client.command('cancel',users[1]);await command(1,'send',0);await client.refresh();click('Accept');await idle(client);
+  assert.equal(client.snapshot.friends.length,1);assert.ok(env.host.all().some(e=>e.tag==='button'&&e.textContent==='Friends'&&e.disabled));
+  setLanguage('ko');assert.ok(env.host.all().some(e=>e.tag==='button'&&e.textContent==='친구'));
+  popup.close();assert.equal(background.inert,false);assert.equal(client.timer._destroyed,true);
+  const generation=client.generation;popup.open({...member,id:users[0],name:'Myeongrang'});assert.equal(client.generation,generation);assert.equal(popup.action.hidden,true);assert.equal(popup.label.textContent,'내 캐릭터예요');
+  popup.close();assert.equal(background.inert,false);
+ }finally{popup.destroy();client.destroy();setLanguage('en');env.restore();}
+});
+
+test('closing a park profile during a request restores the park and ignores late server responses',async()=>{
+ const env=dom(),background=new Element();env.host.append(background);let resolve;
+ const client=new FriendsClient(users[0],()=>new Promise(r=>{resolve=r;}));const popup=new ParkProfilePopup(users[0],[],client);
+ try{popup.open({id:users[1],name:'Corgi',session:'lease'});assert.equal(client.busy,true);popup.close();resolve(blank());await new Promise(r=>setTimeout(r,0));assert.equal(popup.isOpen,false);assert.equal(background.inert,false);assert.equal(client.busy,false);assert.equal(client.loaded,false);assert.equal(env.host.querySelector('.park-profile-overlay'),undefined);}
+ finally{popup.destroy();client.destroy();env.restore();}
 });
