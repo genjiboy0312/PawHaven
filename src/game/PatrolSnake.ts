@@ -1,7 +1,8 @@
 import type {CourseId} from './CourseCatalog';
 export interface SnakePatrol {left:number;right:number}
 export const COURSE_SNAKES:Record<CourseId,readonly SnakePatrol[]>={
- garden:[{left:300,right:540}],practice:[{left:220,right:430}],forest:[{left:300,right:500}]
+ garden:[{left:300,right:540}],practice:[{left:220,right:430}],
+ forest:[{left:300,right:500},{left:830,right:1030},{left:1510,right:1710}]
 };
 /** Local enemy component; its state belongs to one run, never the shared course definition. */
 export class PatrolSnake {

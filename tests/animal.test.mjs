@@ -741,6 +741,27 @@ test('dummy course takes ten seconds and returns only after victory and fade', (
   assert.equal(run.returnReady, true);
   assert.equal(run.fade, 1);
 });
+
+test('Forest snake section supports both jumping past every enemy and attacking, with no forced kills',async()=>{
+ const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
+ const map=COURSES.forest;
+ assert.equal(map.multiplayer,false);assert.equal(COURSE_SNAKES.forest.length,3);
+ assert.equal(COURSE_SNAKES.garden.length,1);assert.equal(COURSE_SNAKES.practice.length,1);
+ for(const mode of ['jump','attack']){
+  const run=new DummyRun(map.solids,1/.78,{finish:1950,snakes:COURSE_SNAKES.forest,snakeHeight:60});
+  let hit=false;
+  for(let i=0;i<2400&&!run.won;i++){
+   const obstacle=map.solids.some(s=>s.top>0&&s.x-run.x>0&&s.x-run.x<120);
+   const enemy=run.snakes.some(s=>!s.defeated&&s.x-run.x>0&&s.x-run.x<120);
+   if(run.grounded&&(obstacle||mode==='jump'&&enemy))run.jump();
+   if(mode==='attack'&&run.snakes.some(s=>!s.defeated&&s.x-run.x>0&&s.x-run.x<150&&run.height<s.height))run.startAttack();
+   run.update(1/120,1);hit ||= run.hitReaction.protected;
+  }
+  assert.equal(run.won,true,mode+' route reaches the section exit');
+  assert.equal(run.respawns,0);assert.equal(hit,false,mode+' route avoids contact');
+  assert.equal(run.snakes.filter(s=>s.defeated).length,mode==='jump'?0:3);
+ }
+});
 test('dummy controls jump, land, dash with cooldown and expire attack', () => {
   const run = new DummyRun(flatCourse);
   run.update(1, -1);
