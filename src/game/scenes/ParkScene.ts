@@ -13,6 +13,7 @@ import { KeyboardChatDock } from '../../ui/KeyboardChatDock';
 import { ParkProfilePopup } from '../../ui/ParkProfilePopup';
 import type { FriendsClient } from '../../friends/FriendsClient';
 import {ParkEmoteMenu,PARK_EMOTE_MESSAGES,PARK_EMOTE_MARKS} from '../../ui/ParkEmoteMenu';
+import {ParkParticipants} from '../../ui/ParkParticipants';
 
 /** Shared lobby art, wardrobe renderer and touch controls; park owns only social movement. */
 export class ParkScene extends Scene {
@@ -36,6 +37,7 @@ export class ParkScene extends Scene {
  private readonly recipient=document.createElement('button');
  private friendOff?:()=>void;private blockedIds=new Set<string>();private blockSignature='';
  private readonly emotions:ParkEmoteMenu;
+ private readonly participants:ParkParticipants;
  constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},private readonly friends?:FriendsClient){
   super();this.map=new LobbyMap(textures);this.actorLayer.sortableChildren=true;this.world.addChild(this.map,this.actorLayer);this.addChild(this.world);
   this.profile=new ParkProfilePopup(client.owner,pets,friends,member=>{
@@ -45,6 +47,7 @@ export class ParkScene extends Scene {
    if(!this.active()||this.jumpHeight>0)return false;
    this.blur();this.chatDock.reset();return this.client.emote(kind);
   });
+  this.participants=new ParkParticipants(pets,client.owner,id=>this.openProfile(id));
   this.world.position.set(-this.camera.x,-this.camera.y);
   this.hud.className='play-hud park-hud';
   this.header.className='park-header';this.status.className='park-status';this.status.setAttribute('role','status');
@@ -57,12 +60,12 @@ export class ParkScene extends Scene {
   this.input.addEventListener('keydown',event=>{if(event.key==='Enter'&&event.isComposing)event.preventDefault();if(event.key==='Escape'){event.preventDefault();this.input.blur();this.chatDock.reset();}},{signal:this.abort.signal});
   this.recipient.type='button';this.recipient.className='park-whisper-target';this.recipient.hidden=true;
   this.recipient.addEventListener('click',()=>{this.whisperTarget=undefined;this.client.chatError='';this.refresh();},{signal:this.abort.signal});
-  this.input.addEventListener('focus',()=>{this.blur();this.emotions.close();},{signal:this.abort.signal});this.chat.append(this.log,this.recipient,form);
+  this.input.addEventListener('focus',()=>{this.blur();this.emotions.close();this.participants.close();},{signal:this.abort.signal});this.chat.append(this.log,this.recipient,form);
   this.chatDock=new KeyboardChatDock(this.chat,this.input);
   this.stick.type='button';this.stick.className='play-stick';bindAria(this.stick,'joystick');this.knob.className='stick-knob';this.stick.append(this.knob);
   const actions=document.createElement('div');actions.className='play-actions';actions.append(this.jumpButton.element);
   this.jumpButton.element.addEventListener('pointerdown',event=>{event.preventDefault();this.jump();},{signal:this.abort.signal});
-  this.hud.append(this.header,this.status,this.stick,actions,this.chat,this.picker,this.emotions.element);document.querySelector('#app')?.append(this.hud);
+  this.hud.append(this.header,this.status,this.stick,actions,this.chat,this.picker,this.emotions.element,this.participants.element);document.querySelector('#app')?.append(this.hud);
   const move=(event:PointerEvent)=>{
    if(event.pointerId!==this.pointer)return;const r=this.stick.getBoundingClientRect(),rotated=document.querySelector('#app')?.classList.contains('portrait-touch');
    const dx=rotated?event.clientY-r.top-r.height/2:event.clientX-r.left-r.width/2;
@@ -96,7 +99,7 @@ export class ParkScene extends Scene {
  private active(){return !this.paused&&!this.choosing&&!this.profile.isOpen&&!!this.client.channel&&!this.client.error&&!this.client.busy;}
  private blur(){this.keys.clear();this.axis=this.axisY=0;const pointer=this.pointer;this.pointer=undefined;this.knob.style.transform='';if(pointer!==undefined&&this.stick.hasPointerCapture(pointer))this.stick.releasePointerCapture(pointer);}
  private jump(){if(this.active()&&this.jumpHeight===0)this.velocity=440;}
- override setPaused(paused:boolean){this.paused=paused;this.blur();if(paused)this.emotions.close();}
+ override setPaused(paused:boolean){this.paused=paused;this.blur();if(paused){this.emotions.close();this.participants.close();}}
  private async choose(channel:number){
   this.blur();this.chatDock.reset();if(await this.client.join(channel)){this.whisperTarget=undefined;this.choosing=false;this.lastMessage=0;this.historyLoaded=false;this.log.replaceChildren();this.input.value='';this.playerX=620+(Number.parseInt(this.client.owner.slice(0,4),16)%6)*115;this.playerY=PARK_WORLD.spawnY;this.camera=parkCamera(this.playerX,this.playerY);this.jumpHeight=this.velocity=0;this.signature='';this.refresh();}
  }
@@ -104,12 +107,12 @@ export class ParkScene extends Scene {
   if(this.destroyed)return;
   const c=this.client;
   this.input.placeholder=t('parkMessage');
+  this.participants.update(c.channel,c.snapshot.members??[],this.active(),this.blockedIds);
   const signature=JSON.stringify([c.channel,c.snapshot.counts,c.busy,c.error,c.connected,this.choosing]);
   if(signature!==this.signature){
    this.signature=signature;this.header.replaceChildren();
-   const title=document.createElement('strong');title.textContent=t('park')+(c.channel?` ${c.channel} · ${c.snapshot.members?.length??0}/8`:'');
-   const settings=this.button('settings',()=>{this.blur();this.chatDock.reset();this.emotions.close();this.openSettings();});settings.classList.add('park-settings');
-   this.header.append(title,this.button('parkChannels',()=>{this.choosing=true;this.emotions.close();this.chatDock.reset();this.blur();this.signature='';this.refresh();void c.list();}),this.button('leaveRoom',this.onReturn),this.emotions.toggle,settings);
+   const settings=this.button('settings',()=>{this.blur();this.chatDock.reset();this.emotions.close();this.participants.close();this.openSettings();});settings.classList.add('park-settings');
+   this.header.append(this.participants.toggle,this.button('parkChannels',()=>{this.choosing=true;this.emotions.close();this.participants.close();this.chatDock.reset();this.blur();this.signature='';this.refresh();void c.list();}),this.button('leaveRoom',this.onReturn),this.emotions.toggle,settings);
    this.status.textContent=c.error?t(c.error as 'parkUnavailable'):c.channel&&!c.connected?t('parkConnecting'):'';
    this.picker.hidden=!this.choosing;this.picker.replaceChildren();
    if(this.choosing){
@@ -149,7 +152,7 @@ export class ParkScene extends Scene {
  private openProfile(id:string){
   const member=this.client.snapshot.members?.find(m=>m.id===id);
   if(!member){this.status.textContent=t('parkPlayerLeft');return;}
-  this.blur();this.emotions.close();this.chatDock.reset();this.profile.open(member);
+  this.blur();this.emotions.close();this.participants.close();this.chatDock.reset();this.profile.open(member);
  }
  private actor(member:ParkMember){
   const signature=JSON.stringify([member.session,member.look,member.name]),old=this.actors.get(member.id);if(old?.signature===signature)return;
@@ -202,6 +205,7 @@ export class ParkScene extends Scene {
   }
   this.jumpButton.update(this.active()&&this.jumpHeight===0);
   this.emotions.update(this.active()&&this.jumpHeight===0,this.client.canEmote);
+  this.participants.setEnabled(this.active());
  }
- override destroy(options?:DestroyOptions){this.emotions.destroy();this.friendOff?.();this.profile.destroy();this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
+ override destroy(options?:DestroyOptions){this.participants.destroy();this.emotions.destroy();this.friendOff?.();this.profile.destroy();this.blur();this.chatDock.destroy();this.abort.abort();this.unsubscribe();this.localeOff();this.client.destroy();this.hud.remove();super.destroy(options);}
 }

@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  parkParticipants:'Participants',
   parkEmotes:'Emotions',parkEmoteWave:'! Hello',parkEmoteHeart:'♡ Like',parkEmoteMusic:'♪ Happy',parkEmoteHello:'Hello!',parkEmoteLike:'I like it!',parkEmoteHappy:'So happy!',parkEmoteHint:'One expression every 3 seconds.',
   friendsBlocked:'Blocked friends',friendsBlockedEmpty:'No blocked players.',friendsBlock:'Block',friendsUnblock:'Unblock',friendsBlockState:'Blocked',friendsBlockedNotice:'Messages and friend requests are unavailable for this blocked relationship.',friendsBlockTitle:'Block this player?',friendsBlockNote:'Hide their chat and prevent private messages and friend requests. Existing friendship and pending requests will be removed.',friendsUnblockTitle:'Unblock this player?',friendsUnblockNote:'Allow chat and friend requests again? Your previous friendship will not be restored.',
   parkWhisper:'Whisper',parkWhisperTo:'To: {name}',parkWhisperCancel:'Return to public chat',parkWhisperSent:'[Whisper →]',parkWhisperReceived:'[Whisper ←]',parkWhisperLeft:'This player has left. Cancel the recipient to return to public chat.',parkPlayerLeft:'This player has left the park.',parkWhisperSetup:'Private chat setup is not complete yet. Please try again after the server update.',
@@ -196,6 +197,7 @@ const ko: Record<TextKey, string> = {
   freeTrack: '무료', premiumTrack: '프리미엄', rewardPreview: '보상 미리보기', claim: '받기', claimed: '수령 완료',
   coins: '코인', testCoins: '테스트 코인', owned: '보유 중', buy: '구매', notEnoughCoins: '코인 부족',
   questRewardReady: '퀘스트 · 받을 수 있는 보상이 있어요',
+  parkParticipants:'참여자',
   parkEmotes:'감정표현',parkEmoteWave:'! 인사',parkEmoteHeart:'♡ 좋아요',parkEmoteMusic:'♪ 신나요',parkEmoteHello:'안녕!',parkEmoteLike:'좋아요!',parkEmoteHappy:'신나요!',parkEmoteHint:'감정표현은 3초마다 사용할 수 있어요.',
   friendsBlocked:'차단한 친구',friendsBlockedEmpty:'차단한 사용자가 없어요.',friendsBlock:'차단',friendsUnblock:'차단 해제',friendsBlockState:'차단한 친구예요',friendsBlockedNotice:'차단 관계에서는 귓속말과 친구 요청을 보낼 수 없어요.',friendsBlockTitle:'이 사용자를 차단할까요?',friendsBlockNote:'상대 채팅을 숨기고 귓속말과 친구 요청을 막아요. 기존 친구 관계와 대기 중인 요청은 삭제돼요.',friendsUnblockTitle:'차단을 해제할까요?',friendsUnblockNote:'이 사용자의 채팅과 친구 요청을 다시 허용할까요? 이전 친구 관계는 자동으로 복구되지 않아요.',
   friendsList: '친구 목록', addFriend: '친구 추가', friendRequests: '받은 요청',

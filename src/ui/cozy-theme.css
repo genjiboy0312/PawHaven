@@ -37,6 +37,18 @@ button, input, select { font-family: var(--font-round); }
 .play-menu-panel[data-page="mode"] .with-park{grid-template-columns:repeat(3,minmax(0,1fr));}
 .park-hud .park-header{position:absolute;top:3cqh;left:3cqw;right:3cqw;display:flex;align-items:center;gap:1cqw;pointer-events:auto;font:400 clamp(12px,2cqw,24px) var(--font-round);}
 .park-header strong{margin-right:auto;color:#675a43;}
+.park-people-toggle{margin-right:auto;min-height:38px;max-width:40%;padding:0;border:0;background:transparent;box-shadow:none;font:inherit;color:#675a43;text-align:left;cursor:pointer;}
+.park-people-toggle:focus-visible{outline:2px solid #b67b3f;outline-offset:2px;border-radius:8px;}
+.settings-panel.park-participants{position:absolute;left:3cqw;top:12cqh;width:44%;height:auto;max-height:64%;padding:2cqh 1.5cqw;display:flex;flex-direction:column;gap:1.5cqh;pointer-events:auto;z-index:9;}
+.park-participants[hidden]{display:none;}
+.park-participants h2{font-size:2cqw;min-height:max(32px,6cqh);}
+.park-participants .settings-close{width:clamp(32px,3.5cqw,40px);height:clamp(32px,3.5cqw,40px);top:1cqh;right:1cqw;}
+.park-participant-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1cqh .8cqw;overflow-y:auto;min-height:0;scrollbar-width:thin;}
+.park-hud .park-participant{display:flex;align-items:center;gap:.7cqw;min-width:0;padding:.5cqh .6cqw;text-align:left;}
+.park-participant .room-pet-stage{width:7cqw;height:10cqh;flex:none;}
+.park-participant-info{display:flex;flex-direction:column;gap:.4cqh;min-width:0;overflow-wrap:anywhere;}
+.park-participant-info strong{font:400 clamp(11px,1.4cqw,18px) var(--font-round);}
+.park-participant-info>span{font:400 clamp(10px,1.1cqw,14px) var(--font-body);}
 .park-hud .park-emote-toggle{min-width:38px;font-size:22px;line-height:1;}
 .settings-panel.park-emote-menu{position:absolute;right:3cqw;top:11cqh;width:auto;max-width:94%;height:auto;padding:1.5cqh 1cqw;display:grid;grid-template-columns:repeat(3,auto);gap:1cqw;pointer-events:auto;z-index:9;}
 .park-emote-menu[hidden]{display:none;}

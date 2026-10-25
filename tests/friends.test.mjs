@@ -7,6 +7,7 @@ const db=new PGlite(),users=[1,2,3,4].map(n=>`${n}`.repeat(8)+'-1111-4111-8111-1
 const {FriendsClient,friendsTransport}=await importTs('../src/friends/FriendsClient.ts',import.meta.url);
 const {FriendsPopup}=await importTs('../src/ui/FriendsPopup.ts',import.meta.url);
 const {ParkProfilePopup}=await importTs('../src/ui/ParkProfilePopup.ts',import.meta.url);
+const {ParkParticipants}=await importTs('../src/ui/ParkParticipants.ts',import.meta.url);
 const {setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
 const blank=()=>({friends:[],incoming:[],outgoing:[],matches:[]});
 const friend=(id=users[1],relation='friend')=>({id,nickname:'Corgi',relation});
@@ -98,6 +99,8 @@ class Element extends EventTarget{
  querySelector(selector){return this.all().find(item=>item.className.split(' ').includes(selector.slice(1)));}
  querySelectorAll(){return this.all().filter(item=>['button','input'].includes(item.tag)&&!item.disabled);}
  remove(){if(this.parent)this.parent.children=this.parent.children.filter(item=>item!==this);}
+ contains(element){return this===element||this.children.some(item=>item.contains(element));}
+ closest(selector){return selector==='[data-park-member]'&&this.dataset.parkMember?this:this.parent?.closest(selector);}
  focus(){document.activeElement=this;}get isConnected(){return this.tag==='main'||!!this.parent?.isConnected;}
 }
 function dom(){
@@ -178,4 +181,17 @@ test('profile block confirmation and fourth friends tab unblock reuse shared sta
   popup.open();await idle(client);assert.equal(popup.tabs.children[3].textContent,'Blocked friends');popup.tabs.children[3].dispatchEvent(new Event('click'));
   const unblock=env.host.all().find(e=>e.tag==='button'&&e.textContent==='Unblock');assert.ok(unblock);unblock.dispatchEvent(new Event('click'));clickClass('.confirm-accept');await idle(client);assert.equal(blocked,false);assert.equal(client.snapshot.friends.length,0);assert.ok(env.host.all().some(e=>e.textContent==='No blocked players.'));
  }finally{profile.destroy();popup.destroy();env.restore();}
+});
+
+test('park participant snapshots update portraits/counts without replacing focused rows and remove departed players',()=>{
+ const env=dom(),selected=[],pet={id:'corgi',animations:{idle:{frames:[],fps:4}}},menu=new ParkParticipants([pet],users[0],id=>selected.push(id));
+ const me={id:users[0],session:'a',name:'Myeongrang',look:{petId:'corgi'}},peer={id:users[1],session:'b',name:'Corgi',look:{petId:'corgi'}};
+ try{
+  env.host.append(menu.toggle,menu.element);menu.update(1,[me,peer],true,new Set());assert.ok(menu.toggle.textContent.includes('2/8'));menu.toggle.dispatchEvent(new Event('click'));assert.equal(menu.element.hidden,false);
+  const row=menu.rows.get(users[1]);row.button.focus();menu.update(1,[me,{...peer,name:'Corgi_new'}],true,new Set([users[1]]));assert.equal(menu.rows.get(users[1]).button,row.button);assert.equal(document.activeElement,row.button);assert.equal(row.name.textContent,'Corgi_new');assert.equal(row.note.textContent,'Blocked');
+  const click=new Event('click');Object.defineProperty(click,'target',{value:row.name});menu.list.dispatchEvent(click);assert.deepEqual(selected,[users[1]]);assert.equal(menu.element.hidden,true);
+  menu.toggle.dispatchEvent(new Event('click'));row.button.focus();menu.update(1,[me],true,new Set());assert.equal(menu.rows.size,1);assert.ok(menu.toggle.textContent.includes('1/8'));assert.equal(document.activeElement,menu.rows.get(users[0]).button);
+  const stale=new Event('click');Object.defineProperty(stale,'target',{value:row.button});menu.list.dispatchEvent(stale);assert.equal(selected.length,1);
+  setLanguage('ko');assert.ok(menu.toggle.textContent.includes('공원'));assert.equal(menu.rows.get(users[0]).note.textContent,'내 캐릭터예요');menu.setEnabled(false);assert.equal(menu.element.hidden,true);assert.equal(menu.toggle.disabled,true);menu.setEnabled(true);assert.equal(menu.toggle.disabled,false);
+ }finally{menu.destroy();setLanguage('en');env.restore();}
 });
