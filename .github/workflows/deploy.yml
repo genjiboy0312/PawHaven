@@ -32,7 +32,7 @@ jobs:
           set -o pipefail
           for file in tests/*.test.mjs; do
             echo "Testing $file"
-            timeout 120s node --test "$file" 2>&1 | tee -a test-results.log
+            timeout --kill-after=10s 120s node --test "$file" 2>&1 | tee -a test-results.log
           done
       - name: Preserve test diagnostics
         if: failure()

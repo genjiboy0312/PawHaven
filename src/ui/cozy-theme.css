@@ -29,6 +29,12 @@ button, input, select { font-family: var(--font-round); }
 .settings-content .mailbox-row{display:flex;flex-direction:column;align-items:flex-start;gap:.6cqh;text-align:left;flex:none;}
 .mailbox-row strong{font-weight:400;overflow-wrap:anywhere;}.mailbox-row span{font-size:1.15cqw;color:#92816a;}
 .mailbox-row[aria-pressed="true"]{background:#ffe1a8;border-color:#cda96d;}
+.mailbox-group{font:400 clamp(12px,1.4cqw,20px) var(--font-round);margin:1cqh 0 .3cqh;color:#786345;}
+.mailbox-row[data-state="mailWaiting"] span{color:#668344;}
+.mailbox-row[data-state="mailClaimed"]{background:#f0ecdf;}
+.mailbox-row[data-state="mailExpired"] span{color:#9a7565;}
+.hud-mail-notice{position:absolute;top:100%;left:50%;transform:translateX(-50%);padding:.6cqh .8cqw;border:1px solid #dec491;border-radius:.8cqw;background:#fff5d9;color:#735b3e;font:400 clamp(10px,1.1cqw,16px) var(--font-round);white-space:nowrap;pointer-events:none;z-index:2;}
+.hud-mail-notice[hidden]{display:none;}
 .mailbox-detail{padding:1cqh 1cqw;overflow-wrap:anywhere;}.mailbox-detail h3{font-weight:400;margin:0 0 1cqh;font-size:2cqw;}
 .mailbox-body{white-space:pre-wrap;line-height:1.5;}
 .mailbox-detail>button:last-child{position:sticky;bottom:0;}
@@ -36,7 +42,7 @@ button, input, select { font-family: var(--font-round); }
 .mailbox-item{display:flex;align-items:center;gap:.5cqw;border:1px solid #e4d3aa;border-radius:1cqw;padding:.5cqh .6cqw;}
 .mailbox-rewards .mailbox-item .outfit-object{position:relative;inset:auto;transform:none;width:4cqw;height:5cqw;flex:none;}
 .mailbox-item p{font-size:1.25cqw;}.mailbox-footer{display:flex;align-items:center;justify-content:flex-end;gap:1cqw;padding-top:1.5cqh;flex:none;}
-.mailbox-footer p{margin:0 auto 0 0;font-size:1.2cqw;max-width:60%;}.mailbox-footer button{margin:0;white-space:nowrap;}
+.mailbox-footer p{margin:0 auto 0 0;font-size:clamp(11px,1.2cqw,16px);max-width:60%;}.mailbox-footer button{margin:0;white-space:nowrap;}
 .mailbox-footer{flex-wrap:wrap;gap:1cqh 1cqw;}.mailbox-footer p{flex:1 0 100%;max-width:100%;}
 .mailbox-coupon{display:flex;align-items:center;gap:1cqw;flex:none;margin-top:1cqh;font:400 clamp(12px,1.5cqw,20px) var(--font-body);}
 .mailbox-coupon[hidden]{display:none;}.mailbox-coupon label{white-space:nowrap;}

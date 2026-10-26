@@ -33,11 +33,12 @@ export class LobbyHud {
   private requestCount=-1;
   private readonly requests?:()=>number;
   private readonly clickSound?: () => void;
+  private readonly mailNotice=document.createElement('span');private readonly mailArrival?:()=>number;private mailVersion=0;private mailNoticeUntil=0;
   private readonly mailBadge=document.createElement('span');private readonly mailPending?:()=>number;private mailCount=-1;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; mail?:()=>void; mailPending?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void,private readonly visit?:{name:string;leave:()=>void}) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void,private readonly visit?:{name:string;leave:()=>void}) {
     this.requests=commerce?.requests;
-    this.mailPending=commerce?.mailPending;
+    this.mailPending=commerce?.mailPending;this.mailArrival=commerce?.mailArrival;this.mailVersion=this.mailArrival?.()??0;
     this.rewards = commerce?.rewards;
     this.clickSound = commerce?.click;
     this.readNotice = commerce?.notice; this.economyBusy = commerce?.busy;
@@ -82,7 +83,7 @@ export class LobbyHud {
     this.friendsButton=friends;this.requestBadge.className='hud-request-badge';this.requestBadge.hidden=true;this.requestBadge.setAttribute('aria-hidden','true');friends.append(this.requestBadge);
     if (commerce?.friends) { friends.disabled = false; friends.addEventListener('click', commerce.friends); }
     utilities.append(quest, friends, shop, settings);
-    if(commerce?.mail){const mail=this.menu('mail','Mail');mail.disabled=false;mail.addEventListener('click',commerce.mail);this.mailBadge.className='hud-request-badge';this.mailBadge.hidden=true;this.mailBadge.setAttribute('aria-hidden','true');mail.append(this.mailBadge);utilities.prepend(mail);}
+    if(commerce?.mail){const mail=this.menu('mail','Mail');mail.disabled=false;mail.addEventListener('click',commerce.mail);this.mailBadge.className='hud-request-badge';this.mailBadge.hidden=true;this.mailBadge.setAttribute('aria-hidden','true');this.mailNotice.className='hud-mail-notice';this.mailNotice.hidden=true;this.mailNotice.setAttribute('role','status');bindText(this.mailNotice,'mailNew');mail.append(this.mailBadge,this.mailNotice);utilities.prepend(mail);}
     const play = document.createElement('div');
     play.className = 'hud-play';
     const playButton = this.menu('play', 'Play');
@@ -134,6 +135,7 @@ export class LobbyHud {
   }
   update(state: AnimalVisualState): void {
     if(this.visit)return;
+    const version=this.mailArrival?.()??0;if(version>this.mailVersion)this.mailNoticeUntil=performance.now()+3500;this.mailVersion=version;this.mailNotice.hidden=performance.now()>=this.mailNoticeUntil;
     const pending=this.mailPending?.()??0,mailCount=Number.isFinite(pending)?Math.max(0,Math.floor(pending)):0;if(mailCount!==this.mailCount){this.mailCount=mailCount;this.mailBadge.hidden=mailCount===0;this.mailBadge.textContent=mailCount>99?'99+':String(mailCount);}
     const value=this.requests?.()??0,count=Number.isFinite(value)?Math.max(0,Math.min(100,Math.floor(value))):0;
     if(count!==this.requestCount){this.requestCount=count;this.requestBadge.hidden=count===0;this.requestBadge.textContent=count>99?'99+':String(count);if(this.friendsButton)bindAria(this.friendsButton,count?'friendsRequestsReady':'friends');}

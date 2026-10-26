@@ -1,5 +1,5 @@
 import {bindAria,bindText,onLanguageChange,t,type TextKey} from '../settings/i18n';
-import {MailboxClient,type PlayerMail} from '../mail/MailboxClient';
+import {MailboxClient,hasMailRewards,mailGroup,type PlayerMail} from '../mail/MailboxClient';
 import {itemIcon} from './itemIcon';
 import {homeIcon,homeItemName} from './homeIcon';
 import {wearableItem} from '../animals/Wearables';
@@ -14,6 +14,7 @@ export class MailboxPopup {
  private button(key:TextKey,action:()=>void){const b=document.createElement('button');b.type='button';b.className='settings-feedback';bindText(b,key);b.addEventListener('click',action);return b;}
  open(){
   if(this.overlay)return;const host=document.querySelector('#app');if(!host)return;this.abort=new AbortController();
+  if(this.state)this.state.receipt=undefined;
   this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
   this.blocked=Array.from(host.children).filter((e):e is HTMLElement=>e instanceof HTMLElement).map(element=>({element,inert:element.inert}));this.blocked.forEach(b=>{b.element.inert=true;});this.pause(true);
   const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
@@ -37,17 +38,27 @@ export class MailboxPopup {
   if(!s){this.detail.append(this.paragraph(t('mailLogin')),this.button('login',()=>{this.close();this.login();}));return;}
   if(s.error){const status=this.paragraph(t(s.error));status.setAttribute('role','status');this.footer.append(status,this.button('economyRetry',()=>void s.run('load')));}
   else if(s.busy){const status=this.paragraph(t('friendsLoading'));status.setAttribute('role','status');this.footer.append(status);}
+  else if(s.receipt){
+   const receipt=s.receipt,parts=[t('mailReceipt').replace('{count}',String(receipt.granted))],r=receipt.received;
+   if(r){if(r.coins)parts.push(`${t('coins')} +${r.coins}`);if(r.snacks)parts.push(`${t('mailTreats')} +${r.snacks}`);if(r.items)parts.push(`${t('mailOutfits')} +${r.items}`);if(r.home)parts.push(`${t('mailHomeItems')} +${r.home}`);if(r.notices)parts.push(`${t('mailConfirmed')} ${r.notices}`);}
+   else parts.push(t('mailReceived'));
+   if(receipt.blocked)parts.push(t('mailCapacity'));
+   const status=this.paragraph(parts.join(' · '));status.setAttribute('role','status');this.footer.append(status);
+  }
   else if(s.snapshot?.outcome==='capacity')this.footer.append(this.paragraph(t('mailCapacity')));
-  else if(s.snapshot?.outcome==='claimed')this.footer.append(this.paragraph(t('mailReceived')));
   else if(s.snapshot?.outcome==='unavailable')this.footer.append(this.paragraph(t('mailUnavailable')));
   else if(s.snapshot?.outcome.startsWith('coupon')){const outcome=s.snapshot.outcome as TextKey;const status=this.paragraph(t(outcome));status.setAttribute('role','status');this.footer.append(status);}
-  const mails=s.snapshot?.mail??[];
+  const rank=(mail:PlayerMail)=>mail.claimedAt?1:s.expired(mail)?2:0;
+  const mails=[...(s.snapshot?.mail??[])].sort((a,b)=>rank(a)-rank(b)||Date.parse(b.createdAt)-Date.parse(a.createdAt)||a.id.localeCompare(b.id));
   if(!mails.length){this.detail.append(this.paragraph(t(s.snapshot?'mailEmpty':'friendsLoading')));}
   else{
    if(!mails.some(m=>m.id===this.selected))this.selected=mails[0]!.id;
+   let previousGroup='';
    for(const mail of mails){
+    const group=mailGroup(mail,s.expired(mail));
+    if(group!==previousGroup){const heading=document.createElement('h3');heading.className='mailbox-group';heading.textContent=t(group);this.list.append(heading);previousGroup=group;}
     const row=this.button('mail',()=>{this.selected=mail.id;this.render();if(!mail.readAt)void s.run('read',mail.id);});row.className='mailbox-row';row.setAttribute('aria-pressed',String(mail.id===this.selected));row.disabled=s.busy;
-    const title=document.createElement('strong');title.textContent=mail.title;const status=document.createElement('span');status.textContent=t(mail.claimedAt?'mailClaimed':s.expired(mail)?'mailExpired':'mailWaiting');row.replaceChildren(title,status);this.list.append(row);
+    row.dataset.state=group;const title=document.createElement('strong');title.textContent=mail.title;const status=document.createElement('span');status.textContent=t(group==='mailWaiting'&&!hasMailRewards(mail)?'mailConfirm':group);row.replaceChildren(title,status);this.list.append(row);
    }
    this.showMail(mails.find(m=>m.id===this.selected)!);
   }
@@ -66,7 +77,7 @@ export class MailboxPopup {
   for(const item of mail.rewards.items??[]){const chip=document.createElement('div');chip.className='mailbox-item';const name=wearableItem(item.category,item.index)?.name;chip.append(itemIcon(item.category,item.index),this.paragraph(name?t(name):`${t(item.category)} #${item.index}`));rewards.append(chip);}
   for(const item of mail.rewards.home??[]){const chip=document.createElement('div');chip.className='mailbox-item';chip.append(homeIcon(item.category,item.index),this.paragraph(`${homeItemName(item.category,item.index)} × ${item.quantity}`));rewards.append(chip);}
   if(!rewards.childElementCount)rewards.append(this.paragraph(t('mailNotice')));
-  const claim=this.button(mail.claimedAt?'mailClaimed':s.expired(mail)?'mailExpired':'mailClaim',()=>void s.run('claim',mail.id));claim.disabled=s.busy||!!s.error||!!mail.claimedAt||s.expired(mail);this.detail!.append(title,body,expires,rewards,claim);
+  const claim=this.button(mail.claimedAt?(hasMailRewards(mail)?'mailClaimed':'mailConfirmed'):s.expired(mail)?'mailExpired':hasMailRewards(mail)?'mailClaim':'mailConfirm',()=>void s.run('claim',mail.id));claim.disabled=s.busy||!!s.error||!!mail.claimedAt||s.expired(mail);this.detail!.append(title,body,expires,rewards,claim);
  }
  close(){if(!this.overlay)return;this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.list=this.detail=this.footer=undefined;this.couponForm=this.couponInput=this.couponSubmit=undefined;this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);if(this.previousFocus?.isConnected)this.previousFocus.focus();}
  destroy(){this.close();this.unsubscribe?.();this.localeOff();}
