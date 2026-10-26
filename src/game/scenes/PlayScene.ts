@@ -4,6 +4,7 @@ import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
 import {COURSE_SNAKES} from '../PatrolSnake';
 import {SnakeView,snakeHeight,type SnakeArt} from '../SnakeView';
 import { SnakeDefeatFeedback } from '../SnakeDefeatFeedback';
+import { courseBackdrop, type CourseBackgrounds } from '../CourseBackgrounds';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
 import type { PlayerHit } from '../HitReaction';
@@ -117,7 +118,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
@@ -131,10 +132,11 @@ export class PlayScene extends Scene {
     this.effect = new AnimalEffects(config.effects);
     const forest=settings?.map==='forest';
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill(forest?'#dae7d9':'#dcebdc'), this.world);
+    if(settings?.backgrounds)this.addChildAt(courseBackdrop(settings.backgrounds[map.time]),1);
     this.world.scale.set(PLAY_ZOOM);
     this.world.y = PLAY_GROUND_Y - COURSE_GROUND * PLAY_ZOOM;
     const terrain = settings?.art?courseTerrain(this.run.course,settings.art):new Graphics();
-    if(forest){
+    if(forest&&!settings?.backgrounds){
       const trees=new Graphics();trees.label='forest-scenery';
       for(let x=180;x<this.courseEnd;x+=640){
         const height=210+(Math.floor(x/640)%3)*24;
@@ -152,7 +154,7 @@ export class PlayScene extends Scene {
     }
     this.world.addChild(terrain);
     for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
-      const flag = new Text({ text: t(label), style: { fontFamily: GAME_FONT, fontSize: 23, fontWeight: '400', fill: '#455b3b' } });
+      const flag = new Text({ text: t(label), style: { fontFamily: GAME_FONT, fontSize: 23, fontWeight: '400', fill: map.time==='night'?'#fff4db':'#455b3b', stroke:map.time==='night'?{color:'#233c50',width:2}:undefined } });
       this.labels.push({ text: flag, key: label });
       flag.position.set(x - 40, 240);
       if(settings?.art){const marker=courseMarker(label,settings.art,x);this.world.addChild(marker,flag);if(label==='checkpoint')this.checkpointMarker=marker;}

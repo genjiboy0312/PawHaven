@@ -40,6 +40,7 @@ await db.exec(await readFile(new URL('../supabase/migrations/202610200004_room_s
 await db.exec(await readFile(new URL('../supabase/migrations/202610200005_direct_motion.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/202610200006_lobby_state.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/202610200007_race_countdown.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/202610260018_crossroads_course.sql',import.meta.url),'utf8'));
 async function as(user,query,args=[],role='authenticated') {
   await db.exec('set role '+role);
   try { await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??'']); return await db.query(query,args); }
@@ -121,6 +122,46 @@ test('only the host selects maps, map changes reset ready and start requires all
   assert.equal(start.phase,'countdown'); assert.equal(start.startsAt,null); assert.ok(start.round);
   await assert.rejects(()=>cmd(2,'join',r.id),e=>e.code==='P0001');
   await assert.rejects(()=>cmd(0,'map',r.id,{map:'garden'}),e=>e.code==='42501');
+});
+
+test('Crossroads rooms use the new authoritative finish and preserve host/ready/round rules',async()=>{
+ const r=(await cmd(0,'create',null,{map:'crossroads'})).room;assert.equal(r.map,'crossroads');
+ await cmd(1,'join',r.id);await cmd(1,'ready',r.id,{ready:true});
+ await assert.rejects(()=>cmd(1,'map',r.id,{map:'practice'}),e=>e.code==='42501');
+ const start=(await cmd(0,'start',r.id)).room;
+ await cmd(0,'loaded',r.id,{round:start.round});const loaded=(await cmd(1,'loaded',r.id,{round:start.round})).room;
+ assert.ok(loaded.startsAt);await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds' where id=$1",[r.id]);
+ await cmd(0,'pose',r.id,{round:start.round,x:2520,height:0,action:'run'});
+ await assert.rejects(()=>cmd(0,'finish',r.id,{round:start.round}),e=>e.code==='P0001');
+ const finishX=COURSES.crossroads.finish;
+ const posed=(await cmd(0,'pose',r.id,{round:start.round,x:99999,height:150,action:'jump'})).room;
+ assert.equal(posed.members.find(m=>m.id===users[0]).pose.x,finishX);
+ await cmd(0,'pose',r.id,{round:start.round,x:finishX,height:0,action:'run'});
+ const finished=(await cmd(0,'finish',r.id,{round:start.round})).room;
+ assert.ok(finished.racers.find(m=>m.id===users[0]).time>=10000);
+ const client=new RoomClient(users[1],(a,id,p)=>cmd(1,a,id,p));
+ try{assert.equal(await client.command('sync'),true);assert.equal(client.room.map,'crossroads');}finally{client.destroy(false);}
+ await assert.rejects(()=>cmd(2,'create',null,{map:'forest'}));
+});
+
+test('all four map backdrops reuse saved opaque PNG resources and preserve shared textures on scene disposal',async()=>{
+ const {courseBackdrop,COURSE_TIMES}=await importTs('../src/game/CourseBackgrounds.ts',import.meta.url);
+ assert.deepEqual(COURSE_TIMES,['morning','noon','sunset','night']);
+ for(const time of COURSE_TIMES){
+  const original=await readFile(new URL('../Resources/Park_Background_'+time+'.png',import.meta.url));
+  const deployed=await readFile(new URL('../public/assets/backgrounds/'+time+'.png',import.meta.url));
+  assert.equal(original.equals(deployed),true);assert.equal(deployed.readUInt32BE(16),2172);assert.equal(deployed.readUInt32BE(20),724);
+ }
+ const env=dom(),textures=Object.fromEntries(COURSE_TIMES.map(time=>[time,new Texture({source:new TextureSource({width:2172,height:724})})]));
+ try{
+  for(const [id,map]of Object.entries(COURSES)){
+   const scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:id,backgrounds:textures});
+   scene.resize(960,540);const backdrop=scene.children.find(c=>c.label==='course-background');
+   assert.equal(backdrop.texture,textures[map.time]);assert.equal(backdrop.width,960);assert.equal(backdrop.height,365);
+   assert.equal(backdrop.tint,0xffffff);scene.destroy({children:true});assert.equal(textures[map.time].destroyed,false);
+  }
+  const backdrop=courseBackdrop(textures.sunset);backdrop.destroy();assert.equal(textures.sunset.destroyed,false);
+ }finally{Object.values(textures).forEach(texture=>texture.destroy(true));env.restore();}
 });
 test('leaving transfers host and stale connections free seats',async()=>{
   const r=(await cmd(0,'create')).room; await cmd(1,'join',r.id); await cmd(2,'join',r.id);
@@ -450,9 +491,9 @@ test('single map choice launches without an account and restores the lobby input
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
-    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (3) ▾');
+    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (4) ▾');
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
-    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,3);
+    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,4);
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='forest').getAttribute('data-map'),'forest');
     choices.children.find(c=>c.getAttribute('data-map')==='practice').dispatchEvent(new Event('click'));
@@ -575,7 +616,7 @@ test('forest can launch as single but never leaks into room creation after switc
     assert.equal(env.host.querySelector('.play-menu-back'),undefined);assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Multiplayer').dispatchEvent(new Event('click'));await idle(client);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));
-    const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice']);
+    const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice','crossroads']);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);assert.equal(client.room.map,'garden');
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
@@ -597,12 +638,12 @@ test('single and multiplayer use one top back action while preserving pagination
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'mode');
     assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Single').dispatchEvent(new Event('click'));
-    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (3) ▾');
+    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (4) ▾');
     assert.ok(env.host.querySelector('.single-map-heading').children.includes(change));
     change.dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.room-map-picker').getAttribute('aria-label'),'Choose map');
     env.host.querySelector('.room-map-picker').querySelector('.settings-close').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'single');
-    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (3) ▾');
+    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (4) ▾');
     assert.equal(env.host.querySelector('.play-menu-back').hidden,true);assert.equal(env.host.querySelector('.play-menu-back').disabled,true);
     const leave=env.host.querySelector('.play-menu-exit');assert.equal(leave.textContent,'나가기');assert.equal(env.host.querySelector('.play-menu-footer').contains(leave),true);
     leave.dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(menu.closeButton.hidden,false);

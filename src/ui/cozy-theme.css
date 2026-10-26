@@ -626,7 +626,11 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .single-map-choices .single-goal{max-width:100%;}
 .play-result .single-new-best { color: #728648; font-family: var(--font-round); }
 .map-forest { border-top: 0.5cqh solid #73977c !important; }
-.map-forest::before { filter: hue-rotate(18deg) saturate(0.8); background-position: center 30%; }
+.map-garden::before { filter:none; background-image:url('/assets/backgrounds/morning.png'); background-position:center; }
+.map-practice::before { filter:none; background-image:url('/assets/backgrounds/noon.png'); background-position:center; }
+.map-forest::before { filter:none; background-image:url('/assets/backgrounds/night.png'); background-position:center; }
+.map-crossroads { border-top:0.5cqh solid #bf8b7d !important; }
+.map-crossroads::before { filter:none; background-image:url('/assets/backgrounds/sunset.png'); background-position:center; }
 .run-recovery-panel{width: min(64cqw, 420px);text-align:center;padding:3cqh 3cqw;}
 .run-recovery-panel p{margin:2cqh 0;color:#70644f;line-height:1.5;}
 .run-recovery-panel .commerce-primary{margin-top:1cqh;}

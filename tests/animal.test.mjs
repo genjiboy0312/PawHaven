@@ -720,7 +720,38 @@ test('snake size uses half of each pet idle body, and prototype patrols avoid pi
  assert.equal(snakeHeight({scale:.62,animations:{idle:{frames:[{trim:{height:200}}]}}}),62);
  assert.equal(snakeHeight({scale:.62,animations:{idle:{scale:.5,frames:[{orig:{height:1024}}],bodyBounds:[{height:400}]}}}),62);
  const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
- for(const [id,spawns]of Object.entries(COURSE_SNAKES))for(const p of spawns){const solids=COURSES[id].solids;assert.ok(solids.some(s=>s.top===0&&s.x<=p.left-40&&s.x+s.width>=p.right+40));assert.equal(solids.some(s=>s.top>0&&p.right+40>s.x&&p.left-40<s.x+s.width),false);}
+ for(const [id,spawns]of Object.entries(COURSE_SNAKES))for(const p of spawns){const solids=COURSES[id].solids;assert.ok(solids.some(s=>s.top===0&&s.x<=p.left-40&&s.x+s.width>=p.right+40));assert.equal(solids.some(s=>s.top>0&&s.bottom<60&&p.right+40>s.x&&p.left-40<s.x+s.width),false);}
+});
+
+test('one-way platforms allow walking underneath and upward jumps, then support landing and ground actions',()=>{
+ const course=[...flatCourse,{x:200,width:400,top:60,bottom:40,oneWay:true}];
+ const underneath=new DummyRun(course);underneath.update(2.2,1);assert.ok(underneath.x>600);assert.equal(underneath.height,0);
+ const jump=new DummyRun(course);jump.x=300;jump.jump();jump.update(.45,0);assert.ok(jump.height>60);
+ jump.update(.4,0);assert.equal(jump.height,60);assert.equal(jump.grounded,true);assert.equal(jump.canDash,true);
+ const solid=new DummyRun([...flatCourse,{x:200,width:400,top:140,bottom:120}]);solid.x=300;solid.jump();solid.update(.2,0);assert.ok(solid.height<=30);assert.ok(solid.velocity<=0); // Existing solid roofs still stop the head.
+});
+
+test('Sunset Crossroads supports a lower attack lane and an elevated no-kill route at 30/60/120 FPS',async()=>{
+ const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url),map=COURSES.crossroads;
+ const platforms=map.solids.filter(s=>s.oneWay);
+ for(const mode of ['lower','upper'])for(const fps of [30,60,120]){
+  const run=new DummyRun(map.solids,1/.78,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,snakes:COURSE_SNAKES.crossroads,snakeHeight:60});
+  let next=0,hit=false;
+  for(let i=0;i<fps*30&&!run.won;i++){
+   if(mode==='upper'){
+    const platform=platforms[next];
+    if(platform&&run.grounded&&Math.abs(run.height-platform.top)<.000001&&run.x+run.halfWidth>platform.x&&run.x-run.halfWidth<platform.x+platform.width)next++;
+    const target=platforms[next];
+    if(target&&run.grounded&&target.x-run.x<=160)run.jump();
+   }else if(run.snakes.some(s=>!s.defeated&&s.x-run.x>0&&s.x-run.x<150))run.startAttack();
+   run.update(1/fps,1);hit ||= run.hitReaction.protected;
+  }
+  const state=JSON.stringify({mode,fps,x:run.x,height:run.height,next});
+  assert.equal(run.won,true,state);assert.equal(run.respawns,0,state);assert.equal(hit,false,state);
+  assert.equal(run.checkpoint,map.checkpoint);assert.ok(run.elapsed>=18&&run.elapsed<=24,state);
+  assert.equal(run.snakes.filter(s=>s.defeated).length,mode==='lower'?4:0,state);
+  if(mode==='upper')assert.equal(next,platforms.length,state);
+ }
 });
 test('dummy course takes ten seconds and returns only after victory and fade', () => {
   const run = new DummyRun(flatCourse);

@@ -112,6 +112,7 @@ export class DummyRun {
     distance += this.hitReaction.advance(seconds) * this.movementScale;
     let nextX = Math.max(this.start, Math.min(this.finish, this.x + distance));
     for (const solid of this.course) {
+      if (solid.oneWay) continue;
       if (this.height >= solid.top - 0.000001 || this.height + this.bodyHeight <= solid.bottom + 0.000001) continue;
       if (distance > 0 && this.x + this.halfWidth <= solid.x + 0.000001 && nextX + this.halfWidth > solid.x) nextX = Math.min(nextX, solid.x - this.halfWidth);
       if (distance < 0 && this.x - this.halfWidth >= solid.x + solid.width - 0.000001 && nextX - this.halfWidth < solid.x + solid.width) nextX = Math.max(nextX, solid.x + solid.width + this.halfWidth);
@@ -131,7 +132,7 @@ export class DummyRun {
         if (!this.overlaps(solid)) continue;
         if (this.velocity <= 0 && oldHeight >= solid.top - 0.000001 && nextHeight <= solid.top) {
           nextHeight = Math.max(nextHeight, solid.top); this.velocity = 0; this.land = 0.16;
-        } else if (this.velocity > 0 && oldHeight + this.bodyHeight <= solid.bottom && nextHeight + this.bodyHeight >= solid.bottom) {
+        } else if (!solid.oneWay && this.velocity > 0 && oldHeight + this.bodyHeight <= solid.bottom && nextHeight + this.bodyHeight >= solid.bottom) {
           nextHeight = solid.bottom - this.bodyHeight; this.velocity = 0;
         }
       }

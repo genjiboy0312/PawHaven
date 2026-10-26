@@ -11,6 +11,7 @@ import { roomStream, lobbyStream } from '../multiplayer/RoomStream';
 import type { CourseId } from './CourseCatalog';
 import { SingleRecords } from './SingleRecords';
 import { loadCourseArt, type CourseArt } from './CourseArt';
+import { loadCourseBackgrounds, type CourseBackgrounds } from './CourseBackgrounds';
 import { AccountService } from '../account/AccountService';
 import { createAccountClient } from '../account/client';
 import { loadHome } from '../home/loadHome';
@@ -60,6 +61,7 @@ export class Game {
   private commerce?: CommerceState;
   private homeTextures?: HomeTextures;
   private courseArt?:CourseArt;
+  private courseBackgrounds?:CourseBackgrounds;
   private snakeArt?:SnakeArt;
   private settings?: SettingsPopup;
   private quests?: QuestPopup;
@@ -76,6 +78,7 @@ export class Game {
   private corgi: AnimalConfig | undefined;
   private myeongrang: AnimalConfig | undefined;
   private releaseFrames(): void {
+    if(this.courseBackgrounds){Object.values(this.courseBackgrounds).forEach(texture=>texture.destroy(false));this.courseBackgrounds=undefined;}
     if(this.snakeArt){[...this.snakeArt.move,...this.snakeArt.tongue].forEach(texture=>texture.destroy(false));this.snakeArt=undefined;}
     if(this.courseArt){[this.courseArt.grass,this.courseArt.soil,...Object.values(this.courseArt.markers).map(marker=>marker.texture)].forEach(texture=>{if(!texture.destroyed)texture.destroy(false);});this.courseArt=undefined;}
     if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => texture.destroy(false)); this.homeTextures = undefined; }
@@ -175,6 +178,7 @@ export class Game {
     if (!this.disposed) preload.setProgress(0.9);
     if (!this.disposed) this.homeTextures = await loadHome();
     if (!this.disposed) this.courseArt = await loadCourseArt();
+    if (!this.disposed) this.courseBackgrounds = await loadCourseBackgrounds();
     if (!this.disposed) this.snakeArt = await loadSnakeArt();
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -254,7 +258,7 @@ export class Game {
           let completion = Promise.resolve();
           const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
-            open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,snakeArt:this.snakeArt,
+            open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
             sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
             complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
             record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),
@@ -287,7 +291,7 @@ export class Game {
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
             this.scenes?.show(new PlayScene(racePet,()=>{
               lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
-            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,snakeArt:this.snakeArt,
+            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
               sound:kind=>{this.audio?.play(kind);},
               multiplayer:{client,pets:[corgi,this.myeongrang!],leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
                 failed:()=>{client.destroy();this.rooms=undefined;lobby(true,'multi');}},

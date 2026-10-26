@@ -141,7 +141,7 @@ export class RoomClient {
         const data=await this.transport(action,roomId??this.room?.id??null,payload,signal) as RoomSnapshot;
         if(this.closed||revision!==this.revision)return false;
         if(!data||!Number.isFinite(data.now)||!Array.isArray(data.rooms)||data.rooms.length>80||
-          (data.room && (!Array.isArray(data.room.members)||data.room.members.length>4||!['garden','practice'].includes(data.room.map))))throw Error('invalid_room');
+          (data.room && (!Array.isArray(data.room.members)||data.room.members.length>4||!Object.hasOwn(COURSES,data.room.map)||!COURSES[data.room.map].multiplayer)))throw Error('invalid_room');
         const previous=this.room;
         if(previous&&!data.room&&action!=='leave')this.notice='removed';
         else if(this.needsSync&&previous&&data.room&&previous.round&&previous.round!==data.room.round)this.notice='round';
