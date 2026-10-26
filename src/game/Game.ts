@@ -3,6 +3,7 @@ import { PlayMenuPopup } from '../ui/PlayMenuPopup';
 import { GAME_FONT } from '../ui/GameFont';
 import { MailboxClient,mailboxTransport } from '../mail/MailboxClient';
 import { MailboxPopup } from '../ui/MailboxPopup';
+import {roomChatConnection} from '../multiplayer/RoomChatClient';
 import { ParkClient } from '../park/ParkClient';
 import { ParkScene } from './scenes/ParkScene';
 import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
@@ -275,6 +276,7 @@ export class Game {
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
           invitation:invitation.room?{id:invitation.room,dismiss:clearInvitation}:undefined,
           rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
+          roomChat:owner&&accountClient?room=>roomChatConnection(accountClient,owner,room.id):undefined,
           inviteFriends:()=>this.friends?.open(),
           park:()=>{
             if(!owner||!accountClient||!this.account?.nickname){this.settings?.openAccount();return;}

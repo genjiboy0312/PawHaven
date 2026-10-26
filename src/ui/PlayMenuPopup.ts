@@ -7,6 +7,8 @@ import { raceResults } from './RaceResults';
 import { RoomInviteButton } from './RoomInviteButton';
 import { singleGoals } from './SingleGoals';
 import { ConfirmPopup } from './ConfirmPopup';
+import {RoomChatPanel} from './RoomChatPanel';
+import type {RoomChatClient} from '../multiplayer/RoomChatClient';
 import type { OutfitState } from '../animals/OutfitState';
 import type { SingleGoal } from '../game/SingleRecords';
 type Page='mode'|'single'|'multi'|'create';
@@ -31,6 +33,7 @@ export class PlayMenuPopup {
   private pickerSingle=false;
   private leavePrompt?:ConfirmPopup;private leaveRoomId?:string;
   private pickerBlocked?:{element:HTMLElement;inert:boolean};private pickerFocus?:HTMLElement;
+  private chat?:RoomChatPanel;
   constructor(private readonly pause:(value:boolean)=>void,private readonly options:{
     rooms?:RoomClient;single:(map:CourseId)=>Promise<boolean>;race:(room:Room,client:RoomClient)=>void;
     login:()=>void;dismiss:(keep:boolean)=>void;
@@ -42,6 +45,7 @@ export class PlayMenuPopup {
     inviteHref?:string;
     inviteFriends?:()=>void;
     park?:()=>void;
+    roomChat?:(room:Room)=>RoomChatClient;
   }){}
   open(page:Page='mode'){
     if(this.overlay)return;this.page=page;
@@ -222,6 +226,11 @@ export class PlayMenuPopup {
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
     if(this.closeButton){const back=this.page!=='mode';this.closeButton.hidden=this.page==='multi'||this.page==='single';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.closeButton.hidden||this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
     root.replaceChildren();const client=this.options.rooms,room=client?.room;
+    const chatRoom=this.page==='multi'&&room?.phase==='waiting'?room:undefined;
+    if(this.chat?.roomId!==chatRoom?.id){this.chat?.destroy();this.chat=undefined;}
+    if(chatRoom&&this.options.roomChat&&!this.chat){this.chat=new RoomChatPanel(chatRoom.id,this.options.roomChat(chatRoom));this.panel?.insertBefore(this.chat.element,this.footer);}
+    if(chatRoom)this.chat?.syncMembers(chatRoom.members);
+    this.panel?.setAttribute('data-room-chat',String(!!this.chat));
     this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'singleplayer':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
     if(this.page==='mode'){
       const cards=document.createElement('div');cards.className='mode-cards';
@@ -314,6 +323,7 @@ export class PlayMenuPopup {
   }
   private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!this.options.rooms.error&&!this.options.rooms.reconnecting&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
+    this.chat?.destroy();this.chat=undefined;
     if(!this.overlay)return;this.closeLeavePrompt();this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
     if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
