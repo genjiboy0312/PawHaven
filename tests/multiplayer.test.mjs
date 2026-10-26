@@ -101,6 +101,19 @@ test('every playable map uses shared terrain art and brightens its checkpoint af
     }
   }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
 });
+
+test('run coin counts reach HUD, localized single results and personal multiplayer podium without changing rank data',async()=>{
+ const env=dom(),bundle=testCourseArt(),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);let scene,podium;
+ bundle.art.coin=Texture.WHITE;let completes=0;
+ try{
+  scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'practice',art:bundle.art,complete(){completes++;}});
+  scene.run.x=1000;scene.update(.01);assert.equal(scene.run.coins.collected,1);assert.match(scene.progress.textContent,/Collected coins: 1 \/ 7/);
+  assert.equal(completes,0);scene.run.x=2520;scene.update(.01);assert.match(scene.stats.textContent,/Collected coins: 1 \/ 7/);assert.equal(completes,1);
+  scene.update(.1);assert.equal(completes,1);setLanguage('ko');scene.update(.01);assert.match(scene.stats.textContent,/수집 코인: 1 \/ 7/);setLanguage('en');
+  const racers=[{id:'one',name:'One',time:1000,left:false},{id:'two',name:'Two',time:1100,left:false}],before=JSON.stringify(racers);
+  podium=new RacePodium(racers,[],'two',[],env.host,()=>{},{collected:3,total:7});assert.match(podium.element.querySelector('.course-coin-summary').textContent,/Collected coins: 3 \/ 7/);assert.equal(JSON.stringify(racers),before);
+ }finally{podium?.destroy();scene?.destroy({children:true});destroyCourseArt(bundle);setLanguage('en');env.restore();}
+});
 test('rooms expose counts, serialize the fourth seat, isolate members and deny direct table access',async()=>{
   const room=(await cmd(0,'create',null,{name:'Friends',map:'garden'})).room;
   for (const n of [1,2,3]) await cmd(n,'join',room.id);

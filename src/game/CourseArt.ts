@@ -9,6 +9,7 @@ export interface CourseArtManifest {
   markers:Record<CourseMarkerId,ImageSpec&{frame:{x:number;y:number;width:number;height:number};foot:{x:number;y:number};visibleHeight:number}>;
 }
 export interface CourseArt {
+  coin?:Texture;
   grass:Texture;soil:Texture;tileWorldSize:number;
   markers:Record<CourseMarkerId,{texture:Texture;anchorX:number;anchorY:number;visibleHeight:number}>;
 }
@@ -33,7 +34,11 @@ export async function loadCourseArt():Promise<CourseArt>{
   const manifest=await Assets.load<CourseArtManifest>(base+'frames.json');
   const ids=['grass','soil','start','checkpoint','finish'] as const;
   const entries=await Promise.all(ids.map(async id=>[id,await Assets.load<Texture>(base+(id==='grass'||id==='soil'?manifest.tiles[id].file:manifest.markers[id].file))] as const));
-  return createCourseArt(Object.fromEntries(entries) as Record<typeof ids[number],Texture>,manifest);
+  const art=createCourseArt(Object.fromEntries(entries) as Record<typeof ids[number],Texture>,manifest);
+  const coin=await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/gold-coin.png');
+  coin.source.scaleMode='nearest';
+  art.coin=new Texture({source:coin.source,frame:new Rectangle(357,404,541,541)});
+  return art;
 }
 export class CourseTerrain extends Container {
  constructor(private readonly solids:readonly CourseSolid[],art:CourseArt){

@@ -14,7 +14,7 @@ export class RacePodium {
   private elapsed=0;
   private bounds={x:0,y:-150,width:200,height:150};
   private readonly wasInert:boolean;
-  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void){
+  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void,coins?:{collected:number;total:number}){
     this.wasInert=hud.inert;hud.inert=true;
     this.element.className='race-podium-overlay';
     const panel=document.createElement('section');panel.className='settings-panel race-podium';
@@ -56,7 +56,9 @@ export class RacePodium {
     this.back.type='button';this.back.className='commerce-primary';this.back.textContent=t('returnRoom');
     this.back.addEventListener('click',onReturn,{signal:this.abort.signal});
     panel.addEventListener('keydown',event=>{if(event.key==='Tab'){event.preventDefault();this.back.focus();}},{signal:this.abort.signal});
-    panel.append(list,this.back);this.element.append(panel);document.querySelector('#app')?.append(this.element);this.back.focus();
+    panel.append(list);
+    if(coins){const summary=document.createElement('p');summary.className='course-coin-summary coin-amount';summary.textContent=`${t('runCoins')}: ${coins.collected} / ${coins.total}`;panel.append(summary);}
+    panel.append(this.back);this.element.append(panel);document.querySelector('#app')?.append(this.element);this.back.focus();
   }
   update(seconds:number,reduced=false){
     this.elapsed+=seconds;

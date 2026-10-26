@@ -6,6 +6,8 @@ import {SnakeView,snakeHeight,type SnakeArt} from '../SnakeView';
 import { SnakeDefeatFeedback } from '../SnakeDefeatFeedback';
 import { courseBackdrop, type CourseBackgrounds } from '../CourseBackgrounds';
 import { SkyClouds } from '../SkyClouds';
+import { COURSE_COINS } from '../CourseCoins';
+import { CourseCoinsView } from '../CourseCoinsView';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
 import type { PlayerHit } from '../HitReaction';
@@ -78,6 +80,8 @@ export class PlayScene extends Scene {
   private readonly skyClouds?: SkyClouds;
   private readonly terrainView?: CourseTerrain;
   private readonly movingTerrain:{solid:CourseSolid;view:Graphics}[]=[];
+  private readonly coinView?:CourseCoinsView;
+  private readonly coinStats=document.createElement('p');
   private readonly checkpointFlag = new Graphics();
   private checkpointLit?: boolean;
   private checkpointMarker?:ReturnType<typeof courseMarker>;
@@ -127,7 +131,7 @@ export class PlayScene extends Scene {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
-      snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config)});
+      snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:settings?.art?.coin?COURSE_COINS[settings.map??'garden']:[]});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
@@ -165,6 +169,7 @@ export class PlayScene extends Scene {
       if(solid.motion){view.x=solid.x;this.movingTerrain.push({solid,view});this.world.addChild(view);}
     }
     this.world.addChild(terrain);
+    if(settings?.art?.coin){this.coinView=new CourseCoinsView(this.run.coins,settings.art.coin);this.world.addChild(this.coinView);}
     for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
       const flag = new Text({ text: t(label), style: { fontFamily: GAME_FONT, fontSize: 23, fontWeight: '400', fill: map.time==='night'?'#fff4db':'#455b3b', stroke:map.time==='night'?{color:'#233c50',width:2}:undefined } });
       this.labels.push({ text: flag, key: label });
@@ -237,6 +242,7 @@ export class PlayScene extends Scene {
       this.retry.hidden=true;bindText(this.back,'returnRoom');
       this.countdown.className='play-victory race-countdown';this.ranking.className='race-ranking';this.raceNote.className='race-result-note';
       this.raceNote.setAttribute('role','status');this.result.replaceChildren(this.ranking,this.raceNote,this.back);
+      if(this.run.coins.items.length){this.coinStats.className='course-coin-summary coin-amount';this.result.replaceChildren(this.ranking,this.raceNote,this.coinStats,this.back);}
       bindAria(this.result,'raceResults');
       const leave=this.button('leaveRoom',()=>settings.multiplayer?.leave());leave.className='play-circle race-leave';
       this.hud.append(this.countdown,leave);
@@ -405,7 +411,7 @@ export class PlayScene extends Scene {
       if(signature!==this.resultSignature){
         this.resultSignature=signature;
         this.podium?.destroy();this.podium=undefined;
-        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false));
+        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false),this.run.coins.items.length?{collected:this.run.coins.collected,total:this.run.coins.items.length}:undefined);
         else this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,false));
         this.hud.setAttribute('data-podium',String(!!this.podium));
       }
@@ -469,6 +475,7 @@ export class PlayScene extends Scene {
     this.updateControls();
     const run = this.run;
     if(run.platforms.length){this.terrainView?.update();this.movingTerrain.forEach(({solid,view})=>{view.x=solid.x;});}
+    this.coinView?.update();
     const target = cameraTarget(run.x, this.courseEnd);
     const preferences = this.settings?.preferences?.();
     if (preferences?.smoothCamera === false) this.cameraX = target;
@@ -492,9 +499,12 @@ export class PlayScene extends Scene {
     this.victory.hidden = !run.won;
     this.result.hidden = !run.won;
     if(this.settings?.multiplayer)this.hud.setAttribute('data-results',String(run.won));
-    const record = `${t('runTime')} ${(run.elapsed).toFixed(2)}s · ${t('runFalls')} ${run.respawns} · ${t('runTargets')} ${run.targets.filter(target => target.broken).length}/${run.targets.length}`;
+    const coinText=run.coins.items.length?`${t('runCoins')}: ${run.coins.collected} / ${run.coins.items.length}`:'';
+    this.coinStats.textContent=coinText;
+    const record = `${t('runTime')} ${(run.elapsed).toFixed(2)}s · ${t('runFalls')} ${run.respawns} · ${t('runTargets')} ${run.targets.filter(target => target.broken).length}/${run.targets.length}`+(coinText?' · '+coinText:'');
     if (!this.returned) this.stats.textContent = this.retryFailed ? t('runRetryFailed') : record;
     this.progress.textContent = `${Math.floor((run.x - run.start) / (run.finish - run.start) * 100)}% · ${t('runTime')} ${run.elapsed.toFixed(1)}s${run.checkpoint > run.start ? ' · ' + t('checkpoint') + ' ✓' : ''}`;
+    if(coinText)this.progress.textContent+=' · '+coinText;
     this.targetViews.forEach((view, index) => { view.visible = !run.targets[index]!.broken; });
     const active = run.checkpoint > run.start;
     if (this.checkpointLit !== active) {

@@ -709,3 +709,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .shop-screen .shop-tabs{top:var(--shop-tabs-top);height:max(40px,8cqh);box-sizing:border-box;}
 .shop-screen .shop-style,.shop-screen .shop-pass{top:var(--shop-content-top);}
 @media(prefers-reduced-motion:reduce){.play-actions .action-button:enabled:active{transform:none;}}
+
+/* Keep the run-local coin count clear of the central race progress. */
+.race-hud .play-progress{max-width:26%;font-size:1.15cqw;line-height:1.4;}
+.race-hud .race-sync-status{top:12cqh;}
+.course-coin-summary{margin:.6cqh 0;font:400 clamp(11px,1.5cqw,20px) var(--font-body);color:var(--ui-ink);text-align:center;}

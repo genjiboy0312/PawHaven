@@ -629,6 +629,35 @@ const flatCourse = [{ x: 0, width: 2850, top: 0, bottom: -300 }];
 const {COURSE_SNAKES}=await importTs('../src/game/PatrolSnake.ts',import.meta.url);
 const snakeRun=()=>new DummyRun(flatCourse,1,{snakes:COURSE_SNAKES.garden,snakeHeight:60});
 
+test('course coins collect once on body contact, require matching height and survive falls but reset for a new run',()=>{
+ const coins=[{x:200,height:36},{x:450,height:135}],run=new DummyRun(flatCourse,1,{coins});
+ run.update(.6,1);assert.equal(run.coins.collected,1);run.update(.5,1);assert.equal(run.coins.collected,1);
+ run.jump();run.update(.5,1);assert.equal(run.coins.collected,2);
+ run.update(1,-1);assert.equal(run.coins.collected,2);
+ run.height=-210;run.update(.01,0);assert.equal(run.respawns,1);assert.equal(run.coins.collected,2);
+ const retry=new DummyRun(flatCourse,1,{coins});assert.equal(retry.coins.collected,0);assert.equal(retry.coins.items[0].collected,false);
+ assert.deepEqual(coins,[{x:200,height:36},{x:450,height:135}]);
+ const high=new DummyRun(flatCourse,1,{coins:[{x:280,height:150}]});high.update(1,1);assert.equal(high.coins.collected,0);
+ const dash=new DummyRun(flatCourse,1,{coins:[{x:300,height:36}]});dash.startDash();dash.update(.4,1);assert.equal(dash.coins.collected,1);
+ const skip=new DummyRun(flatCourse,1,{coins});skip.x=skip.finish;skip.update(.01,0);assert.equal(skip.won,true);assert.equal(skip.coins.collected,0);
+});
+
+test('moving-platform coins follow geometry and individual pickups never consume another run or shared texture',async()=>{
+ const {COURSE_COINS}=await importTs('../src/game/CourseCoins.ts',import.meta.url),{COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
+ const {CourseCoinsView}=await importTs('../src/game/CourseCoinsView.ts',import.meta.url),map=COURSES.crossroads;
+ const make=()=>new DummyRun(map.solids,1/.78,{coins:COURSE_COINS.crossroads}),mine=make(),other=make();
+ const view=new CourseCoinsView(mine.coins,Texture.WHITE),bound=COURSE_COINS.crossroads.findIndex(c=>c.solid!==undefined),coin=mine.coins.items[bound];
+ mine.update(1,0);view.update();const spec=COURSE_COINS.crossroads[bound];assert.equal(coin.x,mine.course[spec.solid].x+spec.x);assert.equal(view.children[bound].x,coin.x);
+ mine.x=coin.x;mine.height=150;mine.update(.01,0);view.update();assert.equal(mine.coins.collected,1);assert.equal(view.children[bound].visible,false);
+ assert.equal(other.coins.items[bound].collected,false);assert.equal(other.coins.collected,0);
+ mine.syncPlatforms(10);view.update();assert.equal(view.children[bound].visible,false);assert.equal(mine.coins.collected,1);
+ view.destroy({children:true});assert.equal(Texture.WHITE.destroyed,false);
+ for(const [id,placements]of Object.entries(COURSE_COINS))for(const placement of placements){
+  const c=new DummyRun(COURSES[id].solids,1,{coins:[placement]}).coins.items[0];assert.ok(c.x>120&&c.x<COURSES[id].finish);assert.ok(c.height>14);
+  assert.equal(COURSES[id].solids.some(s=>c.x>s.x&&c.x<s.x+s.width&&c.height-14<s.top&&c.height+14>s.bottom),false,id+' coin inside terrain');
+ }
+});
+
 test('snake defeat feedback reuses attack art, expires with the death animation and notifies only its own run once',async()=>{
  const {SnakeDefeatFeedback}=await importTs('../src/game/SnakeDefeatFeedback.ts',import.meta.url);
  const mine=snakeRun(),peer=snakeRun();let sounds=0,peerSounds=0;

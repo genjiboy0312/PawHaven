@@ -3,7 +3,8 @@ import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
 import { HitReaction, type PlayerHit } from './HitReaction';
 import {PatrolSnake,type SnakePatrol} from './PatrolSnake';
 import { MovingPlatform } from './MovingPlatform';
-export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number }
+import { CoinCollection, type CoinPlacement } from './CourseCoins';
+export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[] }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
@@ -26,6 +27,7 @@ export class DummyRun {
   elapsed = 0;
   enemyTime = 0;
   readonly platforms:MovingPlatform[]=[];
+  readonly coins:CoinCollection;
   private platformVelocity=0;
   readonly targets: { x: number; broken: boolean }[];
   readonly snakes:PatrolSnake[];private snakeHitSequence=0;
@@ -43,6 +45,7 @@ export class DummyRun {
     this.snakes=(options.snakes??[]).map(patrol=>new PatrolSnake(patrol,options.snakeHeight));
     this.hitReaction = new HitReaction(options.playerCombat === true||this.snakes.length>0);
     this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));
+    this.coins=new CoinCollection(options.coins??[],this.course);
   }
   private overlaps(solid: CourseSolid, x = this.x): boolean {
     return x + this.halfWidth > solid.x + 0.000001 && x - this.halfWidth < solid.x + solid.width - 0.000001;
@@ -171,6 +174,7 @@ export class DummyRun {
       if(Math.abs(snake.x-this.x)<snake.halfWidth+this.halfWidth)
         this.receiveHit({sequence:++this.snakeHitSequence,direction:this.x<snake.x?-1:1});
     }
+    this.coins.collect(this.x,this.height,this.halfWidth,this.bodyHeight);
     if (this.x >= this.finish - 0.000001 && this.grounded) {
       this.hitReaction.reset();
       this.platformVelocity=0;
