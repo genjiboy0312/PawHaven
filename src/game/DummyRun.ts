@@ -2,6 +2,7 @@ import type { AnimalAction } from '../animals/AnimalConfig';
 import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
 import { HitReaction, type PlayerHit } from './HitReaction';
 import {PatrolSnake,type SnakePatrol} from './PatrolSnake';
+import { MovingPlatform } from './MovingPlatform';
 export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
@@ -24,6 +25,8 @@ export class DummyRun {
   checkpoint = this.start;
   elapsed = 0;
   enemyTime = 0;
+  readonly platforms:MovingPlatform[]=[];
+  private platformVelocity=0;
   readonly targets: { x: number; broken: boolean }[];
   readonly snakes:PatrolSnake[];private snakeHitSequence=0;
   private exitTime = -1;
@@ -33,6 +36,10 @@ export class DummyRun {
   victoryTime = -1;
   constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1, private readonly options: RunOptions = {}) {
     this.finish = options.finish ?? 2520;
+    this.course=course.map(solid=>{
+      if(!solid.motion)return solid;
+      const platform=new MovingPlatform(solid);this.platforms.push(platform);return platform.solid;
+    });
     this.snakes=(options.snakes??[]).map(patrol=>new PatrolSnake(patrol,options.snakeHeight));
     this.hitReaction = new HitReaction(options.playerCombat === true||this.snakes.length>0);
     this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));
@@ -44,7 +51,7 @@ export class DummyRun {
     return this.velocity <= 0 && this.course.some(solid => this.overlaps(solid) && Math.abs(this.height - solid.top) < 0.000001);
   }
   get won(): boolean { return this.victoryTime >= 0; }
-  get motionVelocity(): number { return this.horizontalVelocity + this.hitReaction.velocity * this.movementScale; }
+  get motionVelocity(): number { return this.horizontalVelocity + this.hitReaction.velocity * this.movementScale + this.platformVelocity; }
   receivePlayerHit(hit: PlayerHit): boolean {
     return this.options.playerCombat===true && this.receiveHit(hit);
   }
@@ -78,6 +85,7 @@ export class DummyRun {
   private respawn(): void {
     this.respawns++;
     this.hitReaction.reset();
+    this.platformVelocity=0;
     this.x = this.checkpoint; this.height = 0; this.direction = 1;
     this.velocity = this.horizontalVelocity = this.dash = this.dashCooldown = this.attack = this.land = 0;
     this.victoryTime = -1;
@@ -88,6 +96,8 @@ export class DummyRun {
     // Small physics steps prevent dash tunnelling and keep collisions stable at low FPS.
     let remaining = seconds;
     const enemyStart=this.enemyTime;
+    // Rebase a resumed/late scene without carrying the player across missed wall-clock time.
+    this.syncPlatforms(Number.isFinite(enemyTime)?Math.max(0,enemyTime!-seconds):enemyStart);
     while (remaining > 0.0000001) {
       const step = Math.min(remaining, 1 / 120);
       remaining -= step;
@@ -98,6 +108,9 @@ export class DummyRun {
     }
   }
   private step(seconds: number, input: number): boolean {
+    const support=this.velocity<=0?this.platforms.find(p=>this.overlaps(p.solid)&&Math.abs(this.height-p.solid.top)<.000001):undefined;
+    this.syncPlatforms(this.enemyTime);
+    const carry=support?.delta??0;this.platformVelocity=carry/seconds;
     if (input && this.dash === 0 && this.attack === 0) this.direction = Math.sign(input);
     let distance: number;
     if (this.dash > 0) {
@@ -110,6 +123,7 @@ export class DummyRun {
       distance = this.horizontalVelocity * seconds;
     }
     distance += this.hitReaction.advance(seconds) * this.movementScale;
+    distance += carry;
     let nextX = Math.max(this.start, Math.min(this.finish, this.x + distance));
     for (const solid of this.course) {
       if (solid.oneWay) continue;
@@ -120,6 +134,7 @@ export class DummyRun {
     if (Math.abs(nextX - this.x) < 0.000001 && distance !== 0) this.horizontalVelocity = 0;
     if (Math.abs(nextX - this.x - distance) > 0.000001) this.hitReaction.stopPush();
     this.x = nextX;
+    if(support&&!this.overlaps(support.solid))this.platformVelocity=0;
     this.dash = Math.max(0, this.dash - seconds);
     this.dashCooldown = Math.max(0, this.dashCooldown - seconds);
     this.attack = Math.max(0, this.attack - seconds);
@@ -158,8 +173,10 @@ export class DummyRun {
     }
     if (this.x >= this.finish - 0.000001 && this.grounded) {
       this.hitReaction.reset();
+      this.platformVelocity=0;
       this.x = this.finish; this.victoryTime = 0; this.velocity = 0; this.horizontalVelocity = 0;
     }
     return false;
   }
+  syncPlatforms(time:number):void { this.platforms.forEach(platform=>platform.update(time)); }
 }

@@ -13,7 +13,8 @@ import { AnimalAnimationController } from '../../animals/AnimalAnimationControll
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { DummyRun } from '../DummyRun';
 import { COURSE_GROUND } from '../TrainingCourse';
-import { courseTerrain, courseMarker, type CourseArt } from '../CourseArt';
+import { courseTerrain, courseMarker, type CourseArt, type CourseTerrain } from '../CourseArt';
+import type { CourseSolid } from '../TrainingCourse';
 import { COURSES, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
@@ -75,6 +76,8 @@ export class PlayScene extends Scene {
   private readonly snakeViews:SnakeView[]=[];
   private readonly snakeFeedback: SnakeDefeatFeedback;
   private readonly skyClouds?: SkyClouds;
+  private readonly terrainView?: CourseTerrain;
+  private readonly movingTerrain:{solid:CourseSolid;view:Graphics}[]=[];
   private readonly checkpointFlag = new Graphics();
   private checkpointLit?: boolean;
   private checkpointMarker?:ReturnType<typeof courseMarker>;
@@ -142,6 +145,7 @@ export class PlayScene extends Scene {
     this.world.scale.set(PLAY_ZOOM);
     this.world.y = PLAY_GROUND_Y - COURSE_GROUND * PLAY_ZOOM;
     const terrain = settings?.art?courseTerrain(this.run.course,settings.art):new Graphics();
+    if(settings?.art)this.terrainView=terrain as CourseTerrain;
     if(forest&&!settings?.backgrounds){
       const trees=new Graphics();trees.label='forest-scenery';
       for(let x=180;x<this.courseEnd;x+=640){
@@ -155,8 +159,10 @@ export class PlayScene extends Scene {
     }
     if(terrain instanceof Graphics)for (const solid of this.run.course) {
       const y = COURSE_GROUND - solid.top;
-      terrain.rect(solid.x, y, solid.width, solid.top - solid.bottom).fill(forest?(solid.top?'#b9ad85':'#a9c39b'):(solid.top ? '#c8b38a' : '#b5cd99'))
-        .rect(solid.x, y, solid.width, 6).fill(forest?'#6f936e':(solid.top ? '#a48d65' : '#78905c'));
+      const view=solid.motion?new Graphics():terrain,x=solid.motion?0:solid.x;
+      view.rect(x, y, solid.width, solid.top - solid.bottom).fill(forest?(solid.top?'#b9ad85':'#a9c39b'):(solid.top ? '#c8b38a' : '#b5cd99'))
+        .rect(x, y, solid.width, 6).fill(forest?'#6f936e':(solid.top ? '#a48d65' : '#78905c'));
+      if(solid.motion){view.x=solid.x;this.movingTerrain.push({solid,view});this.world.addChild(view);}
     }
     this.world.addChild(terrain);
     for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
@@ -331,7 +337,7 @@ export class PlayScene extends Scene {
     this.run.hitReaction.reset();
     const checkpoint=COURSES[this.settings?.map??'garden'].checkpoint;
     if(this.run.x>=checkpoint)this.run.checkpoint=checkpoint;
-    if(room.startsAt)this.run.elapsed=Math.max(0,(client.serverTime-room.startsAt)/1000);
+    if(room.startsAt){this.run.elapsed=Math.max(0,(client.serverTime-room.startsAt)/1000);this.run.syncPlatforms(this.run.elapsed);}
     if(room.racers.find(racer=>racer.id===client.owner)?.time!=null){this.run.victoryTime=0;this.completed=true;}
   }
   private network(seconds:number):boolean{
@@ -462,6 +468,7 @@ export class PlayScene extends Scene {
   private render(seconds: number, axis: number): void {
     this.updateControls();
     const run = this.run;
+    if(run.platforms.length){this.terrainView?.update();this.movingTerrain.forEach(({solid,view})=>{view.x=solid.x;});}
     const target = cameraTarget(run.x, this.courseEnd);
     const preferences = this.settings?.preferences?.();
     if (preferences?.smoothCamera === false) this.cameraX = target;

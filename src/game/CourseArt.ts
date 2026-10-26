@@ -35,16 +35,21 @@ export async function loadCourseArt():Promise<CourseArt>{
   const entries=await Promise.all(ids.map(async id=>[id,await Assets.load<Texture>(base+(id==='grass'||id==='soil'?manifest.tiles[id].file:manifest.markers[id].file))] as const));
   return createCourseArt(Object.fromEntries(entries) as Record<typeof ids[number],Texture>,manifest);
 }
-export function courseTerrain(solids:readonly CourseSolid[],art:CourseArt):Container {
-  const view=new Container();view.label='course-terrain';
+export class CourseTerrain extends Container {
+ constructor(private readonly solids:readonly CourseSolid[],art:CourseArt){
+  super();this.label='course-terrain';
   for(const solid of solids){
     const height=solid.top-solid.bottom;
     for(const [texture,tileHeight]of [[art.soil,height],[art.grass,Math.min(art.tileWorldSize,height)]] as const){
       const tile=new TilingSprite({texture,width:solid.width,height:tileHeight,roundPixels:true});
-      tile.position.set(solid.x,COURSE_GROUND-solid.top);tile.tileScale.set(art.tileWorldSize/texture.width,art.tileWorldSize/texture.height);view.addChild(tile);
+      tile.position.set(solid.x,COURSE_GROUND-solid.top);tile.tileScale.set(art.tileWorldSize/texture.width,art.tileWorldSize/texture.height);this.addChild(tile);
     }
   }
-  return view;
+ }
+ update():void {this.children.forEach((tile,index)=>{const solid=this.solids[Math.floor(index/2)]!;tile.position.set(solid.x,COURSE_GROUND-solid.top);});}
+}
+export function courseTerrain(solids:readonly CourseSolid[],art:CourseArt):CourseTerrain {
+  return new CourseTerrain(solids,art);
 }
 export function courseMarker(id:CourseMarkerId,art:CourseArt,x:number):Sprite {
   const marker=art.markers[id],sprite=new Sprite(marker.texture);sprite.label='course-'+id;

@@ -731,18 +731,49 @@ test('one-way platforms allow walking underneath and upward jumps, then support 
  const solid=new DummyRun([...flatCourse,{x:200,width:400,top:140,bottom:120}]);solid.x=300;solid.jump();solid.update(.2,0);assert.ok(solid.height<=30);assert.ok(solid.velocity<=0); // Existing solid roofs still stop the head.
 });
 
+test('moving platforms carry idle riders, publish carrier velocity and release on jump or walking off',()=>{
+ const source={x:300,width:300,top:60,bottom:40,oneWay:true,motion:{distance:48,period:4.8}};
+ const make=()=>new DummyRun([...flatCourse,source]);
+ for(const fps of [30,60,120]){
+  const run=make();run.x=420;run.height=60;
+  for(let i=0;i<fps;i++)run.update(1/fps,0);
+  const platform=run.platforms[0],offset=platform.solid.x-source.x;
+  assert.ok(Math.abs(run.x-420-offset)<1e-6);assert.equal(run.height,60);assert.equal(run.action(0),'idle');
+  assert.notEqual(run.motionVelocity,0);assert.equal(run.horizontalVelocity,0);
+  const takeoff=run.x;run.jump();run.update(.2,0);assert.equal(run.x,takeoff);assert.ok(run.height>60);assert.equal(run.motionVelocity,0);
+  run.update(.7,0);assert.ok(Math.abs(run.height-60)<1e-6);assert.equal(run.grounded,true);
+  run.update(1.4,1);assert.ok(run.x>650);assert.equal(run.height,0);assert.equal(run.respawns,0);
+ }
+ assert.equal(source.x,300);const first=make(),second=make();first.update(1,0);assert.notEqual(first.platforms[0].solid,second.platforms[0].solid);assert.equal(second.platforms[0].solid.x,300);
+});
+
+test('moving platform positions use shared time across frame rates, late scenes and recovery without catch-up pushes',async()=>{
+ const {MovingPlatform}=await importTs('../src/game/MovingPlatform.ts',import.meta.url);
+ const source={x:300,width:300,top:60,bottom:40,oneWay:true,motion:{distance:48,period:4.8}};
+ const make=()=>new DummyRun([...flatCourse,source]);
+ const fast=make(),slow=make(),late=make();
+ for(let i=1;i<=1200;i++)fast.update(1/120,0,i/120);
+ for(let i=1;i<=300;i++)slow.update(1/30,0,i/30);
+ late.x=420;late.height=60;late.update(.01,0,10);
+ assert.ok(Math.abs(late.x-420)<1);assert.equal(fast.platforms[0].solid.x,slow.platforms[0].solid.x);assert.equal(fast.platforms[0].solid.x,late.platforms[0].solid.x);
+ const recovered=late.x;late.update(.01,0,30);assert.ok(Math.abs(late.x-recovered)<1);assert.equal(late.height,60);
+ for(const time of [0,.4,1.2,2.4,3.6,4.8,10000]){const p=fast.platforms[0];p.update(time);assert.ok(p.solid.x>=252&&p.solid.x<=348);}
+ assert.throws(()=>new MovingPlatform({...source,motion:{distance:48,period:0}}),/invalid_platform/);
+});
+
 test('Sunset Crossroads supports a lower attack lane and an elevated no-kill route at 30/60/120 FPS',async()=>{
  const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url),map=COURSES.crossroads;
- const platforms=map.solids.filter(s=>s.oneWay);
  for(const mode of ['lower','upper'])for(const fps of [30,60,120]){
   const run=new DummyRun(map.solids,1/.78,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,snakes:COURSE_SNAKES.crossroads,snakeHeight:60});
+  const platforms=run.course.filter(s=>s.oneWay);
   let next=0,hit=false;
   for(let i=0;i<fps*30&&!run.won;i++){
    if(mode==='upper'){
     const platform=platforms[next];
     if(platform&&run.grounded&&Math.abs(run.height-platform.top)<.000001&&run.x+run.halfWidth>platform.x&&run.x-run.halfWidth<platform.x+platform.width)next++;
     const target=platforms[next];
-    if(target&&run.grounded&&target.x-run.x<=160)run.jump();
+    const support=platforms.find(s=>Math.abs(run.height-s.top)<.000001&&run.x+run.halfWidth>s.x&&run.x-run.halfWidth<s.x+s.width);
+    if(target&&run.grounded&&(target.x-run.x<=160||support&&support.x+support.width-run.x<32))run.jump();
    }else if(run.snakes.some(s=>!s.defeated&&s.x-run.x>0&&s.x-run.x<150))run.startAttack();
    run.update(1/fps,1);hit ||= run.hitReaction.protected;
   }

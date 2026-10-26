@@ -3,6 +3,7 @@
 ## 시간대 배경·갈림길 확장 (2026-10-26)
 - [CROSSROADS.md](CROSSROADS.md)의 아침/한낮/노을/밤 원본 PNG 4장과 고정 맵별 시간대를 사용한다. Game 공유 로딩과 맵 카드 미리보기에 연결하며 캐릭터 색상은 바꾸지 않는다. 기존 로비 배경은 유지한다.
 - 새 노을 갈림길은 기존 잔디/흙 타일을 재사용하고 CourseSolid.oneWay 발판 옵션으로 아래 길 통과와 위 착지를 구분한다. 지형 픽셀과 물리 크기는 같은 CourseSolid를 기준으로 한다.
+- 움직이는 발판은 CourseSolid.motion과 MovingPlatform으로 실행별 위치를 계산하고 CourseTerrain.update가 같은 solid 좌표를 읽는다. 기존 타일을 재생성하지 않는다. 상세는 CROSSROADS.md의 움직이는 발판 절을 참고한다.
 
 사용자 요청 1번(잔디·흙 지형), 2번(출발·체크포인트·피니시 표식)을 built-in image_gen으로 제작했다. 생성 즉시 각각 Resources에 저장하고 배포용 PNG는 원본과 바이트가 같게 복사했다. 코기 PUSH 행 상자와 채택 Wooden_Box_Prototype을 스타일 기준으로 사용했다.
 

@@ -1,5 +1,5 @@
 /** Heights are measured upward from the course baseline. Shared by physics and drawing. */
-export interface CourseSolid { readonly x: number; readonly width: number; readonly top: number; readonly bottom: number; readonly oneWay?: boolean }
+export interface CourseSolid { readonly x: number; readonly width: number; readonly top: number; readonly bottom: number; readonly oneWay?: boolean; readonly motion?: { readonly distance:number; readonly period:number } }
 export const COURSE_GROUND = 390;
 export const TRAINING_COURSE: readonly CourseSolid[] = [
   { x: 0, width: 1200, top: 0, bottom: -300 },

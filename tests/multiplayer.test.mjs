@@ -163,6 +163,16 @@ test('all four map backdrops reuse saved opaque PNG resources and preserve share
   const backdrop=courseBackdrop(textures.sunset);backdrop.destroy();assert.equal(textures.sunset.destroyed,false);
  }finally{Object.values(textures).forEach(texture=>texture.destroy(true));env.restore();}
 });
+
+test('moving terrain art follows per-run collision positions while source geometry and shared textures stay unchanged',()=>{
+ const map=COURSES.crossroads,run=new DummyRun(map.solids),bundle=testCourseArt(),terrain=courseTerrain(run.course,bundle.art);
+ try{
+  assert.equal(run.platforms.length,1);const platform=run.platforms[0],index=run.course.indexOf(platform.solid),sourceX=map.solids[index].x;
+  run.update(1,0);terrain.update();
+  for(const tile of terrain.children.slice(index*2,index*2+2)){assert.equal(tile.x,platform.solid.x);assert.equal(tile.y,390-platform.solid.top);assert.equal(tile.width,platform.solid.width);}
+  assert.notEqual(platform.solid.x,sourceX);assert.equal(map.solids[index].x,sourceX);
+ }finally{terrain.destroy({children:true});assert.equal(bundle.art.grass.destroyed,false);destroyCourseArt(bundle);}
+});
 test('leaving transfers host and stale connections free seats',async()=>{
   const r=(await cmd(0,'create')).room; await cmd(1,'join',r.id); await cmd(2,'join',r.id);
   await cmd(0,'leave',r.id);

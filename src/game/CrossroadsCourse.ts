@@ -11,5 +11,6 @@ export const CROSSROADS_COURSE: readonly CourseSolid[] = [
     [1740,400,150], [2300,400,150], [2860,300,100],
     [3500,180,60], [3760,200,120], [4120,360,150],
     [4640,300,150], [5100,190,80],
-  ].map(([x,width,top]) => ({ x:x!, width:width!, top:top!, bottom:top!-20, oneWay:true })),
+  ].map(([x,width,top]) => ({ x:x!, width:width!, top:top!, bottom:top!-20, oneWay:true,
+    ...(x===1740?{motion:{distance:48,period:4.8}}:{}) })),
 ];
