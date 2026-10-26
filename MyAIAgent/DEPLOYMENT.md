@@ -1,5 +1,10 @@
 # Paw Haven 웹 배포
 
+## 게시 복구 완료 (2026-10-27)
+- acd2aac의 GitHub Actions 실행 40419705942에서 전체 Test·타입 검사/빌드·Pages 게시가 성공했다. 테스트 로더 정리 후 첫 배포 통과이며 이전 실행의 세부 로그가 없어 개별 정체 위치는 단정하지 않는다.
+- 공개 HTML이 참조한 index-DOacQ3MA.js에서 wooden-box.png·box-target·room_chat_command·home-background-name을 확인했다. 공개 상자 PNG의 SHA256은 Resources 원본/배포 사본과 동일했다. 상자 미반영 신고는 코드 연결 누락이 아니라 공개 버전이 이전 빌드에 머문 상태였음을 확인했다.
+- 공개 주소: https://genjiboy0312.github.io/PawHaven/
+
 ## 테스트 로더와 상자 배포 확인 (2026-10-27)
 - 최근 Pages 실행은 Test 단계에서 15분 제한으로 취소되었고 공개 JS에는 wooden-box.png가 없었다. 상자 코드 연결/원본과 배포 PNG의 SHA256 일치는 확인했다. CI 작업 상세 로그는 저장소 API의 다운로드 대상에서 404로 반환되어 정확한 정체 위치는 확인하지 못했다.
 - tests/load-typescript.mjs는 변환한 모듈을 임시 디렉터리에 한 번씩 저장하고 파일 URL로 참조하도록 변경했다. 중첩 data URL이 의존성 전체를 부모마다 복제하던 비용을 제거한다. 테스트 내용·범위·게시 전 검사 순서는 유지하고, 종료 후 직접 생성한 임시 디렉터리만 정리한다. 배포 성공 여부와 원인 확정은 실제 실행 결과로 구분한다.
