@@ -1,5 +1,5 @@
 import { Assets, Sprite, type Texture } from 'pixi.js';
-import { PLAY_GROUND_Y } from './PlayCamera';
+import { WORLD_WIDTH, WORLD_HEIGHT } from './viewport';
 
 export const COURSE_TIMES = ['morning', 'noon', 'sunset', 'night'] as const;
 export type CourseTime = typeof COURSE_TIMES[number];
@@ -12,9 +12,9 @@ export async function loadCourseBackgrounds(): Promise<CourseBackgrounds> {
   }));
   return Object.fromEntries(entries) as CourseBackgrounds;
 }
-/** Background light never tints the pets, equipment, UI or collision terrain. */
+/** Cover the full view so transparent terrain gaps reveal scenery, not the fallback fill. */
 export function courseBackdrop(texture: Texture): Sprite {
   const sprite = new Sprite(texture); sprite.label = 'course-background';
-  sprite.width = 960; sprite.height = PLAY_GROUND_Y;
+  sprite.width = WORLD_WIDTH; sprite.height = WORLD_HEIGHT;
   return sprite;
 }
