@@ -1,5 +1,9 @@
 # Paw Haven 웹 배포
 
+## 배포 환경 고정 (2026-10-26)
+- ubuntu-latest의 Ubuntu 26 전환 알림이 표시되는 시기에 CI 테스트 단계가 장시간 종료되지 않았다. 실행 환경 차이를 줄이기 위해 build/deploy를 ubuntu-24.04로 고정한다. Node 22와 npm ci → 전체 테스트 → 타입 검사/빌드 → Pages 업로드/게시는 유지한다.
+- 무기한 대기를 방지하도록 build 15분, deploy 10분 제한을 둔다. 로컬 전체 302개 테스트/빌드 통과 상태이며 실제 배포 실행 결과는 GitHub Actions에서 확인한다. 환경 전환이 정체의 확정 원인이라고 단정하지 않는다.
+
 ## 구성
 
 - GitHub Pages, GitHub Actions 자동 배포
