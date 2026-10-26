@@ -191,6 +191,30 @@ test('all four map backdrops reuse saved opaque PNG resources and preserve share
  }finally{Object.values(textures).forEach(texture=>texture.destroy(true));env.restore();}
 });
 
+test('Home time-of-day thumbnails, saved selection, lobby and friend visits share the same four backgrounds',async()=>{
+ const {HomeScene}=await importTs('../src/game/scenes/HomeScene.ts',import.meta.url),{LobbyScene}=await importTs('../src/game/scenes/LobbyScene.ts',import.meta.url);
+ const {HomeState,HOME_STORAGE_KEY}=await importTs('../src/home/HomeState.ts',import.meta.url),{parseFriendHome}=await importTs('../src/friends/FriendHome.ts',import.meta.url),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
+ const env=dom(),data=new Map(),disk={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},home=new HomeState(disk);
+ const images=['morning','noon','sunset','night'].map(()=>new Texture({source:Texture.WHITE.source}));
+ const textures={background:images[0],noon:images[1],sunset:images[2],night:images[3],floor:Texture.WHITE,cushion:Texture.WHITE};
+ const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};let scene,lobby,visit;
+ try{
+  home.place('Furniture',1);const items=home.items;scene=new HomeScene(home,()=>{},textures);scene.resize(960,540);
+  for(let i=0;i<4;i++){
+   const button=env.host.querySelector('.home-inventory').children[i];assert.equal(button.getAttribute('aria-label'),['Morning','Noon','Sunset','Night'][i]);
+   assert.equal(button.children[0].src,'./assets/backgrounds/'+['morning','noon','sunset','night'][i]+'.png');button.dispatchEvent(new Event('click'));
+   assert.equal(scene.map.children[1].texture,images[i]);assert.equal(scene.map.children[1].visible,true);assert.equal(scene.map.children[2].visible,true);
+   assert.equal(new HomeState(disk).current.Background,i);assert.deepEqual(home.items,items);
+  }
+  setLanguage('ko');assert.equal(env.host.querySelector('.home-inventory').children[3].getAttribute('aria-label'),'밤');setLanguage('en');
+  lobby=new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:new HomeState(disk),textures,open(){}});lobby.resize(960,540);assert.equal(lobby.garden.children[1].texture,images[3]);
+  const friend=parseFriendHome({id:users[1],nickname:'Buddy',home:JSON.parse(data.get(HOME_STORAGE_KEY)),character:{petId:'corgi',outfit:{}}},users[1]);
+  visit=new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:friend.home,textures,open(){}},undefined,{name:'Buddy',leave(){}});visit.resize(960,540);
+  assert.equal(visit.garden.children[1].texture,images[3]);home.select('Background',1);assert.equal(friend.home.current.Background,3);
+  home.select('Floor',2);scene.resize(960,540);assert.equal(scene.map.children[1].texture,images[1]);assert.equal(scene.map.children[2].visible,false);
+ }finally{visit?.destroy({children:true});lobby?.destroy({children:true});scene?.destroy({children:true});for(const image of images){assert.equal(image.destroyed,false);image.destroy();}setLanguage('en');env.restore();}
+});
+
 test('moving terrain art follows per-run collision positions while source geometry and shared textures stay unchanged',()=>{
  const map=COURSES.crossroads,run=new DummyRun(map.solids),bundle=testCourseArt(),terrain=courseTerrain(run.course,bundle.art);
  try{

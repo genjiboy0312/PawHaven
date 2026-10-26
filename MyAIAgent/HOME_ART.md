@@ -1,5 +1,9 @@
 # Home 픽셀 리소스 제작 기록
 
+## 시간대 배경 재사용 (2026-10-26, 아래 초기 배경 연결보다 우선)
+- Resources/Park_Background_morning/noon/sunset/night.png와 public/assets/backgrounds의 기존 배포 PNG 4장을 Home Background 0/1/2/3에 재사용한다. 새 생성·이미지 편집·복사는 없다. 원본 제작 프롬프트/규격은 [CROSSROADS.md](CROSSROADS.md)를 참고한다.
+- 게임 코스와 Home/로비/친구 방문이 같은 Texture를 공유한다. 홈에서 높이 44%의 배경 영역만 교체하며 바닥·가구는 독립적으로 유지한다. 썸네일도 같은 PNG를 사용한다. 과거 garden-background.png는 독립 호출의 폴백으로 보존한다.
+
 2026-10-16. built-in image_gen 사용. Resources/Corgi_Art_Sheet.png는 그림체 참고로 사용했다. 원본 참고 이미지와 생성 PNG는 재편집하지 않았다.
 
 | 용도 | 배포 경로 | 규격 |

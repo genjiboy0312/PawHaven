@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  homeMorning:'Morning', homeNoon:'Noon', homeSunset:'Sunset', homeNight:'Night',
   homeVisit:'Visit home',homeVisitLabel:'Home · ',homeVisitNote:'Viewing a saved home · read only',homeVisitLoading:'Opening your friend’s home…',homeVisitSetup:'Home visits need a server update. Please try again later.',homeVisitUnavailable:'This home is unavailable. Please check your friendship.',homeVisitOffline:'Unable to open this home. Please try again.',
   parkNewMessages:'New messages ↓',
   couponEntry:'Enter coupon',couponCode:'Coupon code',couponRedeem:'Redeem',couponSent:'Reward mail has arrived. Receive it from your mailbox.',couponUsed:'You have already used this coupon. Check your mailbox.',couponInvalid:'Please check the coupon code.',couponExpired:'This coupon has expired or is not available yet.',couponExhausted:'This coupon has reached its redemption limit.',couponSlow:'Please wait a moment before trying again.',
@@ -116,6 +117,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  homeMorning:'아침', homeNoon:'한낮', homeSunset:'노을', homeNight:'밤',
   homeVisit:'방문하기',homeVisitLabel:'홈 · ',homeVisitNote:'저장된 친구의 홈 · 구경 중',homeVisitLoading:'친구의 홈을 불러오고 있어요…',homeVisitSetup:'홈 방문 서버 업데이트가 필요해요. 잠시 후 다시 시도해 주세요.',homeVisitUnavailable:'방문할 수 없는 홈이에요. 친구 관계를 확인해 주세요.',homeVisitOffline:'홈을 불러오지 못했어요. 다시 시도해 주세요.',
   parkNewMessages:'새 메시지 ↓',
   couponEntry:'쿠폰 입력',couponCode:'쿠폰 코드',couponRedeem:'등록',couponSent:'보상 우편이 도착했어요. 우편함에서 받아 주세요.',couponUsed:'이미 사용한 쿠폰이에요. 우편함을 확인해 주세요.',couponInvalid:'쿠폰 코드를 확인해 주세요.',couponExpired:'사용 기간이 아니거나 만료된 쿠폰이에요.',couponExhausted:'쿠폰의 사용 가능 수량이 모두 소진됐어요.',couponSlow:'잠시 후 다시 시도해 주세요.',

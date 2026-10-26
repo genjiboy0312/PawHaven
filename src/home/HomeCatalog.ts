@@ -2,6 +2,10 @@ export type PlaceableTab = 'Furniture' | 'Etc';
 export const HOME_STOCK = 3;
 export const HOME_MAX_STOCK = 20;
 export const homeOptions = { Background: 4, Floor: 4, Furniture: 6, Etc: 5 };
+export const HOME_BACKGROUNDS = [
+  {time:'morning',name:'homeMorning'}, {time:'noon',name:'homeNoon'},
+  {time:'sunset',name:'homeSunset'}, {time:'night',name:'homeNight'},
+] as const;
 export const validHomeItem = (tab: unknown, index: unknown): tab is PlaceableTab =>
   (tab === 'Furniture' || tab === 'Etc') && Number.isInteger(index) && Number(index) > 0 && Number(index) < homeOptions[tab];
 export const homeKey = (tab: PlaceableTab, index: number): string => tab + ':' + index;

@@ -1,10 +1,14 @@
 import { SKY_COLORS, FLOOR_COLORS, type HomeTab } from '../home/HomeState';
-import { HOME_ITEM_NAMES, type PlaceableTab } from '../home/HomeCatalog';
+import { HOME_ITEM_NAMES, HOME_BACKGROUNDS, type PlaceableTab } from '../home/HomeCatalog';
 import { t } from '../settings/i18n';
 
 export function homeItemName(tab: PlaceableTab, index: number): string { return t(HOME_ITEM_NAMES[tab][index]!); }
 /** Shared icons for the Home inventory and its shop; the sofa uses the approved original PNG. */
 export function homeIcon(tab: HomeTab, index: number): HTMLElement {
+  if(tab==='Background'&&HOME_BACKGROUNDS[index]){
+    const image=document.createElement('img');image.className='outfit-object home-pixel-icon';image.alt='';
+    image.src='./assets/backgrounds/'+HOME_BACKGROUNDS[index]!.time+'.png';return image;
+  }
   if (tab === 'Furniture' && index === 5) {
     const frame = document.createElement('span'); frame.className = 'outfit-object pet-sofa-icon';
     const image = document.createElement('img'); image.src = './assets/home/pet-sofa-black-white.png'; image.alt = '';

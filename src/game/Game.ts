@@ -81,7 +81,7 @@ export class Game {
     if(this.courseBackgrounds){Object.values(this.courseBackgrounds).forEach(texture=>texture.destroy(false));this.courseBackgrounds=undefined;}
     if(this.snakeArt){[...this.snakeArt.move,...this.snakeArt.tongue].forEach(texture=>texture.destroy(false));this.snakeArt=undefined;}
     if(this.courseArt){[this.courseArt.grass,this.courseArt.soil,...(this.courseArt.coin?[this.courseArt.coin]:[]),...(this.courseArt.box?[this.courseArt.box]:[]),...Object.values(this.courseArt.markers).map(marker=>marker.texture)].forEach(texture=>{if(!texture.destroyed)texture.destroy(false);});this.courseArt=undefined;}
-    if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => texture.destroy(false)); this.homeTextures = undefined; }
+    if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => {if(!texture.destroyed)texture.destroy(false);}); this.homeTextures = undefined; }
     const configs = [this.corgi, this.myeongrang].filter((config): config is AnimalConfig => !!config);
     const textures = new Set(configs.flatMap(config => [...Object.values(config.animations).flatMap(animation => animation.frames),
       ...Object.values(config.effects ?? {}).flat(), ...(config.wardrobe ? [config.wardrobe.santaHat,...[config.wardrobe.topHat,config.wardrobe.bowTie].filter((texture):texture is NonNullable<typeof texture>=>!!texture)] : [])]));
@@ -176,9 +176,9 @@ export class Game {
     this.corgi = corgi;
     if (!this.disposed) this.myeongrang = await loadMyeongrang(corgi);
     if (!this.disposed) preload.setProgress(0.9);
-    if (!this.disposed) this.homeTextures = await loadHome();
-    if (!this.disposed) this.courseArt = await loadCourseArt();
     if (!this.disposed) this.courseBackgrounds = await loadCourseBackgrounds();
+    if (!this.disposed) this.homeTextures = await loadHome(this.courseBackgrounds);
+    if (!this.disposed) this.courseArt = await loadCourseArt();
     if (!this.disposed) this.snakeArt = await loadSnakeArt();
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

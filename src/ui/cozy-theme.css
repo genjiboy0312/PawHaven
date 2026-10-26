@@ -714,3 +714,6 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .race-hud .play-progress{max-width:26%;font-size:1.15cqw;line-height:1.4;}
 .race-hud .race-sync-status{top:12cqh;}
 .course-coin-summary{margin:.6cqh 0;font:400 clamp(11px,1.5cqw,20px) var(--font-body);color:var(--ui-ink);text-align:center;}
+
+.home-inventory .home-background-slot .outfit-object{width:7.5cqw;height:7cqh;bottom:4.5cqh;object-fit:cover;border-radius:.7cqw;}
+.home-background-name{position:absolute;left:0;right:0;bottom:1cqh;color:var(--ui-ink);font:400 clamp(10px,1.2cqw,16px) var(--font-body);text-align:center;pointer-events:none;}

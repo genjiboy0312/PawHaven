@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import { SKY_COLORS, FLOOR_COLORS, type HomeItem, type HomeLook } from './HomeState';
-export interface HomeTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture }
+export interface HomeTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture; noon?:Texture; sunset?:Texture; night?:Texture }
 /** Shared map renderer; every placed object owns its own view and persistent ID. */
 export class LobbyMap extends Container {
   private readonly paint = new Graphics();
@@ -22,7 +22,9 @@ export class LobbyMap extends Container {
       .rect(0, height * 0.44, width, height * 0.56).fill(FLOOR_COLORS[look.Floor]);
     if (look.Background) g.circle(width * 0.22, height * 0.2, 32).fill({ color: '#fff8df', alpha: 0.8 });
     if (this.backdrop && this.lawn) {
-      this.backdrop.visible = look.Background === 0; this.backdrop.width = width; this.backdrop.height = height * 0.44;
+      const texture=[this.textures!.background,this.textures!.noon,this.textures!.sunset,this.textures!.night][look.Background];
+      this.backdrop.visible = !!texture;if(texture)this.backdrop.texture=texture;
+      this.backdrop.width = width; this.backdrop.height = height * 0.44;
       this.lawn.visible = look.Floor === 0; this.lawn.position.set(0, height * 0.44); this.lawn.width = width; this.lawn.height = height * 0.56;
     }
     for (const [id, view] of this.views) if (!items.some(item => item.id === id)) { view.destroy({ children: true }); this.views.delete(id); }

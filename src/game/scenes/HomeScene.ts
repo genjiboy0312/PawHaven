@@ -1,6 +1,7 @@
 import type { DestroyOptions } from 'pixi.js';
 import { HOME_TABS, homeOptions, HomeState, clampPlacement, placementPoint, type PlaceableTab, type Placement, type HomeTab } from '../../home/HomeState';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
+import { HOME_BACKGROUNDS } from '../../home/HomeCatalog';
 import { onLanguageChange } from '../../settings/i18n';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
 import { bindAria, bindText, t } from '../../settings/i18n';
@@ -57,11 +58,13 @@ export class HomeScene extends Scene {
       if (placeable && this.state.owned(this.tab as PlaceableTab, index) === 0) continue;
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot';
       const count = placeable ? this.state.remaining(this.tab as PlaceableTab, index) : undefined;
-      button.setAttribute('aria-label', (placeable ? homeItemName(this.tab as PlaceableTab, index) : t(this.tab) + ' ' + (index + 1)) + (count === undefined ? '' : ` · ${t('remaining')}: ${count}`));
+      const name=placeable?homeItemName(this.tab as PlaceableTab,index):this.tab==='Background'?t(HOME_BACKGROUNDS[index]!.name):t(this.tab)+' '+(index+1);
+      button.setAttribute('aria-label', name + (count === undefined ? '' : ` · ${t('remaining')}: ${count}`));
       const active = placeable ? this.state.items.some(item => item.id === this.selected && item.tab === this.tab && item.option === index) : look[this.tab as 'Background' | 'Floor'] === index;
       button.setAttribute('aria-pressed', String(active));
       button.disabled = count === 0;
       button.append(homeIcon(this.tab, index));
+      if(this.tab==='Background'){button.className+=' home-background-slot';const label=document.createElement('span');label.className='home-background-name';label.textContent=name;button.append(label);}
       if (count !== undefined) {
         const quantity = document.createElement('span'); quantity.className = 'home-count'; quantity.textContent = String(count); button.append(quantity);
       }
