@@ -1,7 +1,8 @@
 # Paw Haven 웹 배포
 
 ## 배포 환경 고정 (2026-10-26)
-- ubuntu-latest의 Ubuntu 26 전환 알림이 표시되는 시기에 CI 테스트 단계가 장시간 종료되지 않았다. 실행 환경 차이를 줄이기 위해 build/deploy를 ubuntu-24.04로 고정한다. Node 22와 npm ci → 전체 테스트 → 타입 검사/빌드 → Pages 업로드/게시는 유지한다.
+- ubuntu-latest의 Ubuntu 26 전환 알림이 표시되는 시기에 CI 테스트 단계가 장시간 종료되지 않았다. 실행 환경 차이를 줄이기 위해 build/deploy를 ubuntu-24.04로 고정한다. npm ci → 전체 테스트 → 타입 검사/빌드 → Pages 업로드/게시는 유지한다.
+- Ubuntu 고정만으로 정체가 해소되지 않아 Node는 로컬 검증과 같은 20.20.2로 고정하고, CI의 테스트 파일은 한 번에 하나씩 실행한다. tests/*.test.mjs 전체가 대상이며 테스트를 생략하지 않는다. 로컬 npm test의 병렬 실행 설정은 유지한다.
 - 무기한 대기를 방지하도록 build 15분, deploy 10분 제한을 둔다. 로컬 전체 302개 테스트/빌드 통과 상태이며 실제 배포 실행 결과는 GitHub Actions에서 확인한다. 환경 전환이 정체의 확정 원인이라고 단정하지 않는다.
 
 ## 구성
@@ -11,7 +12,7 @@
 - main에 push하면 의존성 설치 → 테스트 → 타입 검사·빌드 → dist 배포
 - 설정 파일: .github/workflows/deploy.yml, vite.config.ts
 - 상대 에셋 경로로 /PawHaven/ 하위 경로를 지원
-- CI Node.js 22 사용; 로컬 실행 명령은 그대로 유지
+- CI Node.js 20.20.2 사용; 로컬 실행 명령은 그대로 유지
 - 별도 서버, Supabase, 비밀 환경변수 없이 실행
 
 ## 확인 방법
