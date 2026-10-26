@@ -184,7 +184,7 @@ test('all four map backdrops reuse saved opaque PNG resources and preserve share
   for(const [id,map]of Object.entries(COURSES)){
    const scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:id,backgrounds:textures});
    scene.resize(960,540);const backdrop=scene.children.find(c=>c.label==='course-background');
-   assert.equal(backdrop.texture,textures[map.time]);assert.equal(backdrop.width,960);assert.equal(backdrop.height,365);
+   assert.equal(backdrop.texture,textures[map.time]);assert.equal(backdrop.width,960);assert.equal(backdrop.height,540);
    assert.equal(backdrop.tint,0xffffff);scene.destroy({children:true});assert.equal(textures[map.time].destroyed,false);
   }
   const backdrop=courseBackdrop(textures.sunset);backdrop.destroy();assert.equal(textures.sunset.destroyed,false);
