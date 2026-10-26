@@ -3,9 +3,9 @@ import { PLAY_GROUND_Y } from './PlayCamera';
 
 export const COURSE_TIMES = ['morning', 'noon', 'sunset', 'night'] as const;
 export type CourseTime = typeof COURSE_TIMES[number];
-export type CourseBackgrounds = Record<CourseTime, Texture>;
+export type CourseBackgrounds = Record<CourseTime, Texture> & { cloud?:Texture };
 export async function loadCourseBackgrounds(): Promise<CourseBackgrounds> {
-  const entries = await Promise.all(COURSE_TIMES.map(async time => {
+  const entries = await Promise.all([...COURSE_TIMES,'cloud'].map(async time => {
     const texture = await Assets.load<Texture>(import.meta.env.BASE_URL + 'assets/backgrounds/' + time + '.png');
     texture.source.scaleMode = 'nearest';
     return [time, texture] as const;

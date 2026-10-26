@@ -15,7 +15,7 @@
 - 게임 규칙 변경 시 src/game/DummyRun.ts와 scenes/PlayScene.ts만 추가로 확인한다.
 - 새 MD는 모두 MyAIAgent 안에 저장한다.
 - 지형·출발/체크포인트/피니시 표식 작업은 [COURSE_ART.md](COURSE_ART.md)의 채택 PNG·공유 로딩·타일/발 정렬 규격을 재사용한다.
-- 시간대별 맵 배경은 [CROSSROADS.md](CROSSROADS.md)의 Resources/Park_Background_morning/noon/sunset/night.png 4장을 재사용한다. 로비 배경 기준의 동일 구도·도트 밀도이며 캐릭터나 UI에 색 필터를 씌우지 않는다. 별도 구름 오브젝트와 시차 효과는 현재 후속 제안 단계다.
+- 시간대별 맵 배경은 [CROSSROADS.md](CROSSROADS.md)의 Resources/Park_Background_morning/noon/sunset/night.png 4장을 재사용한다. 로비 배경 기준의 동일 구도·도트 밀도이며 캐릭터나 UI에 색 필터를 씌우지 않는다. 별도 구름은 Resources/Sky_Cloud.png 한 장을 공유하며 SkyClouds의 하늘 y=0~132 클립 안에서만 시차를 적용한다. 캐릭터 주변/바닥에 구름을 배치하지 않는다.
 
 ## 소품·펫 가구 제작 기준 — 사용자 확정 (2026-10-21)
 

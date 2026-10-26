@@ -26,8 +26,13 @@ night: Use case: lighting-weather. Edit the referenced PawHaven pixel-art panora
 - 허용 맵에 crossroads를 추가하고 pose/finish의 권위 있는 결승점을 5700으로 지정한다. 기존 방장 권한·레디 초기화·loaded 장벽·공통 출발 시각·권한 부여는 유지한다. forest는 싱글 전용이다.
 - 로컬 PostgreSQL에서 방 생성/입장/레디/loaded/출발·이전 결승점에서 조기 완주 거절·5700 좌표 제한/완주·비방장 맵 변경 거절을 검증했다.
 
-## 구름 장식 후속 제안
-- 사용자가 배경과 분리한 구름 오브젝트로 속도감을 제안했다. 권장 방향은 충돌 없는 구름 2~3개를 캐릭터/발판 뒤에 배치하고 카메라의 20~30% 속도로 움직이는 것이다. 현재는 제안 단계이며 별도 구름 이미지/시차 코드는 추가하지 않았다. DB/SQL 변경은 필요하지 않다.
+## 하늘 구름 오브젝트 (2026-10-26)
+- 최종 생성 프롬프트: Use case: stylized-concept. Asset type: one reusable transparent sky cloud sprite for PawHaven, a cozy side-scrolling 2D pixel game. The reference is ONLY a style guide for its gentle detailed pixel clouds. Create ONE isolated low horizontal puffy cloud, with a few small rounded rising lobes and an irregular subtly tapered flat underside. Warm ivory/cream lights, very subtle cool pale blue-gray shadow clusters, modest fine square pixel clusters matching the reference. Shape roughly 3:1 width to height, centered in the canvas with at least 12 percent fully transparent padding on every side. No blue sky, no gradient wash, no ground, no trees, no objects, no text, no border, no glow or outer shadow, no baked checkerboard. Not a smooth vector icon, not 3D, not exaggerated large mosaic pixels. Entire cloud silhouette opaque; genuine transparent background outside it. One cloud only, designed to remain legible around 180 pixels wide in game. Keep it pale enough for runtime time-of-day color tinting.
+- 사용자는 구름을 캐릭터 주변이 아닌 하늘 맵 영역에만 배치하는 것으로 확정했다. SkyClouds는 화면 y=0~132에 고정된 클립 마스크 안에만 표시하며 캐릭터의 높이·위아래 이동을 따라가지 않는다. 지형 위쪽 하늘에 위치하는 충돌 없는 장식이고 DB/SQL·네트워크 상태는 추가하지 않는다.
+- Resources/Sky_Cloud.png → public/assets/backgrounds/cloud.png. built-in image_gen으로 기존 한낮 배경의 구름 도트 밀도를 참고해 투명 구름 한 장을 생성했다. 원본을 다시 그리거나 배경 제거하지 않고 바이트가 같은 파일을 복사한다. RGBA 2172×724, alpha 범위 0~255, alpha>8 경계 (370,215,1799,555), 외곽 최대 alpha 1/255를 확인했다.
+- 같은 텍스처를 폭 280/230/300의 Sprite 3개로 재사용하고 화면 y=4/52/22에 배치한다. 카메라 이동량×PLAY_ZOOM의 18%/24%/30%만큼 움직이며 화면 밖에서 반복한다. 렌더 횟수·fps와 무관한 절대 위치 계산이다. 기본 배경의 먼 구름은 유지한다.
+- 시간대별 구름에만 크림/화이트/연한 복숭아/블루 tint와 낮은 alpha를 적용한다. 강아지/장비/지형은 tint하지 않는다. loadCourseBackgrounds에서 한 번 로드해 공유하며 씬 종료 시 공용 텍스처를 파괴하지 않는다.
+- 전체 293개 테스트 통과. 반복 렌더링·큰 이동·잘못된 입력에서도 하늘 높이/유한 좌표를 유지하고 텍스처를 보존하는지 검증했다. Chrome/Pixi에서 4개 맵의 클립 영역·카메라 시차·점프 높이와 독립된 위치·강아지 색상 유지도 확인했다.
 
 ## 검증
 - 전체 292개 테스트 중 맵 개수 표시 기대값 2개를 3→4로 갱신했고, 해당 파일 전체 74개 테스트를 재실행해 통과했다. 나머지 218개는 전체 실행에서 통과했다. 타입 검사·프로덕션 빌드 통과.

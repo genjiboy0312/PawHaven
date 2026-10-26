@@ -173,6 +173,29 @@ test('leaving transfers host and stale connections free seats',async()=>{
   await cmd(2,'leave',r.id); assert.equal((await cmd(0,'list')).rooms.length,0);
 });
 
+test('sky clouds stay in the upper sky, move slower than terrain and reuse the same texture on every map',async()=>{
+ const {SkyClouds}=await importTs('../src/game/SkyClouds.ts',import.meta.url);
+ const source=await readFile(new URL('../Resources/Sky_Cloud.png',import.meta.url));
+ assert.equal(source.equals(await readFile(new URL('../public/assets/backgrounds/cloud.png',import.meta.url))),true);
+ const texture=new Texture({source:new TextureSource({width:2172,height:724})});
+ for(const time of ['morning','noon','sunset','night']){
+  const layer=new SkyClouds(texture,time);assert.equal(layer.clouds.length,3);assert.ok(layer.mask);assert.equal(layer.eventMode,'none');
+  const positions=layer.clouds.map(c=>c.x);layer.update(100);
+  layer.clouds.forEach((c,i)=>{assert.equal(c.texture,texture);assert.ok(c.y>=0&&c.y+c.height<=132);const shift=positions[i]-c.x;assert.ok(shift>=100*.78*.18-1e-6&&shift<=100*.78*.3+1e-6);});
+  const fixed=layer.clouds.map(c=>[c.x,c.y]);for(let i=0;i<120;i++)layer.update(100);assert.deepEqual(layer.clouds.map(c=>[c.x,c.y]),fixed);
+  for(const x of [5700,100000,NaN,-100]){layer.update(x);layer.clouds.forEach(c=>{assert.ok(Number.isFinite(c.x)&&c.x>=-c.width&&c.x<=1040);assert.ok(c.y+c.height<=132);});}
+  layer.destroy({children:true});assert.equal(texture.destroyed,false);
+ }
+ const env=dom();try{
+  const backgrounds={morning:Texture.WHITE,noon:Texture.WHITE,sunset:Texture.WHITE,night:Texture.WHITE,cloud:texture};
+  const scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'crossroads',backgrounds,preferences:()=>({smoothCamera:false})});
+  scene.resize(960,540);const layer=scene.children.find(c=>c.label==='sky-clouds'),world=scene.world;
+  assert.ok(scene.children.indexOf(layer)>scene.children.findIndex(c=>c.label==='course-background'));assert.ok(scene.children.indexOf(layer)<scene.children.indexOf(world));
+  const y=layer.clouds.map(c=>c.y);scene.run.x=1800;scene.run.height=150;scene.resize(960,540);assert.deepEqual(layer.clouds.map(c=>c.y),y);
+  scene.destroy({children:true});assert.equal(texture.destroyed,false);
+ }finally{env.restore();texture.destroy(true);}
+});
+
 test('a late scene holds all players at the loading barrier, then schedules one full countdown',async()=>{
   const room=(await cmd(0,'create')).room;
   for(const n of [1,2,3]){await cmd(n,'join',room.id);await cmd(n,'ready',room.id,{ready:true});}

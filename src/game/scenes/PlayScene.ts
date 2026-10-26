@@ -5,6 +5,7 @@ import {COURSE_SNAKES} from '../PatrolSnake';
 import {SnakeView,snakeHeight,type SnakeArt} from '../SnakeView';
 import { SnakeDefeatFeedback } from '../SnakeDefeatFeedback';
 import { courseBackdrop, type CourseBackgrounds } from '../CourseBackgrounds';
+import { SkyClouds } from '../SkyClouds';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
 import type { PlayerHit } from '../HitReaction';
@@ -73,6 +74,7 @@ export class PlayScene extends Scene {
   private readonly targetViews: Graphics[] = [];
   private readonly snakeViews:SnakeView[]=[];
   private readonly snakeFeedback: SnakeDefeatFeedback;
+  private readonly skyClouds?: SkyClouds;
   private readonly checkpointFlag = new Graphics();
   private checkpointLit?: boolean;
   private checkpointMarker?:ReturnType<typeof courseMarker>;
@@ -133,6 +135,10 @@ export class PlayScene extends Scene {
     const forest=settings?.map==='forest';
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill(forest?'#dae7d9':'#dcebdc'), this.world);
     if(settings?.backgrounds)this.addChildAt(courseBackdrop(settings.backgrounds[map.time]),1);
+    if(settings?.backgrounds?.cloud){
+      this.skyClouds = new SkyClouds(settings.backgrounds.cloud,map.time);
+      this.addChildAt(this.skyClouds,2);
+    }
     this.world.scale.set(PLAY_ZOOM);
     this.world.y = PLAY_GROUND_Y - COURSE_GROUND * PLAY_ZOOM;
     const terrain = settings?.art?courseTerrain(this.run.course,settings.art):new Graphics();
@@ -460,6 +466,7 @@ export class PlayScene extends Scene {
     const preferences = this.settings?.preferences?.();
     if (preferences?.smoothCamera === false) this.cameraX = target;
     else this.cameraX += (target - this.cameraX) * (1 - Math.exp(-9 * seconds));
+    this.skyClouds?.update(this.cameraX);
     this.world.x = -this.cameraX * PLAY_ZOOM;
     this.pet.position.set(run.x, COURSE_GROUND - run.height);
     this.localName?.position.set(this.pet.x,this.pet.y-155);
