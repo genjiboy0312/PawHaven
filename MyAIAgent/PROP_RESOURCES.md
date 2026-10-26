@@ -1,12 +1,20 @@
 # 박스·코인·펫 소파 리소스
 
-2026-10-21 사용자가 선택한 시안을 Resources에 복사했다. 생성 도구는 built-in image_gen이다. 복사 전후 SHA-256 일치를 확인했으며 이미지 편집·배경 재처리는 하지 않았다. 펫 소파는 이후 상점·홈·로비에 연결했다. 적용 방식과 구매 흐름은 [HOME_SHOP.md](HOME_SHOP.md)를 참고한다. 코인은 2026-10-22 재화 UI에 연결했다. 박스 프로토타입은 아직 게임에 적용하지 않았다.
+2026-10-21 사용자가 선택한 시안을 Resources에 복사했다. 생성 도구는 built-in image_gen이다. 복사 전후 SHA-256 일치를 확인했으며 이미지 편집·배경 재처리는 하지 않았다. 펫 소파는 이후 상점·홈·로비에 연결했다. 적용 방식과 구매 흐름은 [HOME_SHOP.md](HOME_SHOP.md)를 참고한다. 코인은 2026-10-22 재화 UI에 연결했다. 박스는 2026-10-26 기존 게임 타깃에 적용했다.
 
 | 리소스 | 프로젝트 경로 | 채택 시안 |
 |---|---|---|
 | 박스 | `Resources/Wooden_Box_Prototype.png` | 옆면을 제거하고 원본 시트의 정면 박스 형태로 수정한 버전 |
 | 코인 | `Resources/Gold_Coin_Prototype.png` | 문양 없는 금색 픽셀 코인 |
 | 펫 소파 | `Resources/Pet_Sofa_Black_White_Prototype.png` | 강아지 한 마리용 낮은 검정 외곽·화이트 쿠션 버전 |
+
+## 게임 박스 적용 (2026-10-26)
+- Resources/Wooden_Box_Prototype.png를 바이트 변경 없이 public/assets/items/wooden-box.png에 복사했다. 새 이미지 생성/편집은 없다. RGBA 1295×1214, alpha>8 경계 (365,355,929,912), 위/아래 외곽 alpha=0을 확인했다.
+- CourseArt가 Rectangle(363,353,568,561)을 런타임 추출해 공유한다. BoxTargetView는 바닥 anchor=(.5,1), 기존 목표 높이 48 world units로 표시한다. Game 종료 시 공용 텍스처를 정리한다.
+- 기존 DummyRun.targets의 broken 판정과 125 전방 공격 거리·높이/방향 조건은 변경하지 않는다. 적중 즉시 파괴 개수를 집계하고 BoxTargetView만 이를 관찰해 0.08초 흔들림 후 0.22초 축소/fade를 표시한다. 기존 ImpactBurst/공격 텍스처를 폭 70으로 재사용한다. 파편용 새 이미지는 없다.
+- effects=false에서는 흔들림/축소/타격 이펙트를 생략하고 fade만 유지한다. 일시정지/resize는 시간을 진행시키거나 연출을 반복하지 않는다. 새 게임은 새 뷰/타깃 상태를 생성한다. 멀티는 기존처럼 개인별 타깃이고 추가 RPC/SQL/보상은 없다.
+- 픽셀 아트가 없는 독립 테스트/씬에는 기존 Graphics 타깃 경로를 유지한다. 전체 301개 테스트 통과: 실제 PNG 원본/배포 일치, 기존 공격 판정, 발 기준 고정, 흔들림/축소/fade·효과 설정·재시작·공유 텍스처 보존을 검증했다.
+- 타입 검사·프로덕션 빌드 통과. Chrome/Pixi의 실제 명랑이·박스 PNG로 Practice/Garden/Forest/Crossroads 모두 원래 높이·즉시 카운트·흔들림·fade 완료를 확인했다.
 
 ## 스타일 기준
 

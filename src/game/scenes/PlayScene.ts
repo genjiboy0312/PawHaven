@@ -8,6 +8,7 @@ import { courseBackdrop, type CourseBackgrounds } from '../CourseBackgrounds';
 import { SkyClouds } from '../SkyClouds';
 import { COURSE_COINS } from '../CourseCoins';
 import { CourseCoinsView } from '../CourseCoinsView';
+import { BoxTargetView } from '../BoxTargetView';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
 import type { PlayerHit } from '../HitReaction';
@@ -74,7 +75,7 @@ export class PlayScene extends Scene {
   private readonly progress = document.createElement('p');
   private readonly retry = document.createElement('button');
   private readonly back = document.createElement('button');
-  private readonly targetViews: Graphics[] = [];
+  private readonly targetViews: (Graphics|BoxTargetView)[] = [];
   private readonly snakeViews:SnakeView[]=[];
   private readonly snakeFeedback: SnakeDefeatFeedback;
   private readonly skyClouds?: SkyClouds;
@@ -180,7 +181,7 @@ export class PlayScene extends Scene {
     this.checkpointFlag.position.set(map.checkpoint + 5, 275);
     this.checkpointFlag.visible=!settings?.art;this.world.addChild(this.checkpointFlag);
     for (const target of this.run.targets) {
-      const view = new Graphics().rect(-22, -48, 44, 48).fill('#b88958')
+      const view = settings?.art?.box?new BoxTargetView(target,settings.art.box,config.effects?.attack):new Graphics().rect(-22, -48, 44, 48).fill('#b88958')
         .rect(-18, -44, 36, 6).fill('#dbc198').rect(-3, -38, 6, 33).fill('#e8d7b2')
         .rect(-16, -24, 32, 6).fill('#e8d7b2');
       view.position.set(target.x, COURSE_GROUND);
@@ -505,7 +506,7 @@ export class PlayScene extends Scene {
     if (!this.returned) this.stats.textContent = this.retryFailed ? t('runRetryFailed') : record;
     this.progress.textContent = `${Math.floor((run.x - run.start) / (run.finish - run.start) * 100)}% · ${t('runTime')} ${run.elapsed.toFixed(1)}s${run.checkpoint > run.start ? ' · ' + t('checkpoint') + ' ✓' : ''}`;
     if(coinText)this.progress.textContent+=' · '+coinText;
-    this.targetViews.forEach((view, index) => { view.visible = !run.targets[index]!.broken; });
+    this.targetViews.forEach((view, index) => { if(view instanceof BoxTargetView)view.update(seconds,preferences?.effects!==false);else view.visible = !run.targets[index]!.broken; });
     const active = run.checkpoint > run.start;
     if (this.checkpointLit !== active) {
       this.checkpointLit = active;

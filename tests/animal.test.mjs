@@ -2706,6 +2706,20 @@ test('practice targets require an attack in range and facing direction, and neve
   assert.equal(dash.targets[0].broken, false);
 });
 
+test('approved box view shakes once then shrinks/fades at a fixed foot, respects effects and preserves shared art',async()=>{
+ const {BoxTargetView}=await importTs('../src/game/BoxTargetView.ts',import.meta.url);
+ const target={broken:false},texture=new Texture({source:Texture.WHITE.source}),view=new BoxTargetView(target,texture,[Texture.WHITE]);view.position.set(500,390);
+ view.update(.5);assert.equal(view.visible,true);assert.equal(view.body.height,48);assert.equal(view.body.anchor.y,1);assert.equal(view.body.texture,texture);
+ target.broken=true;view.update(.01);assert.equal(view.body.alpha,1);assert.equal(view.children[1].visible,true);
+ view.update(.04);assert.notEqual(view.body.x,0);assert.equal(view.body.scale.y,48);const ageX=view.body.x;
+ view.update(0);assert.equal(view.body.x,ageX);assert.equal(view.y,390);
+ view.update(.1);assert.ok(view.body.alpha>0&&view.body.alpha<1);assert.ok(view.body.height<48);assert.equal(view.body.y,0);assert.equal(view.y,390);
+ view.update(.3);assert.equal(view.visible,false);view.update(.2);assert.equal(view.visible,false);
+ target.broken=false;view.update(0);assert.equal(view.visible,true);assert.equal(view.body.height,48);assert.equal(view.body.x,0);
+ target.broken=true;view.update(0,false);view.update(.15,false);assert.equal(view.body.height,48);assert.equal(view.body.x,0);assert.equal(view.children[1].visible,false);assert.ok(view.body.alpha<1);
+ view.destroy({children:true});assert.equal(texture.destroyed,false);assert.equal(Texture.WHITE.destroyed,false);texture.destroy();
+});
+
 test('results submit completion once, wait for a choice and recover from a rejected retry', async () => {
   const { PlayScene } = await importTs('../src/game/scenes/PlayScene.ts', import.meta.url);
   class Element extends EventTarget {

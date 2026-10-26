@@ -10,6 +10,7 @@ export interface CourseArtManifest {
 }
 export interface CourseArt {
   coin?:Texture;
+  box?:Texture;
   grass:Texture;soil:Texture;tileWorldSize:number;
   markers:Record<CourseMarkerId,{texture:Texture;anchorX:number;anchorY:number;visibleHeight:number}>;
 }
@@ -38,6 +39,9 @@ export async function loadCourseArt():Promise<CourseArt>{
   const coin=await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/gold-coin.png');
   coin.source.scaleMode='nearest';
   art.coin=new Texture({source:coin.source,frame:new Rectangle(357,404,541,541)});
+  const box=await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/wooden-box.png');
+  box.source.scaleMode='nearest';
+  art.box=new Texture({source:box.source,frame:new Rectangle(363,353,568,561)});
   return art;
 }
 export class CourseTerrain extends Container {

@@ -102,6 +102,20 @@ test('every playable map uses shared terrain art and brightens its checkpoint af
   }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
 });
 
+test('pixel box art observes existing attack flags, leaves counts immediate and resets independently for a new run',async()=>{
+ const source=await readFile(new URL('../Resources/Wooden_Box_Prototype.png',import.meta.url));assert.equal(source.equals(await readFile(new URL('../public/assets/items/wooden-box.png',import.meta.url))),true);
+ assert.equal(source.readUInt32BE(16),1295);assert.equal(source.readUInt32BE(20),1214);
+ const env=dom(),bundle=testCourseArt();bundle.art.box=Texture.WHITE;let scene,retry;
+ const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}},effects:{attack:[Texture.WHITE]}};
+ try{
+  scene=new PlayScene(config,()=>{},{open(){},map:'practice',art:bundle.art});scene.run.x=1960;scene.run.startAttack();scene.update(.01);
+  const view=scene.targetViews[0];assert.equal(view.body.texture,Texture.WHITE);assert.equal(scene.run.targets[0].broken,true);assert.equal(view.visible,true);
+  assert.match(scene.stats.textContent,/Targets 1\/1/);scene.resize(960,540);assert.equal(view.body.alpha,1);
+  scene.update(.04);assert.notEqual(view.body.x,0);scene.update(.35);assert.equal(view.visible,false);
+  retry=new PlayScene(config,()=>{},{open(){},map:'practice',art:bundle.art});retry.update(.01);assert.equal(retry.run.targets[0].broken,false);assert.equal(retry.targetViews[0].visible,true);
+ }finally{retry?.destroy({children:true});scene?.destroy({children:true});assert.equal(Texture.WHITE.destroyed,false);destroyCourseArt(bundle);env.restore();}
+});
+
 test('run coin counts reach HUD, localized single results and personal multiplayer podium without changing rank data',async()=>{
  const env=dom(),bundle=testCourseArt(),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);let scene,podium;
  bundle.art.coin=Texture.WHITE;let completes=0;
