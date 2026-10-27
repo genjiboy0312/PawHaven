@@ -1455,16 +1455,18 @@ test('Shop blocks unfinished listings, preserves legacy items and links pass rew
     click(content.children[1].children[2]); click(content.children[2].children[1]);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 3), false);
     click(panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Pass'));
-    assert.equal(content.children[0].children[3].textContent, 'Test unlock · Free');
-    click(content.children[1]); // Shop -> Quest pass
+    assert.equal(content.querySelector('.pass-offer-buy').textContent, 'Purchase · Free test');
+    assert.equal(content.querySelector('.pass-track'), null);
+    click(content.querySelector('.pass-offer-rewards')); // Shop -> Quest pass
     let overlay = host.children[1], pass = overlay.children[0].children[3].children[0];
     assert.equal(pass.children[3].textContent, 'Go to Shop');
     click(pass.children[3]); // Quest -> Shop pass
     assert.equal(host.children.length, 1);
     panel = host.children[0]; content = panel.children[4];
-    click(content.children[0].children[3]); assert.equal(state.hasPass, true);
-    assert.equal(content.children[0].children[3].disabled, true);
-    click(content.children[1]);
+    click(content.querySelector('.pass-offer-buy')); assert.equal(state.hasPass, true);
+    assert.equal(content.querySelector('.pass-offer-buy').disabled, true);
+    assert.equal(content.querySelector('.pass-offer-buy').textContent, 'Purchased');
+    click(content.querySelector('.pass-offer-rewards'));
     overlay = host.children[1]; pass = overlay.children[0].children[3].children[0];
     click(pass.children[4].children[0].children[1]); assert.equal(state.coins, 945);
     pass = overlay.children[0].children[3].children[0]; click(pass.children[4].children[0].children[2]); assert.equal(state.coins, 985);

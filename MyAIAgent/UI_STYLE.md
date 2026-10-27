@@ -1,5 +1,7 @@
 # Cozy UI 1차 (2026-10-17)
 
+- 상점 패스(2026-10-28): PassOffer 혜택 소개와 무료 테스트 구매를 사용한다. 시즌 안내→무료/프리미엄 2열 비교→단계 달성/기존 단계 수령 설명→구매·보상 보기 순서다. 실제 보상 총액을 계산하며 기존 QuestPopup의 보상 트랙은 상점에 중복하지 않는다. 공통 Jua/PNG 표면/구매 버튼·스크롤을 재사용한다. 상세: [HOME_SHOP.md](HOME_SHOP.md).
+
 코인 수집 퀘스트(2026-10-28): 기존 일일 퀘스트 목록에 반짝이는 수집가(20개·50코인)를 세 번째 카드로 추가한다. 기존 완료 색상/탭 알림/수령 버튼/Jua/PNG 표면/스크롤을 재사용한다. 새 카드에는 간식 아이콘을 넣지 않는다. 상세: [DAILY_COIN_QUEST.md](DAILY_COIN_QUEST.md).
 
 멀티 보상 결과(2026-10-28): RacePodium의 우승자/순위 목록 아래에 기존 RunRewardPanel을 배치한다. Jua/PNG 표면/최대 높이/스크롤·commerceStatus 재시도를 재사용하며 별도 리소스는 만들지 않는다. DNF는 완주 보상 없음을 표시한다. 상세: [MULTIPLAYER_REWARDS.md](MULTIPLAYER_REWARDS.md).

@@ -8,7 +8,7 @@ import type { CommerceState } from '../../shop/CommerceState';
 import { commerceStatus } from '../../ui/CommerceStatus';
 import { coinAmount } from '../../ui/CoinAmount';
 import { itemIcon } from '../../ui/itemIcon';
-import { passPanel } from '../../ui/PassPanel';
+import { passOffer } from '../../ui/PassOffer';
 import { homeOptions, homePrice, homeStockLimit } from '../../home/HomeCatalog';
 import { HOME_TABS, type HomeTab, type HomeState } from '../../home/HomeState';
 import type { HomeTextures } from '../../home/LobbyMap';
@@ -106,9 +106,7 @@ export class ShopScene extends Scene {
     if(this.tab==='Pets'){this.renderPets();return;}
     if (this.tab === 'Furniture') { this.renderFurniture(scroll); return; }
     if (this.tab === 'Pass') {
-      this.content.append(passPanel(this.state, 'shop', this.onQuest));
-      const quest = document.createElement('button'); quest.type = 'button'; quest.className = 'commerce-primary'; bindText(quest, 'viewPass');
-      quest.addEventListener('click', this.onQuest); this.content.append(quest); return;
+      this.content.append(passOffer(this.state, this.onQuest)); return;
     }
     const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories';
     bindAria(categories, 'categories');

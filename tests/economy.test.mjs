@@ -365,6 +365,21 @@ function purchaseDom() {
   } };
 }
 
+test('Shop Pass explains real benefits, unlocks once without coins, and leaves claims in Quest',async()=>{
+ Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},configurable:true});
+ const {Texture}=await import('pixi.js'),{ShopScene}=await importTs('../src/game/scenes/ShopScene.ts',import.meta.url),{passPanel}=await importTs('../src/ui/PassPanel.ts',import.meta.url),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
+ const env=purchaseDom(),requests=[];env.shop.remove();const api=new EconomyClient(async request=>{requests.push(request);return rpc(A)(request)},uuid),state=new ServerShopState(api);let scene,navigated=0;
+ try{
+  await idle(api);scene=new ShopScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},state,()=>{},()=>navigated++,'Pass');
+  const panel=env.host.querySelector('.shop-screen');assert.ok(panel.querySelector('.pass-offer'));assert.equal(panel.querySelector('.pass-track'),undefined);
+  const amounts=panel.all().filter(e=>e.className==='pass-offer-total coin-amount');assert.match(amounts[0].textContent,/300/);assert.match(amounts[1].textContent,/\+600/);
+  const before=state.coins,buy=panel.querySelector('.pass-offer-buy');assert.equal(buy.disabled,false);buy.dispatchEvent(new Event('click'));buy.dispatchEvent(new Event('click'));await idle(api);
+  assert.equal(requests.filter(r=>r.p_action==='unlock_pass').length,1);assert.equal(state.hasPass,true);assert.equal(state.coins,before);assert.equal(panel.querySelector('.pass-offer-buy').disabled,true);assert.equal(panel.querySelector('.pass-offer-buy').textContent,'Purchased');assert.equal(state.isClaimed(1,true),false);
+  panel.querySelector('.pass-offer-rewards').dispatchEvent(new Event('click'));assert.equal(navigated,1);assert.ok(passPanel(state,'quest',()=>{}).querySelector('.pass-track'));
+  setLanguage('ko');assert.equal(panel.querySelector('.pass-offer-buy').textContent,'구매 완료');assert.match(panel.querySelector('.pass-offer-rules').textContent,/플레이로 단계를 달성/);
+ }finally{scene?.destroy({children:true});state.destroy();setLanguage('en');env.restore();}
+});
+
 test('purchase confirmation cancels safely, tracks live balance and language, and removes its input lock and subscriptions', async () => {
   const { PurchasePopup } = await importTs('../src/ui/PurchasePopup.ts', import.meta.url);
   const { ShopState } = await importTs('../src/shop/ShopState.ts', import.meta.url);
