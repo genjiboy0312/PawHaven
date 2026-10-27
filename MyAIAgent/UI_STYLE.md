@@ -1,5 +1,7 @@
 # Cozy UI 1차 (2026-10-17)
 
+멀티 보상 결과(2026-10-28): RacePodium의 우승자/순위 목록 아래에 기존 RunRewardPanel을 배치한다. Jua/PNG 표면/최대 높이/스크롤·commerceStatus 재시도를 재사용하며 별도 리소스는 만들지 않는다. DNF는 완주 보상 없음을 표시한다. 상세: [MULTIPLAYER_REWARDS.md](MULTIPLAYER_REWARDS.md).
+
 싱글 보상 결과(2026-10-28): 기존 결과 패널 안에 수집량/확정 보상/현재 잔액을 RunRewardPanel로 추가한다. 공통 Jua·CoinAmount·commerceStatus 재시도를 재사용하고 서버 확정 전에는 보상을 더하지 않는다. 최대 높이/스크롤을 유지하며 씬 종료 시 구독을 해제한다. 상세: [RUN_REWARDS.md](RUN_REWARDS.md).
 
 - 로비 상품 미리보기(2026-10-28): 별도 버튼 없이 선택 즉시 좌측에 기존 LobbyMap을 16:9로 축소 표시한다. 실제 배치가 유지되는 미리보기 전용 view이며 배경·바닥만 임시 교체하거나 가구·기타 후보 하나를 추가한다. 둥근 마스크/얇은 기존 테두리, 상품명/Jua 안내만 사용한다. 기존 상품 선택·구매 확인창과 우측 패널은 재사용하고 새 이미지/SQL은 추가하지 않는다. 상세: [HOME_SHOP.md](HOME_SHOP.md).

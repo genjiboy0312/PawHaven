@@ -1,5 +1,7 @@
 # 모드 선택·멀티 레이스 프로토타입 (2026-10-19)
 
+멀티 완주 보상(2026-10-28): 서버 경기 ID/완주 기록으로 10 + 개인 수집량을 경기당 한 번 지급하고 기존 순위 팝업에 공통 보상 컴포넌트를 재사용한다. SQL: Multiplayer Finish Rewards(024). 상세: [MULTIPLAYER_REWARDS.md](MULTIPLAYER_REWARDS.md).
+
 ## 대기방 채팅 (2026-10-26)
 - waiting 단계에서만 대기방 하단 중앙에 표시한다. 기존 공원 ChatHistory·KeyboardChatDock·Jua·입력/전송 버튼 스타일을 재사용한다. 준비·맵 변경·방 상태 polling은 RoomChatPanel DOM을 교체하지 않으므로 초안/포커스/한글 조합을 보존한다. 게임 진입/방 변경/메뉴 종료는 입력 dock·타이머·진행 요청·구독을 정리한다.
 - RoomChatClient는 observer 컴포넌트다. 서버 RPC가 최근 30개 메시지를 반환하며, 신뢰된 서버의 paw-chat:<room UUID> 알림으로 재조회한다. 연결 유실 시 5초 조회로 복구한다. 전송 중 도착한 오래된 조회 응답은 버전으로 폐기한다. 응답 유실 재전송은 동일 nonce를 사용한다.

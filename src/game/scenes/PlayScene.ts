@@ -49,6 +49,7 @@ export class PlayScene extends Scene {
   private readonly raceMembers=new Map<string,Room['members'][number]>();
   private resultRoom?:Room;
   private resultSignature='';
+  private rewardRound?: string;
   private podium?:RacePodium;
   private courseProgress?:RaceProgress;
   private standings?:RaceStandings;
@@ -132,7 +133,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
@@ -417,11 +418,12 @@ export class PlayScene extends Scene {
       this.victory.textContent=t(!room?'multiOffline':room.phase==='waiting'?'raceCancelled':ended?'raceResults':'waitingOthers');
       this.back.disabled=!ended||client.reconnecting||!!client.error;
       const results=this.resultRoom,finished=room?.phase==='results';
+      if (finished && room.round && this.rewardRound !== room.round) { this.rewardRound = room.round; multi.reward?.(room,this.run.coins.collected); }
       const signature=JSON.stringify([results?.racers,[...this.raceMembers.values()].map(member=>[member.id,member.look.petId]),finished]);
       if(signature!==this.resultSignature){
         this.resultSignature=signature;
         this.podium?.destroy();this.podium=undefined;
-        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false),this.run.coins.items.length?{collected:this.run.coins.collected,total:this.run.coins.items.length}:undefined);
+        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false),this.run.coins.items.length?{collected:this.run.coins.collected,total:this.run.coins.items.length}:undefined,this.settings?.rewards);
         else this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,false));
         this.hud.setAttribute('data-podium',String(!!this.podium));
       }

@@ -12,6 +12,7 @@ export class ServerShopState {
   private rewardRunId?: string;
   runReward?: RunReward;
   get runRewardsReady(): boolean { return this.api.result?.snapshot.runRewardsReady === true; }
+  get raceRewardsReady(): boolean { return this.api.result?.snapshot.raceRewardsReady === true; }
   feedSerial=0;fedPet='';private feedRevision=-1;
   get snacksReady(){return this.api.result?.snapshot.snacksReady===true;}
   get snacks(){return this.api.result?.snapshot.snacks??0;}
@@ -90,6 +91,12 @@ export class ServerShopState {
     this.runReward = { status: this.runRewardsReady ? 'pending' : 'unavailable', collected };
     const result = await this.api.execute('run_finish', { run_id, ...(this.runRewardsReady ? { collected } : {}) });
     if (result?.outcome === 'run_rejected' && this.rewardRunId === run_id) this.runReward = { status: 'rejected', collected };
+  }
+  async completeRace(room: string, round: string, collected: number, finished: boolean): Promise<void> {
+    this.rewardRunId = round;
+    this.runReward = { status: !finished ? 'notFinished' : this.raceRewardsReady ? 'pending' : 'unavailable', collected };
+    if (!finished || !this.raceRewardsReady) { this.listeners.forEach(listener => listener()); return; }
+    await this.api.execute('race_reward', { room, round, collected });
   }
   async claimDaily(id: DailyQuestId): Promise<boolean> {
     if (!this.ready) return false;

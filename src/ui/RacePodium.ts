@@ -3,6 +3,8 @@ import { AnimalAnimationController } from '../animals/AnimalAnimationController'
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import type { Room } from '../multiplayer/RoomClient';
 import { t } from '../settings/i18n';
+import type { CommerceState } from '../shop/CommerceState';
+import { RunRewardPanel } from './RunRewardPanel';
 
 /** Uses the loaded atlas and wardrobe; no second WebGL renderer or animation timer. */
 export class RacePodium {
@@ -14,7 +16,8 @@ export class RacePodium {
   private elapsed=0;
   private bounds={x:0,y:-150,width:200,height:150};
   private readonly wasInert:boolean;
-  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void,coins?:{collected:number;total:number}){
+  private rewardPanel?: RunRewardPanel;
+  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void,coins?:{collected:number;total:number},rewards?:CommerceState){
     this.wasInert=hud.inert;hud.inert=true;
     this.element.className='race-podium-overlay';
     const panel=document.createElement('section');panel.className='settings-panel race-podium';
@@ -55,9 +58,10 @@ export class RacePodium {
     });
     this.back.type='button';this.back.className='commerce-primary';this.back.textContent=t('returnRoom');
     this.back.addEventListener('click',onReturn,{signal:this.abort.signal});
-    panel.addEventListener('keydown',event=>{if(event.key==='Tab'){event.preventDefault();this.back.focus();}},{signal:this.abort.signal});
+    panel.addEventListener('keydown',event=>{if(event.key==='Tab'){const controls=Array.from(panel.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}}},{signal:this.abort.signal});
     panel.append(list);
-    if(coins){const summary=document.createElement('p');summary.className='course-coin-summary coin-amount';summary.textContent=`${t('runCoins')}: ${coins.collected} / ${coins.total}`;panel.append(summary);}
+    if(rewards){this.rewardPanel=new RunRewardPanel(rewards,()=>coins??{collected:0,total:0},'race');panel.append(this.rewardPanel.element);}
+    else if(coins){const summary=document.createElement('p');summary.className='course-coin-summary coin-amount';summary.textContent=`${t('runCoins')}: ${coins.collected} / ${coins.total}`;panel.append(summary);}
     panel.append(this.back);this.element.append(panel);document.querySelector('#app')?.append(this.element);this.back.focus();
   }
   update(seconds:number,reduced=false){
@@ -79,5 +83,5 @@ export class RacePodium {
     for(const child of sprite.children)if(child instanceof Sprite)this.draw(context,child);
     context.restore();
   }
-  destroy(){this.abort.abort();this.element.remove();this.hud.inert=this.wasInert;this.animation?.sprite.destroy({children:true});this.animation?.sleepMark.destroy();this.animation?.welcomeMark.destroy({children:true});}
+  destroy(){this.rewardPanel?.destroy();this.abort.abort();this.element.remove();this.hud.inert=this.wasInert;this.animation?.sprite.destroy({children:true});this.animation?.sleepMark.destroy();this.animation?.welcomeMark.destroy({children:true});}
 }

@@ -139,3 +139,25 @@ test('run reward SQL recovers a missing treat wallet schema without resetting ba
  const after=(await economy(0)).snapshot;assert.equal(after.coins,before.coins);assert.deepEqual(after.homeItems,before.homeItems);assert.equal(after.snacks,0);assert.equal(after.runRewardsReady,true);
  const start=await economy(0,'run_start',{map:'practice'});await db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where id=$1",[start.run_id]);assert.equal((await economy(0,'run_finish',{run_id:start.run_id,collected:0})).run_reward.coins,10);
 });
+
+test('multiplayer coins use server round/finish records and preserve the receipt after room deletion',async()=>{
+ const sql=await readFile(new URL('../supabase/migrations/202610280024_multiplayer_rewards.sql',import.meta.url),'utf8');await db.exec(sql);
+ await db.query('update public.economy_wallets set coins=1000 where user_id=any($1::uuid[])',[users]);
+ const room=nonce(),round=nonce();await db.query("insert into public.mp_rooms(id,name,host,map,phase,round_id,starts_at)values($1,'Reward room',$2,'practice','results',$3,clock_timestamp()-interval '12 seconds')",[room,users[0],round]);
+ for(let i=0;i<2;i++)await db.query('insert into public.mp_racers(room_id,user_id,nickname,finished_ms)values($1,$2,$3,$4)',[room,users[i],'Player'+i,i===1?9000:null]);
+ assert.equal((await economy(0,'race_reward',{room,round,collected:3})).outcome,'run_rejected');
+ for(const collected of [8,-1,1.5,'3',null])await assert.rejects(economy(1,'race_reward',{room,round,collected}));
+ const id=nonce(),payload={room,round,collected:3,reward:999999};const paid=await economy(1,'race_reward',payload,id);assert.equal(paid.snapshot.coins,1013);assert.equal(paid.snapshot.raceRewardsReady,true);assert.equal(parseEconomyResult(paid).run_reward.coins,13);
+ assert.equal((await economy(1,'race_reward',payload,id)).snapshot.coins,1013);assert.equal((await economy(1,'race_reward',payload)).snapshot.coins,1013);
+ assert.equal((await db.query('select count(*)::int as n from public.economy_race_rewards where user_id=$1 and round_id=$2',[users[1],round])).rows[0].n,1);
+ await assert.rejects(as(1,'delete from public.economy_race_rewards where user_id=$1',[users[1]]),/permission denied/);
+ await db.query('delete from public.mp_rooms where id=$1',[room]);assert.equal((await economy(1,'race_reward',payload)).snapshot.coins,1013);assert.equal((await economy(0,'race_reward',{room,round:nonce(),collected:0})).outcome,'run_rejected');
+ await db.exec(sql);assert.equal((await economy(1,'race_reward',payload)).run_reward.coins,13);
+});
+
+test('multiplayer reward retries update the same observer; DNF and older SQL never send a payout request',async()=>{
+ const room=nonce(),round=nonce();await db.query("insert into public.mp_rooms(id,name,host,map,phase,round_id,starts_at)values($1,'Retry room',$2,'garden','results',$3,clock_timestamp()-interval '12 seconds')",[room,users[0],round]);await db.query("insert into public.mp_racers(room_id,user_id,nickname,finished_ms)values($1,$2,'Player0',9000)",[room,users[0]]);
+ let lose=true;const requests=[];const transport=async request=>{requests.push(request);const result=await economy(0,request.p_action,request.p_payload,request.p_request_id);if(request.p_action==='race_reward'&&lose){lose=false;throw Error('lost race receipt')}return result};const api=new EconomyClient(transport,nonce),state=new ServerShopState(api),idle=async()=>{while(api.busy)await new Promise(r=>setImmediate(r))};
+ try{await idle();const before=state.coins;await state.completeRace(room,round,4,true);await idle();assert.equal(state.runReward.status,'pending');assert.equal(state.coins,before);await state.retry();await idle();assert.deepEqual(state.runReward,{status:'confirmed',collected:4,coins:14});assert.equal(state.coins,before+14);const payouts=requests.filter(r=>r.p_action==='race_reward');assert.equal(payouts.length,2);assert.equal(payouts[0].p_request_id,payouts[1].p_request_id);await state.completeRace(room,round,4,false);assert.equal(state.runReward.status,'notFinished');assert.equal(requests.filter(r=>r.p_action==='race_reward').length,2);}finally{state.destroy();}
+ let calls=0;const oldApi=new EconomyClient(async request=>{calls++;const result=await economy(0,request.p_action,request.p_payload,request.p_request_id);delete result.snapshot.raceRewardsReady;return result},nonce),oldState=new ServerShopState(oldApi);while(oldApi.busy)await new Promise(r=>setImmediate(r));const before=calls;await oldState.completeRace(room,round,4,true);assert.equal(oldState.runReward.status,'unavailable');assert.equal(calls,before);oldState.destroy();
+});
