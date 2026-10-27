@@ -6,8 +6,9 @@ export interface EconomySnapshot {
   homeBackgroundShopReady?: boolean;
   runRewardsReady?: boolean;
   raceRewardsReady?: boolean;
+  dailyCoinQuestReady?: boolean;
   coins: number; xp: number; premium: boolean; items: string[]; claimed: string[];
-  daily: { day: string; pet: number; run: number; claimed: ('pet' | 'run')[]; lastPet: number | null };
+  daily: { day: string; pet: number; run: number; coins?: number; coinsClaimed?: boolean; claimed: ('pet' | 'run')[]; lastPet: number | null };
 }
 export type EconomyAction = 'load' | 'buy' | 'buy_home' | 'feed' | 'pet' | 'claim_daily' | 'claim_pass' | 'unlock_pass' | 'run_start' | 'run_finish' | 'race_reward';
 export interface EconomyRequest { p_action: EconomyAction; p_request_id: string; p_payload: Record<string, unknown> }
@@ -29,6 +30,7 @@ export function parseEconomyResult(input: unknown): EconomyResult {
   if (value.homeShopReady !== undefined && value.homeShopReady !== true) throw Error('invalid_economy_response');
   if (value.runRewardsReady !== undefined && value.runRewardsReady !== true) throw Error('invalid_economy_response');
   if (value.raceRewardsReady !== undefined && value.raceRewardsReady !== true) throw Error('invalid_economy_response');
+  if (value.dailyCoinQuestReady !== undefined && value.dailyCoinQuestReady !== true || daily.coins !== undefined && !integer(daily.coins,20) || daily.coinsClaimed !== undefined && typeof daily.coinsClaimed !== 'boolean' || value.dailyCoinQuestReady && (!integer(daily.coins,20) || typeof daily.coinsClaimed !== 'boolean') || daily.coinsClaimed && daily.coins !== 20) throw Error('invalid_economy_response');
   if (result.run_reward !== undefined) {
     const receipt = result.run_reward;
     if (!receipt || !value.runRewardsReady || result.outcome !== 'finished' || !result.run_id || !integer(receipt.collected,13) || receipt.bonus !== 10 || !integer(receipt.coins,23) || receipt.coins > receipt.collected + receipt.bonus) throw Error('invalid_economy_response');

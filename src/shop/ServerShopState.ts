@@ -13,6 +13,7 @@ export class ServerShopState {
   runReward?: RunReward;
   get runRewardsReady(): boolean { return this.api.result?.snapshot.runRewardsReady === true; }
   get raceRewardsReady(): boolean { return this.api.result?.snapshot.raceRewardsReady === true; }
+  get dailyCoinQuestReady(): boolean { return this.api.result?.snapshot.dailyCoinQuestReady === true; }
   feedSerial=0;fedPet='';private feedRevision=-1;
   get snacksReady(){return this.api.result?.snapshot.snacksReady===true;}
   get snacks(){return this.api.result?.snapshot.snacks??0;}
@@ -50,7 +51,7 @@ export class ServerShopState {
   retry(): void { void this.api.retry(); }
   async reload():Promise<void>{if(!await this.api.execute('load'))throw Error('economy_reload_failed');}
   refreshDaily(): void { this.api.refresh(); }
-  get dailyQuests() { this.api.refresh(); return this.view.dailyQuests.map(quest => ({ ...quest, canClaim: this.ready && quest.canClaim })); }
+  get dailyQuests() { this.api.refresh(); return this.view.dailyQuests.filter(quest => quest.id !== 'coins' || this.dailyCoinQuestReady).map(quest => ({ ...quest, canClaim: this.ready && quest.canClaim })); }
   get hasDailyRewards(): boolean { this.api.refresh(); return !!this.api.result && this.view.hasDailyRewards; }
   get hasPassRewards(): boolean { return !!this.api.result && this.view.hasPassRewards; }
   get hasQuestRewards(): boolean { return this.hasDailyRewards || this.hasPassRewards; }
@@ -99,7 +100,7 @@ export class ServerShopState {
     await this.api.execute('race_reward', { room, round, collected });
   }
   async claimDaily(id: DailyQuestId): Promise<boolean> {
-    if (!this.ready) return false;
+    if (!this.ready || id === 'coins' && !this.dailyCoinQuestReady) return false;
     return (await this.api.execute('claim_daily', { quest: id }))?.outcome === 'claimed';
   }
   async unlockPass(): Promise<void> { if (this.ready) await this.api.execute('unlock_pass'); }

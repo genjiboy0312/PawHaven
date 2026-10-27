@@ -7,9 +7,10 @@ export const PASS_TIERS = 5;
 export const DAILY_QUESTS = [
   { id: 'pet', title: 'dailyPet', target: 3, reward: 50 },
   { id: 'run', title: 'dailyRun', target: 1, reward: 100 },
+  { id: 'coins', title: 'dailyCoins', target: 20, reward: 50 },
 ] as const;
 export type DailyQuestId = typeof DAILY_QUESTS[number]['id'];
-interface DailyState { day: string; pet: number; run: number; claimed: DailyQuestId[]; lastPet: number | null }
+interface DailyState { day: string; pet: number; run: number; coins: number; claimed: DailyQuestId[]; lastPet: number | null }
 function localDay(time: number): string {
   const date = new Date(time);
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
@@ -25,6 +26,7 @@ export class ShopState {
   readonly homeBackgroundShopReady = true;
   readonly runRewardsReady = true;
   readonly raceRewardsReady = false;
+  readonly dailyCoinQuestReady = true;
   runReward?: RunReward;
   private activeRun?: CourseId;
   readonly snacksReady=true;
@@ -72,7 +74,7 @@ export class ShopState {
             if (Number.isInteger(count) && count >= 0) this.daily[quest.id] = Math.min(quest.target, count);
           }
           this.daily.claimed = DAILY_QUESTS.filter(quest => this.daily[quest.id] === quest.target &&
-            Array.isArray(day.claimed) && day.claimed.includes(quest.id)).map(quest => quest.id);
+            (Array.isArray(day.claimed) && day.claimed.includes(quest.id) || quest.id === 'coins' && day.coinsClaimed === true)).map(quest => quest.id);
           if (typeof day.lastPet === 'number' && Number.isFinite(day.lastPet) && day.lastPet >= 0) this.daily.lastPet = day.lastPet;
         }
         if (Array.isArray(saved.items)) saved.items.filter((id: unknown): id is string => typeof id === 'string' && validItem(id)).forEach((id: string) => this.items.add(id));
@@ -80,7 +82,7 @@ export class ShopState {
       }
     } catch { /* This is local prototype data; defaults work without storage. */ }
   }
-  private freshDay(): DailyState { return { day: localDay(this.now()), pet: 0, run: 0, claimed: [], lastPet: null }; }
+  private freshDay(): DailyState { return { day: localDay(this.now()), pet: 0, run: 0, coins: 0, claimed: [], lastPet: null }; }
   private rollDay(): boolean {
     const today = localDay(this.now());
     // Do not reopen an already claimed day when the device clock moves backwards.
@@ -107,7 +109,7 @@ export class ShopState {
       if (rolled) this.save(); return false;
     }
     // Claim flag and coins are persisted in one storage record.
-    this.daily.claimed.push(id);this.treats=Math.min(99,this.treats+1);this.balance += quest.reward; this.save(); return true;
+    this.daily.claimed.push(id);if(id !== 'coins')this.treats=Math.min(99,this.treats+1);this.balance = Math.min(1000000,this.balance + quest.reward); this.save(); return true;
   }
   get hasDailyRewards(): boolean { return this.dailyQuests.some(quest => quest.canClaim); }
   get hasPassRewards(): boolean {
@@ -139,6 +141,7 @@ export class ShopState {
     const rolled = this.rollDay(), before = this.experience, progress = this.daily.run;
     const map = this.activeRun; this.activeRun = undefined;
     if (map && validRunCoins(map, collected)) {
+      this.daily.coins = Math.min(20,this.daily.coins + collected);
       const coins = Math.min(1000000 - this.balance, RUN_FINISH_BONUS + collected);
       this.balance += coins; this.runReward = { status: 'confirmed', collected, coins };
     }

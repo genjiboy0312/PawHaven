@@ -2382,17 +2382,19 @@ test('daily quests persist cooldown/progress, grant coins once and feed existing
   assert.equal(state.buy('Hat', 2), 'purchased'); assert.equal(state.coins, 1075);
   const restored = new ShopState(storage, () => now);
   assert.equal(restored.owns('Hat', 2), true); assert.equal(restored.coins, 1075);
-  assert.equal(restored.dailyQuests.every(quest => quest.claimed), true);
+  assert.equal(restored.dailyQuests.filter(quest => quest.id !== 'coins').every(quest => quest.claimed), true);
+  assert.equal(restored.dailyQuests.find(quest => quest.id === 'coins').progress, 0);
+  assert.equal(restored.dailyQuests.find(quest => quest.id === 'coins').claimed, false);
 });
 
-test('daily local midnight resets both quests while preserving purchases/pass and protects a claimed day on clock rollback', () => {
+test('daily local midnight resets all quests while preserving purchases/pass and protects a claimed day on clock rollback', () => {
   let now = new Date(2026, 9, 17, 23, 59, 59).getTime();
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
   const state = new ShopState(storage, () => now);
   state.buy('Body', 2); state.completeRun(); state.claimDaily('run'); state.recordPet();
   const coins = state.coins, xp = state.xp;
   now += 1000; state.refreshDaily();
-  assert.deepEqual(state.dailyQuests.map(quest => [quest.progress, quest.claimed]), [[0, false], [0, false]]);
+  assert.deepEqual(state.dailyQuests.map(quest => [quest.progress, quest.claimed]), [[0, false], [0, false], [0, false]]);
   assert.equal(state.coins, coins); assert.equal(state.xp, xp); assert.equal(state.owns('Body', 2), true);
   assert.equal(state.recordPet(), true); // new day's cooldown is independent
   state.completeRun(); assert.equal(state.claimDaily('run'), true);
@@ -2413,7 +2415,7 @@ test('daily migration rejects malformed progress/claims and storage failure pres
   legacy.completeRun(); assert.equal(legacy.dailyQuests[1].canClaim, true); assert.equal(legacy.xp, 400);
   values.set(SHOP_STORAGE_KEY, JSON.stringify({ ...old, daily: { day: '2026-10-17', pet: -2, run: '1', claimed: ['pet', 'run'], lastPet: 'bad' } }));
   const repaired = new ShopState(storage, () => now);
-  assert.deepEqual(repaired.dailyQuests.map(q => [q.progress, q.claimed]), [[0, false], [0, false]]);
+  assert.deepEqual(repaired.dailyQuests.map(q => [q.progress, q.claimed]), [[0, false], [0, false], [0, false]]);
   assert.equal(repaired.recordPet(), true);
   values.set(SHOP_STORAGE_KEY, JSON.stringify({ ...old, daily: { day: '2026-02-30', pet: 3, run: 1, claimed: ['pet', 'run'] } }));
   assert.equal(new ShopState(storage, () => now).dailyQuests[0].progress, 0);
@@ -2457,7 +2459,9 @@ test('lobby valid touches count Daily, Quest claims update coins, translate and 
     assert.equal(state.dailyQuests[0].progress, 3);
     popup.open(); popup.open(); assert.equal(host.children.length, 2);
     const panel = host.children[1].children[0], content = panel.children[3];
-    assert.equal(content.children.length, 4);
+    assert.equal(content.children.length, 5);
+    assert.equal(content.children[4].children[1].disabled, true);
+    assert.equal(content.children[4].children[0].children[2].textContent.startsWith('0/20'), true);
     assert.equal(content.children[2].children[1].disabled, false);
     assert.equal(content.children[2].children[1].getAttribute('data-reward-ready'), 'true');
     assert.equal(panel.children[2].children[0].getAttribute('data-reward-ready'), 'true');
