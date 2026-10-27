@@ -1,5 +1,6 @@
 import { Assets, Container, Rectangle, Sprite, Texture, TilingSprite } from 'pixi.js';
 import { COURSE_GROUND, type CourseSolid } from './TrainingCourse';
+import type {GardenPropTextures} from '../home/GardenProps';
 
 export type CourseMarkerId='start'|'checkpoint'|'finish';
 interface ImageSpec {file:string;width:number;height:number}
@@ -8,7 +9,7 @@ export interface CourseArtManifest {
   tiles:Record<'grass'|'soil',ImageSpec>;
   markers:Record<CourseMarkerId,ImageSpec&{frame:{x:number;y:number;width:number;height:number};foot:{x:number;y:number};visibleHeight:number}>;
 }
-export interface CourseArt {
+export interface CourseArt extends GardenPropTextures {
   coin?:Texture;
   box?:Texture;
   grass:Texture;soil:Texture;tileWorldSize:number;
@@ -30,7 +31,7 @@ export function createCourseArt(images:Record<'grass'|'soil'|CourseMarkerId,Text
   }
   return {grass:images.grass,soil:images.soil,tileWorldSize:manifest.tileWorldSize,markers};
 }
-export async function loadCourseArt():Promise<CourseArt>{
+export async function loadCourseArt(props?:GardenPropTextures):Promise<CourseArt>{
   const base=import.meta.env.BASE_URL+'assets/course/';
   const manifest=await Assets.load<CourseArtManifest>(base+'frames.json');
   const ids=['grass','soil','start','checkpoint','finish'] as const;
@@ -39,9 +40,9 @@ export async function loadCourseArt():Promise<CourseArt>{
   const coin=await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/gold-coin.png');
   coin.source.scaleMode='nearest';
   art.coin=new Texture({source:coin.source,frame:new Rectangle(357,404,541,541)});
-  const box=await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/wooden-box.png');
-  box.source.scaleMode='nearest';
-  art.box=new Texture({source:box.source,frame:new Rectangle(363,353,568,561)});
+  if(props)Object.assign(art,props);
+  if(props?.crate)art.box=props.crate;
+  else{const box=await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/wooden-box.png');box.source.scaleMode='nearest';art.box=new Texture({source:box.source,frame:new Rectangle(363,353,568,561)});}
   return art;
 }
 export class CourseTerrain extends Container {

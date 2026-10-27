@@ -1,10 +1,16 @@
 import { SKY_COLORS, FLOOR_COLORS, type HomeTab } from '../home/HomeState';
 import { HOME_ITEM_NAMES, HOME_BACKGROUNDS, type PlaceableTab } from '../home/HomeCatalog';
 import { t } from '../settings/i18n';
+import {gardenProp,GARDEN_PROPS} from '../home/GardenProps';
 
 export function homeItemName(tab: PlaceableTab, index: number): string { return t(HOME_ITEM_NAMES[tab][index]!); }
 /** Shared icons for the Home inventory and its shop; the sofa uses the approved original PNG. */
 export function homeIcon(tab: HomeTab, index: number): HTMLElement {
+  const prop=gardenProp(tab,index);
+  if(prop){
+    const s=GARDEN_PROPS[prop],[x,y,w,h]=s.frame,[sw,sh]=s.source,icon=document.createElement('span');icon.className='outfit-object garden-prop-icon';
+    icon.style.aspectRatio=String(w/h);icon.style.backgroundImage=`url('./${s.file}')`;icon.style.backgroundSize=`${sw/w*100}% ${sh/h*100}%`;icon.style.backgroundPosition=`${x/(sw-w)*100}% ${y/(sh-h)*100}%`;icon.style.height=`${6*h/w}cqw`;return icon;
+  }
   if(tab==='Background'&&HOME_BACKGROUNDS[index]){
     const image=document.createElement('img');image.className='outfit-object home-pixel-icon';image.alt='';
     image.src='./assets/backgrounds/'+HOME_BACKGROUNDS[index]!.time+'.png';return image;

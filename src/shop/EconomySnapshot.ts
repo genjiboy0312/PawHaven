@@ -1,4 +1,4 @@
-import { HOME_MAX_STOCK, homeInitialStock, homeKey, validHomeItem } from '../home/HomeCatalog';
+import { HOME_MAX_STOCK, homeOptions,homeInitialStock, homeKey, validHomeItem } from '../home/HomeCatalog';
 export interface EconomySnapshot {
   snacks?:number;snacksReady?:boolean;
   homeItems?: Record<string, number>; homeShopReady?: boolean;
@@ -25,7 +25,7 @@ export function parseEconomyResult(input: unknown): EconomyResult {
   if (value.homeShopReady !== undefined && value.homeShopReady !== true) throw Error('invalid_economy_response');
   if((value.snacksReady!==undefined&&value.snacksReady!==true)||(value.snacksReady===true&&!integer(value.snacks,99))||(value.snacks!==undefined&&!integer(value.snacks,99))||(result.petId!==undefined&&!['corgi','myeongrang'].includes(result.petId)))throw Error('invalid_economy_response');
   if (value.homeShopReady === true || value.homeItems !== undefined) {
-    if (!value.homeItems || Array.isArray(value.homeItems) || typeof value.homeItems !== 'object' || Object.keys(value.homeItems).length > 9) throw Error('invalid_economy_response');
+    if (!value.homeItems || Array.isArray(value.homeItems) || typeof value.homeItems !== 'object' || Object.keys(value.homeItems).length > homeOptions.Furniture+homeOptions.Etc-2) throw Error('invalid_economy_response');
     for (const [key, count] of Object.entries(value.homeItems)) {
       const [tab, index] = key.split(':');
       if (!validHomeItem(tab, Number(index)) || key !== homeKey(tab, Number(index)) || !integer(count, HOME_MAX_STOCK) || count < homeInitialStock(tab, Number(index))) throw Error('invalid_economy_response');

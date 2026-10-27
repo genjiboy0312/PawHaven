@@ -1,5 +1,9 @@
 # 맵 지형·코스 표식 리소스 (2026-10-21)
 
+## 재사용 정원 장식 (2026-10-27)
+- CourseDecor.ts의 COURSE_DECOR에 맵별 초록 나무·벚꽃 나무·울타리·장식 상자를 소량 정의한다. Home/Shop과 같은 GardenProps Texture를 사용해 매 프레임 로드/생성하지 않는다. 실루엣은 바닥선에 고정하고 terrain·캐릭터 뒤에 그리며, 장식에 충돌/피격/보상/RPC를 추가하지 않는다. 공격용 상자와는 기존 동작을 분리한다.
+- Game이 loadHome에서 한 번 불러온 소품 Texture를 loadCourseArt에 전달한다. 씬 교체는 Sprite만 정리하며 Game 종료의 공유 Texture 정리는 기존 destroyed guard를 유지한다. Home 배치는 구매 후 사용자 배치를 따르며 게임 맵 장식은 고정 배치다.
+
 ## 낭떠러지 배경 (2026-10-27)
 - 지형이 없는 낭떠러지는 별도 단색 면을 추가하지 않는다. courseBackdrop은 공통 WORLD_WIDTH×WORLD_HEIGHT 전체를 덮어 바닥 아래 빈 공간에도 시간대별 배경이 보이게 한다. 바닥 높이까지만 배경을 그리면 빈 공간에서 fallback 단색이 드러나므로 다시 축소하지 않는다. 기존 배경 PNG를 재사용하며 지형·충돌·낙하 판정은 유지한다.
 

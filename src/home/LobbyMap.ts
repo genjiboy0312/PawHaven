@@ -1,6 +1,7 @@
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import { SKY_COLORS, FLOOR_COLORS, type HomeItem, type HomeLook } from './HomeState';
-export interface HomeTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture; noon?:Texture; sunset?:Texture; night?:Texture }
+import {gardenProp,gardenPropSprite,type GardenPropTextures} from './GardenProps';
+export interface HomeTextures extends GardenPropTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture; noon?:Texture; sunset?:Texture; night?:Texture }
 /** Shared map renderer; every placed object owns its own view and persistent ID. */
 export class LobbyMap extends Container {
   private readonly paint = new Graphics();
@@ -44,7 +45,10 @@ export class LobbyMap extends Container {
             sprite.width = 170; sprite.scale.y = sprite.scale.x; view.addChild(sprite);
           }
           this.drawFurniture(item.option, shape, cushion);
-        } else this.drawEtc(item.option, shape);
+        } else {
+          const id=gardenProp(item.tab,item.option),sprite=id&&this.textures?gardenPropSprite(id,this.textures):undefined;
+          if(sprite)view.addChild(sprite);else this.drawEtc(item.option,shape);
+        }
         this.views.set(item.id, view); this.objects.addChild(view);
       }
       view.position.set(width * item.x, height * item.y); view.zIndex = item.y;

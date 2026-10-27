@@ -2,6 +2,7 @@ import type { DestroyOptions } from 'pixi.js';
 import { HOME_TABS, homeOptions, HomeState, clampPlacement, placementPoint, type PlaceableTab, type Placement, type HomeTab } from '../../home/HomeState';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { HOME_BACKGROUNDS } from '../../home/HomeCatalog';
+import {gardenProp,GARDEN_PROPS} from '../../home/GardenProps';
 import { onLanguageChange } from '../../settings/i18n';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
 import { bindAria, bindText, t } from '../../settings/i18n';
@@ -84,7 +85,8 @@ export class HomeScene extends Scene {
     for (const element of Array.from(this.placements.children) as HTMLButtonElement[]) {
       const point = items.find(item => item.id === Number(element.getAttribute('data-placement'))); if (!point) continue;
       const tab = point.tab;
-      const box = tab === 'Furniture'
+      const prop=gardenProp(tab,point.option),spec=prop?GARDEN_PROPS[prop]:undefined;
+      const box = spec?[spec.width/2,spec.width*spec.frame[3]/spec.frame[2],8]:tab === 'Furniture'
         ? [[80, 110, 30], [78, 70, 30], [45, 100, 20], [70, 55, 20], [80, 65, 8], [85, 60, 8]][point.option]
         : [[80, 110, 30], [50, 40, 20], [65, 5, 30], [25, 100, 20], [70, 50, 20]][point.option];
       element.style.left = `${(point.x - box[0] / 960) * 100}%`;

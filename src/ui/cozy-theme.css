@@ -743,3 +743,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .room-chat .room-chat-status{margin:0;color:#975f3f;font:400 12px/16px var(--font-body);}
 :where(.lobby-hud,.settings-panel,.home-screen,.shop-screen,.character-screen){color-scheme:only light;forced-color-adjust:none;}
 :where(.lobby-hud,.settings-panel,.home-screen,.shop-screen,.character-screen) :where(button,input,select,textarea){color-scheme:only light;forced-color-adjust:none;-webkit-text-fill-color:currentColor;}
+
+/* Original PNG crops shared by Home, shop and reward previews. */
+.outfit-object.garden-prop-icon{display:block;width:6cqw;overflow:hidden;background-repeat:no-repeat;image-rendering:pixelated;bottom:3cqh;}
+.home-inventory .outfit-object.garden-prop-icon{bottom:4cqh;}
+.shop-home-preview .garden-prop-icon{position:relative;inset:auto;left:auto;transform:none;display:inline-block;width:12cqw;height:auto!important;}

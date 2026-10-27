@@ -9,6 +9,7 @@ import { SkyClouds } from '../SkyClouds';
 import { COURSE_COINS } from '../CourseCoins';
 import { CourseCoinsView } from '../CourseCoinsView';
 import { BoxTargetView } from '../BoxTargetView';
+import {courseDecor} from '../CourseDecor';
 import { AnimalEffects } from '../../animals/AnimalEffects';
 import { HitReactionEffect } from '../../animals/HitReactionEffect';
 import type { PlayerHit } from '../HitReaction';
@@ -169,6 +170,7 @@ export class PlayScene extends Scene {
         .rect(x, y, solid.width, 6).fill(forest?'#6f936e':(solid.top ? '#a48d65' : '#78905c'));
       if(solid.motion){view.x=solid.x;this.movingTerrain.push({solid,view});this.world.addChild(view);}
     }
+    if(settings?.art)this.world.addChild(courseDecor(settings.map??'garden',settings.art));
     this.world.addChild(terrain);
     if(settings?.art?.coin){this.coinView=new CourseCoinsView(this.run.coins,settings.art.coin);this.world.addChild(this.coinView);}
     for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {

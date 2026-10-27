@@ -179,7 +179,7 @@ export class Game {
     if (!this.disposed) preload.setProgress(0.9);
     if (!this.disposed) this.courseBackgrounds = await loadCourseBackgrounds();
     if (!this.disposed) this.homeTextures = await loadHome(this.courseBackgrounds);
-    if (!this.disposed) this.courseArt = await loadCourseArt();
+    if (!this.disposed) this.courseArt = await loadCourseArt(this.homeTextures);
     if (!this.disposed) this.snakeArt = await loadSnakeArt();
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

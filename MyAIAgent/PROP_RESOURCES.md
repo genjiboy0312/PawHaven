@@ -1,9 +1,25 @@
 # 박스·코인·펫 소파 리소스
 
+## 정원 소품 상점·맵 연결 (2026-10-27)
+- built-in image_gen으로 벚꽃 나무와 낮은 울타리를 생성하고 원본 그대로 Resources/Small_Cherry_Tree_Prototype.png, Resources/Low_Wooden_Fence_Prototype.png에 저장했다. 초록 나무와 기존 상자도 재사용한다. 각 PNG를 public/assets/home 또는 기존 assets/items에 바이트 변경 없이 보관했다. 새 이미지의 실제 alpha 배경을 유지하며 외부 이미지 편집·리사이즈는 없다.
+- GardenProps.ts가 원본 크기·런타임 crop·표시 크기·Etc 슬롯을 한 곳에서 정의한다. 같은 Texture/메타데이터를 Home·Shop·친구 방문·우편 첨부·CourseDecor가 공유한다. 이미지별 사각 배경·바닥 원형·외부 그림자는 없다.
+- 슬롯: Etc:4 울타리(기존 슬롯/보유량 유지, 이미지 교체), Etc:5 작은 초록 나무, Etc:6 벚꽃 나무, Etc:7 나무 상자. 새 3종은 초기 0개이며 구매 전 홈 인벤토리에서 숨긴다. 배치로 잔여량 0이 되면 기존 흐릿함/비활성 표시를 재사용한다. 기존 로비 배치를 자동으로 추가/변경하지 않는다.
+- CourseDecor는 Garden/Practice/Forest/Crossroads에 각각 7/4/7/6개를 고정 배치한다. 바닥이 있는 곳만 사용하고 장식은 terrain/캐릭터 뒤에서 그린다. 충돌·공격 타깃·보상·네트워크 전송을 추가하지 않는다. 맵 장식 소유 여부와 플레이어 인벤토리는 별개다.
+- 검증: 전체 308개 테스트·타입 검사·빌드 통과. PNG 원본/배포 일치, crop 경계, 구매 후 배치/저장/회수 수량, 서버 가격/동일 요청 재시도/최대 수량/계정 격리, 신규 소품 우편 합계·친구 홈 방문, SQL 재실행과 맵 geometry 보존을 확인했다. Chrome 실제 코기·이미지로 Shop/Home/Play 렌더와 모바일 640×360 슬롯 내부 경계를 확인했다. 실계정 구매는 새 SQL 적용 후 별도 확인 대상이다.
+
+### 벚꽃 나무 실제 생성 프롬프트
+
+Edit the provided small green tree into ONE cherry blossom tree variant for the SAME PawHaven 2D pet game. The input is the edit target. Preserve exactly the short warm-brown trunk, fork, trunk-base position, overall compact rounded silhouette, framing, transparent margins, soft stepped pixel cluster size and simple 2–3-level shading. Change ONLY the green canopy into a soft pale-pink cherry blossom canopy: warm blush pink main masses, muted dusty-rose shadows, light cream-pink highlights. Keep blossoms as broad clustered shapes with a few subtle blossom-like notches, not individually drawn flowers; do not add detail density. No falling petals, scattered petals, grass, soil, ground, shadow, pot, glow, characters, labels or extra objects. Keep actual transparent background. It should look like a color/foliage variant of the same approved modest pixel-art tree, not a new detailed illustration or 3D render.
+
+### 낮은 울타리 실제 생성 프롬프트
+
+Create ONE low wooden garden fence segment sprite for PawHaven, a cozy 2D pixel-art pet game. Input images are STYLE REFERENCES ONLY: image 1 approved black/white dog sofa for soft pixel-cluster density and understated 2–3-level shading; image 2 small green tree for the matching muted garden palette and game-prop simplicity. A short straight segment with two squat end posts and two horizontal wooden rails, almost front-facing, level straight baseline. Simple warm light-brown wood, muted medium-brown shadows, pale beige highlights. No visible deep side or isometric perspective. Low height, designed to reach only about half a small dog's body height; horizontal width about 2.5 times its height. Both ends should align naturally with duplicates placed alongside it. Restrained softly stepped pixel edges like the reference sofa, no giant mosaic pixels, smooth vector outlines, 3D render, realistic woodgrain, nails, cracks, vines or ornament. Single complete centered fence segment on genuinely transparent background with generous padding. No ground, grass island, oval floor, cast shadow, glow, dog, text, UI or other props.
+
+
 ## 작은 초록 나무 시안 (2026-10-27)
 - Resources/Small_Green_Tree_Prototype.png에 built-in image_gen 결과를 원본 그대로 복사했다. RGBA 1254×1254, 실제 투명 배경(alpha 0~255)이다. 이미지 편집·리사이즈·배경 재처리는 하지 않았다.
 - 스타일 참조: Resources/Pet_Sofa_Black_White_Prototype.png, Resources/Corgi_Art_Sheet.png. 짧은 갈색 줄기·둥근 초록 수관·큰 픽셀 덩어리·절제된 명암으로 맞췄다. 바닥 원형/잔디 섬/그림자/화분은 넣지 않는다.
-- 현재는 로비 배치용 시안이며 인벤토리·상점·맵에 연결하지 않았다. 초록 나무 형태 확정 후 같은 줄기·실루엣을 재사용해 벚꽃 변형을 제작한다. 울타리는 짧은 연결형 한 칸, 상자는 기존 Wooden_Box_Prototype.png 재사용을 기본 계획으로 둔다.
+- 후속 사용자 승인으로 벚꽃 변형과 울타리를 제작하고 상점·홈·게임 맵에 연결했다. 위 정원 소품 연결 절이 현재 구현이며 아래 프롬프트는 원본 생성 기록이다.
 
 ### 초록 나무 실제 생성 프롬프트
 

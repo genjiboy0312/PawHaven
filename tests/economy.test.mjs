@@ -69,7 +69,7 @@ test('invalid furniture, insufficient coins, full storage and rate limits cannot
   assert.equal(full.outcome, 'limit'); assert.equal(full.snapshot.coins, 10); assert.equal(full.snapshot.homeItems['Furniture:5'], 20);
   await db.query('update public.economy_wallets set request_count=120 where user_id=$1', [A]);
   await assert.rejects(() => command(A, 'buy_home', { category: 'Etc', index: 1 }), /rate_limited/);
-  for (const homeItems of [{ 'Furniture:5': 21 }, { 'Furniture:1': 1 }, { 'Etc:5': 3 }, { 'Furniture:05': 1 }, []]) {
+  for (const homeItems of [{ 'Furniture:5': 21 }, { 'Furniture:1': 1 }, { 'Etc:8': 3 }, { 'Furniture:05': 1 }, []]) {
     assert.throws(() => parseEconomyResult({ ...poor, snapshot: { ...poor.snapshot, homeItems } }), /invalid_economy_response/);
   }
 });
