@@ -1,5 +1,12 @@
 # Cozy UI 1차 (2026-10-17)
 
+## 삼성 인터넷 패널 변색 후속 수정 (2026-10-27, 아래 SVG 표면 규칙 대체)
+- 사용자 실기기에서 이전 SVG 표면 적용 후에도 퀘스트 패널이 갈색/회색, 본문이 흰색으로 변하는 현상이 확인됐다. 이전 Chrome 검증을 삼성 인터넷 해결 근거로 사용하지 않는다. 배포된 CSS에도 수정이 포함돼 있어 단순 배포 대기 문제로 안내하지 않는다.
+- 공통 패널·탭·카드·컨트롤의 외부 SVG 표면 76개를 동일 이름의 PNG로 연결한다. SVG를 편집 원본으로 보존하며 `scripts/render-ui-surfaces.mjs`가 브라우저 Canvas로 256×256에 렌더링한다. 생성형 이미지 작업이나 새 아트가 아니며 기존 색상·알파·그라데이션을 그대로 재사용한다. 추가 PNG 전체 약 400KiB이며 여러 패널에서 공유한다.
+- SVG 내부 단색/그라데이션 도형에 대한 변환 경로를 피하기 위한 수정이다. 기존 로비 버튼의 도형 구성과 패널의 단순 SVG 표면은 동일한 이미지 분류를 보장하지 않는다. PNG만으로 삼성 독자 필터가 완전히 차단됐다고 단정하지 않는다. 명시적 text-fill/only light 및 로비 버튼 리소스는 유지한다.
+- 재생성: 숨김 로컬 Chrome을 `--remote-debugging-port=9333`로 실행한 뒤 `node --experimental-websocket scripts/render-ui-surfaces.mjs`. 렌더러는 자동 다크를 끄고 light로 생성한다. SVG를 수정하면 같은 PNG도 재생성한다. CSS에서는 PNG를 참조한다.
+- 검증: 타입 검사/빌드 통과. 실제 QuestPopup의 light/dark/Chrome auto-dark에서 패널 내부 스크린샷 픽셀이 동일하고 표면 7곳이 PNG를 참조함을 확인했다. 640×360에서 X가 패널 안에 있으며 실제 포인터 클릭으로 닫힌다. 삼성 인터넷 실기기 재확인은 별도이며 아직 완료되지 않았다.
+
 ## 패널 시스템 색상 보완 (2026-10-27, 아래 currentColor 규칙보다 우선)
 - 이전 1×1/1×100 inline SVG 표면을 public/assets/ui/surfaces의 공용 64×64 SVG로 추출했다. 같은 내용은 하나의 파일로 공유하며 기존 viewBox/색상/알파/그라데이션을 유지한다. SVG 코드 기반 UI 표면이며 새 생성 비트맵이나 게임 아트 교체가 아니다.
 - 퀘스트·우편함·설정과 같은 공통 패널의 글자색은 CSS color와 동일한 명시 -webkit-text-fill-color로 고정한다. currentColor만 지정하면 브라우저가 변환한 색을 다시 따를 수 있으므로 관련 공통 currentColor override를 제거했다. only light/forced-color-adjust:none과 기존 메타 선언을 유지하며 supported-color-schemes light 힌트를 추가했다.

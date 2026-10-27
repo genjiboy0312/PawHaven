@@ -155,7 +155,7 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
 .hud-character { display: flex; gap: 1.7cqw; }
 .hud-menu-home:enabled { pointer-events: auto; cursor: pointer; }
 .home-screen { position: absolute; inset: 0; z-index: 3; pointer-events: none; color: #53604f;-webkit-text-fill-color:#53604f; }
-.home-drawer { position: absolute; left: 12%; right: 3%; top: 2cqh; height: 31cqh; border-radius: 2cqw; background:#f3f3e6d9 url("/assets/ui/surfaces/surface-bab3a072a10d.svg") center/100% 100% no-repeat; }
+.home-drawer { position: absolute; left: 12%; right: 3%; top: 2cqh; height: 31cqh; border-radius: 2cqw; background:#f3f3e6d9 url("/assets/ui/surfaces/surface-bab3a072a10d.png") center/100% 100% no-repeat; }
 .home-tabs { left: 14%; right: 11%; top: 4cqh; gap: 0.3cqw; }
 .home-tabs button { font-size: 1.15cqw; white-space: nowrap; }
 .home-inventory { left: 14%; right: 5%; top: 12cqh; height: 15cqh; grid-template-columns: none; grid-template-rows: 1fr; grid-auto-flow: column; grid-auto-columns: 9cqw; grid-auto-rows: 1fr; gap: 1cqw; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; }
