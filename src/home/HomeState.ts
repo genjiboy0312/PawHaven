@@ -1,4 +1,4 @@
-import { homeOptions, HOME_MAX_STOCK, homeInitialStock, validHomeItem as validItem, type PlaceableTab } from './HomeCatalog';
+import { homeOptions, HOME_MAX_STOCK, homeInitialStock, validHomeItem as validItem, type PlaceableTab, type HomeProductTab } from './HomeCatalog';
 export { homeOptions, HOME_STOCK, type PlaceableTab } from './HomeCatalog';
 export const HOME_TABS = ['Background', 'Floor', 'Furniture', 'Etc'] as const;
 export type HomeTab = typeof HOME_TABS[number];
@@ -35,7 +35,8 @@ export class HomeState {
   remaining(tab: PlaceableTab, option: number): number {
     return Math.max(0, this.owned(tab, option) - this.objects.filter(item => item.tab === tab && item.option === option).length);
   }
-  constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>, private readonly stock?: (tab: PlaceableTab, option: number) => number | undefined) {
+  backgroundAvailable(option: number): boolean { return option === this.value.Background || option === 0 || !this.stock || (this.stock('Background', option) ?? 0) > 0; }
+  constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>, private readonly stock?: (tab: HomeProductTab, option: number) => number | undefined) {
     try {
       const saved = JSON.parse(storage?.getItem(HOME_STORAGE_KEY) ?? 'null');
       for (const tab of ['Background', 'Floor'] as const) {
@@ -62,6 +63,7 @@ export class HomeState {
   }
   select(tab: 'Background' | 'Floor', option: number): boolean {
     if (!['Background', 'Floor'].includes(tab) || !Number.isInteger(option) || option < 0 || option >= homeOptions[tab]) return false;
+    if (tab === 'Background' && !this.backgroundAvailable(option)) return false;
     this.value[tab] = option; this.save(); return true;
   }
   place(tab: PlaceableTab, option: number): number | undefined {

@@ -9,7 +9,8 @@ import { commerceStatus } from '../../ui/CommerceStatus';
 import { coinAmount } from '../../ui/CoinAmount';
 import { itemIcon } from '../../ui/itemIcon';
 import { passPanel } from '../../ui/PassPanel';
-import { homeOptions, homePrice, HOME_MAX_STOCK, type PlaceableTab } from '../../home/HomeCatalog';
+import { homeOptions, homePrice, homeStockLimit } from '../../home/HomeCatalog';
+import { HOME_TABS, type HomeTab } from '../../home/HomeState';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { PurchasePopup } from '../../ui/PurchasePopup';
 import { wearableItem } from '../../animals/Wearables';
@@ -46,8 +47,8 @@ export class ShopScene extends Scene {
   private selected = 1;
   private elapsed = 0;
   private reaction = 0;
-  private homeCategory: PlaceableTab = 'Furniture';
-  private homeSelected = 5;
+  private homeCategory: HomeTab = 'Background';
+  private homeSelected = 0;
   private tab: 'Pets' | 'Style' | 'Furniture' | 'Pass';
   constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Pets' | 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void, pets?:readonly PetChoice[]) {
     super(); this.tab = initial;
@@ -68,7 +69,7 @@ export class ShopScene extends Scene {
     this.tabs.className = 'outfit-tabs shop-tabs';
     bindAria(this.tabs, 'shop');
     for (const tab of ['Pets', 'Style', 'Furniture', 'Pass'] as const) {
-      const button = document.createElement('button'); button.type = 'button'; bindText(button, tab==='Pets'?'shopPets':tab);
+      const button = document.createElement('button'); button.type = 'button'; bindText(button, tab==='Pets'?'shopPets':tab==='Furniture'?'shopLobby':tab);
       button.setAttribute('data-shop-tab',tab);
       button.addEventListener('click', () => { this.tab = tab; this.grid = undefined; this.render(); }, { signal: this.abort.signal }); this.tabs.append(button);
     }
@@ -195,44 +196,52 @@ export class ShopScene extends Scene {
     this.homePreview.replaceChildren(homeIcon(category, selected));
     const heading = document.createElement('p'); heading.textContent = homeItemName(category, selected); this.homePreview.append(heading);
     const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories'; bindAria(categories, 'categories');
-    for (const tab of ['Furniture', 'Etc'] as const) {
+    for (const tab of HOME_TABS) {
       const button = document.createElement('button'); button.type = 'button'; bindText(button, tab); button.setAttribute('aria-pressed', String(category === tab));
-      button.addEventListener('click', () => { this.homeCategory = tab; this.homeSelected = tab === 'Furniture' ? 5 : 1; this.grid = undefined; this.render(); }); categories.append(button);
+      button.addEventListener('click', () => { this.homeCategory = tab; this.homeSelected = tab === 'Furniture' ? 5 : tab === 'Etc' ? 1 : 0; this.grid = undefined; this.render(); }); categories.append(button);
     }
     const grid = document.createElement('div'); grid.className = 'outfit-inventory shop-grid'; this.grid = grid; bindAria(grid, 'items');
-    for (let index = 1; index < homeOptions[category]; index++) {
+    const reusable = category === 'Background' || category === 'Floor';
+    if (category === 'Background') grid.classList.add('shop-background-grid');
+    for (let index = reusable ? 0 : 1; index < homeOptions[category]; index++) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot shop-slot';
-      const count = this.state.entitlementsKnown ? this.state.homeOwned(category, index) : '—';
+      const count = category === 'Floor' ? 1 : this.state.entitlementsKnown ? this.state.homeOwned(category, index) : '—';
       button.append(homeIcon(category, index)); button.setAttribute('aria-pressed', String(selected === index));
-      button.setAttribute('aria-label', `${homeItemName(category, index)} · ${t('owned')}: ${count} · ${homePrice(category, index)} ${t('coins')}`);
-      const price = document.createElement('span'); price.className = 'shop-price'; coinAmount(price, homePrice(category, index));
+      button.setAttribute('aria-label', `${homeItemName(category, index)} · ${t('owned')}: ${count}`);
+      const price = document.createElement('span'); price.className = 'shop-price';
+      if (reusable && count === 1) price.textContent = t('owned'); else coinAmount(price, category === 'Floor' ? 0 : homePrice(category, index));
       const quantity = document.createElement('span'); quantity.className = 'home-count'; quantity.textContent = `×${count}`;
-      button.append(price, quantity); button.addEventListener('click', () => { this.homeSelected = index; this.render(); }); grid.append(button);
+      button.append(price); if (!reusable) button.append(quantity);
+      if (reusable) { const name = document.createElement('span'); name.className = 'shop-scenery-name'; name.textContent = homeItemName(category,index); button.append(name); }
+      button.setAttribute('data-owned', String(count === 1 && reusable));
+      button.addEventListener('click', () => { this.homeSelected = index; this.render(); }); grid.append(button);
     }
     const footer = document.createElement('div'); footer.className = 'shop-purchase';
     const detail = document.createElement('span'); detail.className = 'shop-detail';
     const name = document.createElement('strong'); name.textContent = homeItemName(category, selected);
     const cost = document.createElement('span'); cost.className = 'shop-cost'; cost.setAttribute('role', 'status');
-    const known = this.state.entitlementsKnown, count = this.state.homeOwned(category, selected), price = homePrice(category, selected);
-    coinAmount(cost, price, { suffix: ` · ${t('owned')}: ${known ? count : '—'}/${HOME_MAX_STOCK}` });
+    const known = this.state.entitlementsKnown, count = category === 'Floor' ? 1 : this.state.homeOwned(category, selected), price = category === 'Floor' ? 0 : homePrice(category, selected);
+    const limit = category === 'Floor' ? 1 : homeStockLimit(category);
+    const ready = this.state.homeShopReady && (category !== 'Background' || this.state.homeBackgroundShopReady);
+    if (reusable && count === 1) cost.textContent = t('owned'); else coinAmount(cost, price, { suffix: reusable ? '' : ` · ${t('owned')}: ${known ? count : '—'}/${limit}` });
     detail.append(name, cost);
     const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
-    const status = !known ? this.state.connection === 'loading' ? 'loading' : 'unavailable'
+    const status = reusable && count === 1 ? 'owned' : !known ? this.state.connection === 'loading' ? 'loading' : 'unavailable'
       : this.state.busy || this.state.connection === 'loading' ? 'processing'
-      : !this.state.ready || !this.state.homeShopReady ? 'unavailable' : count >= HOME_MAX_STOCK ? 'limit' : this.state.coins < price ? 'insufficient' : 'available';
+      : !this.state.ready || !ready ? 'unavailable' : count >= limit ? 'limit' : this.state.coins < price ? 'insufficient' : 'available';
     buy.setAttribute('data-purchase-state', status); footer.setAttribute('data-purchase-state', status);
-    buy.textContent = status === 'available' ? t('buyOne') : status === 'limit' ? t('homeStockLimit') : t(PURCHASE_LABELS[status]);
+    buy.textContent = status === 'available' ? t(reusable ? 'buy' : 'buyOne') : status === 'limit' ? t('homeStockLimit') : t(PURCHASE_LABELS[status]);
     buy.disabled = status !== 'available';
     buy.addEventListener('click', () => {
-      if (this.destroyed || buy.disabled || !this.state.ready || !this.state.homeShopReady) return;
+      if (category === 'Floor' || this.destroyed || buy.disabled || !this.state.ready || !ready) return;
       const owned = this.state.homeOwned(category, selected);
       this.purchase.open({ name: () => homeItemName(category, selected), icon: () => homeIcon(category, selected), price,
-        available: () => this.state.homeShopReady && this.state.homeOwned(category, selected) < HOME_MAX_STOCK,
+        available: () => this.state.homeShopReady && (category !== 'Background' || this.state.homeBackgroundShopReady) && this.state.homeOwned(category, selected) < limit,
         fulfilled: () => this.state.homeOwned(category, selected) > owned,
         buy: () => this.state.buyHome(category, selected), purchased: () => { if (!this.destroyed) { this.reaction = 1.5; this.render(); } } });
     });
     footer.append(detail, buy); this.content.append(categories, grid, footer); grid.scrollTop = scroll;
-    if (known && !this.state.homeShopReady) { const hint = document.createElement('p'); bindText(hint, 'homeShopSetup'); this.homePreview.append(hint); }
+    if (known && !ready) { const hint = document.createElement('p'); bindText(hint, 'homeShopSetup'); this.homePreview.append(hint); }
   }
   private itemName(category: OutfitTab, index: number): string {
     const item=wearableItem(category,index);

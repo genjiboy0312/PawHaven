@@ -2,7 +2,7 @@ import { ShopState, type DailyQuestId } from './ShopState';
 import type { OutfitTab } from '../animals/OutfitState';
 import type { EconomyClient } from './EconomyClient';
 import { t } from '../settings/i18n';
-import { homeInitialStock, type PlaceableTab } from '../home/HomeCatalog';
+import { homeInitialStock, type HomeProductTab } from '../home/HomeCatalog';
 
 export class ServerShopState {
   private view = new ShopState();
@@ -49,9 +49,10 @@ export class ServerShopState {
   get level(): number { return this.view.level; }
   get hasPass(): boolean { return this.view.hasPass; }
   get homeShopReady(): boolean { return this.api.result?.snapshot.homeShopReady === true; }
-  homeOwned(tab: PlaceableTab, index: number): number { return this.homeShopReady ? this.view.homeOwned(tab, index) : homeInitialStock(tab, index); }
-  async buyHome(category: PlaceableTab, index: number): Promise<'purchased' | 'limit' | 'insufficient' | 'invalid'> {
-    if (!this.ready || !this.homeShopReady) return 'invalid';
+  get homeBackgroundShopReady(): boolean { return this.api.result?.snapshot.homeBackgroundShopReady === true; }
+  homeOwned(tab: HomeProductTab, index: number): number { return this.homeShopReady ? this.view.homeOwned(tab, index) : homeInitialStock(tab, index); }
+  async buyHome(category: HomeProductTab, index: number): Promise<'purchased' | 'limit' | 'insufficient' | 'invalid'> {
+    if (!this.ready || !this.homeShopReady || category === 'Background' && !this.homeBackgroundShopReady) return 'invalid';
     const result = await this.api.execute('buy_home', { category, index });
     return result?.outcome === 'purchased' ? 'purchased' : result?.outcome === 'limit' ? 'limit' : result?.outcome === 'insufficient' ? 'insufficient' : 'invalid';
   }

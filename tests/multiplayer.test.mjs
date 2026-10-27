@@ -201,7 +201,7 @@ test('Home time-of-day thumbnails, saved selection, lobby and friend visits shar
  try{
   home.place('Furniture',1);const items=home.items;scene=new HomeScene(home,()=>{},textures);scene.resize(960,540);
   for(let i=0;i<4;i++){
-   const button=env.host.querySelector('.home-inventory').children[i];assert.equal(button.getAttribute('aria-label'),['Morning','Noon','Sunset','Night'][i]);
+   const button=env.host.querySelector('.home-inventory').children[i];assert.equal(button.getAttribute('aria-label'),['Morning','Afternoon','Sunset','Night'][i]);
    assert.equal(button.children[0].src,'./assets/backgrounds/'+['morning','noon','sunset','night'][i]+'.png');button.dispatchEvent(new Event('click'));
    assert.equal(scene.map.children[1].texture,images[i]);assert.equal(scene.map.children[1].visible,true);assert.equal(scene.map.children[2].visible,true);
    assert.equal(new HomeState(disk).current.Background,i);assert.deepEqual(home.items,items);

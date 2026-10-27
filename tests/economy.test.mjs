@@ -31,7 +31,7 @@ test('Pets shop reuses owned companions without charging or equipping; future sp
  const make=id=>({id,speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3},emote:{frames:[Texture.WHITE],fps:4}}}),corgi=make('corgi'),myeongrang=make('myeongrang'),state=new ShopState(),pets=[{config:corgi,name:'Corgi',thumbnail:'corgi.png'},{config:myeongrang,name:'Myeongrang',thumbnail:'myeongrang.png'}];let scene;
  try{
   scene=new ShopScene(corgi,state,()=>{},()=>{},'Pets',undefined,pets);const panel=host.children[0],content=panel.children[4];
-  assert.deepEqual(panel.children[3].children.map(e=>e.textContent),['Pets','Style','Furniture','Pass']);assert.equal(content.children[1].children.length,2);assert.ok(content.children[1].children.every(e=>e.getAttribute('data-owned')==='true'&&e.children[2].textContent==='Owned'));
+  assert.deepEqual(panel.children[3].children.map(e=>e.textContent),['Pets','Style','Lobby','Pass']);assert.equal(content.children[1].children.length,2);assert.ok(content.children[1].children.every(e=>e.getAttribute('data-owned')==='true'&&e.children[2].textContent==='Owned'));
   const first=scene.petAnimation;content.children[1].children[1].dispatchEvent(new Event('click'));assert.equal(scene.petChoice.config.id,'myeongrang');assert.equal(first.sprite.destroyed,true);assert.equal(first.sleepMark.destroyed,true);assert.equal(scene.animation.sprite.destroyed,false);
   assert.equal(content.children[2].children[1].disabled,true);content.children[2].children[1].dispatchEvent(new Event('click'));assert.equal(state.coins,1000);
   for(const category of [1,2]){content.children[0].children[category].dispatchEvent(new Event('click'));assert.equal(content.children[1].children.length,1);assert.equal(content.children[1].children[0].disabled,true);assert.equal(content.children[1].children[0].getAttribute('data-owned'),null);assert.equal(content.children[2].children[1].textContent,'Coming soon');assert.equal(scene.preview.visible,false);}
@@ -178,8 +178,9 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     editor.destroy({ children: true });
     shop = new ShopScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, state, () => {}, () => {});
     const panel = host.children[0];
-    assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Pets', 'Style', 'Furniture', 'Pass']);
+    assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Pets', 'Style', 'Lobby', 'Pass']);
     panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Furniture').dispatchEvent(new Event('click'));
+    panel.children[4].children[0].children[2].dispatchEvent(new Event('click'));
     const content = panel.children[4]; assert.equal(content.children[1].children.length, 5);
     assert.equal(content.children[1].children[4].children[0].children[0].src, './assets/home/pet-sofa-black-white.png');
     const buy = content.children[2].children[1]; buy.dispatchEvent(new Event('click')); buy.dispatchEvent(new Event('click'));

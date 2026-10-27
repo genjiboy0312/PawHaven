@@ -771,3 +771,10 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
  .settings-panel ::-webkit-scrollbar-track{background:transparent;}
  .settings-panel ::-webkit-scrollbar-thumb{background:#d6b986;border-radius:6px;forced-color-adjust:none;}
 }
+
+/* Reuse Home artwork without floor shadows on background products. */
+.shop-background-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+.shop-style .shop-background-grid{grid-auto-rows:max(76px,calc((100% - 2cqh)/2));}
+.shop-background-grid .outfit-object{width:90%;height:65%;top:5%;bottom:auto;object-fit:cover;border-radius:.8cqw;}
+.shop-scenery-name{position:absolute;left:0;right:0;bottom:2.8cqh;text-align:center;font-size:1.25cqw;pointer-events:none;}
+.shop-background-grid .shop-slot::before{display:none;}

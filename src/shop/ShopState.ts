@@ -1,5 +1,5 @@
 import { OUTFIT_TABS, type OutfitTab } from '../animals/OutfitState';
-import { HOME_MAX_STOCK, homeInitialStock, homeKey, homePrice, validHomeItem, type PlaceableTab } from '../home/HomeCatalog';
+import { homeStockLimit, homeInitialStock, homeKey, homePrice, validHomeProduct, type HomeProductTab } from '../home/HomeCatalog';
 export const SHOP_STORAGE_KEY = 'pawhaven.shop.prototype.v1';
 export const PASS_TIERS = 5;
 export const DAILY_QUESTS = [
@@ -20,6 +20,7 @@ export class ShopState {
   readonly ready = true;
   readonly entitlementsKnown = true;
   readonly homeShopReady = true;
+  readonly homeBackgroundShopReady = true;
   readonly snacksReady=true;
   private treats=0;private lastSnack:number|null=null;
   feedSerial=0;fedPet='';
@@ -54,7 +55,7 @@ export class ShopState {
         if (typeof saved.premium === 'boolean') this.premium = saved.premium;
         if (saved.homeItems && typeof saved.homeItems === 'object') for (const [key, count] of Object.entries(saved.homeItems)) {
           const [tab, index] = key.split(':');
-          if (validHomeItem(tab, Number(index)) && key === homeKey(tab, Number(index)) && Number.isInteger(count) && Number(count) >= homeInitialStock(tab, Number(index)) && Number(count) <= HOME_MAX_STOCK) this.homeItems[key] = Number(count);
+          if (validHomeProduct(tab, Number(index)) && key === homeKey(tab, Number(index)) && Number.isInteger(count) && Number(count) >= homeInitialStock(tab, Number(index)) && Number(count) <= homeStockLimit(tab)) this.homeItems[key] = Number(count);
         }
         const day = saved.daily;
         if (day && typeof day.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day.day) &&
@@ -111,11 +112,11 @@ export class ShopState {
   get xp(): number { return this.experience; }
   get level(): number { return Math.min(PASS_TIERS, 1 + Math.floor(this.experience / 100)); }
   get hasPass(): boolean { return this.premium; }
-  homeOwned(tab: PlaceableTab, index: number): number { return validHomeItem(tab, index) ? this.homeItems[homeKey(tab, index)] ?? homeInitialStock(tab, index) : 0; }
-  buyHome(tab: PlaceableTab, index: number): 'purchased' | 'limit' | 'insufficient' | 'invalid' {
-    if (!validHomeItem(tab, index)) return 'invalid';
+  homeOwned(tab: HomeProductTab, index: number): number { return validHomeProduct(tab, index) ? this.homeItems[homeKey(tab, index)] ?? homeInitialStock(tab, index) : 0; }
+  buyHome(tab: HomeProductTab, index: number): 'purchased' | 'limit' | 'insufficient' | 'invalid' {
+    if (!validHomeProduct(tab, index)) return 'invalid';
     const count = this.homeOwned(tab, index), price = homePrice(tab, index);
-    if (count >= HOME_MAX_STOCK) return 'limit';
+    if (count >= homeStockLimit(tab)) return 'limit';
     if (this.balance < price) return 'insufficient';
     this.balance -= price; this.homeItems[homeKey(tab, index)] = count + 1; this.save(); return 'purchased';
   }

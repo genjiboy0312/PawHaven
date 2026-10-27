@@ -1,9 +1,9 @@
 import { SKY_COLORS, FLOOR_COLORS, type HomeTab } from '../home/HomeState';
-import { HOME_ITEM_NAMES, HOME_BACKGROUNDS, type PlaceableTab } from '../home/HomeCatalog';
+import { HOME_ITEM_NAMES, HOME_BACKGROUNDS } from '../home/HomeCatalog';
 import { t } from '../settings/i18n';
 import {gardenProp,GARDEN_PROPS} from '../home/GardenProps';
 
-export function homeItemName(tab: PlaceableTab, index: number): string { return t(HOME_ITEM_NAMES[tab][index]!); }
+export function homeItemName(tab: HomeTab, index: number): string { return tab === 'Background' ? t(HOME_BACKGROUNDS[index]!.name) : tab === 'Floor' ? `${t('Floor')} ${index+1}` : t(HOME_ITEM_NAMES[tab][index]!); }
 /** Shared icons for the Home inventory and its shop; the sofa uses the approved original PNG. */
 export function homeIcon(tab: HomeTab, index: number): HTMLElement {
   const prop=gardenProp(tab,index);

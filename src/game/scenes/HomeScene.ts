@@ -57,6 +57,7 @@ export class HomeScene extends Scene {
     for (let index = this.tab === 'Furniture' || this.tab === 'Etc' ? 1 : 0; index < homeOptions[this.tab]; index++) {
       const placeable = this.tab === 'Furniture' || this.tab === 'Etc';
       if (placeable && this.state.owned(this.tab as PlaceableTab, index) === 0) continue;
+      if (this.tab === 'Background' && !this.state.backgroundAvailable(index)) continue;
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot';
       const count = placeable ? this.state.remaining(this.tab as PlaceableTab, index) : undefined;
       const name=placeable?homeItemName(this.tab as PlaceableTab,index):this.tab==='Background'?t(HOME_BACKGROUNDS[index]!.name):t(this.tab)+' '+(index+1);
