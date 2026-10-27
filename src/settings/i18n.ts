@@ -2,6 +2,7 @@ export type Language = 'en' | 'ko';
 const en = {
   roomChat:'Room chat',roomChatSetup:'Room chat needs a server update.',roomChatOffline:'Unable to send or load chat. Please try again.',roomChatSlow:'Please wait a moment before sending again.',
   homeGreenTree:'Small Green Tree',homeCherryTree:'Cherry Blossom Tree',homeCrate:'Wooden Crate',
+  shopPets:'Pets',petDogs:'Dogs',petCats:'Cats',petDucks:'Ducks',shopPetOwnedNote:'Select your companion in Character → Pets.',
   homeMorning:'Morning', homeNoon:'Noon', homeSunset:'Sunset', homeNight:'Night',
   homeVisit:'Visit home',homeVisitLabel:'Home · ',homeVisitNote:'Viewing a saved home · read only',homeVisitLoading:'Opening your friend’s home…',homeVisitSetup:'Home visits need a server update. Please try again later.',homeVisitUnavailable:'This home is unavailable. Please check your friendship.',homeVisitOffline:'Unable to open this home. Please try again.',
   parkNewMessages:'New messages ↓',
@@ -122,6 +123,7 @@ export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
   roomChat:'대기방 채팅',roomChatSetup:'대기방 채팅 서버 업데이트가 필요해요.',roomChatOffline:'대화를 불러오거나 보내지 못했어요. 다시 시도해 주세요.',roomChatSlow:'잠시 후 다시 보내 주세요.',
   homeGreenTree:'작은 초록 나무',homeCherryTree:'벚꽃 나무',homeCrate:'나무 상자',
+  shopPets:'펫',petDogs:'강아지',petCats:'고양이',petDucks:'오리',shopPetOwnedNote:'캐릭터 → 동물에서 함께할 펫을 선택해 주세요.',
   homeMorning:'아침', homeNoon:'한낮', homeSunset:'노을', homeNight:'밤',
   homeVisit:'방문하기',homeVisitLabel:'홈 · ',homeVisitNote:'저장된 친구의 홈 · 구경 중',homeVisitLoading:'친구의 홈을 불러오고 있어요…',homeVisitSetup:'홈 방문 서버 업데이트가 필요해요. 잠시 후 다시 시도해 주세요.',homeVisitUnavailable:'방문할 수 없는 홈이에요. 친구 관계를 확인해 주세요.',homeVisitOffline:'홈을 불러오지 못했어요. 다시 시도해 주세요.',
   parkNewMessages:'새 메시지 ↓',

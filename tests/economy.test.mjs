@@ -17,6 +17,29 @@ await db.exec(await readFile(new URL('../supabase/migrations/202610170002_server
 await db.exec(await readFile(new URL('../supabase/migrations/202610210008_home_shop.sql', import.meta.url), 'utf8'));
 let sequence = 0;
 const uuid = () => '00000000-0000-4000-8000-' + String(++sequence).padStart(12, '0');
+test('Pets shop reuses owned companions without charging or equipping; future species remain unavailable',async()=>{
+ Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},configurable:true});
+ const {Texture}=await import('pixi.js'),{ShopScene}=await importTs('../src/game/scenes/ShopScene.ts',import.meta.url),{ShopState}=await importTs('../src/shop/ShopState.ts',import.meta.url),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
+ class Element extends EventTarget{
+  children=[];style={};attributes=new Map();classList={add(){}};constructor(tag){super();this.tag=tag;}
+  append(...items){for(const item of items){item.parent=this;this.children.push(item);}}replaceChildren(...items){this.children=[];this.append(...items);}
+  setAttribute(k,v){this.attributes.set(k,v);}getAttribute(k){return this.attributes.get(k)??null;}
+  querySelector(selector){for(const child of this.children){if(child.className?.split(' ').includes(selector.slice(1)))return child;const found=child.querySelector?.(selector);if(found)return found;}}
+  remove(){if(this.parent)this.parent.children=this.parent.children.filter(item=>item!==this);}
+ }
+ const previous=globalThis.document,host=new Element('main');globalThis.document={createElement:tag=>new Element(tag),querySelector:()=>host};
+ const make=id=>({id,speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3},emote:{frames:[Texture.WHITE],fps:4}}}),corgi=make('corgi'),myeongrang=make('myeongrang'),state=new ShopState(),pets=[{config:corgi,name:'Corgi',thumbnail:'corgi.png'},{config:myeongrang,name:'Myeongrang',thumbnail:'myeongrang.png'}];let scene;
+ try{
+  scene=new ShopScene(corgi,state,()=>{},()=>{},'Pets',undefined,pets);const panel=host.children[0],content=panel.children[4];
+  assert.deepEqual(panel.children[3].children.map(e=>e.textContent),['Pets','Style','Furniture','Pass']);assert.equal(content.children[1].children.length,2);assert.ok(content.children[1].children.every(e=>e.getAttribute('data-owned')==='true'&&e.children[2].textContent==='Owned'));
+  const first=scene.petAnimation;content.children[1].children[1].dispatchEvent(new Event('click'));assert.equal(scene.petChoice.config.id,'myeongrang');assert.equal(first.sprite.destroyed,true);assert.equal(first.sleepMark.destroyed,true);assert.equal(scene.animation.sprite.destroyed,false);
+  assert.equal(content.children[2].children[1].disabled,true);content.children[2].children[1].dispatchEvent(new Event('click'));assert.equal(state.coins,1000);
+  for(const category of [1,2]){content.children[0].children[category].dispatchEvent(new Event('click'));assert.equal(content.children[1].children.length,1);assert.equal(content.children[1].children[0].disabled,true);assert.equal(content.children[1].children[0].getAttribute('data-owned'),null);assert.equal(content.children[2].children[1].textContent,'Coming soon');assert.equal(scene.preview.visible,false);}
+  setLanguage('ko');assert.equal(content.children[0].children[2].textContent,'오리');content.children[0].children[0].dispatchEvent(new Event('click'));assert.equal(content.children[1].children[1].children[1].textContent,'명랑이');assert.equal(content.children[1].children[1].children[2].textContent,'보유 중');assert.equal(scene.preview.visible,true);
+  panel.children[3].children.find(e=>e.getAttribute('data-shop-tab')==='Style').dispatchEvent(new Event('click'));assert.equal(scene.petPreview.visible,false);assert.equal(scene.animation.sprite.visible,true);assert.equal(state.coins,1000);
+  scene.destroy({children:true});scene=undefined;assert.equal(Texture.WHITE.destroyed,false);
+ }finally{scene?.destroy({children:true});setLanguage('en');if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
+});
 async function as(user, query, params = [], role = 'authenticated') {
   await db.exec('set role ' + role);
   try {
@@ -155,8 +178,8 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     editor.destroy({ children: true });
     shop = new ShopScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, state, () => {}, () => {});
     const panel = host.children[0];
-    assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Style', 'Furniture', 'Pass']);
-    panel.children[3].children[1].dispatchEvent(new Event('click'));
+    assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Pets', 'Style', 'Furniture', 'Pass']);
+    panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Furniture').dispatchEvent(new Event('click'));
     const content = panel.children[4]; assert.equal(content.children[1].children.length, 5);
     assert.equal(content.children[1].children[4].children[0].children[0].src, './assets/home/pet-sofa-black-white.png');
     const buy = content.children[2].children[1]; buy.dispatchEvent(new Event('click')); buy.dispatchEvent(new Event('click'));
@@ -547,7 +570,7 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
     click(action());click(host.querySelector('.purchase-cancel'));assert.equal(state.coins,1000);assert.equal(outfit.Hat,0);
     click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));
     assert.equal(state.owns('Hat',1),true);assert.equal(state.coins,925);assert.equal(outfit.Hat,0);assert.equal(saves,0);assert.equal(action().textContent,'Equip');assert.equal(content.children[2].children[0].children[1].textContent,'Owned');
-    click(panel.children[3].children[1]);assert.equal(scene.previewOutfit.Hat,0);click(panel.children[3].children[0]);
+    click(panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Furniture'));assert.equal(scene.previewOutfit.Hat,0);click(panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Style'));
     const equip=action();click(equip);click(equip);assert.equal(outfit.Hat,1);assert.equal(saves,1);assert.equal(state.coins,925);assert.equal(action().textContent,'Equipped');assert.equal(action().disabled,true);
     assert.equal(new CharacterSelection(storage).current.outfit.Hat,1);
     click(content.children[1].children[1]);assert.equal(scene.animation.hat.label,'topHat');assert.equal(outfit.Hat,1);

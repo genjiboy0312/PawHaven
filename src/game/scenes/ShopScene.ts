@@ -14,12 +14,19 @@ import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { PurchasePopup } from '../../ui/PurchasePopup';
 import { wearableItem } from '../../animals/Wearables';
 import { Scene } from './Scene';
+import type {PetChoice} from './CharacterScene';
+import {paintPetPortrait} from '../../ui/PetPortrait';
 
 const PURCHASE_LABELS = { owned: 'owned', purchased: 'shopPurchased', processing: 'economyWorking', loading: 'shopChecking', unavailable: 'shopUnavailable', available: 'buy', insufficient: 'notEnoughCoins', comingSoon: 'shopComingSoon' } as const;
 
 export class ShopScene extends Scene {
   private readonly preview = new Container();
   private readonly animation: AnimalAnimationController;
+  private readonly petPreview=new Container();
+  private petAnimation?:AnimalAnimationController;
+  private petChoice?:PetChoice;
+  private petCategory:'petDogs'|'petCats'|'petDucks'='petDogs';
+  private readonly pets:readonly PetChoice[];
   private readonly previewOutfit=createOutfit();
   private readonly previewNote=document.createElement('p');
   private readonly platform = new Graphics().ellipse(235, 395, 150, 28).fill('#d5ddc8');
@@ -41,15 +48,17 @@ export class ShopScene extends Scene {
   private reaction = 0;
   private homeCategory: PlaceableTab = 'Furniture';
   private homeSelected = 5;
-  private tab: 'Style' | 'Furniture' | 'Pass';
-  constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void) {
+  private tab: 'Pets' | 'Style' | 'Furniture' | 'Pass';
+  constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Pets' | 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void, pets?:readonly PetChoice[]) {
     super(); this.tab = initial;
+    this.pets=pets?.length?pets:[{config,name:config.id,thumbnail:config.id==='myeongrang'?'./assets/characters/myeongrang/idle.png':'./assets/characters/corgi/corgi-idle-walk.png'}];
+    this.petChoice=this.pets.find(pet=>pet.config.id===config.id)??this.pets[0];
     this.purchase = new PurchasePopup(state, this.panel);
     Object.assign(this.previewOutfit,config.wardrobe?.outfit);
     this.animation = new AnimalAnimationController({...config,wardrobe:config.wardrobe?{...config.wardrobe,outfit:this.previewOutfit}:undefined});
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#edf0df'), this.platform, this.preview);
     this.preview.position.set(235, 385); this.preview.scale.set(1.45);
-    this.preview.addChild(this.animation.sprite, this.animation.welcomeMark);
+    this.preview.addChild(this.animation.sprite, this.animation.welcomeMark,this.petPreview);
     this.panel.className = 'shop-screen';
     bindAria(this.panel, 'shop');
     const title = document.createElement('h2'); title.className = 'shop-title'; bindText(title, 'shop');
@@ -58,8 +67,9 @@ export class ShopScene extends Scene {
     this.balance.className = 'shop-balance';
     this.tabs.className = 'outfit-tabs shop-tabs';
     bindAria(this.tabs, 'shop');
-    for (const tab of ['Style', 'Furniture', 'Pass'] as const) {
-      const button = document.createElement('button'); button.type = 'button'; bindText(button, tab);
+    for (const tab of ['Pets', 'Style', 'Furniture', 'Pass'] as const) {
+      const button = document.createElement('button'); button.type = 'button'; bindText(button, tab==='Pets'?'shopPets':tab);
+      button.setAttribute('data-shop-tab',tab);
       button.addEventListener('click', () => { this.tab = tab; this.grid = undefined; this.render(); }, { signal: this.abort.signal }); this.tabs.append(button);
     }
     this.connection.className = 'shop-connection';
@@ -81,10 +91,13 @@ export class ShopScene extends Scene {
     coinAmount(this.balance, this.state.entitlementsKnown ? this.state.coins : '—', { balance: true });
     this.balance.setAttribute('data-loading', String(!this.state.entitlementsKnown));
     this.connection.replaceChildren(); const connection = commerceStatus(this.state); if (connection) this.connection.append(connection);
-    this.preview.visible = this.platform.visible = this.tab === 'Style';
+    const showPet=this.tab==='Pets'&&this.petCategory==='petDogs';
+    this.preview.visible = this.platform.visible = this.tab === 'Style'||showPet;
+    this.animation.sprite.visible=this.animation.welcomeMark.visible=this.tab==='Style';this.petPreview.visible=showPet;
     this.homePreview.hidden = this.tab !== 'Furniture';
-    Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(['Style', 'Furniture', 'Pass'][index] === this.tab)));
+    Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(['Pets', 'Style', 'Furniture', 'Pass'][index] === this.tab)));
     this.content.replaceChildren(); this.content.className = this.tab === 'Pass' ? 'shop-pass' : 'shop-style';
+    if(this.tab==='Pets'){this.renderPets();return;}
     if (this.tab === 'Furniture') { this.renderFurniture(scroll); return; }
     if (this.tab === 'Pass') {
       this.content.append(passPanel(this.state, 'shop', this.onQuest));
@@ -146,6 +159,37 @@ export class ShopScene extends Scene {
     footer.append(detail, buy); this.content.append(categories, grid, footer);
     grid.scrollTop = scroll;
   }
+  private selectPet(pet:PetChoice):void{
+    if(this.petAnimation&&this.petChoice?.config.id===pet.config.id)return;
+    this.petPreview.removeChildren().forEach(child=>child.destroy({children:true}));this.petAnimation?.sleepMark.destroy();
+    this.petChoice=pet;this.petAnimation=new AnimalAnimationController({...pet.config,wardrobe:pet.config.wardrobe?{...pet.config.wardrobe,outfit:createOutfit()}:undefined});
+    this.petPreview.addChild(this.petAnimation.sprite,this.petAnimation.welcomeMark);this.elapsed=0;
+  }
+  private renderPets():void{
+    const categories=document.createElement('nav');categories.className='outfit-tabs shop-categories';bindAria(categories,'categories');
+    for(const category of ['petDogs','petCats','petDucks'] as const){const button=document.createElement('button');button.type='button';bindText(button,category);button.setAttribute('aria-pressed',String(this.petCategory===category));button.addEventListener('click',()=>{this.petCategory=category;this.render();});categories.append(button);}
+    const grid=document.createElement('div');grid.className='outfit-inventory shop-grid shop-pets-grid';bindAria(grid,'Pets');this.grid=grid;
+    if(this.petCategory==='petDogs'){
+      if(this.petChoice)this.selectPet(this.petChoice);
+      for(const pet of this.pets){
+        const button=document.createElement('button');button.type='button';button.className='outfit-slot shop-slot shop-pet-slot';button.setAttribute('data-pet',pet.config.id);button.setAttribute('data-owned','true');button.setAttribute('aria-pressed',String(this.petChoice?.config.id===pet.config.id));
+        const portrait=document.createElement('span');portrait.className='pet-portrait';paintPetPortrait(portrait,pet.config,pet.thumbnail,9);
+        const name=document.createElement('span');name.className='pet-name';if(pet.config.id==='corgi'||pet.config.id==='myeongrang')bindText(name,pet.config.id);else name.textContent=pet.name;
+        const owned=document.createElement('span');owned.className='shop-price';bindText(owned,'owned');button.setAttribute('aria-label',name.textContent+' · '+t('owned'));button.append(portrait,name,owned);
+        button.addEventListener('click',()=>{this.selectPet(pet);this.reaction=1.5;this.render();});grid.append(button);
+      }
+    }else{
+      const card=document.createElement('button');card.type='button';card.className='outfit-slot shop-slot shop-pet-placeholder';card.disabled=true;card.setAttribute('data-coming-soon','true');
+      const name=document.createElement('span');name.className='pet-name';bindText(name,this.petCategory);const note=document.createElement('span');note.className='shop-price';bindText(note,'shopComingSoon');card.append(name,note);grid.append(card);
+    }
+    const footer=document.createElement('div');footer.className='shop-purchase';
+    const detail=document.createElement('span');detail.className='shop-detail';const name=document.createElement('strong');
+    const pet=this.petChoice;
+    name.textContent=this.petCategory==='petDogs'&&pet?(pet.config.id==='corgi'||pet.config.id==='myeongrang'?t(pet.config.id):pet.name):t(this.petCategory);
+    const note=document.createElement('span');bindText(note,this.petCategory==='petDogs'?'shopPetOwnedNote':'shopComingSoon');detail.append(name,note);
+    const buy=document.createElement('button');buy.type='button';buy.className='commerce-primary';buy.disabled=true;bindText(buy,this.petCategory==='petDogs'?'owned':'shopComingSoon');buy.setAttribute('data-purchase-state',this.petCategory==='petDogs'?'owned':'comingSoon');footer.append(detail,buy);
+    this.content.append(categories,grid,footer);this.update(0);
+  }
   private renderFurniture(scroll: number): void {
     const category = this.homeCategory, selected = this.homeSelected;
     this.homePreview.replaceChildren(homeIcon(category, selected));
@@ -202,8 +246,10 @@ export class ShopScene extends Scene {
   override update(seconds: number): void {
     this.elapsed += seconds; this.reaction = Math.max(0, this.reaction - seconds);
     this.animation.update(this.reaction > 0 ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds);
+    if(this.tab!=='Style')this.animation.welcomeMark.visible=false;
+    if(this.petPreview.visible)this.petAnimation?.update(this.reaction>0?'EMOTE':'IDLE',this.elapsed,1,0,0,seconds);
   }
   override destroy(options?: DestroyOptions): void {
-    this.purchase.destroy(); this.unsubscribe(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); this.animation.sleepMark.destroy();
+    this.purchase.destroy(); this.unsubscribe(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); this.animation.sleepMark.destroy();this.petAnimation?.sleepMark.destroy();
   }
 }
