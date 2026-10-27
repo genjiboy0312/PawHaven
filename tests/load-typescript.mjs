@@ -1,14 +1,16 @@
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, writeFile } from 'node:fs/promises';
+import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
-import { after } from 'node:test';
 import { transformWithOxc } from 'vite';
 
 const modules = new Map();
 const directory = await mkdtemp(join(tmpdir(), 'paw-test-modules-'));
-after(() => rm(directory, { recursive: true, force: true }));
+// Skipped tests can drain the test queue while this module is still being loaded.
+// Keep emitted modules until process exit, including top-level asynchronous imports.
+process.once('exit', () => rmSync(directory, { recursive: true, force: true }));
 async function compiledUrl(url) {
   const key = url.href;
   if (modules.has(key)) return modules.get(key);
