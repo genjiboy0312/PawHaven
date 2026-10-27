@@ -407,11 +407,12 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .home-inventory .outfit-object.pet-sofa-icon { width: 7cqw; height: 2.74cqw; bottom: 4cqh; }
 .shop-grid .outfit-object.pet-sofa-icon { height: 2.74cqw; }
 .shop-grid .home-count { top: 0; bottom: auto; right: 4%; font-size: clamp(9px, 1.1cqw, 15px); color: #87704c;-webkit-text-fill-color:#87704c; }
-.shop-home-preview { position: absolute; left: 5%; width: 40%; top: 42cqh; height: 32cqh; text-align: center; color: #846d4b;-webkit-text-fill-color:#846d4b; font-size: clamp(11px, 1.8cqw, 23px); }
+.shop-home-preview { position: absolute; left: 2.5%; width: 43.75%; top: 74cqh; text-align: center; color: #846d4b;-webkit-text-fill-color:#846d4b; font-size: clamp(11px, 1.8cqw, 23px); }
 .shop-home-preview[hidden] { display: none; }
 .shop-home-preview > .outfit-object { position: relative; display: block; left: auto; bottom: auto; width: 24cqw; height: 20cqh; margin: 0 auto 3cqh; transform: none; object-fit: contain; }
 .shop-home-preview > .outfit-object.pet-sofa-icon { height: 9.37cqw; }
 .shop-home-preview p { margin: 1cqh 0; }
+.shop-home-preview .shop-home-preview-note { font-size: clamp(10px, 1.15cqw, 16px); line-height: 1.4; }
 .shop-preview-note{position:absolute;left:5%;width:40%;top:27cqh;margin:0;text-align:center;color:#87704d;-webkit-text-fill-color:#87704d;font-size:clamp(10px,1.3cqw,16px);line-height:1.5;pointer-events:none;}
 .shop-preview-note[hidden]{display:none;}
 .shop-style .shop-grid {

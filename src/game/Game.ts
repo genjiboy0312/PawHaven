@@ -192,7 +192,7 @@ export class Game {
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab,(category,index)=>{
         if(!commerce.entitlementsKnown||!commerce.owns(category,index))return;
         this.outfit[category]=index;character.save({petId:activePet.id,outfit:this.outfit});
-      },pets));
+      },pets,{state:home,textures:this.homeTextures}));
     };
     let inGame=false;let currentLobby:LobbyScene|undefined;
     const saveRoomLook=async()=>{if(this.account?.pendingSave)await this.account.save();};

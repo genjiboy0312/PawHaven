@@ -8,6 +8,7 @@ const {LobbyMap}=await importTs('../src/home/LobbyMap.ts',import.meta.url);
 const {courseDecor,COURSE_DECOR}=await importTs('../src/game/CourseDecor.ts',import.meta.url);
 const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
 const {parseEconomyResult}=await importTs('../src/shop/EconomySnapshot.ts',import.meta.url);
+const {HomeShopPreview}=await importTs('../src/home/HomeShopPreview.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610210008_home_shop.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610240011_snacks.sql','202610240012_park_channels.sql','202610250015_player_blocks.sql','202610240013_mailbox.sql','202610250016_mail_coupons.sql','202610250017_friend_home_visits.sql','202610260019_mail_receipts.sql','202610270021_garden_props_shop.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
@@ -39,6 +40,25 @@ test('new garden stock is server-priced, idempotent, bounded and recognized by m
  const visit=await as(1,'select public.visit_friend_home($1) as data',[users[0]]);assert.deepEqual(visit.home.items.map(i=>i.option),[5,6]);
  await db.query("update public.economy_home_items set quantity=20 where user_id=$1 and category='Etc' and item_index=5",[users[0]]);assert.equal((await economy(0,'buy_home',{category:'Etc',index:5})).outcome,'limit');
  await db.exec(await readFile(new URL('../supabase/migrations/202610270021_garden_props_shop.sql',import.meta.url),'utf8'));assert.equal((await economy(0)).snapshot.homeItems['Etc:5'],20);
+});
+
+test('shop lobby previews reuse room art, replace temporary products and never write saved room state',()=>{
+ const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},home=new HomeState(storage);
+ home.select('Background',2);home.select('Floor',3);home.place('Furniture',1);
+ const before=JSON.stringify([...data]),saved=JSON.stringify({look:home.current,items:home.items}),revision=home.revision;
+ const texture=()=>new Texture({source:new TextureSource({width:160,height:100})});
+ const textures={background:texture(),noon:texture(),sunset:texture(),night:texture(),floor:texture(),cushion:texture(),sofa:texture(),greenTree:texture(),cherryTree:texture(),fence:texture(),crate:texture()};
+ const preview=new HomeShopPreview(textures),map=preview.map;
+ try{
+  preview.showSelection(home,'Background',3);assert.equal(map.children[1].texture,textures.night);assert.equal(map.objects.children.length,1);
+  preview.showSelection(home,'Floor',0);assert.equal(map.children[1].texture,textures.sunset);assert.equal(map.children[2].visible,true);
+  preview.showSelection(home,'Furniture',5);const sofa=map.objects.children.find(c=>c.label==='-1005');assert.equal(map.objects.children.length,2);assert.equal(sofa.children[1].texture,textures.sofa);assert.equal(sofa.x,480);assert.equal(sofa.y,405);
+  preview.showSelection(home,'Etc',5);assert.equal(sofa.destroyed,true);const tree=map.objects.children.find(c=>c.label==='-1105');assert.equal(tree.children[1].texture,textures.greenTree);
+  preview.showSelection(home,'Etc',6);assert.equal(tree.destroyed,true);const cherry=map.objects.children.find(c=>c.label==='-1106');assert.equal(cherry.children[1].texture,textures.cherryTree);
+  preview.showSelection(home,'Etc',6);assert.equal(map.objects.children.length,2);assert.equal(cherry.destroyed,false);
+  preview.showSelection(home,'Background',0);assert.equal(cherry.destroyed,true);assert.equal(map.objects.children.length,1);
+  assert.equal(JSON.stringify([...data]),before);assert.equal(JSON.stringify({look:home.current,items:home.items}),saved);assert.equal(home.revision,revision);assert.equal(preview.eventMode,'none');assert.equal(map.scale.x,420/960);
+ }finally{preview.destroy({children:true});assert.ok(Object.values(textures).every(t=>!t.destroyed));Object.values(textures).forEach(t=>t.destroy(true));}
 });
 
 test('backgrounds unlock once, persist and gate Home selection without consuming stock or changing saved looks',()=>{

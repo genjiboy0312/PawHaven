@@ -10,7 +10,9 @@ import { coinAmount } from '../../ui/CoinAmount';
 import { itemIcon } from '../../ui/itemIcon';
 import { passPanel } from '../../ui/PassPanel';
 import { homeOptions, homePrice, homeStockLimit } from '../../home/HomeCatalog';
-import { HOME_TABS, type HomeTab } from '../../home/HomeState';
+import { HOME_TABS, type HomeTab, type HomeState } from '../../home/HomeState';
+import type { HomeTextures } from '../../home/LobbyMap';
+import { HomeShopPreview } from '../../home/HomeShopPreview';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { PurchasePopup } from '../../ui/PurchasePopup';
 import { wearableItem } from '../../animals/Wearables';
@@ -37,6 +39,7 @@ export class ShopScene extends Scene {
   private readonly content = document.createElement('div');
   private readonly tabs = document.createElement('nav');
   private readonly homePreview = document.createElement('div');
+  private readonly lobbyPreview: HomeShopPreview;
   private readonly abort = new AbortController();
   private readonly unsubscribe: () => void;
   private readonly localeOff: () => void;
@@ -50,7 +53,7 @@ export class ShopScene extends Scene {
   private homeCategory: HomeTab = 'Background';
   private homeSelected = 0;
   private tab: 'Pets' | 'Style' | 'Furniture' | 'Pass';
-  constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Pets' | 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void, pets?:readonly PetChoice[]) {
+  constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Pets' | 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void, pets?:readonly PetChoice[], private readonly homeSource?: { state: HomeState; textures?: HomeTextures }) {
     super(); this.tab = initial;
     this.pets=pets?.length?pets:[{config,name:config.id,thumbnail:config.id==='myeongrang'?'./assets/characters/myeongrang/idle.png':'./assets/characters/corgi/corgi-idle-walk.png'}];
     this.petChoice=this.pets.find(pet=>pet.config.id===config.id)??this.pets[0];
@@ -58,6 +61,7 @@ export class ShopScene extends Scene {
     Object.assign(this.previewOutfit,config.wardrobe?.outfit);
     this.animation = new AnimalAnimationController({...config,wardrobe:config.wardrobe?{...config.wardrobe,outfit:this.previewOutfit}:undefined});
     this.addChild(new Graphics().rect(0, 0, 960, 540).fill('#edf0df'), this.platform, this.preview);
+    this.lobbyPreview = new HomeShopPreview(homeSource?.textures); this.addChild(this.lobbyPreview);
     this.preview.position.set(235, 385); this.preview.scale.set(1.45);
     this.preview.addChild(this.animation.sprite, this.animation.welcomeMark,this.petPreview);
     this.panel.className = 'shop-screen';
@@ -96,6 +100,7 @@ export class ShopScene extends Scene {
     this.preview.visible = this.platform.visible = this.tab === 'Style'||showPet;
     this.animation.sprite.visible=this.animation.welcomeMark.visible=this.tab==='Style';this.petPreview.visible=showPet;
     this.homePreview.hidden = this.tab !== 'Furniture';
+    this.lobbyPreview.visible = this.tab === 'Furniture';
     Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(['Pets', 'Style', 'Furniture', 'Pass'][index] === this.tab)));
     this.content.replaceChildren(); this.content.className = this.tab === 'Pass' ? 'shop-pass' : 'shop-style';
     if(this.tab==='Pets'){this.renderPets();return;}
@@ -193,8 +198,10 @@ export class ShopScene extends Scene {
   }
   private renderFurniture(scroll: number): void {
     const category = this.homeCategory, selected = this.homeSelected;
-    this.homePreview.replaceChildren(homeIcon(category, selected));
+    this.lobbyPreview.showSelection(this.homeSource?.state, category, selected);
+    this.homePreview.replaceChildren();
     const heading = document.createElement('p'); heading.textContent = homeItemName(category, selected); this.homePreview.append(heading);
+    const hint = document.createElement('p'); hint.className = 'shop-home-preview-note'; bindText(hint, 'shopHomePreview'); this.homePreview.append(hint);
     const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories'; bindAria(categories, 'categories');
     for (const tab of HOME_TABS) {
       const button = document.createElement('button'); button.type = 'button'; bindText(button, tab); button.setAttribute('aria-pressed', String(category === tab));
