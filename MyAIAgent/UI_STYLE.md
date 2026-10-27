@@ -1,5 +1,12 @@
 # Cozy UI 1차 (2026-10-17)
 
+## 패널 시스템 색상 보완 (2026-10-27, 아래 currentColor 규칙보다 우선)
+- 이전 1×1/1×100 inline SVG 표면을 public/assets/ui/surfaces의 공용 64×64 SVG로 추출했다. 같은 내용은 하나의 파일로 공유하며 기존 viewBox/색상/알파/그라데이션을 유지한다. SVG 코드 기반 UI 표면이며 새 생성 비트맵이나 게임 아트 교체가 아니다.
+- 퀘스트·우편함·설정과 같은 공통 패널의 글자색은 CSS color와 동일한 명시 -webkit-text-fill-color로 고정한다. currentColor만 지정하면 브라우저가 변환한 색을 다시 따를 수 있으므로 관련 공통 currentColor override를 제거했다. only light/forced-color-adjust:none과 기존 메타 선언을 유지하며 supported-color-schemes light 힌트를 추가했다.
+- 기본 range/checkbox도 같은 공통 SVG 표면으로 그리며 native input 자체·이벤트·키보드 조작은 유지한다. Chromium 스크롤바도 공통 팔레트로 지정한다. 공유 표면 총 76개이며 합계 약 16KB다. 기존 중복 data URI를 제거해 스타일 선언에서 동일 리소스를 재사용한다.
+- 실제 Chrome에서 Mail/Quest/Settings 각각 라이트·다크·자동 다크(Emulation.setAutoDarkModeOverride)·고대비를 비교했다. DOM 색상과 내부 screenshot 픽셀 모두 동일했다. 640×360의 닫기 경계, range ArrowRight→master 0.81, 체크박스 클릭→muted true를 확인했다. 타입 검사/빌드 통과. 삼성 인터넷의 독자적인 강제 다크 필터는 이 데스크톱 검증만으로 완전 차단을 보장하지 않으며 실기기 확인과 구분한다.
+- 공식 근거: [Chrome Auto Dark Theme](https://developer.chrome.com/blog/auto-dark-theme), [Samsung Internet Dark Mode](https://developer.samsung.com/browser/blog/en/2020/12/15/dark-mode-in-samsung-internet). 게임 동작·계정·저장·보상 SQL은 변경하지 않는다.
+
 - 상점 Pets(2026-10-27): 꾸미기 왼쪽에 펫 탭을 두고 강아지/고양이/오리 하위 탭을 사용한다. 코기·명랑이의 기존 Idle atlas를 paintPetPortrait로 재사용하며 카드 아래 이름→보유 중을 표시한다. 2열 카드와 기존 좌측 Idle/이모션 미리보기·하단 안내/비활성 보유 버튼을 사용한다. 준비 중 종은 가짜 판매/가격/소유 표시를 만들지 않는다. 기존 색상 고정 표면·Jua·그리드 규칙을 유지한다. 상세: [HOME_SHOP.md](HOME_SHOP.md).
 
 ## 시스템 테마에 독립적인 UI 색상 (2026-10-26, 이전 배경 구현보다 우선)
