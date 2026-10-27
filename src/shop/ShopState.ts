@@ -1,5 +1,7 @@
 import { OUTFIT_TABS, type OutfitTab } from '../animals/OutfitState';
 import { homeStockLimit, homeInitialStock, homeKey, homePrice, validHomeProduct, type HomeProductTab } from '../home/HomeCatalog';
+import type { CourseId } from '../game/CourseCatalog';
+import { validRunCoins, RUN_FINISH_BONUS, type RunReward } from './RunReward';
 export const SHOP_STORAGE_KEY = 'pawhaven.shop.prototype.v1';
 export const PASS_TIERS = 5;
 export const DAILY_QUESTS = [
@@ -21,6 +23,9 @@ export class ShopState {
   readonly entitlementsKnown = true;
   readonly homeShopReady = true;
   readonly homeBackgroundShopReady = true;
+  readonly runRewardsReady = true;
+  runReward?: RunReward;
+  private activeRun?: CourseId;
   readonly snacksReady=true;
   private treats=0;private lastSnack:number|null=null;
   feedSerial=0;fedPet='';
@@ -33,7 +38,7 @@ export class ShopState {
   readonly busy = false;
   readonly message = '';
   retry(): void {}
-  beginRun(): boolean { return true; }
+  beginRun(map: CourseId = 'garden'): boolean { this.activeRun = map; this.runReward = undefined; return true; }
   destroy(): void { this.listeners.clear(); }
   private balance = 1000;
   private experience = 0;
@@ -129,10 +134,15 @@ export class ShopState {
     this.balance -= price; this.items.add(itemKey(category, index)); this.save(); return 'purchased';
   }
   unlockPass(): void { if (!this.premium) { this.premium = true; this.save(); } }
-  completeRun(): void {
+  completeRun(collected = 0): void {
     const rolled = this.rollDay(), before = this.experience, progress = this.daily.run;
+    const map = this.activeRun; this.activeRun = undefined;
+    if (map && validRunCoins(map, collected)) {
+      const coins = Math.min(1000000 - this.balance, RUN_FINISH_BONUS + collected);
+      this.balance += coins; this.runReward = { status: 'confirmed', collected, coins };
+    }
     this.experience = Math.min(400, this.experience + 100); this.daily.run = 1;
-    if (rolled || before !== this.experience || progress !== 1) this.save();
+    if (map || rolled || before !== this.experience || progress !== 1) this.save();
   }
   reward(tier: number, premium: boolean): number { return tier * (premium ? 40 : 20); }
   isClaimed(tier: number, premium: boolean): boolean { return this.claimed.has((premium ? 'premium-' : 'free-') + tier); }

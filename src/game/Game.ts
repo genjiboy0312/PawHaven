@@ -255,13 +255,13 @@ export class Game {
         if (starting || !runCommerce.ready) return false;
         starting = true;
         try {
-          if (!await runCommerce.beginRun() || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
+          if (!await runCommerce.beginRun(map) || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
           let completion = Promise.resolve();
           const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
             open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
             sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
-            complete: () => { completion = Promise.resolve(runCommerce.completeRun()); },
+            rewards: runCommerce, complete: collected => { completion = Promise.resolve(runCommerce.completeRun(collected)); },
             record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),
             retry: async () => { await completion; return launch(play,map); },
           });

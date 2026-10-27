@@ -3,10 +3,15 @@ import type { OutfitTab } from '../animals/OutfitState';
 import type { EconomyClient } from './EconomyClient';
 import { t } from '../settings/i18n';
 import { homeInitialStock, type HomeProductTab } from '../home/HomeCatalog';
+import type { CourseId } from '../game/CourseCatalog';
+import type { RunReward } from './RunReward';
 
 export class ServerShopState {
   private view = new ShopState();
   private runId?: string;
+  private rewardRunId?: string;
+  runReward?: RunReward;
+  get runRewardsReady(): boolean { return this.api.result?.snapshot.runRewardsReady === true; }
   feedSerial=0;fedPet='';private feedRevision=-1;
   get snacksReady(){return this.api.result?.snapshot.snacksReady===true;}
   get snacks(){return this.api.result?.snapshot.snacks??0;}
@@ -20,6 +25,10 @@ export class ServerShopState {
     this.unsubscribe = api.subscribe(() => {
       const result = api.result;
       if (result) {
+        if (result.run_id === this.rewardRunId) {
+          if (result.run_reward) this.runReward = { status: 'confirmed', collected: result.run_reward.collected, coins: result.run_reward.coins };
+          else if (result.outcome === 'run_rejected') this.runReward = { status: 'rejected', collected: this.runReward?.collected ?? 0 };
+        }
         if(result.outcome==='fed'&&result.petId&&result.revision!==this.feedRevision){this.feedRevision=result.revision;this.feedSerial++;this.fedPet=result.petId;}
         // Freeze the local view to the server day; only the server can roll a logged-in quest day.
         const fixedDay = Date.parse(result.snapshot.daily.day + 'T00:00:00Z');
@@ -67,15 +76,20 @@ export class ServerShopState {
     if (!this.ready || this.view.dailyQuests[0]!.progress >= 3) return false;
     return (await this.api.execute('pet'))?.outcome === 'recorded';
   }
-  async beginRun(): Promise<boolean> {
+  async beginRun(map: CourseId = 'garden'): Promise<boolean> {
     if (!this.ready) return false;
-    const result = await this.api.execute('run_start');
+    const result = await this.api.execute('run_start', { map });
     this.runId = result?.run_id;
+    this.rewardRunId = undefined; this.runReward = undefined;
     return !!this.runId;
   }
-  async completeRun(): Promise<void> {
+  async completeRun(collected = 0): Promise<void> {
     const run_id = this.runId; this.runId = undefined;
-    if (run_id) await this.api.execute('run_finish', { run_id });
+    if (!run_id) return;
+    this.rewardRunId = run_id;
+    this.runReward = { status: this.runRewardsReady ? 'pending' : 'unavailable', collected };
+    const result = await this.api.execute('run_finish', { run_id, ...(this.runRewardsReady ? { collected } : {}) });
+    if (result?.outcome === 'run_rejected' && this.rewardRunId === run_id) this.runReward = { status: 'rejected', collected };
   }
   async claimDaily(id: DailyQuestId): Promise<boolean> {
     if (!this.ready) return false;

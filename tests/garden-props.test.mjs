@@ -9,6 +9,9 @@ const {courseDecor,COURSE_DECOR}=await importTs('../src/game/CourseDecor.ts',imp
 const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
 const {parseEconomyResult}=await importTs('../src/shop/EconomySnapshot.ts',import.meta.url);
 const {HomeShopPreview}=await importTs('../src/home/HomeShopPreview.ts',import.meta.url);
+const {EconomyClient}=await importTs('../src/shop/EconomyClient.ts',import.meta.url);
+const {ServerShopState}=await importTs('../src/shop/ServerShopState.ts',import.meta.url);
+const {COURSE_COINS}=await importTs('../src/game/CourseCoins.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610210008_home_shop.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610240011_snacks.sql','202610240012_park_channels.sql','202610250015_player_blocks.sql','202610240013_mailbox.sql','202610250016_mail_coupons.sql','202610250017_friend_home_visits.sql','202610260019_mail_receipts.sql','202610270021_garden_props_shop.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
@@ -61,6 +64,13 @@ test('shop lobby previews reuse room art, replace temporary products and never w
  }finally{preview.destroy({children:true});assert.ok(Object.values(textures).every(t=>!t.destroyed));Object.values(textures).forEach(t=>t.destroy(true));}
 });
 
+test('guest run rewards persist once and remain independent from daily quest claims',()=>{
+ const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},state=new ShopState(storage);
+ state.beginRun('practice');state.completeRun(3);assert.equal(state.coins,1013);assert.deepEqual(state.runReward,{status:'confirmed',collected:3,coins:13});
+ state.completeRun(3);assert.equal(state.coins,1013);assert.equal(new ShopState(storage).coins,1013);assert.equal(state.claimDaily('run'),true);assert.equal(state.coins,1113);
+ state.beginRun('practice');state.completeRun(8);assert.equal(state.coins,1113);
+});
+
 test('backgrounds unlock once, persist and gate Home selection without consuming stock or changing saved looks',()=>{
  const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
  const state=new ShopState(storage),home=new HomeState(storage,(tab,index)=>state.homeOwned(tab,index));
@@ -90,4 +100,42 @@ test('Lobby Background Shop enforces server price, ownership cap, account isolat
  for(const index of [2,3])assert.equal((await economy(1,'buy_home',{category:'Background',index})).outcome,'purchased');
  const result=await economy(1);assert.equal(result.snapshot.coins,400);assert.equal(parseEconomyResult(result).snapshot.homeItems['Background:3'],1);
  const corrupt=structuredClone(result);corrupt.snapshot.homeItems['Background:3']=2;assert.throws(()=>parseEconomyResult(corrupt),/invalid_economy_response/);
+});
+
+test('Single Run Coin Rewards pays a bounded server-derived receipt once per map token',async()=>{
+ const sql=await readFile(new URL('../supabase/migrations/202610280023_single_run_rewards.sql',import.meta.url),'utf8');await db.exec(sql);
+ const age=run=>db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where id=$1",[run]);
+ for(const [map,coins]of Object.entries(COURSE_COINS)){
+  const before=(await economy(1)).snapshot.coins,start=await economy(1,'run_start',{map});await age(start.run_id);const id=nonce(),payload={run_id:start.run_id,collected:coins.length,reward:999999};
+  const done=await economy(1,'run_finish',payload,id);assert.equal(done.snapshot.coins,before+10+coins.length);assert.deepEqual(done.run_reward,{collected:coins.length,bonus:10,coins:10+coins.length});assert.equal(parseEconomyResult(done).run_reward.coins,10+coins.length);
+  assert.equal((await economy(1,'run_finish',payload,id)).snapshot.coins,done.snapshot.coins);assert.equal((await economy(1,'run_finish',payload)).outcome,'run_rejected');
+ }
+ const start=await economy(1,'run_start',{map:'practice'});assert.equal((await economy(1,'run_finish',{run_id:start.run_id,collected:0})).outcome,'run_rejected');await age(start.run_id);
+ assert.equal((await economy(0,'run_finish',{run_id:start.run_id,collected:0})).outcome,'run_rejected');
+ for(const collected of [8,-1,1.5,'3',null])await assert.rejects(economy(1,'run_finish',{run_id:start.run_id,collected}),/invalid_run_coins/);
+ const done=await economy(1,'run_finish',{run_id:start.run_id,collected:2});assert.equal(done.run_reward.coins,12);
+ await assert.rejects(economy(1,'run_start',{map:'fake'}),/invalid_run_map/);
+ const expired=await economy(1,'run_start',{map:'garden'});await db.query("update public.economy_runs set expires_at=clock_timestamp()-interval '1 second' where id=$1",[expired.run_id]);assert.equal((await economy(1,'run_finish',{run_id:expired.run_id,collected:0})).outcome,'run_rejected');
+ await assert.rejects(as(1,"update public.economy_runs set consumed=false where id=$1",[done.run_id]),/permission denied/);
+ const capped=await economy(1,'run_start',{map:'garden'});await age(capped.run_id);await db.query('update public.economy_wallets set coins=999995 where user_id=$1',[users[1]]);assert.equal((await economy(1,'run_finish',{run_id:capped.run_id,collected:10})).run_reward.coins,5);
+ await db.exec(sql);assert.equal((await economy(1)).snapshot.coins,1000000);
+ const corrupt=structuredClone(done);corrupt.run_reward.coins=999;assert.throws(()=>parseEconomyResult(corrupt),/invalid_economy_response/);
+});
+
+test('a lost run reward response retries the same receipt and updates the subscribed account only once',async()=>{
+ let lose=true;const requests=[];const transport=async request=>{requests.push(structuredClone(request));const result=await economy(0,request.p_action,request.p_payload,request.p_request_id);if(request.p_action==='run_finish'&&lose){lose=false;throw Error('lost response')}return result};
+ const api=new EconomyClient(transport,nonce),state=new ServerShopState(api),idle=async()=>{while(api.busy)await new Promise(r=>setImmediate(r))};let updates=0;const off=state.subscribe(()=>updates++);
+ try{
+  await idle();const before=state.coins;assert.equal(await state.beginRun('practice'),true);await idle();await db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where user_id=$1 and not consumed",[users[0]]);
+  await state.completeRun(3);await idle();assert.equal(state.runReward.status,'pending');assert.equal(state.coins,before);assert.equal(state.connection,'offline');await state.retry();await idle();
+  assert.deepEqual(state.runReward,{status:'confirmed',collected:3,coins:13});assert.equal(state.coins,before+13);const finish=requests.filter(r=>r.p_action==='run_finish');assert.equal(finish.length,2);assert.equal(finish[0].p_request_id,finish[1].p_request_id);assert.ok(updates>0);await state.completeRun(3);assert.equal(state.coins,before+13);
+ }finally{off();state.destroy();api.destroy();}
+});
+
+test('run reward SQL recovers a missing treat wallet schema without resetting balances or owned items',async()=>{
+ const before=(await economy(0)).snapshot;
+ await db.exec('alter table public.economy_wallets drop column snacks cascade;alter table public.economy_wallets drop column last_snack;');
+ await db.exec(await readFile(new URL('../supabase/migrations/202610280023_single_run_rewards.sql',import.meta.url),'utf8'));
+ const after=(await economy(0)).snapshot;assert.equal(after.coins,before.coins);assert.deepEqual(after.homeItems,before.homeItems);assert.equal(after.snacks,0);assert.equal(after.runRewardsReady,true);
+ const start=await economy(0,'run_start',{map:'practice'});await db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where id=$1",[start.run_id]);assert.equal((await economy(0,'run_finish',{run_id:start.run_id,collected:0})).run_reward.coins,10);
 });

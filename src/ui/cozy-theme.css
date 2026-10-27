@@ -779,3 +779,6 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .shop-background-grid .outfit-object{width:90%;height:65%;top:5%;bottom:auto;object-fit:cover;border-radius:.8cqw;}
 .shop-scenery-name{position:absolute;left:0;right:0;bottom:2.8cqh;text-align:center;font-size:1.25cqw;pointer-events:none;}
 .shop-background-grid .shop-slot::before{display:none;}
+.run-reward-summary{margin:1cqh auto;padding:.8cqh 1cqw;max-width:92%;border-top:1px solid var(--ui-edge);font:400 clamp(11px,1.35cqw,18px)/1.35 var(--font-round);color:var(--ui-ink);-webkit-text-fill-color:var(--ui-ink);}
+.play-result .run-reward-summary p{margin:.35cqh 0;font-size:inherit;}
+.run-reward-summary .run-reward-credit{color:#668344;-webkit-text-fill-color:#668344;}

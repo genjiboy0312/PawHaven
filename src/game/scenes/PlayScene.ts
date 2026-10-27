@@ -34,8 +34,11 @@ import { raceCountdown } from '../../multiplayer/RaceCountdown';
 import { cameraTarget, PLAY_GROUND_Y, PLAY_ZOOM } from '../PlayCamera';
 import { Scene } from './Scene';
 import { GAME_FONT } from '../../ui/GameFont';
+import type { CommerceState } from '../../shop/CommerceState';
+import { RunRewardPanel } from '../../ui/RunRewardPanel';
 
 export class PlayScene extends Scene {
+  private rewardPanel?: RunRewardPanel;
   private readonly run:DummyRun;
   private readonly courseEnd:number;
   private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text;motion:RemoteMotion}>();
@@ -129,7 +132,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: () => void; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
@@ -232,6 +235,10 @@ export class PlayScene extends Scene {
     this.result.append(this.stats, this.bestNote);
     this.goalDetails.className='single-result-goals';
     if(!settings?.multiplayer&&settings?.goals){this.refreshGoals();this.result.append(this.goalDetails);}
+    if (!settings?.multiplayer && settings?.rewards) {
+      this.rewardPanel = new RunRewardPanel(settings.rewards, () => ({ collected: this.run.coins.collected, total: this.run.coins.items.length }));
+      this.result.append(this.rewardPanel.element);
+    }
     this.result.append(this.retry, this.back);
     this.progress.className = 'play-progress';
     this.hud.append(this.stick, actions, settingsButton, this.victory, this.fade);
@@ -459,7 +466,7 @@ export class PlayScene extends Scene {
         const completion=this.settings?.record?.(this.run.elapsed,this.run.respawns);
         if(completion&&typeof completion==='object')this.completion=completion;
         this.newBest=this.completion?.newBest??completion===true;this.bestNote.hidden=!this.newBest;
-        this.refreshGoals();this.settings?.complete?.();
+        this.refreshGoals();this.settings?.complete?.(this.run.coins.collected);
       }
       this.back.focus?.();
     }
@@ -504,7 +511,7 @@ export class PlayScene extends Scene {
     if(this.settings?.multiplayer)this.hud.setAttribute('data-results',String(run.won));
     const coinText=run.coins.items.length?`${t('runCoins')}: ${run.coins.collected} / ${run.coins.items.length}`:'';
     this.coinStats.textContent=coinText;
-    const record = `${t('runTime')} ${(run.elapsed).toFixed(2)}s · ${t('runFalls')} ${run.respawns} · ${t('runTargets')} ${run.targets.filter(target => target.broken).length}/${run.targets.length}`+(coinText?' · '+coinText:'');
+    const record = `${t('runTime')} ${(run.elapsed).toFixed(2)}s · ${t('runFalls')} ${run.respawns} · ${t('runTargets')} ${run.targets.filter(target => target.broken).length}/${run.targets.length}`+(coinText&&!this.rewardPanel?' · '+coinText:'');
     if (!this.returned) this.stats.textContent = this.retryFailed ? t('runRetryFailed') : record;
     this.progress.textContent = `${Math.floor((run.x - run.start) / (run.finish - run.start) * 100)}% · ${t('runTime')} ${run.elapsed.toFixed(1)}s${run.checkpoint > run.start ? ' · ' + t('checkpoint') + ' ✓' : ''}`;
     if(coinText)this.progress.textContent+=' · '+coinText;
@@ -519,6 +526,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    this.rewardPanel?.destroy();
     if(!this.snakeFeedback.parent)this.snakeFeedback.destroy({children:true});
     this.standings?.destroy();
     this.closeRecovery();
