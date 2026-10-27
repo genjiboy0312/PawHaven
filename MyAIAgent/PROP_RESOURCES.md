@@ -1,5 +1,14 @@
 # 박스·코인·펫 소파 리소스
 
+## 작은 초록 나무 시안 (2026-10-27)
+- Resources/Small_Green_Tree_Prototype.png에 built-in image_gen 결과를 원본 그대로 복사했다. RGBA 1254×1254, 실제 투명 배경(alpha 0~255)이다. 이미지 편집·리사이즈·배경 재처리는 하지 않았다.
+- 스타일 참조: Resources/Pet_Sofa_Black_White_Prototype.png, Resources/Corgi_Art_Sheet.png. 짧은 갈색 줄기·둥근 초록 수관·큰 픽셀 덩어리·절제된 명암으로 맞췄다. 바닥 원형/잔디 섬/그림자/화분은 넣지 않는다.
+- 현재는 로비 배치용 시안이며 인벤토리·상점·맵에 연결하지 않았다. 초록 나무 형태 확정 후 같은 줄기·실루엣을 재사용해 벚꽃 변형을 제작한다. 울타리는 짧은 연결형 한 칸, 상자는 기존 Wooden_Box_Prototype.png 재사용을 기본 계획으로 둔다.
+
+### 초록 나무 실제 생성 프롬프트
+
+Use case: stylized-concept. Asset: ONE small green deciduous tree sprite prototype for the PawHaven 2D pet-game lobby. Input image 1 is STYLE REFERENCE ONLY: match the approved black/white pet sofa's modest soft pixel-art cluster density, simple shading and stepped edges. Input image 2 is STYLE REFERENCE ONLY for the small corgi and plain PUSH crate's restrained game-art finish. Create a new tree, do not reproduce either reference. Subject: a short, friendly, compact garden tree, near front view with only a slight view of the top; a stout short warm-brown trunk with a subtle two-way branch fork supporting a rounded broad crown composed of 3–4 large softly lobed foliage clusters. The canopy should read as one tidy small tree, a little asymmetrical, wider than the short visible trunk. Muted fresh sage/leaf green main color, moss green shadows, pale yellow-green highlights. Only 2–3 broad shading levels and readable softly stepped pixel clusters like the sofa, no individual leaf outlines, tiny speckles or detailed bark. This will be placed on an existing lawn beside a small dog; intended in-game height about 1.4 times the dog, with a simple trunk base suitable for placing directly on that lawn. Single complete centered sprite occupying roughly 65–70% of a square image, generous clear padding, full silhouette intact. Genuine transparent background. NO ground, grass island, soil mound, oval floor, circular platform, pot, cast shadow, glow, mist, text, UI, border, flowers, fruit, dog or extra objects. No realistic 3D rendering, smooth vector icon, glossy surfaces, dense detailed foliage, grain/noise or exaggerated chunky mosaic pixels. Favor a modest reusable game prop over a polished illustration.
+
 2026-10-21 사용자가 선택한 시안을 Resources에 복사했다. 생성 도구는 built-in image_gen이다. 복사 전후 SHA-256 일치를 확인했으며 이미지 편집·배경 재처리는 하지 않았다. 펫 소파는 이후 상점·홈·로비에 연결했다. 적용 방식과 구매 흐름은 [HOME_SHOP.md](HOME_SHOP.md)를 참고한다. 코인은 2026-10-22 재화 UI에 연결했다. 박스는 2026-10-26 기존 게임 타깃에 적용했다.
 
 | 리소스 | 프로젝트 경로 | 채택 시안 |
