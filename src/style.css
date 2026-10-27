@@ -35,6 +35,9 @@ button:focus-visible { outline: 3px solid #ba7f35; outline-offset: -6px; }
   width: 7.6cqw; padding: 0; margin: 0; border: 0;
   background: transparent; color: #475c3e; opacity: 1;
 }
+/* The HUD passes through to the game; every enabled menu must opt back into input. */
+.hud-menu:enabled { pointer-events: auto; cursor: pointer; }
+.hud-menu:disabled { pointer-events: none; }
 .hud-icon {
   display: block; width: 6.4cqw; height: 6.4cqw; border-radius: 50%;
   padding: 1.05cqw; background: #faf8eb;
