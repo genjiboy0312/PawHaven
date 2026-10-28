@@ -1,6 +1,7 @@
 import {test,after} from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {PGlite} from '@electric-sql/pglite';import {importTs} from './load-typescript.mjs';
 Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},configurable:true});
-const {Texture,TextureSource}=await import('pixi.js');
+const {Texture,TextureSource,Container}=await import('pixi.js');
+const {ParkMap,PARK_SCENERY,parkTheme}=await importTs('../src/park/ParkMap.ts',import.meta.url);
 const {GARDEN_PROPS}=await importTs('../src/home/GardenProps.ts',import.meta.url);
 const {HomeState}=await importTs('../src/home/HomeState.ts',import.meta.url);
 const {ShopState}=await importTs('../src/shop/ShopState.ts',import.meta.url);
@@ -22,6 +23,22 @@ const users=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222
 let seq=0;const nonce=()=>`aaaaaaaa-1111-4111-8111-${String(++seq).padStart(12,'0')}`;
 async function as(n,sql,args=[],role='authenticated'){await db.exec('set role '+role);try{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[n===null?'':users[n]]);return(await db.query(sql,args)).rows[0]?.data;}finally{await db.exec('reset role');}}
 const economy=(n,action='load',payload={},id=nonce())=>as(n,'select public.economy_command($1,$2,$3) as data',[action,id,JSON.stringify(payload)]);
+
+test('park themes reuse four backgrounds and preserve scenery, actors and shared textures on channel changes',()=>{
+ const texture=()=>new Texture({source:new TextureSource({width:160,height:100})});
+ const textures={background:texture(),noon:texture(),sunset:texture(),night:texture(),floor:texture(),cushion:texture(),sofa:texture(),greenTree:texture(),cherryTree:texture(),fence:texture(),crate:texture()};
+ const map=new ParkMap(textures),actor=new Container();actor.position.set(500,625);actor.zIndex=625;
+ try{
+  map.drawChannel(1);const originals=[...map.objects.children];map.objects.addChild(actor);
+  assert.ok(PARK_SCENERY.every(item=>{const x=item.x*1800,y=item.y*1100;return x<720||x>1080}));
+  for(const [channel,key]of ['background','noon','sunset','night'].entries()){
+   map.drawChannel(channel+1);assert.equal(parkTheme(channel+1).background,channel);assert.equal(map.children[1].texture,textures[key]);assert.equal(map.objects.children.length,PARK_SCENERY.length+1);
+   originals.forEach(view=>{assert.ok(map.objects.children.includes(view));assert.equal(view.zIndex,view.y);});assert.equal(actor.parent,map.objects);
+  }
+  const sofa=originals.find(view=>view.children.some(c=>c.texture===textures.sofa));assert.ok(sofa);actor.zIndex=actor.y=sofa.y-1;map.objects.sortChildren();assert.ok(map.objects.getChildIndex(actor)<map.objects.getChildIndex(sofa));actor.zIndex=actor.y=sofa.y+1;map.objects.sortChildren();assert.ok(map.objects.getChildIndex(actor)>map.objects.getChildIndex(sofa));
+  map.drawChannel(0);assert.equal(map.children[1].texture,textures.background);
+ }finally{map.destroy({children:true});assert.ok(Object.values(textures).every(t=>!t.destroyed));Object.values(textures).forEach(t=>t.destroy(true));}
+});
 test('garden sprites share original PNGs and purchased stock; scenery never mutates course geometry',async()=>{
  const names={greenTree:'Small_Green_Tree_Prototype.png',cherryTree:'Small_Cherry_Tree_Prototype.png',fence:'Low_Wooden_Fence_Prototype.png',crate:'Wooden_Box_Prototype.png'};
  const textures={};for(const [id,s]of Object.entries(GARDEN_PROPS)){

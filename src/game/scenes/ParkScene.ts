@@ -1,6 +1,7 @@
 import { Container,Text,type DestroyOptions } from 'pixi.js';
 import { Scene } from './Scene';
-import { LobbyMap,type HomeTextures } from '../../home/LobbyMap';
+import type { HomeTextures } from '../../home/LobbyMap';
+import { ParkMap, parkTheme } from '../../park/ParkMap';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { createOutfit } from '../../animals/OutfitState';
@@ -18,8 +19,9 @@ import {ChatHistory} from '../../ui/ChatHistory';
 
 /** Shared lobby art, wardrobe renderer and touch controls; park owns only social movement. */
 export class ParkScene extends Scene {
- private readonly map:LobbyMap;
- private readonly world=new Container();private readonly actorLayer=new Container();
+ private readonly map:ParkMap;
+ private readonly world=new Container();private readonly actorLayer:Container;
+ private mapChannel=-1;
  private readonly actors=new Map<string,{box:Container;animation:AnimalAnimationController;name:Text;signature:string;x:number;y:number;height:number;message?:string;until:number}>();
  private readonly hud=document.createElement('section');private readonly header=document.createElement('header');
  private readonly status=document.createElement('p');private readonly picker=document.createElement('section');
@@ -41,7 +43,7 @@ export class ParkScene extends Scene {
  private readonly emotions:ParkEmoteMenu;
  private readonly participants:ParkParticipants;
  constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},private readonly friends?:FriendsClient,options?:{channel?:number;visit?:(id:string,channel:number,signal:AbortSignal)=>Promise<void>}){
-  super();this.map=new LobbyMap(textures);this.actorLayer.sortableChildren=true;this.world.addChild(this.map,this.actorLayer);this.addChild(this.world);
+  super();this.map=new ParkMap(textures);this.actorLayer=this.map.objects;this.world.addChild(this.map);this.addChild(this.world);
   this.profile=new ParkProfilePopup(client.owner,pets,friends,member=>{
    this.whisperTarget=member;this.client.chatError='';this.refresh();this.input.focus({preventScroll:true});
   },true,options?.visit?async(id,signal)=>{
@@ -115,6 +117,7 @@ export class ParkScene extends Scene {
  private refresh(){
   if(this.destroyed)return;
   const c=this.client;
+  if(this.mapChannel!==c.channel){this.mapChannel=c.channel;this.map.drawChannel(c.channel);}
   this.input.placeholder=t('parkMessage');
   this.participants.update(c.channel,c.snapshot.members??[],this.active(),this.blockedIds);
   const signature=JSON.stringify([c.channel,c.snapshot.counts,c.busy,c.error,c.connected,this.choosing]);
@@ -126,7 +129,7 @@ export class ParkScene extends Scene {
    this.picker.hidden=!this.choosing;this.picker.replaceChildren();
    if(this.choosing){
     const heading=document.createElement('h2');bindText(heading,'parkChannels');const grid=document.createElement('div');grid.className='park-channel-grid';this.picker.append(heading,grid);
-    for(const channel of PARK_CHANNELS){const button=this.button('park',()=>{void this.choose(channel);});button.textContent=`${t('park')} ${channel} · ${c.snapshot.counts[channel-1]??0}/8`;button.disabled=c.busy||((c.snapshot.counts[channel-1]??0)>=8&&c.channel!==channel);grid.append(button);}
+    for(const channel of PARK_CHANNELS){const button=this.button('park',()=>{void this.choose(channel);});button.textContent=`${t('park')} ${channel} · ${t(parkTheme(channel).name)} · ${c.snapshot.counts[channel-1]??0}/8`;button.disabled=c.busy||((c.snapshot.counts[channel-1]??0)>=8&&c.channel!==channel);grid.append(button);}
     if(c.channel)this.picker.append(this.button('back',()=>{this.choosing=false;this.signature='';this.refresh();}));
    }
   }
@@ -188,7 +191,7 @@ export class ParkScene extends Scene {
   if(await this.client.chat(text,target?.id)){if(this.input.value.trim()===text&&this.whisperTarget?.id===target?.id){this.input.value='';this.input.blur();}this.chatAt=this.elapsed;const me=this.actors.get(this.client.owner);if(me&&!target){me.message=text;me.until=this.elapsed+6;}}
   this.sending=false;if(!this.destroyed)this.refresh();
  }
- resize(_width:number,_height:number){this.map.draw(PARK_WORLD.width,PARK_WORLD.height,{Background:0,Floor:0});}
+ resize(_width:number,_height:number){this.map.drawChannel(this.client.channel);}
  override update(dt:number){
   this.elapsed+=dt;let axis=0,axisY=0;
   if(this.active()&&document.activeElement!==this.input){
