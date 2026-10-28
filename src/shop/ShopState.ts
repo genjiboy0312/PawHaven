@@ -27,6 +27,7 @@ export class ShopState {
   readonly runRewardsReady = true;
   readonly raceRewardsReady = false;
   readonly dailyCoinQuestReady = true;
+  readonly boxCoinRewardsReady = true;
   runReward?: RunReward;
   private activeRun?: CourseId;
   readonly snacksReady=true;

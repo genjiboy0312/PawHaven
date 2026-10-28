@@ -1,5 +1,6 @@
 import { homeStockLimit, homeOptions,homeInitialStock, homeKey, validHomeProduct } from '../home/HomeCatalog';
 import type { RunRewardReceipt } from './RunReward';
+import { MAX_COURSE_COINS } from '../game/CourseCoins';
 export interface EconomySnapshot {
   snacks?:number;snacksReady?:boolean;
   homeItems?: Record<string, number>; homeShopReady?: boolean;
@@ -7,6 +8,7 @@ export interface EconomySnapshot {
   runRewardsReady?: boolean;
   raceRewardsReady?: boolean;
   dailyCoinQuestReady?: boolean;
+  boxCoinRewardsReady?: boolean;
   coins: number; xp: number; premium: boolean; items: string[]; claimed: string[];
   daily: { day: string; pet: number; run: number; coins?: number; coinsClaimed?: boolean; claimed: ('pet' | 'run')[]; lastPet: number | null };
 }
@@ -30,10 +32,11 @@ export function parseEconomyResult(input: unknown): EconomyResult {
   if (value.homeShopReady !== undefined && value.homeShopReady !== true) throw Error('invalid_economy_response');
   if (value.runRewardsReady !== undefined && value.runRewardsReady !== true) throw Error('invalid_economy_response');
   if (value.raceRewardsReady !== undefined && value.raceRewardsReady !== true) throw Error('invalid_economy_response');
+  if (value.boxCoinRewardsReady !== undefined && value.boxCoinRewardsReady !== true) throw Error('invalid_economy_response');
   if (value.dailyCoinQuestReady !== undefined && value.dailyCoinQuestReady !== true || daily.coins !== undefined && !integer(daily.coins,20) || daily.coinsClaimed !== undefined && typeof daily.coinsClaimed !== 'boolean' || value.dailyCoinQuestReady && (!integer(daily.coins,20) || typeof daily.coinsClaimed !== 'boolean') || daily.coinsClaimed && daily.coins !== 20) throw Error('invalid_economy_response');
   if (result.run_reward !== undefined) {
     const receipt = result.run_reward;
-    if (!receipt || !value.runRewardsReady || result.outcome !== 'finished' || !result.run_id || !integer(receipt.collected,13) || receipt.bonus !== 10 || !integer(receipt.coins,23) || receipt.coins > receipt.collected + receipt.bonus) throw Error('invalid_economy_response');
+    if (!receipt || !value.runRewardsReady || result.outcome !== 'finished' || !result.run_id || !integer(receipt.collected,MAX_COURSE_COINS) || receipt.bonus !== 10 || !integer(receipt.coins,10+MAX_COURSE_COINS) || receipt.coins > receipt.collected + receipt.bonus) throw Error('invalid_economy_response');
   }
   if (value.homeBackgroundShopReady !== undefined && (value.homeBackgroundShopReady !== true || !value.homeShopReady)) throw Error('invalid_economy_response');
   if((value.snacksReady!==undefined&&value.snacksReady!==true)||(value.snacksReady===true&&!integer(value.snacks,99))||(value.snacks!==undefined&&!integer(value.snacks,99))||(result.petId!==undefined&&!['corgi','myeongrang'].includes(result.petId)))throw Error('invalid_economy_response');

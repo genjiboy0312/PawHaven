@@ -14,6 +14,7 @@ export class ServerShopState {
   get runRewardsReady(): boolean { return this.api.result?.snapshot.runRewardsReady === true; }
   get raceRewardsReady(): boolean { return this.api.result?.snapshot.raceRewardsReady === true; }
   get dailyCoinQuestReady(): boolean { return this.api.result?.snapshot.dailyCoinQuestReady === true; }
+  get boxCoinRewardsReady(): boolean { return this.api.result?.snapshot.boxCoinRewardsReady === true; }
   feedSerial=0;fedPet='';private feedRevision=-1;
   get snacksReady(){return this.api.result?.snapshot.snacksReady===true;}
   get snacks(){return this.api.result?.snapshot.snacks??0;}

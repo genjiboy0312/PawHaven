@@ -116,14 +116,28 @@ test('pixel box art observes existing attack flags, leaves counts immediate and 
  }finally{retry?.destroy({children:true});scene?.destroy({children:true});assert.equal(Texture.WHITE.destroyed,false);destroyCourseArt(bundle);env.restore();}
 });
 
+test('box coins award once across attacks/respawns and render a shared pop/absorb without repeated sound',async()=>{
+ const {DummyRun}=await importTs('../src/game/DummyRun.ts',import.meta.url),{CourseCoinsView}=await importTs('../src/game/CourseCoinsView.ts',import.meta.url);
+ for(const fps of [30,60,120]){
+  const make=()=>new DummyRun([{x:0,width:1200,top:0,bottom:-400}],1,{finish:1100,targets:[500],boxCoins:true,coins:[],manualReturn:true});
+  const run=make();run.x=440;let sounds=0;const view=new CourseCoinsView(run.coins,Texture.WHITE,()=>sounds++);
+  assert.equal(run.coins.items.length,1);assert.equal(view.children[0].visible,false);run.startAttack();run.update(1/fps,0);assert.equal(run.coins.collected,1);view.update(1/fps,true,{x:440,height:0});assert.equal(sounds,1);assert.equal(view.children[0].visible,true);
+  const start=view.children[0].y;view.update(.1,true,{x:440,height:0});assert.ok(view.children[0].y<start);view.update(.2,true,{x:440,height:0});assert.ok(view.children[0].x<500&&view.children[0].x>440);view.update(.3);assert.equal(view.children[0].visible,false);view.update(0);assert.equal(sounds,1);
+  for(let i=0;i<fps;i++)run.update(1/fps,0);run.startAttack();run.update(.1,0);assert.equal(run.coins.collected,1);run.height=-250;run.update(.1,0);run.x=440;run.startAttack();run.update(.1,0);assert.equal(run.coins.collected,1);view.destroy({children:true});assert.equal(Texture.WHITE.destroyed,false);
+  const fresh=make();assert.equal(fresh.coins.collected,0);assert.equal(fresh.targets[0].broken,false);const reduced=new CourseCoinsView(fresh.coins,Texture.WHITE,()=>sounds++);fresh.x=440;fresh.startAttack();fresh.update(.1,0);reduced.update(.1,false);assert.equal(reduced.children[0].visible,false);assert.equal(sounds,2);reduced.destroy({children:true});
+ }
+ const env=dom(),bundle=testCourseArt();bundle.art.coin=Texture.WHITE;let scene;
+ try{scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'practice',art:bundle.art,boxCoins:false});scene.run.x=1960;scene.run.startAttack();scene.update(.01);assert.equal(scene.run.targets[0].broken,true);assert.equal(scene.run.coins.items.length,7);assert.equal(scene.run.coins.collected,0);}finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
+});
+
 test('run coin counts reach HUD, localized single results and personal multiplayer podium without changing rank data',async()=>{
  const env=dom(),bundle=testCourseArt(),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);let scene,podium;
  bundle.art.coin=Texture.WHITE;let completes=0;
  try{
   scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'practice',art:bundle.art,complete(){completes++;}});
-  scene.run.x=1000;scene.update(.01);assert.equal(scene.run.coins.collected,1);assert.match(scene.progress.textContent,/Collected coins: 1 \/ 7/);
-  assert.equal(completes,0);scene.run.x=2520;scene.update(.01);assert.match(scene.stats.textContent,/Collected coins: 1 \/ 7/);assert.equal(completes,1);
-  scene.update(.1);assert.equal(completes,1);setLanguage('ko');scene.update(.01);assert.match(scene.stats.textContent,/수집 코인: 1 \/ 7/);setLanguage('en');
+  scene.run.x=1000;scene.update(.01);assert.equal(scene.run.coins.collected,1);assert.match(scene.progress.textContent,/Collected coins: 1 \/ 8/);
+  assert.equal(completes,0);scene.run.x=2520;scene.update(.01);assert.match(scene.stats.textContent,/Collected coins: 1 \/ 8/);assert.equal(completes,1);
+  scene.update(.1);assert.equal(completes,1);setLanguage('ko');scene.update(.01);assert.match(scene.stats.textContent,/수집 코인: 1 \/ 8/);setLanguage('en');
   const racers=[{id:'one',name:'One',time:1000,left:false},{id:'two',name:'Two',time:1100,left:false}],before=JSON.stringify(racers);
   podium=new RacePodium(racers,[],'two',[],env.host,()=>{},{collected:3,total:7});assert.match(podium.element.querySelector('.course-coin-summary').textContent,/Collected coins: 3 \/ 7/);assert.equal(JSON.stringify(racers),before);
  }finally{podium?.destroy();scene?.destroy({children:true});destroyCourseArt(bundle);setLanguage('en');env.restore();}

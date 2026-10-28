@@ -133,11 +133,11 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
-      snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:settings?.art?.coin?COURSE_COINS[settings.map??'garden']:[]});
+      snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:settings?.art?.coin?COURSE_COINS[settings.map??'garden']:[],boxCoins:!!settings?.art?.coin&&settings.boxCoins!==false});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
@@ -176,7 +176,7 @@ export class PlayScene extends Scene {
     }
     if(settings?.art)this.world.addChild(courseDecor(settings.map??'garden',settings.art));
     this.world.addChild(terrain);
-    if(settings?.art?.coin){this.coinView=new CourseCoinsView(this.run.coins,settings.art.coin);this.world.addChild(this.coinView);}
+    if(settings?.art?.coin){this.coinView=new CourseCoinsView(this.run.coins,settings.art.coin,()=>this.settings?.sound?.('coin'));this.world.addChild(this.coinView);}
     for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
       const flag = new Text({ text: t(label), style: { fontFamily: GAME_FONT, fontSize: 23, fontWeight: '400', fill: map.time==='night'?'#fff4db':'#455b3b', stroke:map.time==='night'?{color:'#233c50',width:2}:undefined } });
       this.labels.push({ text: flag, key: label });
@@ -487,7 +487,7 @@ export class PlayScene extends Scene {
     this.updateControls();
     const run = this.run;
     if(run.platforms.length){this.terrainView?.update();this.movingTerrain.forEach(({solid,view})=>{view.x=solid.x;});}
-    this.coinView?.update();
+    this.coinView?.update(seconds,this.settings?.preferences?.().effects!==false,{x:run.x,height:run.height});
     const target = cameraTarget(run.x, this.courseEnd);
     const preferences = this.settings?.preferences?.();
     if (preferences?.smoothCamera === false) this.cameraX = target;

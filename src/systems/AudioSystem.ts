@@ -28,23 +28,27 @@ export class AudioSystem {
         this.master = this.context.createGain(); this.master.connect(this.context.destination);
         this.bgm = this.context.createGain(); this.bgm.connect(this.master);
         this.sfx = this.context.createGain(); this.sfx.connect(this.master);
+        // Start at the saved levels; a first muted sound must not fade from 1.
+        this.master.gain.value = this.preferences.muted ? 0 : this.preferences.master;
+        this.bgm.gain.value = this.preferences.bgm;
+        this.sfx.gain.value = this.preferences.sfx;
         this.apply(this.preferences);
       }
       void this.context.resume().catch(() => undefined);
       return this.context;
     } catch { return; }
   }
-  play(kind: 'click' | 'jump' | 'dash' | 'attack' | 'hit' | 'bgm'): void {
+  play(kind: 'click' | 'jump' | 'dash' | 'attack' | 'hit' | 'coin' | 'bgm'): void {
     const context = this.init();
     if (!context || !this.sfx || !this.bgm) return;
-    const notes = kind === 'bgm' ? [262, 330, 392, 330] : [kind === 'jump' ? 420 : kind === 'dash' ? 180 : kind === 'attack' ? 240 : kind === 'hit' ? 520 : 660];
+    const notes = kind === 'coin' ? [1046.5,1568] : kind === 'bgm' ? [262, 330, 392, 330] : [kind === 'jump' ? 420 : kind === 'dash' ? 180 : kind === 'attack' ? 240 : kind === 'hit' ? 520 : 660];
     notes.forEach((frequency, index) => {
       const oscillator = context.createOscillator(), gain = context.createGain();
-      const time = context.currentTime + index * 0.2, duration = kind === 'bgm' ? 0.22 : kind === 'hit' ? .075 : 0.11;
+      const time = context.currentTime + index * (kind === 'coin' ? .055 : .2), duration = kind === 'coin' ? .18 : kind === 'bgm' ? 0.22 : kind === 'hit' ? .075 : 0.11;
       oscillator.type = kind === 'attack' || kind === 'hit' ? 'triangle' : 'sine';
       oscillator.frequency.setValueAtTime(frequency, time);
-      oscillator.frequency.exponentialRampToValueAtTime(kind === 'jump' ? frequency * 1.6 : kind === 'hit' ? 170 : frequency * 0.8, time + duration);
-      gain.gain.setValueAtTime(0, time); gain.gain.linearRampToValueAtTime(0.12, time + 0.01);
+      oscillator.frequency.exponentialRampToValueAtTime(kind === 'coin' ? frequency * 1.01 : kind === 'jump' ? frequency * 1.6 : kind === 'hit' ? 170 : frequency * 0.8, time + duration);
+      gain.gain.setValueAtTime(0, time); gain.gain.linearRampToValueAtTime(kind === 'coin' ? .075 : .12, time + (kind === 'coin' ? .003 : .01));
       gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
       oscillator.connect(gain); gain.connect(kind === 'bgm' ? this.bgm! : this.sfx!);
       oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };

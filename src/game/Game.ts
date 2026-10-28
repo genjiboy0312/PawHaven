@@ -260,8 +260,8 @@ export class Game {
           const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
             open: openSettings, preferences: () => gameSettings.current, map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
-            sound: kind => { this.audio?.play(kind); if (gameSettings.current.vibration) navigator.vibrate?.(20); },
-            rewards: runCommerce, complete: collected => { completion = Promise.resolve(runCommerce.completeRun(collected)); },
+            sound: kind => { this.audio?.play(kind); if (kind !== 'coin' && gameSettings.current.vibration) navigator.vibrate?.(20); },
+            boxCoins:runCommerce.boxCoinRewardsReady, rewards: runCommerce, complete: collected => { completion = Promise.resolve(runCommerce.completeRun(collected)); },
             record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),
             retry: async () => { await completion; return launch(play,map); },
           });
@@ -294,7 +294,7 @@ export class Game {
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
             this.scenes?.show(new PlayScene(racePet,()=>{
               lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
-            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,rewards:raceCommerce,
+            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,rewards:raceCommerce,boxCoins:raceCommerce.boxCoinRewardsReady,
               sound:kind=>{this.audio?.play(kind);},
               multiplayer:{client,pets:[corgi,this.myeongrang!],reward:(result,collected)=>{if(raceCommerce instanceof ServerShopState&&result.round)void raceCommerce.completeRace(result.id,result.round,collected,result.racers.some(racer=>racer.id===client.owner&&racer.time!==null));},leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
                 failed:()=>{client.destroy();this.rooms=undefined;lobby(true,'multi');}},

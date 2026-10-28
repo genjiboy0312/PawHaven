@@ -11,7 +11,7 @@ const {parseEconomyResult}=await importTs('../src/shop/EconomySnapshot.ts',impor
 const {HomeShopPreview}=await importTs('../src/home/HomeShopPreview.ts',import.meta.url);
 const {EconomyClient}=await importTs('../src/shop/EconomyClient.ts',import.meta.url);
 const {ServerShopState}=await importTs('../src/shop/ServerShopState.ts',import.meta.url);
-const {COURSE_COINS}=await importTs('../src/game/CourseCoins.ts',import.meta.url);
+const {COURSE_COINS,courseCoinLimit}=await importTs('../src/game/CourseCoins.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610210008_home_shop.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610240011_snacks.sql','202610240012_park_channels.sql','202610250015_player_blocks.sql','202610240013_mailbox.sql','202610250016_mail_coupons.sql','202610250017_friend_home_visits.sql','202610260019_mail_receipts.sql','202610270021_garden_props_shop.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
@@ -68,7 +68,7 @@ test('guest run rewards persist once and remain independent from daily quest cla
  const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},state=new ShopState(storage);
  state.beginRun('practice');state.completeRun(3);assert.equal(state.coins,1013);assert.deepEqual(state.runReward,{status:'confirmed',collected:3,coins:13});
  state.completeRun(3);assert.equal(state.coins,1013);assert.equal(new ShopState(storage).coins,1013);assert.equal(state.claimDaily('run'),true);assert.equal(state.coins,1113);
- state.beginRun('practice');state.completeRun(8);assert.equal(state.coins,1113);
+ state.beginRun('practice');state.completeRun(9);assert.equal(state.coins,1113);
 });
 
 test('backgrounds unlock once, persist and gate Home selection without consuming stock or changing saved looks',()=>{
@@ -186,4 +186,18 @@ test('Daily Coin Collector Quest combines accepted single/multi runs once, pays 
  const day=claim.snapshot.daily.day;await db.query("update public.economy_claims set claim_key='daily:' || (($2::date-1)::text) || ':coins' where user_id=$1 and claim_key='daily:' || $2 || ':coins'",[users[0],day]);await db.query("update public.economy_wallets set quest_day=quest_day-1 where user_id=$1",[users[0]]);
  const reset=await economy(0);assert.equal(reset.snapshot.daily.coins,0);assert.equal(reset.snapshot.daily.coinsClaimed,false);assert.equal(reset.snapshot.coins,claim.snapshot.coins);assert.equal((await economy(0,'race_reward',race)).snapshot.daily.coins,0);assert.equal((await economy(0,'run_finish',payload,key)).snapshot.daily.coins,0);
  let requests=0;const oldApi=new EconomyClient(async request=>{requests++;const result=await economy(0,request.p_action,request.p_payload,request.p_request_id);delete result.snapshot.dailyCoinQuestReady;delete result.snapshot.daily.coins;delete result.snapshot.daily.coinsClaimed;return result},nonce),oldState=new ServerShopState(oldApi);while(oldApi.busy)await new Promise(r=>setImmediate(r));const calls=requests;assert.deepEqual(oldState.dailyQuests.map(q=>q.id),['pet','run']);assert.equal(await oldState.claimDaily('coins'),false);assert.equal(requests,calls);oldState.destroy();
+});
+
+test('box coin reward limits match map collectibles plus targets for single/multi and keep prior receipts',async()=>{
+ const sql=await readFile(new URL('../supabase/migrations/202610280026_box_coin_rewards.sql',import.meta.url),'utf8');await db.exec(sql);
+ assert.equal((await economy(1)).snapshot.boxCoinRewardsReady,true);
+ for(const map of Object.keys(COURSE_COINS)){
+  const limit=courseCoinLimit(map);assert.equal(limit,COURSE_COINS[map].length+COURSES[map].targets.length);
+  const before=(await economy(1)).snapshot.coins,start=await economy(1,'run_start',{map});await db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where id=$1",[start.run_id]);
+  await assert.rejects(economy(1,'run_finish',{run_id:start.run_id,collected:limit+1}),/invalid_run_coins/);
+  const id=nonce(),payload={run_id:start.run_id,collected:limit},done=await economy(1,'run_finish',payload,id);assert.equal(done.snapshot.coins,before+10+limit);assert.equal(parseEconomyResult(done).run_reward.coins,10+limit);assert.equal((await economy(1,'run_finish',payload,id)).snapshot.coins,done.snapshot.coins);
+ }
+ const room=nonce(),round=nonce();await db.query("insert into public.mp_rooms(id,name,host,map,phase,round_id,starts_at)values($1,'Box coins',$2,'garden','results',$3,clock_timestamp()-interval '12 seconds')",[room,users[0],round]);await db.query("insert into public.mp_racers(room_id,user_id,nickname,finished_ms)values($1,$2,'Player1',9000)",[room,users[1]]);
+ const before=(await economy(1)).snapshot.coins,payload={room,round,collected:12};const paid=await economy(1,'race_reward',payload);assert.equal(paid.snapshot.coins,before+22);assert.equal(paid.snapshot.daily.coins,20);assert.equal((await economy(1,'race_reward',payload)).snapshot.coins,paid.snapshot.coins);
+ await db.exec(sql);assert.equal((await economy(1,'race_reward',payload)).run_reward.coins,22);const corrupt=structuredClone(paid);corrupt.run_reward.coins=26;assert.throws(()=>parseEconomyResult(corrupt),/invalid_economy_response/);
 });

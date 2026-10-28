@@ -4,7 +4,7 @@ import { HitReaction, type PlayerHit } from './HitReaction';
 import {PatrolSnake,type SnakePatrol} from './PatrolSnake';
 import { MovingPlatform } from './MovingPlatform';
 import { CoinCollection, type CoinPlacement } from './CourseCoins';
-export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[] }
+export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[]; boxCoins?:boolean }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
@@ -45,7 +45,7 @@ export class DummyRun {
     this.snakes=(options.snakes??[]).map(patrol=>new PatrolSnake(patrol,options.snakeHeight));
     this.hitReaction = new HitReaction(options.playerCombat === true||this.snakes.length>0);
     this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));
-    this.coins=new CoinCollection(options.coins??[],this.course);
+    this.coins=new CoinCollection(options.coins??[],this.course,options.boxCoins?this.targets:[]);
   }
   private overlaps(solid: CourseSolid, x = this.x): boolean {
     return x + this.halfWidth > solid.x + 0.000001 && x - this.halfWidth < solid.x + solid.width - 0.000001;
