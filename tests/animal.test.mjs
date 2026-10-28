@@ -1528,7 +1528,7 @@ test('Home beside Character opens a pet-free map editor and returns the same edi
     const scene = app.stage.children[0], panel = host.children[0], tabs = panel.children[3], inventory = panel.children[4];
     assert.equal(scene.children.length, 1); assert.equal(scene.children[0].label, 'lobby-map');
     assert.deepEqual(tabs.children.map(button => button.textContent), ['Background', 'Floor', 'Furniture', 'Etc']);
-    assert.equal(inventory.children.length, 4); click(inventory.children[2]); assert.equal(home.current.Background, 2);
+    assert.equal(inventory.children.length, 5); click(inventory.children[2]); assert.equal(home.current.Background, 2);
     click(tabs.children[1]); click(inventory.children[3]); assert.equal(home.current.Floor, 3);
     click(tabs.children[2]); assert.equal(inventory.children.length, 4); click(inventory.children[0]);
     assert.equal(home.items[0].option, 1);

@@ -13,6 +13,7 @@ export interface CourseArt extends GardenPropTextures {
   coin?:Texture;
   box?:Texture;
   grass:Texture;soil:Texture;tileWorldSize:number;
+  cherryGrass?:Texture;cherrySoil?:Texture;grassTileHeight?:number;
   markers:Record<CourseMarkerId,{texture:Texture;anchorX:number;anchorY:number;visibleHeight:number}>;
 }
 /** Frame extraction happens at runtime; generated PNGs remain unchanged in Resources. */
@@ -43,16 +44,19 @@ export async function loadCourseArt(props?:GardenPropTextures):Promise<CourseArt
   if(props)Object.assign(art,props);
   if(props?.crate)art.box=props.crate;
   else{const box=await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/wooden-box.png');box.source.scaleMode='nearest';art.box=new Texture({source:box.source,frame:new Rectangle(363,353,568,561)});}
-  return art;
+  const [cherryGrass,cherrySoil]=await Promise.all(['cherry-grass.png','cherry-soil.png'].map(name=>Assets.load<Texture>(base+name)));
+  cherryGrass.source.scaleMode=cherrySoil.source.scaleMode='nearest';
+  const cherryEdge=new Texture({source:cherryGrass.source,frame:new Rectangle(0,0,cherryGrass.width,Math.round(cherryGrass.height*.2))});
+  return Object.assign(art,{cherryGrass:cherryEdge,cherrySoil});
 }
 export class CourseTerrain extends Container {
  constructor(private readonly solids:readonly CourseSolid[],art:CourseArt){
   super();this.label='course-terrain';
   for(const solid of solids){
     const height=solid.top-solid.bottom;
-    for(const [texture,tileHeight]of [[art.soil,height],[art.grass,Math.min(art.tileWorldSize,height)]] as const){
+    for(const [texture,tileHeight]of [[art.soil,height],[art.grass,Math.min(art.grassTileHeight??art.tileWorldSize,height)]] as const){
       const tile=new TilingSprite({texture,width:solid.width,height:tileHeight,roundPixels:true});
-      tile.position.set(solid.x,COURSE_GROUND-solid.top);tile.tileScale.set(art.tileWorldSize/texture.width,art.tileWorldSize/texture.height);this.addChild(tile);
+      tile.position.set(solid.x,COURSE_GROUND-solid.top);tile.tileScale.set(art.tileWorldSize/texture.width,(texture===art.grass&&art.grassTileHeight?art.grassTileHeight:art.tileWorldSize)/texture.height);this.addChild(tile);
     }
   }
  }

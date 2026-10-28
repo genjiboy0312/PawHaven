@@ -8,5 +8,5 @@ export async function loadHome(backgrounds?:CourseBackgrounds): Promise<HomeText
   for (const texture of [background, floor, cushion, sofaImage]) texture.source.scaleMode = 'nearest';
   // Measured alpha bounds, with two pixels of padding. Keep the source PNG unchanged.
   const sofa = new Texture({ source: sofaImage.source, frame: new Rectangle(107, 459, 1042, 407) });
-  return { background, floor, cushion, sofa, ...await loadGardenProps(), ...(backgrounds?{noon:backgrounds.noon,sunset:backgrounds.sunset,night:backgrounds.night}:{}) };
+  return { background, floor, cushion, sofa, ...await loadGardenProps(), ...(backgrounds?{noon:backgrounds.noon,sunset:backgrounds.sunset,night:backgrounds.night,cherry:backgrounds.cherry}:{}) };
 }

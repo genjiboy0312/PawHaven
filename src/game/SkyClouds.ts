@@ -14,7 +14,7 @@ export class SkyClouds extends Container {
     super(); this.label = 'sky-clouds'; this.eventMode = 'none';
     const clip = new Graphics().rect(0,0,960,132).fill(0xffffff);
     this.addChild(clip); this.mask = clip;
-    const tint = {morning:0xffeedc,noon:0xffffff,sunset:0xf4bbab,night:0x9aaed4}[time];
+    const tint = {morning:0xffeedc,noon:0xffffff,sunset:0xf4bbab,night:0x9aaed4,cherry:0xffe2ed}[time];
     this.clouds = this.placements.map(p => {
       const cloud = new Sprite(texture); cloud.width = p.width; cloud.scale.y = cloud.scale.x;
       cloud.y = p.y; cloud.tint = tint; cloud.alpha = time==='night'?.4:.58;

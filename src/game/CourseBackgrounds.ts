@@ -1,7 +1,7 @@
 import { Assets, Sprite, type Texture } from 'pixi.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from './viewport';
 
-export const COURSE_TIMES = ['morning', 'noon', 'sunset', 'night'] as const;
+export const COURSE_TIMES = ['morning', 'noon', 'sunset', 'night', 'cherry'] as const;
 export type CourseTime = typeof COURSE_TIMES[number];
 export type CourseBackgrounds = Record<CourseTime, Texture> & { cloud?:Texture };
 export async function loadCourseBackgrounds(): Promise<CourseBackgrounds> {

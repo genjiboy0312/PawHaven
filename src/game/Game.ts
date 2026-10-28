@@ -84,7 +84,7 @@ export class Game {
   private releaseFrames(): void {
     if(this.courseBackgrounds){Object.values(this.courseBackgrounds).forEach(texture=>texture.destroy(false));this.courseBackgrounds=undefined;}
     if(this.snakeArt){[...this.snakeArt.move,...this.snakeArt.tongue].forEach(texture=>texture.destroy(false));this.snakeArt=undefined;}
-    if(this.courseArt){[this.courseArt.grass,this.courseArt.soil,...(this.courseArt.coin?[this.courseArt.coin]:[]),...(this.courseArt.box?[this.courseArt.box]:[]),...Object.values(this.courseArt.markers).map(marker=>marker.texture)].forEach(texture=>{if(!texture.destroyed)texture.destroy(false);});this.courseArt=undefined;}
+    if(this.courseArt){[this.courseArt.grass,this.courseArt.soil,...[this.courseArt.cherryGrass,this.courseArt.cherrySoil].filter((t):t is NonNullable<typeof t>=>!!t),...(this.courseArt.coin?[this.courseArt.coin]:[]),...(this.courseArt.box?[this.courseArt.box]:[]),...Object.values(this.courseArt.markers).map(marker=>marker.texture)].forEach(texture=>{if(!texture.destroyed)texture.destroy(false);});this.courseArt=undefined;}
     if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => {if(!texture.destroyed)texture.destroy(false);}); this.homeTextures = undefined; }
     const configs = [this.corgi, this.myeongrang, this.tuxedo].filter((config): config is AnimalConfig => !!config);
     const textures = new Set(configs.flatMap(config => [...Object.values(config.animations).flatMap(animation => animation.frames),
@@ -147,7 +147,7 @@ export class Game {
       this.commerce = state;
       releaseOwnership = state.subscribe(() => {
         if (!state.entitlementsKnown || this.commerce !== state) return;
-        home.revision++;
+        home.reconcileOwnership();home.revision++;
         const look = character.restore(PET_IDS.filter(id=>state.ownsPet(id)), (category, index) => state.owns(category, index));
         Object.assign(this.outfit, look.outfit);syncPetOwnership();
       });

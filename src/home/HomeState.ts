@@ -4,7 +4,7 @@ export const HOME_TABS = ['Background', 'Floor', 'Furniture', 'Etc'] as const;
 export type HomeTab = typeof HOME_TABS[number];
 export type HomeLook = Record<'Background' | 'Floor', number>;
 export const HOME_STORAGE_KEY = 'pawhaven.home.v1';
-export const SKY_COLORS = ['#edf0df', '#dce8ef', '#f0ded5', '#e4dff0'];
+export const SKY_COLORS = ['#edf0df', '#dce8ef', '#f0ded5', '#e4dff0', '#f2dae7'];
 export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#b8ced0', '#cfc3d8'];
 export interface Placement { x: number; y: number }
 export interface HomeItem extends Placement { id: number; tab: PlaceableTab; option: number }
@@ -21,7 +21,10 @@ export class HomeState {
   private objects: HomeItem[] = [];
   private nextId = 1;
   revision = 0;
-  get current(): HomeLook { return { ...this.value }; }
+  get current(): HomeLook { return { ...this.value, Background:this.backgroundAvailable(this.value.Background)?this.value.Background:0 }; }
+  reconcileOwnership():void {
+    if(this.value.Background!==0&&this.stock?.('Background',this.value.Background)===0)this.value.Background=0;
+  }
   get items(): HomeItem[] {
     const counts = new Map<string, number>();
     return this.objects.filter(item => {
@@ -35,7 +38,7 @@ export class HomeState {
   remaining(tab: PlaceableTab, option: number): number {
     return Math.max(0, this.owned(tab, option) - this.objects.filter(item => item.tab === tab && item.option === option).length);
   }
-  backgroundAvailable(option: number): boolean { return option === this.value.Background || option === 0 || !this.stock || (this.stock('Background', option) ?? 0) > 0; }
+  backgroundAvailable(option: number): boolean { return option === 0 || !this.stock || (this.stock('Background', option) ?? 0) > 0; }
   constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>, private readonly stock?: (tab: HomeProductTab, option: number) => number | undefined) {
     try {
       const saved = JSON.parse(storage?.getItem(HOME_STORAGE_KEY) ?? 'null');
@@ -60,6 +63,7 @@ export class HomeState {
         }
       }
     } catch { /* Defaults work without storage. */ }
+    this.reconcileOwnership();
   }
   select(tab: 'Background' | 'Floor', option: number): boolean {
     if (!['Background', 'Floor'].includes(tab) || !Number.isInteger(option) || option < 0 || option >= homeOptions[tab]) return false;
@@ -84,6 +88,6 @@ export class HomeState {
   }
   private save(): void {
     this.revision++;
-    try { this.storage?.setItem(HOME_STORAGE_KEY, JSON.stringify({ version: 2, ...this.value, items: this.objects })); } catch { /* Keep session changes. */ }
+    try { this.storage?.setItem(HOME_STORAGE_KEY, JSON.stringify({ version: 2, ...this.current, items: this.objects })); } catch { /* Keep session changes. */ }
   }
 }

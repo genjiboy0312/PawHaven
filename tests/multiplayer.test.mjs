@@ -187,7 +187,7 @@ test('Crossroads rooms use the new authoritative finish and preserve host/ready/
 
 test('all four map backdrops reuse saved opaque PNG resources and preserve shared textures on scene disposal',async()=>{
  const {courseBackdrop,COURSE_TIMES}=await importTs('../src/game/CourseBackgrounds.ts',import.meta.url);
- assert.deepEqual(COURSE_TIMES,['morning','noon','sunset','night']);
+ assert.deepEqual(COURSE_TIMES,['morning','noon','sunset','night','cherry']);
  for(const time of COURSE_TIMES){
   const original=await readFile(new URL('../Resources/Park_Background_'+time+'.png',import.meta.url));
   const deployed=await readFile(new URL('../public/assets/backgrounds/'+time+'.png',import.meta.url));
@@ -589,9 +589,9 @@ test('single map choice launches without an account and restores the lobby input
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
-    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (4) ▾');
+    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (5) ▾');
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
-    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,4);
+    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,5);
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='forest').getAttribute('data-map'),'forest');
     choices.children.find(c=>c.getAttribute('data-map')==='practice').dispatchEvent(new Event('click'));
@@ -736,12 +736,12 @@ test('single and multiplayer use one top back action while preserving pagination
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'mode');
     assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Single').dispatchEvent(new Event('click'));
-    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (4) ▾');
+    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (5) ▾');
     assert.ok(env.host.querySelector('.single-map-heading').children.includes(change));
     change.dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.room-map-picker').getAttribute('aria-label'),'Choose map');
     env.host.querySelector('.room-map-picker').querySelector('.settings-close').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'single');
-    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (4) ▾');
+    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (5) ▾');
     assert.equal(env.host.querySelector('.play-menu-back').hidden,true);assert.equal(env.host.querySelector('.play-menu-back').disabled,true);
     const leave=env.host.querySelector('.play-menu-exit');assert.equal(leave.textContent,'나가기');assert.equal(env.host.querySelector('.play-menu-footer').contains(leave),true);
     leave.dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(menu.closeButton.hidden,false);

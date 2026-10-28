@@ -154,7 +154,7 @@ export class PlayScene extends Scene {
     }
     this.world.scale.set(PLAY_ZOOM);
     this.world.y = PLAY_GROUND_Y - COURSE_GROUND * PLAY_ZOOM;
-    const terrain = settings?.art?courseTerrain(this.run.course,settings.art):new Graphics();
+    const terrain = settings?.art?courseTerrain(this.run.course,settings.map==='cherry'?{...settings.art,grass:settings.art.cherryGrass??settings.art.grass,soil:settings.art.cherrySoil??settings.art.soil,grassTileHeight:settings.art.tileWorldSize*.2}:settings.art):new Graphics();
     if(settings?.art)this.terrainView=terrain as CourseTerrain;
     if(forest&&!settings?.backgrounds){
       const trees=new Graphics();trees.label='forest-scenery';

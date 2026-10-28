@@ -4,6 +4,7 @@ import type {CourseId} from './CourseCatalog';
 import {COURSE_GROUND} from './TrainingCourse';
 /** Fixed sparse scenery only: no collisions, network messages or inventory ownership. */
 export const COURSE_DECOR:Record<CourseId,readonly (readonly [GardenProp,number])[]>={
+ cherry:[['cherryTree',350],['fence',1080],['cherryTree',2570],['cherryTree',4320],['fence',4860],['cherryTree',6010],['crate',6270]],
  practice:[['greenTree',300],['fence',1040],['cherryTree',1700],['crate',2320]],
  garden:[['greenTree',350],['fence',1080],['cherryTree',2570],['greenTree',4320],['fence',4860],['cherryTree',6010],['crate',6270]],
  forest:[['greenTree',300],['fence',980],['greenTree',2650],['cherryTree',5300],['fence',6900],['greenTree',8580],['crate',9900]],
