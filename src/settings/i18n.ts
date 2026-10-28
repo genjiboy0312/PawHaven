@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  attendanceMailTitle:'Daily Visit Gift',attendanceMailBody:'Thank you for visiting today!\nHere are {coins} Coins for your next little purchase.\nOne gift per day, based on Korean time. Collect it with Receive.',
   roomAccess:'Room access',roomPublic:'Public',roomInviteOnly:'Invite only',roomPublicHint:'Anyone can join from the room list.',roomInviteOnlyHint:'Hidden from the room list. Only friends you invite can join.',roomPrivacySetup:'Invite-only rooms need a server update. Public rooms are available.',
   skyCloudBubble: 'Sky Cloud Bubble', speechSkinPreview: 'Happy to see you!', speechSkinSetup: 'This item needs a server update.',
   roomChat:'Room chat',roomChatSetup:'Room chat needs a server update.',roomChatOffline:'Unable to send or load chat. Please try again.',roomChatSlow:'Please wait a moment before sending again.',
@@ -123,6 +124,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  attendanceMailTitle:'오늘의 출석 선물',attendanceMailBody:'오늘도 만나러 와 주셔서 고마워요!\n작은 꾸미기를 위한 {coins}코인을 준비했어요.\n한국 시간 기준 하루 한 번 지급되며, 받기를 눌러 수령해 주세요.',
   roomAccess:'방 공개 설정',roomPublic:'공개',roomInviteOnly:'초대 전용',roomPublicHint:'방 목록에서 누구나 입장할 수 있어요.',roomInviteOnlyHint:'목록에 표시되지 않으며 초대한 친구만 입장할 수 있어요.',roomPrivacySetup:'초대 전용은 서버 업데이트 후 사용할 수 있어요. 공개 방은 이용할 수 있어요.',
   skyCloudBubble: '하늘 구름 말풍선', speechSkinPreview: '만나서 반가워요!', speechSkinSetup: '서버 업데이트 후 구매할 수 있어요.',
   roomChat:'대기방 채팅',roomChatSetup:'대기방 채팅 서버 업데이트가 필요해요.',roomChatOffline:'대화를 불러오거나 보내지 못했어요. 다시 시도해 주세요.',roomChatSlow:'잠시 후 다시 보내 주세요.',

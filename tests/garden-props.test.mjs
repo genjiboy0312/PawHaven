@@ -16,6 +16,7 @@ const {COURSE_COINS,courseCoinLimit}=await importTs('../src/game/CourseCoins.ts'
 const {itemPrice}=await importTs('../src/shop/ShopState.ts',import.meta.url);
 const {speechSkinItem}=await importTs('../src/animals/SpeechSkins.ts',import.meta.url);
 const {SpeechBubble}=await importTs('../src/animals/SpeechBubble.ts',import.meta.url);
+const {MailboxClient,parseMailbox}=await importTs('../src/mail/MailboxClient.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610210008_home_shop.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610240011_snacks.sql','202610240012_park_channels.sql','202610250015_player_blocks.sql','202610240013_mailbox.sql','202610250016_mail_coupons.sql','202610250017_friend_home_visits.sql','202610260019_mail_receipts.sql','202610270021_garden_props_shop.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
@@ -248,4 +249,26 @@ test('cloud bubble is server-priced once, account-isolated, retry-safe and gated
  const peer=await as(0,"select public.park_command('join',1,$1,'') as data",[nonce()]);assert.equal(peer.members.find(m=>m.id===users[1]).look.outfit.Etc,2);assert.equal(peer.members.find(m=>m.id===users[1]).look.petId,'myeongrang');
  await db.exec(sql);assert.equal((await economy(1)).snapshot.coins,850);
  const api=new EconomyClient(request=>economy(1,request.p_action,request.p_payload,request.p_request_id),nonce),state=new ServerShopState(api);while(api.busy)await new Promise(r=>setImmediate(r));assert.equal(state.speechSkinsReady,true);assert.equal(state.owns('Etc',2),true);state.destroy();
+});
+
+test('daily attendance delivers one server-dated 30-Coin mail per account without crediting before receipt',async()=>{
+ const sql=await readFile(new URL('../supabase/migrations/202610290029_daily_attendance_mail.sql',import.meta.url),'utf8');await db.exec(sql);
+ const before=(await economy(0)).snapshot.coins,delivery=()=>as(0,'select public.daily_attendance_mail() as data');
+ const first=parseMailbox(await delivery()),mail=first.mail.find(m=>m.kind==='attendance');assert.ok(mail);assert.deepEqual(mail.rewards,{coins:30});assert.equal(mail.claimedAt,null);assert.equal((await economy(0)).snapshot.coins,before);
+ const row=(await db.query("select delivery_key,expires_at,created_at from public.player_mail where id=$1",[mail.id])).rows[0];const day=(await db.query("select (clock_timestamp() at time zone 'Asia/Seoul')::date::text as day")).rows[0].day;assert.equal(row.delivery_key,'attendance:'+day);assert.ok((new Date(row.expires_at)-new Date(row.created_at))/86400000>29);
+ assert.equal((await delivery()).mail.filter(m=>m.kind==='attendance').length,1);assert.equal((await delivery()).mail.find(m=>m.kind==='attendance').id,mail.id);
+ await db.exec("set timezone='Pacific/Honolulu'");assert.equal((await delivery()).mail.find(m=>m.kind==='attendance').id,mail.id);await db.exec("set timezone='UTC'");
+ await assert.rejects(as(null,'select public.daily_attendance_mail() as data',[],'anon'),/permission denied/);await assert.rejects(as(null,'select public.daily_attendance_mail() as data'),/not_authenticated/);await assert.rejects(as(1,'select public.daily_attendance_mail($1) as data',[users[0]]),/does not exist/);
+ await db.query('update public.economy_wallets set coins=999990 where user_id=$1',[users[0]]);const blocked=await as(0,"select public.mailbox_command('claim',$1) as data",[mail.id]);assert.equal(blocked.outcome,'capacity');assert.equal(blocked.mail.find(m=>m.id===mail.id).claimedAt,null);
+ await db.query('update public.economy_wallets set coins=$1 where user_id=$2',[before,users[0]]);const paid=await as(0,"select public.mailbox_command('claim',$1) as data",[mail.id]);assert.equal(paid.received.coins,30);assert.equal((await economy(0)).snapshot.coins,before+30);assert.equal((await as(0,"select public.mailbox_command('claim',$1) as data",[mail.id])).received.coins,0);
+ await db.exec(sql);assert.equal((await delivery()).mail.find(m=>m.kind==='attendance').id,mail.id);assert.equal((await economy(0)).snapshot.coins,before+30);
+});
+
+test('yesterday mail remains separate, attendance response loss retries safely and another account claims independently',async()=>{
+ const yesterday=(await db.query("select ((clock_timestamp() at time zone 'Asia/Seoul')::date-1)::text as day")).rows[0].day;
+ await as(null,"select public.send_player_mail($1,$2,'Yesterday','A previous daily gift',$3) as data",[users[1],'attendance:'+yesterday,JSON.stringify({coins:30})],'service_role');
+ const before=(await economy(1)).snapshot.coins,requests=[];let lost=true;
+ const client=new MailboxClient(async request=>{requests.push(request.p_action);const result=await as(1,'select public.daily_attendance_mail() as data');if(lost){lost=false;throw Error('lost response')}return result;});
+ assert.equal(await client.run('attendance'),false);assert.equal(await client.run('load'),true);assert.deepEqual(requests,['attendance','attendance']);assert.equal(client.snapshot.mail.filter(m=>m.kind==='attendance').length,2);
+ const today=client.snapshot.mail.find(m=>m.kind==='attendance'&&m.title==='Daily Visit Gift');assert.ok(today);const paid=await as(1,"select public.mailbox_command('claim',$1) as data",[today.id]);assert.equal(paid.received.coins,30);assert.equal((await economy(1)).snapshot.coins,before+30);assert.equal((await as(1,'select public.daily_attendance_mail() as data')).mail.filter(m=>m.kind==='attendance').length,2);client.destroy();
 });

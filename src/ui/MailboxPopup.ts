@@ -58,7 +58,7 @@ export class MailboxPopup {
     const group=mailGroup(mail,s.expired(mail));
     if(group!==previousGroup){const heading=document.createElement('h3');heading.className='mailbox-group';heading.textContent=t(group);this.list.append(heading);previousGroup=group;}
     const row=this.button('mail',()=>{this.selected=mail.id;this.render();if(!mail.readAt)void s.run('read',mail.id);});row.className='mailbox-row';row.setAttribute('aria-pressed',String(mail.id===this.selected));row.disabled=s.busy;
-    row.dataset.state=group;const title=document.createElement('strong');title.textContent=mail.title;const status=document.createElement('span');status.textContent=t(group==='mailWaiting'&&!hasMailRewards(mail)?'mailConfirm':group);row.replaceChildren(title,status);this.list.append(row);
+    row.dataset.state=group;const title=document.createElement('strong');title.textContent=mail.kind==='attendance'?t('attendanceMailTitle'):mail.title;const status=document.createElement('span');status.textContent=t(group==='mailWaiting'&&!hasMailRewards(mail)?'mailConfirm':group);row.replaceChildren(title,status);this.list.append(row);
    }
    this.showMail(mails.find(m=>m.id===this.selected)!);
   }
@@ -68,8 +68,8 @@ export class MailboxPopup {
   this.footer.append(coupon,refresh,all);this.list.scrollTop=scroll;
  }
  private showMail(mail:PlayerMail){
-  const s=this.state!,title=document.createElement('h3');title.textContent=mail.title;
-  const body=this.paragraph(mail.body);body.className='mailbox-body';
+  const s=this.state!,title=document.createElement('h3');title.textContent=mail.kind==='attendance'?t('attendanceMailTitle'):mail.title;
+  const body=this.paragraph(mail.kind==='attendance'?t('attendanceMailBody').replace('{coins}',String(mail.rewards.coins??0)):mail.body);body.className='mailbox-body';
   const expires=this.paragraph(t('mailExpires')+' '+new Date(mail.expiresAt).toLocaleDateString());
   const rewards=document.createElement('div');rewards.className='mailbox-rewards';
   if(mail.rewards.coins){const coins=document.createElement('span');coinAmount(coins,mail.rewards.coins);rewards.append(coins);}

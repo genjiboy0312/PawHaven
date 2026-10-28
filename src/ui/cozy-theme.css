@@ -801,3 +801,11 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .pass-offer-actions{position:sticky;bottom:0;display:flex;align-items:center;flex-wrap:wrap;gap:1cqw;margin-top:1cqh;padding:1.3cqh 1cqw;border:1px solid var(--ui-edge);border-radius:1.4cqw;background:transparent url('/assets/ui/surfaces/surface-3517d28f050a.png') center/100% 100% no-repeat;}
 .pass-offer-actions>span{margin-right:auto;}
 .shop-screen .pass-offer-actions button{font-size:clamp(11px,1.5cqw,20px);}
+.shop-screen .shop-pass{left:52%;right:4%;bottom:8cqh;padding:1.5cqh 1.5cqw;min-width:0;box-sizing:border-box;overflow-x:hidden;font-size:clamp(11px,1.3cqw,17px);}
+.shop-pass .pass-offer,.shop-pass .pass-offer-comparison article{min-width:0;max-width:100%;overflow-wrap:anywhere;}
+.shop-pass .pass-offer h3{font-size:clamp(16px,2cqw,27px);}
+.shop-pass .pass-offer-intro,.shop-pass .pass-offer-comparison h4{font-size:clamp(12px,1.5cqw,20px);}
+.shop-pass .pass-offer-comparison .pass-offer-total{font-size:clamp(16px,2cqw,26px);}
+.shop-pass .pass-offer-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1cqh 1cqw;}
+.shop-pass .pass-offer-actions>span{grid-column:1/-1;margin:0;}
+.shop-screen .pass-offer-actions button{min-width:0;white-space:normal;font-size:clamp(10px,1.2cqw,16px);}

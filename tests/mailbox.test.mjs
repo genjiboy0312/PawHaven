@@ -1,5 +1,5 @@
 import {test,beforeEach,after} from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {PGlite} from '@electric-sql/pglite';import {importTs} from './load-typescript.mjs';
-const {MailboxClient,parseMailbox,hasMailRewards,mailGroup}=await importTs('../src/mail/MailboxClient.ts',import.meta.url);
+const {MailboxClient,parseMailbox,hasMailRewards,mailGroup,mailboxTransport}=await importTs('../src/mail/MailboxClient.ts',import.meta.url);
 const db=new PGlite(),users=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'];let sequence=0;
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;");
 for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610210008_home_shop.sql','202610240011_snacks.sql','202610240013_mailbox.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
@@ -115,4 +115,17 @@ test('lost coupon responses retry the same code and cannot create a second deliv
  assert.equal(await client.run('redeem',' paw-test '),false);await cooldown();assert.equal(await client.run('load'),true);
  assert.deepEqual(requests.at(-1),{p_action:'redeem',p_mail_id:null,p_code:'PAW-TEST'});assert.equal(client.snapshot.outcome,'couponUsed');assert.equal(client.pending,1);assert.equal(client.snapshot.mail.length,1);
  assert.equal((await db.query('select used_count from public.mail_coupons')).rows[0].used_count,1);client.destroy();
+});
+
+test('attendance transport falls back only for missing SQL and keeps account identity checks',async()=>{
+ const calls=[],snapshot={mail:[],pending:0,revision:0,now:new Date().toISOString(),outcome:'loaded',granted:0,blocked:0};let failure={code:'PGRST202'},current=users[0];
+ const api={auth:{async getSession(){return{data:{session:{user:{id:current},access_token:'test'}},error:null}}},rpc(name,args){calls.push({name,args});return{setHeader(){return this},async abortSignal(){return name==='daily_attendance_mail'?{error:failure,data:null}:{error:null,data:snapshot}}}}};
+ const transport=mailboxTransport(api,users[0]),signal=new AbortController().signal;assert.deepEqual(await transport({p_action:'attendance',p_mail_id:null},signal),snapshot);assert.deepEqual(calls.map(c=>c.name),['daily_attendance_mail','mailbox_command']);assert.deepEqual(calls[1].args,{p_action:'load',p_mail_id:null});
+ calls.length=0;failure={code:'network'};await assert.rejects(transport({p_action:'attendance',p_mail_id:null},signal));assert.equal(calls.length,1);current=users[1];await assert.rejects(transport({p_action:'attendance',p_mail_id:null},signal));assert.equal(calls.length,1);
+});
+
+test('lobby attendance waits behind a running mail request and regular polling keeps its existing path',async()=>{
+ const base={mail:[],pending:0,revision:0,now:new Date().toISOString(),outcome:'loaded',granted:0,blocked:0},calls=[];let resolve;
+ const client=new MailboxClient(request=>{calls.push(request.p_action);if(calls.length===1)return new Promise(r=>resolve=r);return Promise.resolve(base)});
+ const loading=client.run('load');client.start();assert.deepEqual(calls,['load']);resolve(base);await loading;await new Promise(r=>setImmediate(r));assert.deepEqual(calls,['load','attendance']);client.start();await new Promise(r=>setImmediate(r));assert.deepEqual(calls,['load','attendance','attendance']);client.destroy();
 });
