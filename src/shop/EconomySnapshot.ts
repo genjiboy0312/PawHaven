@@ -7,6 +7,7 @@ export interface EconomySnapshot {
   snacks?:number;snacksReady?:boolean;
   homeItems?: Record<string, number>; homeShopReady?: boolean;
   homeBackgroundShopReady?: boolean;
+  homeFloorShopReady?:boolean;
   cherrySkyReady?:boolean;
   runRewardsReady?: boolean;
   raceRewardsReady?: boolean;
@@ -44,11 +45,12 @@ export function parseEconomyResult(input: unknown): EconomyResult {
     const receipt = result.run_reward;
     if (!receipt || !value.runRewardsReady || result.outcome !== 'finished' || !result.run_id || !integer(receipt.collected,MAX_COURSE_COINS) || receipt.bonus !== 10 || !integer(receipt.coins,10+MAX_COURSE_COINS) || receipt.coins > receipt.collected + receipt.bonus) throw Error('invalid_economy_response');
   }
+  if(value.homeFloorShopReady!==undefined&&(value.homeFloorShopReady!==true||!value.homeShopReady))throw Error('invalid_economy_response');
   if(value.cherrySkyReady!==undefined&&(value.cherrySkyReady!==true||!value.homeBackgroundShopReady))throw Error('invalid_economy_response');
   if (value.homeBackgroundShopReady !== undefined && (value.homeBackgroundShopReady !== true || !value.homeShopReady)) throw Error('invalid_economy_response');
   if((value.snacksReady!==undefined&&value.snacksReady!==true)||(value.snacksReady===true&&!integer(value.snacks,99))||(value.snacks!==undefined&&!integer(value.snacks,99))||(result.petId!==undefined&&!isPetId(result.petId)))throw Error('invalid_economy_response');
   if (value.homeShopReady === true || value.homeItems !== undefined) {
-    if (!value.homeItems || Array.isArray(value.homeItems) || typeof value.homeItems !== 'object' || Object.keys(value.homeItems).length > homeOptions.Furniture+homeOptions.Etc+homeOptions.Background-2) throw Error('invalid_economy_response');
+    if (!value.homeItems || Array.isArray(value.homeItems) || typeof value.homeItems !== 'object' || Object.keys(value.homeItems).length > homeOptions.Furniture+homeOptions.Etc+homeOptions.Background+homeOptions.Floor-2) throw Error('invalid_economy_response');
     for (const [key, count] of Object.entries(value.homeItems)) {
       const [tab, index] = key.split(':');
       if (!validHomeProduct(tab, Number(index)) || key !== homeKey(tab, Number(index)) || !integer(count, homeStockLimit(tab)) || count < homeInitialStock(tab, Number(index))) throw Error('invalid_economy_response');

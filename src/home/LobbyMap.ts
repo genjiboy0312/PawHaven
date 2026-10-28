@@ -1,18 +1,18 @@
-import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, TilingSprite, type Texture } from 'pixi.js';
 import { SKY_COLORS, FLOOR_COLORS, type HomeItem, type HomeLook } from './HomeState';
 import {gardenProp,gardenPropSprite,type GardenPropTextures} from './GardenProps';
-export interface HomeTextures extends GardenPropTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture; noon?:Texture; sunset?:Texture; night?:Texture; cherry?:Texture }
+export interface HomeTextures extends GardenPropTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture; noon?:Texture; sunset?:Texture; night?:Texture; cherry?:Texture; cherryFloor?:Texture }
 /** Shared map renderer; every placed object owns its own view and persistent ID. */
 export class LobbyMap extends Container {
   private readonly paint = new Graphics();
   readonly objects = new Container();
   private readonly views = new Map<number, Container>();
   private readonly backdrop?: Sprite;
-  private readonly lawn?: Sprite;
+  private readonly lawn?: TilingSprite;
   constructor(private readonly textures?: HomeTextures) {
     super(); this.addChild(this.paint);
     if (textures) {
-      this.backdrop = new Sprite(textures.background); this.lawn = new Sprite(textures.floor);
+      this.backdrop = new Sprite(textures.background); this.lawn = new TilingSprite({texture:textures.floor,width:960,height:302});
       this.addChild(this.backdrop, this.lawn);
     }
     this.objects.sortableChildren = true; this.addChild(this.objects); this.label = 'lobby-map';
@@ -26,7 +26,9 @@ export class LobbyMap extends Container {
       const texture=[this.textures!.background,this.textures!.noon,this.textures!.sunset,this.textures!.night,this.textures!.cherry][look.Background];
       this.backdrop.visible = !!texture;if(texture)this.backdrop.texture=texture;
       this.backdrop.width = width; this.backdrop.height = height * 0.44;
-      this.lawn.visible = look.Floor === 0; this.lawn.position.set(0, height * 0.44); this.lawn.width = width; this.lawn.height = height * 0.56;
+      const floor=look.Floor===0?this.textures!.floor:look.Floor===4?this.textures!.cherryFloor:undefined;
+      this.lawn.visible=!!floor;if(floor){this.lawn.texture=floor;this.lawn.tileScale.set(look.Floor===4?160/floor.width:width/floor.width,look.Floor===4?160/floor.height:height*.56/floor.height);}
+      this.lawn.position.set(0, height * 0.44); this.lawn.width = width; this.lawn.height = height * 0.56;
     }
     for (const [id, view] of this.views) if (!items.some(item => item.id === id)) { view.destroy({ children: true }); this.views.delete(id); }
     for (const item of items) {

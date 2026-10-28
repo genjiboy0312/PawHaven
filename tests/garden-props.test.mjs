@@ -101,7 +101,7 @@ test('backgrounds unlock once, persist and gate Home selection without consuming
  const restored=new ShopState(storage);assert.equal(restored.coins,400);assert.equal(restored.homeOwned('Background',3),1);assert.equal(new HomeState(storage,(tab,index)=>restored.homeOwned(tab,index)).current.Background,3);
  assert.equal(restored.buyHome('Background',5),'invalid');assert.equal(restored.buyHome('Background',-1),'invalid');
  data.set('pawhaven.home.v1',JSON.stringify({version:2,Background:2,Floor:3,items:[]}));
- const legacy=new HomeState(storage,()=>0);assert.equal(legacy.current.Background,0);assert.equal(legacy.backgroundAvailable(2),false);assert.equal(legacy.select('Background',3),false);assert.equal(legacy.select('Floor',1),true);
+ const legacy=new HomeState(storage,()=>0);assert.equal(legacy.current.Background,0);assert.equal(legacy.backgroundAvailable(2),false);assert.equal(legacy.select('Background',3),false);assert.equal(legacy.select('Floor',1),false);
 });
 
 test('Lobby Background Shop enforces server price, ownership cap, account isolation and safe replay',async()=>{

@@ -5,7 +5,7 @@ export type HomeTab = typeof HOME_TABS[number];
 export type HomeLook = Record<'Background' | 'Floor', number>;
 export const HOME_STORAGE_KEY = 'pawhaven.home.v1';
 export const SKY_COLORS = ['#edf0df', '#dce8ef', '#f0ded5', '#e4dff0', '#f2dae7'];
-export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#b8ced0', '#cfc3d8'];
+export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#b8ced0', '#cfc3d8', '#d5bd94'];
 export interface Placement { x: number; y: number }
 export interface HomeItem extends Placement { id: number; tab: PlaceableTab; option: number }
 export function clampPlacement(x: number, y: number): Placement {
@@ -21,9 +21,9 @@ export class HomeState {
   private objects: HomeItem[] = [];
   private nextId = 1;
   revision = 0;
-  get current(): HomeLook { return { ...this.value, Background:this.backgroundAvailable(this.value.Background)?this.value.Background:0 }; }
+  get current(): HomeLook { return { ...this.value, Background:this.backgroundAvailable(this.value.Background)?this.value.Background:0, Floor:this.floorAvailable(this.value.Floor)?this.value.Floor:0 }; }
   reconcileOwnership():void {
-    if(this.value.Background!==0&&this.stock?.('Background',this.value.Background)===0)this.value.Background=0;
+    for(const tab of ['Background','Floor'] as const)if(this.value[tab]!==0&&this.stock?.(tab,this.value[tab])===0)this.value[tab]=0;
   }
   get items(): HomeItem[] {
     const counts = new Map<string, number>();
@@ -38,6 +38,7 @@ export class HomeState {
   remaining(tab: PlaceableTab, option: number): number {
     return Math.max(0, this.owned(tab, option) - this.objects.filter(item => item.tab === tab && item.option === option).length);
   }
+  floorAvailable(option:number):boolean {return option===0||!this.stock||(this.stock('Floor',option)??0)>0;}
   backgroundAvailable(option: number): boolean { return option === 0 || !this.stock || (this.stock('Background', option) ?? 0) > 0; }
   constructor(private readonly storage?: Pick<Storage, 'getItem' | 'setItem'>, private readonly stock?: (tab: HomeProductTab, option: number) => number | undefined) {
     try {
@@ -67,7 +68,7 @@ export class HomeState {
   }
   select(tab: 'Background' | 'Floor', option: number): boolean {
     if (!['Background', 'Floor'].includes(tab) || !Number.isInteger(option) || option < 0 || option >= homeOptions[tab]) return false;
-    if (tab === 'Background' && !this.backgroundAvailable(option)) return false;
+    if (tab === 'Background' && !this.backgroundAvailable(option)||tab==='Floor'&&!this.floorAvailable(option)) return false;
     this.value[tab] = option; this.save(); return true;
   }
   place(tab: PlaceableTab, option: number): number | undefined {
