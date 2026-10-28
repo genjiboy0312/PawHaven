@@ -1,12 +1,24 @@
 # 말풍선 스킨 시안
 
 - 2026-10-28: 사용자가 구름 모양의 하늘색·분홍색을 제안했고 하늘색 시안부터 제작하도록 요청했다.
-- 현재는 하늘색 v2 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
+- 현재는 하늘색 v3 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
 - 생성: 내장 image_gen 도구. 신규 이미지, 투명 배경. 원본 PNG는 재가공하지 않고 Resources에 복사한다.
 - 리소스: `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype.png`.
 - 스타일 기준: UI_STYLE.md의 블랙·화이트 펫 소파 기준 픽셀 밀도, 평면 2D, 얇은 자연스러운 윤곽, 절제된 색 단계. 구름 굴곡은 크고 완만하게, 중앙 글자 공간은 넉넉하게 유지한다. 글씨는 게임의 Jua로 런타임에 넣기 위해 이미지에는 넣지 않는다.
 
-## 하늘색 v2 수정 (사용자 피드백 우선)
+## 하늘색 v3 비율 수정 (최신 사용자 피드백 우선)
+
+- v2가 가로로 너무 길다는 피드백에 따라 가로를 줄이고 세로 여유를 늘렸다. 흰색 중앙/하늘색 테두리/사각형에 붙인 작은 뭉게 형태를 유지한다. 원본을 덮어쓰지 않고 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v3.png`에 저장한다. 내장 image_gen 편집을 사용했고 실제 게임 적용은 하지 않았다.
+
+```text
+Edit this PawHaven speech-bubble skin. The user likes the white rectangular center and sky-blue cloud-puff edging, but says it is much too horizontally stretched.
+Make the BODY approximately 1.8:1 width to height (for example a 540-wide by 300-high body, excluding a short tail), a compact rounded rectangular dialogue bubble with comfortable vertical room for three short dialogue lines. Visibly shorten the long horizontal span and increase the body height. Do not retain the panoramic banner proportions of the reference. Use a more balanced composition/canvas so the asset reads as a compact dialogue balloon.
+Preserve the current visual identity: solid WHITE central fill, delicate SKY-BLUE outline only, a few small soft cloud puffs attached to the outside of the rounded rectangle, a short integrated downward speech tail at bottom center. The underlying rounded rectangle must remain recognizable. Spacious uninterrupted white text-safe center; no blue tint across that center.
+Preserve the fine natural pixel-art craft of the reference: small restrained stepped edges and very limited color shading, flat friendly 2D pet-game UI, not coarse enlarged pixels, not glossy or 3D. Keep border and tail thickness proportionate, not horizontally squashed.
+Exactly one centered blank bubble. Genuine transparent alpha background outside it, modest margin, full shape visible. No text, letters, icons, animal, stars, sparkles, sample UI, scenery, watermark or extra variants.
+```
+
+## 하늘색 v2 수정 (이력)
 
 - 기본 둥근 사각 말풍선의 넓은 중앙 영역을 유지하고 바깥에 작은 뭉게 구름 모양을 붙이는 방향이다. 가운데는 흰색, 테두리만 하늘색이다. 기존 전체 파란 구름 시안을 덮어쓰지 않고 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v2.png`에 저장한다.
 - 내장 image_gen 편집 사용. v1 PNG를 참조했고 투명 배경을 유지했다. 아직 시안이며 게임 연동은 하지 않는다.
