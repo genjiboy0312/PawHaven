@@ -1,4 +1,4 @@
-import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
+import { Container, Graphics, Sprite, Text, type Texture, type DestroyOptions } from 'pixi.js';
 import { GAME_FONT } from '../ui/GameFont';
 
 // Conservative font widths keep layout deterministic before Pixi creates a canvas.
@@ -27,6 +27,9 @@ export function wrapSpeech(message: string, maxWidth = 272): string {
 export class SpeechBubble extends Container {
   private readonly plate = new Graphics();
   private readonly tail = new Graphics();
+  private readonly cloud = new Sprite();
+  private skin?: Texture;
+  private layoutDirty = false;
   private readonly caption = new Text({
     text: '', style: { fontFamily: GAME_FONT, fontSize: 18, fontWeight: '400', lineHeight: 25, align: 'center', fill: '#59605b' },
   });
@@ -49,17 +52,28 @@ export class SpeechBubble extends Container {
     super();
     this.caption.anchor.set(0.5);
     this.reaction.anchor.set(0.5);
-    this.addChild(this.plate, this.tail, this.caption, this.reaction);
+    this.cloud.anchor.set(704 / 1350, 370 / 865);
+    this.cloud.visible = false;
+    this.addChild(this.plate, this.tail, this.cloud, this.caption, this.reaction);
     this.visible = false;
     this.eventMode = 'none';
   }
 
+  setSkin(texture?: Texture): void {
+    if (this.skin === texture) return;
+    this.skin = texture; this.layoutDirty = true;
+    this.cloud.visible = !!texture;
+    if (texture) this.cloud.texture = texture;
+    this.plate.visible = this.tail.visible = !texture;
+  }
+
   present(message: string, seconds: number, hold = false, lifetime = 1.1, remaining?: number, reaction = ''): void {
-    const changed = message !== this.source || !!reaction !== this.reactionHeader;
+    const changed = this.layoutDirty || message !== this.source || !!reaction !== this.reactionHeader;
     if (changed) {
+      this.layoutDirty = false;
       this.source = message;
       this.reactionHeader = !!reaction;
-      const wrapped = wrapSpeech(message);
+      const wrapped = wrapSpeech(message, this.skin ? 220 : 272);
       this.caption.text = wrapped;
       this.age = 0;
       const lines = wrapped.split('\n');
@@ -68,6 +82,15 @@ export class SpeechBubble extends Container {
       this.halfHeight = lines.length === 1 && !reaction ? 18 : (lines.length * 25 + 20 + header) / 2;
       this.caption.y = header / 2;
       this.reaction.y = -this.halfHeight + 19;
+      if (this.skin) {
+        // Keep copy within the white centre, and preserve the cloud's compact proportions.
+        const contentHeight = lines.length * 25 + header;
+        this.bubbleWidth = Math.max(180, ...lines.map(line => lineWidth(line) + 100), (contentHeight + 62) * 1.73);
+        this.halfHeight = this.bubbleWidth / 1.73 / 2;
+        this.cloud.width = this.bubbleWidth * 1350 / 1265;
+        this.cloud.height = this.cloud.width * 865 / 1350;
+        this.reaction.y = -contentHeight / 2 + 12;
+      }
       this.plate.clear().roundRect(-this.bubbleWidth / 2, -this.halfHeight, this.bubbleWidth, this.halfHeight * 2, 10)
         .fill('#ffffff').stroke({ color: '#a9afaa', width: 1.3 });
       this.tailX = NaN;
@@ -88,7 +111,7 @@ export class SpeechBubble extends Container {
   }
 
   fitToViewport(animalX: number, animalY: number, width: number, height: number): void {
-    const halfWidth = this.bubbleWidth / 2 + 12, halfHeight = this.halfHeight + 12;
+    const halfWidth = this.bubbleWidth / 2 + 12, halfHeight = this.halfHeight + (this.skin ? this.cloud.height * .16 + 12 : 12);
     const targetX = Math.max(halfWidth, Math.min(width - halfWidth, animalX + this.x));
     this.x = targetX - animalX;
     this.y = Math.max(halfHeight - animalY, Math.min(height - halfHeight - animalY, this.y));
@@ -96,6 +119,7 @@ export class SpeechBubble extends Container {
   }
 
   private drawTail(x: number): void {
+    if (this.skin) return; // The approved art already contains its thought-dot tail.
     if (x === this.tailX) return;
     this.tailX = x;
     const y = this.halfHeight;

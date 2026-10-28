@@ -16,6 +16,7 @@ import { HomeShopPreview } from '../../home/HomeShopPreview';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
 import { PurchasePopup } from '../../ui/PurchasePopup';
 import { wearableItem } from '../../animals/Wearables';
+import { speechSkinItem } from '../../animals/SpeechSkins';
 import { Scene } from './Scene';
 import type {PetChoice} from './CharacterScene';
 import {paintPetPortrait} from '../../ui/PetPortrait';
@@ -90,6 +91,7 @@ export class ShopScene extends Scene {
     const previewReady=this.tab==='Style'&&!!this.config.wardrobe&&outfitReady(this.category,this.selected);
     if(previewReady)this.previewOutfit[this.category]=this.selected;
     this.previewNote.hidden=!previewReady;
+    this.previewNote.setAttribute('data-speech', String(previewReady && !!speechSkinItem(this.category,this.selected)));
     this.previewNote.textContent=t(this.config.wardrobe?.outfit[this.category]===this.selected?'shopEquipped':'shopPreviewOnly');
     this.update(0);
     const scroll = this.grid?.scrollTop ?? 0; this.grid = undefined;
@@ -121,12 +123,12 @@ export class ShopScene extends Scene {
       const owned = this.state.entitlementsKnown && this.state.owns(this.category, index);
       const ready = outfitReady(this.category, index);
       button.append(itemIcon(this.category, index));
-      button.setAttribute('aria-label', `${this.itemName(this.category, index)} · ${!ready ? t('shopComingSoon') + (owned ? ' · ' + t('owned') : '') : owned ? t('owned') : `${itemPrice(index)} ${t('coins')}`}`);
+      button.setAttribute('aria-label', `${this.itemName(this.category, index)} · ${!ready ? t('shopComingSoon') + (owned ? ' · ' + t('owned') : '') : owned ? t('owned') : `${itemPrice(index, this.category)} ${t('coins')}`}`);
       button.setAttribute('data-coming-soon', String(!ready));
       button.setAttribute('data-owned', String(owned));
       button.setAttribute('aria-pressed', String(this.selected === index));
       const price = document.createElement('span'); price.className = 'shop-price';
-      if (!ready) price.textContent = t('shopComingSoon'); else if (owned) price.textContent = t('owned'); else coinAmount(price, itemPrice(index)); button.append(price);
+      if (!ready) price.textContent = t('shopComingSoon'); else if (owned) price.textContent = t('owned'); else coinAmount(price, itemPrice(index, this.category)); button.append(price);
       button.addEventListener('click', () => { this.selected = index; this.reaction = 1.5; this.render(); }); grid.append(button);
     }
     const footer = document.createElement('div'); footer.className = 'shop-purchase';
@@ -136,28 +138,30 @@ export class ShopScene extends Scene {
     const owned = this.state.entitlementsKnown && this.state.owns(this.category, this.selected);
     const cost = document.createElement('span'); cost.className = 'shop-cost';
     if (ready && owned) cost.textContent=t('owned');
-    else if (ready) coinAmount(cost, itemPrice(this.selected));
+    else if (ready) coinAmount(cost, itemPrice(this.selected, this.category));
     else cost.textContent = t('shopComingSoon') + (this.state.entitlementsKnown && this.state.owns(this.category, this.selected) ? ' · ' + t('owned') : '');
     detail.append(name, cost);
     const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'commerce-primary';
-    const enough = this.state.coins >= itemPrice(this.selected);
+    const enough = this.state.coins >= itemPrice(this.selected, this.category);
+    const serverReady = !speechSkinItem(this.category, this.selected) || this.state.speechSkinsReady;
+    if (ready && !owned && !serverReady) cost.textContent = t('speechSkinSetup');
     const equipped=this.config.wardrobe?.outfit[this.category]===this.selected;
     const purchased = owned && this.lastPurchase?.category === this.category && this.lastPurchase.index === this.selected;
     const status = !ready ? 'comingSoon' : !this.state.entitlementsKnown ? this.state.connection === 'loading' ? 'loading' : 'unavailable'
       : owned ? purchased ? 'purchased' : 'owned' : this.state.busy || this.state.connection === 'loading' ? 'processing'
-      : !this.state.ready ? 'unavailable' : enough ? 'available' : 'insufficient';
+      : !this.state.ready || !serverReady ? 'unavailable' : enough ? 'available' : 'insufficient';
     buy.setAttribute('data-purchase-state', status);
     footer.setAttribute('data-purchase-state', status);
     buy.textContent = t(ready&&owned&&this.onEquip?(equipped?'shopEquipped':'shopEquip'):PURCHASE_LABELS[status]);
-    buy.disabled = owned ? !ready||!this.config.wardrobe||!this.onEquip||equipped||this.state.busy : !ready||!enough||!this.state.ready;
+    buy.disabled = owned ? !ready||!this.config.wardrobe||!this.onEquip||equipped||this.state.busy : !ready||!enough||!this.state.ready||!serverReady;
     buy.addEventListener('click', () => {
       const category = this.category, index = this.selected;
       if(owned&&!this.destroyed&&!buy.disabled&&this.onEquip&&this.config.wardrobe&&this.config.wardrobe.outfit[category]!==index&&outfitReady(category,index)&&this.state.entitlementsKnown&&this.state.owns(category,index)){
         this.onEquip(category,index);this.reaction=1.5;this.render();return;
       }
       if (this.destroyed || buy.disabled || !outfitReady(category, index) || !this.state.ready || this.state.owns(category, index)) return;
-      this.purchase.open({ name: () => this.itemName(category, index), icon: () => itemIcon(category, index), price: itemPrice(index),
-        available: () => outfitReady(category, index) && !this.state.owns(category, index), fulfilled: () => this.state.owns(category, index),
+      this.purchase.open({ name: () => this.itemName(category, index), icon: () => itemIcon(category, index), price: itemPrice(index, category),
+        available: () => outfitReady(category, index) && (!speechSkinItem(category,index) || this.state.speechSkinsReady) && !this.state.owns(category, index), fulfilled: () => this.state.owns(category, index),
         buy: () => this.state.buy(category, index), purchased: () => this.purchased(category, index, 'purchased') });
     });
     footer.append(detail, buy); this.content.append(categories, grid, footer);
@@ -249,7 +253,7 @@ export class ShopScene extends Scene {
     if (known && !ready) { const hint = document.createElement('p'); bindText(hint, 'homeShopSetup'); this.homePreview.append(hint); }
   }
   private itemName(category: OutfitTab, index: number): string {
-    const item=wearableItem(category,index);
+    const item=wearableItem(category,index) ?? speechSkinItem(category,index);
     return item?t(item.name):`${t(category)} ${String(index).padStart(2, '0')}`;
   }
   private purchased(category: OutfitTab, index: number, result: string): void {
@@ -259,7 +263,10 @@ export class ShopScene extends Scene {
   resize(_width: number, _height: number): void {}
   override update(seconds: number): void {
     this.elapsed += seconds; this.reaction = Math.max(0, this.reaction - seconds);
-    this.animation.update(this.reaction > 0 ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds);
+    const speech = this.tab === 'Style' && this.category === 'Etc' && speechSkinItem('Etc', this.selected)
+      ? { message: t('speechSkinPreview'), remaining: 1 } : undefined;
+    this.animation.update(this.reaction > 0 ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds, undefined, undefined, speech);
+    if (speech) { this.animation.welcomeMark.scale.set(.65); this.animation.welcomeMark.position.set(0,-180); }
     if(this.tab!=='Style')this.animation.welcomeMark.visible=false;
     if(this.petPreview.visible)this.petAnimation?.update(this.reaction>0?'EMOTE':'IDLE',this.elapsed,1,0,0,seconds);
   }

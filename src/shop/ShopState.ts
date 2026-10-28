@@ -1,4 +1,5 @@
 import { OUTFIT_TABS, type OutfitTab } from '../animals/OutfitState';
+import { speechSkinItem } from '../animals/SpeechSkins';
 import { homeStockLimit, homeInitialStock, homeKey, homePrice, validHomeProduct, type HomeProductTab } from '../home/HomeCatalog';
 import type { CourseId } from '../game/CourseCatalog';
 import { validRunCoins, RUN_FINISH_BONUS, type RunReward } from './RunReward';
@@ -15,7 +16,7 @@ function localDay(time: number): string {
   const date = new Date(time);
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
 }
-export const itemPrice = (index: number): number => 75 + Math.floor((index - 1) / 5) * 25;
+export const itemPrice = (index: number, category?: OutfitTab): number => (category && speechSkinItem(category,index)?.price) || 75 + Math.floor((index - 1) / 5) * 25;
 const itemKey = (category: OutfitTab, index: number): string => category + ':' + index;
 const validItem = (value: string): boolean => OUTFIT_TABS.some(tab => Array.from({ length: 20 }, (_, i) => itemKey(tab, i + 1)).includes(value));
 export class ShopState {
@@ -28,6 +29,7 @@ export class ShopState {
   readonly raceRewardsReady = false;
   readonly dailyCoinQuestReady = true;
   readonly boxCoinRewardsReady = true;
+  readonly speechSkinsReady = true;
   runReward?: RunReward;
   private activeRun?: CourseId;
   readonly snacksReady=true;
@@ -133,7 +135,7 @@ export class ShopState {
   buy(category: OutfitTab, index: number): 'purchased' | 'owned' | 'insufficient' | 'invalid' {
     if (!OUTFIT_TABS.includes(category) || !Number.isInteger(index) || index < 1 || index > 20) return 'invalid';
     if (this.owns(category, index)) return 'owned';
-    const price = itemPrice(index);
+    const price = itemPrice(index, category);
     if (price > this.balance) return 'insufficient';
     this.balance -= price; this.items.add(itemKey(category, index)); this.save(); return 'purchased';
   }

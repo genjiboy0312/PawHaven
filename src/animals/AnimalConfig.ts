@@ -15,7 +15,7 @@ export interface AnimalConfig {
   speed: number;
   scale: number;
   animations: AnimationSet;
-  wardrobe?: { santaHat: Texture; topHat?:Texture; bowTie?:Texture; outfit: OutfitState };
+  wardrobe?: { santaHat: Texture; topHat?:Texture; bowTie?:Texture; speechCloud?:Texture; outfit: OutfitState };
   effects?: Partial<Record<'attack' | 'skill', Texture[]>>;
   behavior?: BehaviorProfile;
   welcome?: WelcomeConfig;

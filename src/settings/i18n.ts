@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  skyCloudBubble: 'Sky Cloud Bubble', speechSkinPreview: 'Happy to see you!', speechSkinSetup: 'This item needs a server update.',
   roomChat:'Room chat',roomChatSetup:'Room chat needs a server update.',roomChatOffline:'Unable to send or load chat. Please try again.',roomChatSlow:'Please wait a moment before sending again.',
   homeGreenTree:'Small Green Tree',homeCherryTree:'Cherry Blossom Tree',homeCrate:'Wooden Crate',
   shopPets:'Pets',petDogs:'Dogs',petCats:'Cats',petDucks:'Ducks',shopPetOwnedNote:'Select your companion in Character → Pets.',
@@ -121,6 +122,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  skyCloudBubble: '하늘 구름 말풍선', speechSkinPreview: '만나서 반가워요!', speechSkinSetup: '서버 업데이트 후 구매할 수 있어요.',
   roomChat:'대기방 채팅',roomChatSetup:'대기방 채팅 서버 업데이트가 필요해요.',roomChatOffline:'대화를 불러오거나 보내지 못했어요. 다시 시도해 주세요.',roomChatSlow:'잠시 후 다시 보내 주세요.',
   homeGreenTree:'작은 초록 나무',homeCherryTree:'벚꽃 나무',homeCrate:'나무 상자',
   shopPets:'펫',petDogs:'강아지',petCats:'고양이',petDucks:'오리',shopPetOwnedNote:'캐릭터 → 동물에서 함께할 펫을 선택해 주세요.',

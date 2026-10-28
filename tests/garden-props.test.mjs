@@ -12,6 +12,9 @@ const {HomeShopPreview}=await importTs('../src/home/HomeShopPreview.ts',import.m
 const {EconomyClient}=await importTs('../src/shop/EconomyClient.ts',import.meta.url);
 const {ServerShopState}=await importTs('../src/shop/ServerShopState.ts',import.meta.url);
 const {COURSE_COINS,courseCoinLimit}=await importTs('../src/game/CourseCoins.ts',import.meta.url);
+const {itemPrice}=await importTs('../src/shop/ShopState.ts',import.meta.url);
+const {speechSkinItem}=await importTs('../src/animals/SpeechSkins.ts',import.meta.url);
+const {SpeechBubble}=await importTs('../src/animals/SpeechBubble.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610210008_home_shop.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610240011_snacks.sql','202610240012_park_channels.sql','202610250015_player_blocks.sql','202610240013_mailbox.sql','202610250016_mail_coupons.sql','202610250017_friend_home_visits.sql','202610260019_mail_receipts.sql','202610270021_garden_props_shop.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
@@ -200,4 +203,32 @@ test('box coin reward limits match map collectibles plus targets for single/mult
  const room=nonce(),round=nonce();await db.query("insert into public.mp_rooms(id,name,host,map,phase,round_id,starts_at)values($1,'Box coins',$2,'garden','results',$3,clock_timestamp()-interval '12 seconds')",[room,users[0],round]);await db.query("insert into public.mp_racers(room_id,user_id,nickname,finished_ms)values($1,$2,'Player1',9000)",[room,users[1]]);
  const before=(await economy(1)).snapshot.coins,payload={room,round,collected:12};const paid=await economy(1,'race_reward',payload);assert.equal(paid.snapshot.coins,before+22);assert.equal(paid.snapshot.daily.coins,20);assert.equal((await economy(1,'race_reward',payload)).snapshot.coins,paid.snapshot.coins);
  await db.exec(sql);assert.equal((await economy(1,'race_reward',payload)).run_reward.coins,22);const corrupt=structuredClone(paid);corrupt.run_reward.coins=26;assert.throws(()=>parseEconomyResult(corrupt),/invalid_economy_response/);
+});
+
+test('cloud bubble uses the approved PNG, wraps inside its white centre and restores the free default',async()=>{
+ const skin=speechSkinItem('Etc',2);assert.equal(skin.price,150);assert.equal(speechSkinItem('Hat',2),undefined);
+ assert.deepEqual(await readFile(new URL('../public/assets/items/'+skin.file,import.meta.url)),await readFile(new URL('../Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v6.png',import.meta.url)));
+ const texture=new Texture({source:new TextureSource({width:1350,height:865})}),bubble=new SpeechBubble();
+ for(const message of ['Happy to see you!','오늘도 고생 많았어요.\n우리 내일도 만나요!','A very long nickname sends a message '.repeat(4)]){
+  bubble.setSkin(texture);bubble.present(message,0,true,1,undefined,'♡');assert.equal(bubble.visible,true);
+  for(const line of bubble.displayText.split('\n'))assert.ok(Array.from(line).reduce((w,c)=>w+(c===' '?5:c.charCodeAt(0)>255?18:10),0)<=220);
+  for(const x of [0,480,960]){bubble.position.set(0,-200);bubble.fitToViewport(x,180,960,540);assert.ok(x+bubble.x-bubble.halfWidth>=11);assert.ok(x+bubble.x+bubble.halfWidth<=949);}
+ }
+ bubble.setSkin(undefined);bubble.present('Hello!',0,true);assert.equal(bubble.halfHeight,18);assert.equal(bubble.displayText,'Hello!');bubble.destroy();assert.equal(texture.destroyed,false);texture.destroy(true);
+ const storage=new Map(),store={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)},local=new ShopState(store);
+ assert.equal(local.owns('Etc',2),false);assert.equal(itemPrice(2,'Etc'),150);assert.equal(itemPrice(2,'Hat'),75);assert.equal(local.buy('Etc',2),'purchased');assert.equal(local.coins,850);assert.equal(local.buy('Etc',2),'owned');assert.equal(local.coins,850);assert.equal(new ShopState(store).owns('Etc',2),true);
+});
+
+test('cloud bubble is server-priced once, account-isolated, retry-safe and gated before migration',async()=>{
+ let calls=0;const oldApi=new EconomyClient(async request=>{calls++;return economy(1,request.p_action,request.p_payload,request.p_request_id)},nonce),old=new ServerShopState(oldApi);
+ while(oldApi.busy)await new Promise(r=>setImmediate(r));const beforeCalls=calls;assert.equal(old.speechSkinsReady,false);assert.equal(await old.buy('Etc',2),'invalid');assert.equal(calls,beforeCalls);old.destroy();
+ const sql=await readFile(new URL('../supabase/migrations/202610280027_speech_bubble_skins.sql',import.meta.url),'utf8');await db.exec(sql);
+ await db.query('update public.economy_wallets set coins=1000 where user_id=$1',[users[1]]);
+ const id=nonce(),payload={category:'Etc',index:2,price:0};const bought=await economy(1,'buy',payload,id);assert.equal(bought.outcome,'purchased');assert.equal(bought.snapshot.coins,850);assert.ok(bought.snapshot.items.includes('Etc:2'));assert.equal(parseEconomyResult(bought).snapshot.speechSkinsReady,true);
+ assert.equal((await economy(1,'buy',payload,id)).snapshot.coins,850);assert.equal((await economy(1,'buy',payload)).outcome,'owned');assert.equal((await economy(1)).snapshot.coins,850);assert.equal((await economy(0)).snapshot.items.includes('Etc:2'),false);
+ await db.query("insert into public.player_saves(user_id,snapshot) values($1,$2) on conflict(user_id) do update set snapshot=excluded.snapshot",[users[1],JSON.stringify({character:{petId:'myeongrang',outfit:{Hat:1,Body:0,Acc:2,Etc:2}}})]);
+ const session=nonce();await as(1,"select public.park_command('join',1,$1,'') as data",[session]);
+ const peer=await as(0,"select public.park_command('join',1,$1,'') as data",[nonce()]);assert.equal(peer.members.find(m=>m.id===users[1]).look.outfit.Etc,2);assert.equal(peer.members.find(m=>m.id===users[1]).look.petId,'myeongrang');
+ await db.exec(sql);assert.equal((await economy(1)).snapshot.coins,850);
+ const api=new EconomyClient(request=>economy(1,request.p_action,request.p_payload,request.p_request_id),nonce),state=new ServerShopState(api);while(api.busy)await new Promise(r=>setImmediate(r));assert.equal(state.speechSkinsReady,true);assert.equal(state.owns('Etc',2),true);state.destroy();
 });

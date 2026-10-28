@@ -1,5 +1,6 @@
 import { outfitColor, type OutfitTab } from '../animals/OutfitState';
 import { wearableItem } from '../animals/Wearables';
+import { speechSkinItem } from '../animals/SpeechSkins';
 
 const ITEM_ICONS: Record<OutfitTab, string> = {
   Hat: '<path d="M16 37h32L43 25H23z"/><path d="M9 39q23-9 46 0v5H9z"/>',
@@ -10,6 +11,8 @@ const ITEM_ICONS: Record<OutfitTab, string> = {
 
 export function itemIcon(category: OutfitTab, index: number): HTMLImageElement {
   const image = document.createElement('img'); image.className = 'outfit-object'; image.alt = '';
+  const skin = speechSkinItem(category, index);
+  if (skin) { image.src = './assets/items/' + skin.file; image.className += ' bubble-skin-icon'; return image; }
   const item=wearableItem(category,index);
   if (item) {
     image.src = './assets/items/'+item.file;

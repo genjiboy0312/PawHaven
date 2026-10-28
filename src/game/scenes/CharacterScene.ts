@@ -7,6 +7,7 @@ import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { OUTFIT_TABS, type OutfitState, type OutfitTab } from '../../animals/OutfitState';
 import { Scene } from './Scene';
 import { wearableItem } from '../../animals/Wearables';
+import { speechSkinItem } from '../../animals/SpeechSkins';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
 interface CharacterOptions { subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
@@ -99,7 +100,7 @@ export class CharacterScene extends Scene {
       else {
         button.append(itemIcon(category, index));
       }
-      const item=wearableItem(category,index);
+      const item=wearableItem(category,index) ?? speechSkinItem(category,index);
       button.setAttribute('aria-label', index === 0 ? t('none') : item?t(item.name):t(category) + ' ' + index);
       button.setAttribute('data-item', String(index));
       button.setAttribute('aria-pressed', String(this.outfit[category] === index));
@@ -169,7 +170,10 @@ export class CharacterScene extends Scene {
   override update(seconds: number): void {
     this.elapsed += seconds; this.reaction = Math.max(0, this.reaction - seconds);
     const emote = this.reaction > 0 || this.elapsed % 10 >= 8;
-    this.animation.update(emote ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds);
+    const speech = this.tab === 'Etc' && speechSkinItem('Etc', this.outfit.Etc)
+      ? { message: t('speechSkinPreview'), remaining: 1 } : undefined;
+    this.animation.update(emote ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds, undefined, undefined, speech);
+    if (speech) { this.animation.welcomeMark.scale.set(.65); this.animation.welcomeMark.position.set(0,-180); }
   }
   override destroy(options?: DestroyOptions): void {
     this.unsubscribe?.(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options);

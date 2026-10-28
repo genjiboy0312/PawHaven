@@ -5,6 +5,7 @@ import { t } from '../settings/i18n';
 import { homeInitialStock, type HomeProductTab } from '../home/HomeCatalog';
 import type { CourseId } from '../game/CourseCatalog';
 import type { RunReward } from './RunReward';
+import { speechSkinItem } from '../animals/SpeechSkins';
 
 export class ServerShopState {
   private view = new ShopState();
@@ -15,6 +16,7 @@ export class ServerShopState {
   get raceRewardsReady(): boolean { return this.api.result?.snapshot.raceRewardsReady === true; }
   get dailyCoinQuestReady(): boolean { return this.api.result?.snapshot.dailyCoinQuestReady === true; }
   get boxCoinRewardsReady(): boolean { return this.api.result?.snapshot.boxCoinRewardsReady === true; }
+  get speechSkinsReady(): boolean { return this.api.result?.snapshot.speechSkinsReady === true; }
   feedSerial=0;fedPet='';private feedRevision=-1;
   get snacksReady(){return this.api.result?.snapshot.snacksReady===true;}
   get snacks(){return this.api.result?.snapshot.snacks??0;}
@@ -70,7 +72,7 @@ export class ServerShopState {
   }
   owns(category: OutfitTab, index: number): boolean { return this.view.owns(category, index); }
   async buy(category: OutfitTab, index: number): Promise<'purchased' | 'owned' | 'insufficient' | 'invalid'> {
-    if (!this.ready) return 'invalid';
+    if (!this.ready || speechSkinItem(category, index) && !this.speechSkinsReady) return 'invalid';
     const result = await this.api.execute('buy', { category, index });
     return result?.outcome === 'purchased' ? 'purchased' : result?.outcome === 'owned' ? 'owned'
       : result?.outcome === 'insufficient' ? 'insufficient' : 'invalid';

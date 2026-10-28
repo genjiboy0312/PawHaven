@@ -415,6 +415,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .shop-home-preview .shop-home-preview-note { font-size: clamp(10px, 1.15cqw, 16px); line-height: 1.4; }
 .shop-preview-note{position:absolute;left:5%;width:40%;top:27cqh;margin:0;text-align:center;color:#87704d;-webkit-text-fill-color:#87704d;font-size:clamp(10px,1.3cqw,16px);line-height:1.5;pointer-events:none;}
 .shop-preview-note[hidden]{display:none;}
+.shop-preview-note[data-speech="true"]{top:80cqh;}
 .shop-style .shop-grid {
   position: static; height: 100%; min-height: 0;
   grid-auto-rows: max(36px, calc((100% - 6cqh) / 4));
