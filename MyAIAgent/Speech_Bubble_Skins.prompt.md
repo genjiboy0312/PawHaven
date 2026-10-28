@@ -1,12 +1,23 @@
 # 말풍선 스킨 시안
 
 - 2026-10-28: 사용자가 구름 모양의 하늘색·분홍색을 제안했고 하늘색 시안부터 제작하도록 요청했다.
-- 현재는 하늘색 v4 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
+- 현재는 하늘색 v5 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
 - 생성: 내장 image_gen 도구. 신규 이미지, 투명 배경. 원본 PNG는 재가공하지 않고 Resources에 복사한다.
 - 리소스: `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype.png`.
 - 스타일 기준: UI_STYLE.md의 블랙·화이트 펫 소파 기준 픽셀 밀도, 평면 2D, 얇은 자연스러운 윤곽, 절제된 색 단계. 구름 굴곡은 크고 완만하게, 중앙 글자 공간은 넉넉하게 유지한다. 글씨는 게임의 Jua로 런타임에 넣기 위해 이미지에는 넣지 않는다.
 
-## 하늘색 v4 상단 굴곡 수정 (최신 사용자 피드백 우선)
+## 하늘색 v5 상·하단 수정 (최신 사용자 피드백 우선)
+
+- 사용자는 좌우측은 예쁘지만 상단 자체가 어색하다고 했고 하단도 함께 수정하도록 요청했다. 좌우는 유지하고, 상단의 같은 크기 봉우리 반복과 하단의 긴 직선을 크기·높이가 다른 완만한 구름 곡선으로 다듬었다. 흰색 중앙/하늘색 테두리/현재 비율/중앙 꼬리를 유지했다. 내장 image_gen 편집을 사용했으며 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v5.png`에 별도 저장한다. 실제 게임 적용은 아직 하지 않았다.
+
+```text
+Edit the referenced PawHaven speech balloon prototype. User feedback: the LEFT and RIGHT sides are attractive and must be preserved, but the TOP looks ugly; now the user also requests the BOTTOM to be redesigned together.
+Redesign ONLY the top and bottom perimeter rhythm into a naturally fluffy cloud trim. The current top is a repetitive five-peak crown / zigzag and the bottom has long straight stretches. Replace these with a small number of broad, softly bulging cloud curves of subtly varied widths and heights, smoothly merging with SHALLOW ROUNDED recesses. No sharp V valleys, no pointy mountain peaks, no repeated identical semicircles, no crown, no frilly stamp edge, no long straight horizontal rail. Avoid mirrored top/bottom patterns. Think soft organic cloud puffs attached around an otherwise broad rectangular dialogue area, with calm low-amplitude curves, not a wild irregular cloud silhouette.
+CRITICAL PRESERVE: both approved side contours, the compact balanced body proportions of the reference, large uninterrupted PURE WHITE central text area, thin SKY-BLUE-only edging, fine natural pixel-art density and restrained flat 2D game-UI palette. Maintain approximately the current overall width/height; do not return to an extra-wide banner. Keep the small bottom-center downward speech tail, integrating it naturally into the redesigned lower cloud edge.
+Do not add internal decorative lines, blue wash, shading across the white center, text, symbols, animals, stars, logos or a UI scene. One centered complete blank speech bubble, full perimeter and tail visible, genuine transparent alpha outside, modest transparent margin. Small fine pixel steps along truly rounded contours; no chunky mosaic and no glossy 3D appearance.
+```
+
+## 하늘색 v4 상단 굴곡 수정 (이력)
 
 - 상단 중앙의 긴 직선을 둥글게 이어지는 구름 굴곡으로 교체했다. v3 비율·흰색 중앙·하늘색 테두리·기존 측면/하단/꼬리는 유지한다. 내장 image_gen 편집을 사용했고 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v4.png`에 별도 저장한다. 게임 연동은 아직 진행하지 않았다.
 
