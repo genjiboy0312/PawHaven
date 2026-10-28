@@ -266,7 +266,7 @@ export class ShopScene extends Scene {
     const speech = this.tab === 'Style' && this.category === 'Etc' && speechSkinItem('Etc', this.selected)
       ? { message: t('speechSkinPreview'), remaining: 1 } : undefined;
     this.animation.update(this.reaction > 0 ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds, undefined, undefined, speech);
-    if (speech) { this.animation.welcomeMark.scale.set(.65); this.animation.welcomeMark.position.set(0,-180); }
+    if (speech) { this.animation.welcomeMark.scale.set(.55); this.animation.welcomeMark.position.set(0,-200); }
     if(this.tab!=='Style')this.animation.welcomeMark.visible=false;
     if(this.petPreview.visible)this.petAnimation?.update(this.reaction>0?'EMOTE':'IDLE',this.elapsed,1,0,0,seconds);
   }

@@ -1,5 +1,6 @@
 import { Container, Graphics, Sprite, Text, type Texture, type DestroyOptions } from 'pixi.js';
 import { GAME_FONT } from '../ui/GameFont';
+import { SKY_CLOUD } from './SpeechSkins';
 
 // Conservative font widths keep layout deterministic before Pixi creates a canvas.
 const glyphWidth = (char: string): number => char === ' ' ? 5 : char.charCodeAt(0) > 255 ? 18 : 10;
@@ -45,6 +46,8 @@ export class SpeechBubble extends Container {
   private bubbleWidth = 40;
   get halfWidth(){return this.bubbleWidth/2;}
   halfHeight = 18;
+  /** Distance below the body, used to align its tip like the free bubble's tail. */
+  get tailHeight(): number { return this.skin ? this.cloud.height * (1 - this.cloud.anchor.y) - this.halfHeight : 8; }
   get text(): string { return this.source; }
   get displayText(): string { return this.caption.text; }
 
@@ -52,7 +55,7 @@ export class SpeechBubble extends Container {
     super();
     this.caption.anchor.set(0.5);
     this.reaction.anchor.set(0.5);
-    this.cloud.anchor.set(704 / 1350, 370 / 865);
+    this.cloud.anchor.set(SKY_CLOUD.body.centerX / SKY_CLOUD.frame[2], SKY_CLOUD.body.centerY / SKY_CLOUD.frame[3]);
     this.cloud.visible = false;
     this.addChild(this.plate, this.tail, this.cloud, this.caption, this.reaction);
     this.visible = false;
@@ -85,10 +88,11 @@ export class SpeechBubble extends Container {
       if (this.skin) {
         // Keep copy within the white centre, and preserve the cloud's compact proportions.
         const contentHeight = lines.length * 25 + header;
-        this.bubbleWidth = Math.max(180, ...lines.map(line => lineWidth(line) + 100), (contentHeight + 62) * 1.73);
-        this.halfHeight = this.bubbleWidth / 1.73 / 2;
-        this.cloud.width = this.bubbleWidth * 1350 / 1265;
-        this.cloud.height = this.cloud.width * 865 / 1350;
+        const aspect = SKY_CLOUD.body.width / SKY_CLOUD.body.height;
+        this.bubbleWidth = Math.max(180, ...lines.map(line => lineWidth(line) + 100), (contentHeight + 62) * aspect);
+        this.halfHeight = this.bubbleWidth / aspect / 2;
+        this.cloud.width = this.bubbleWidth * SKY_CLOUD.frame[2] / SKY_CLOUD.body.width;
+        this.cloud.height = this.cloud.width * SKY_CLOUD.frame[3] / SKY_CLOUD.frame[2];
         this.reaction.y = -contentHeight / 2 + 12;
       }
       this.plate.clear().roundRect(-this.bubbleWidth / 2, -this.halfHeight, this.bubbleWidth, this.halfHeight * 2, 10)
@@ -111,7 +115,7 @@ export class SpeechBubble extends Container {
   }
 
   fitToViewport(animalX: number, animalY: number, width: number, height: number): void {
-    const halfWidth = this.bubbleWidth / 2 + 12, halfHeight = this.halfHeight + (this.skin ? this.cloud.height * .16 + 12 : 12);
+    const halfWidth = this.bubbleWidth / 2 + 12, halfHeight = this.halfHeight + (this.skin ? this.cloud.height * .25 + 12 : 12);
     const targetX = Math.max(halfWidth, Math.min(width - halfWidth, animalX + this.x));
     this.x = targetX - animalX;
     this.y = Math.max(halfHeight - animalY, Math.min(height - halfHeight - animalY, this.y));

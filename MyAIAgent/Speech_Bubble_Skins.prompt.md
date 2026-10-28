@@ -1,5 +1,11 @@
 # 말풍선 스킨 시안
 
+## v7 중앙 꼬리 수정 (2026-10-28, 최신)
+- 사용자 요청: 작은 구름을 삭제하지 않고 큰 구름 아래 중앙으로 이동. 내장 image_gen 편집으로 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v7.png`를 생성했고 런타임 `public/assets/items/speech-cloud-sky.png`에 동일 파일을 사용한다. v6 원본은 보존한다.
+- 두 작은 구름과 큰 구름의 중심축을 맞추고, SpeechSkins의 body/frame 좌표를 공유한다. 게임에서는 꼬리 길이를 반영해 기본 말풍선과 같은 머리 위 간격을 유지한다. 상점/캐릭터 미리보기는 0.55배·y=-200으로 두어 작은 구름이 머리에 겹치지 않게 한다. 관련 16개 테스트·빌드·실제 Chrome 비교 및 640×360 검증 통과.
+- 서버 SQL 027 사용자 적용 완료. 가격/구매/장착/저장 구조 변경과 추가 SQL은 없다.
+- 편집 프롬프트: Use case: precise-object-edit. Edit target: the supplied PawHaven sky-blue pixel-art thought bubble. Move the two small detached white/blue thought-cloud dots from the lower LEFT to directly underneath the horizontal CENTRE of the large cloud body, vertically stacked. The larger dot sits just below the body's bottom centre, followed by the smaller dot beneath it. The smallest bottom dot aligns with the main cloud's central vertical axis, pointing down to the character's head. Remove their old lower-left positions completely (transparent there). Preserve the naturally irregular cloud body, pure white centre, sky-blue edge, fine flat 2D pixel-art style and palette. No text, shadows, decorations, extra clouds, triangular tail or background. Preserve true alpha; fit the complete cloud and both centred dots without clipping.
+
 - 2026-10-28: 사용자가 구름 모양의 하늘색·분홍색을 제안했고 하늘색 시안부터 제작하도록 요청했다.
 - 2026-10-28: 하늘색 v6 사용자 승인. 상점 Style → Etc에서 150코인 구매·미리보기, Character → Etc 장착, 로비 대화·공원 채팅에 적용한다. 기본 말풍선은 무료이며 Etc의 없음 선택으로 복원한다. 분홍색은 아직 제작/판매하지 않는다.
 - 생성: 내장 image_gen 도구. 신규 이미지, 투명 배경. 원본 PNG는 재가공하지 않고 Resources에 복사한다.

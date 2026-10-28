@@ -207,14 +207,14 @@ test('box coin reward limits match map collectibles plus targets for single/mult
 
 test('cloud bubble uses the approved PNG, wraps inside its white centre and restores the free default',async()=>{
  const skin=speechSkinItem('Etc',2);assert.equal(skin.price,150);assert.equal(speechSkinItem('Hat',2),undefined);
- assert.deepEqual(await readFile(new URL('../public/assets/items/'+skin.file,import.meta.url)),await readFile(new URL('../Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v6.png',import.meta.url)));
- const texture=new Texture({source:new TextureSource({width:1350,height:865})}),bubble=new SpeechBubble();
+ assert.deepEqual(await readFile(new URL('../public/assets/items/'+skin.file,import.meta.url)),await readFile(new URL('../Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v7.png',import.meta.url)));
+ const texture=new Texture({source:new TextureSource({width:skin.frame[2],height:skin.frame[3]})}),bubble=new SpeechBubble();
  for(const message of ['Happy to see you!','오늘도 고생 많았어요.\n우리 내일도 만나요!','A very long nickname sends a message '.repeat(4)]){
   bubble.setSkin(texture);bubble.present(message,0,true,1,undefined,'♡');assert.equal(bubble.visible,true);
   for(const line of bubble.displayText.split('\n'))assert.ok(Array.from(line).reduce((w,c)=>w+(c===' '?5:c.charCodeAt(0)>255?18:10),0)<=220);
   for(const x of [0,480,960]){bubble.position.set(0,-200);bubble.fitToViewport(x,180,960,540);assert.ok(x+bubble.x-bubble.halfWidth>=11);assert.ok(x+bubble.x+bubble.halfWidth<=949);}
  }
- bubble.setSkin(undefined);bubble.present('Hello!',0,true);assert.equal(bubble.halfHeight,18);assert.equal(bubble.displayText,'Hello!');bubble.destroy();assert.equal(texture.destroyed,false);texture.destroy(true);
+ assert.ok(bubble.tailHeight>8);bubble.setSkin(undefined);bubble.present('Hello!',0,true);assert.equal(bubble.tailHeight,8);assert.equal(bubble.halfHeight,18);assert.equal(bubble.displayText,'Hello!');bubble.destroy();assert.equal(texture.destroyed,false);texture.destroy(true);
  const storage=new Map(),store={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)},local=new ShopState(store);
  assert.equal(local.owns('Etc',2),false);assert.equal(itemPrice(2,'Etc'),150);assert.equal(itemPrice(2,'Hat'),75);assert.equal(local.buy('Etc',2),'purchased');assert.equal(local.coins,850);assert.equal(local.buy('Etc',2),'owned');assert.equal(local.coins,850);assert.equal(new ShopState(store).owns('Etc',2),true);
 });

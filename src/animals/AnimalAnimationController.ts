@@ -112,6 +112,6 @@ export class AnimalAnimationController {
     this.welcomeMark.setSkin(wardrobe && speechSkinItem('Etc', wardrobe.outfit.Etc) ? wardrobe.speechCloud : undefined);
     this.welcomeMark.present(message, seconds, state === 'GREET', 1.1, speech?.remaining, speech?.reaction);
     const headTop = head ? (head.y - head.width * 0.8) * nativeScale : -125;
-    this.welcomeMark.position.set(0, this.sprite.y + headTop - this.welcomeMark.halfHeight - 18 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
+    this.welcomeMark.position.set(0, this.sprite.y + headTop - this.welcomeMark.halfHeight - Math.max(0, this.welcomeMark.tailHeight - 8) - 18 - (state === 'GREET' ? Math.sin(elapsed * 3) * 3 : 0));
   }
 }

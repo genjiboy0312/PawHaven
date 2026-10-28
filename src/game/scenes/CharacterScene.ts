@@ -173,7 +173,7 @@ export class CharacterScene extends Scene {
     const speech = this.tab === 'Etc' && speechSkinItem('Etc', this.outfit.Etc)
       ? { message: t('speechSkinPreview'), remaining: 1 } : undefined;
     this.animation.update(emote ? 'EMOTE' : 'IDLE', this.elapsed, 1, 0, 0, seconds, undefined, undefined, speech);
-    if (speech) { this.animation.welcomeMark.scale.set(.65); this.animation.welcomeMark.position.set(0,-180); }
+    if (speech) { this.animation.welcomeMark.scale.set(.55); this.animation.welcomeMark.position.set(0,-200); }
   }
   override destroy(options?: DestroyOptions): void {
     this.unsubscribe?.(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options);
