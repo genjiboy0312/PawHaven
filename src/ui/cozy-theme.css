@@ -490,6 +490,10 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .play-menu-content .commerce-primary[aria-pressed="true"], .room-map-picker .commerce-primary[aria-pressed="true"] { background:transparent url("/assets/ui/surfaces/surface-8a2465ba0234.png") center/100% 100% no-repeat; border-color: #a4ba76; }
 .play-menu-content .commerce-primary:disabled { opacity: 0.45; cursor: default; }
 .play-menu-content input { width: 100%; padding: 1cqh; border: 1px solid #d8bf91; border-radius: 1cqw; background:transparent url("/assets/ui/surfaces/surface-576d2f6012f3.png") center/100% 100% no-repeat; color: #79664c;-webkit-text-fill-color:#79664c; font: inherit; }
+.room-visibility{display:flex;gap:1cqw;flex:none;margin-top:1cqh;}
+.room-visibility>.commerce-primary{flex:1;margin:0;min-height:32px;padding:.7cqh 1cqw;font:inherit;}
+.room-visibility>.commerce-primary[aria-pressed="true"]{outline:2px solid #b58e58;outline-offset:-2px;}
+.room-access-hint{margin:.5cqh 0;font-size:clamp(10px,1.2cqw,15px);line-height:1.3;}
 .map-card p, .room-card p { margin: 0.5cqh 0; font-family: var(--font-body); font-size: 1.3cqw; }
 .map-garden { border-top: 0.5cqh solid #9eb784 !important; }
 .map-practice { border-top: 0.5cqh solid #c9ad87 !important; }

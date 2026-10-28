@@ -1262,3 +1262,21 @@ test('portrait keyboard fallback edits room text outside the rotated game and co
     inputFocus(input);document.body.querySelector('.mobile-text-editor').children[0].children[2].dispatchEvent(new Event('click'));assert.equal(changes,1);
   }finally{cleanup?.();env.restore();}
 });
+
+test('older servers cannot silently create a public room when invite-only was requested',async()=>{
+ let calls=0;const client=new RoomClient(users[0],async()=>{calls++;return{room:null,rooms:[],now:Date.now()}});
+ try{await client.command('list');const before=calls;assert.equal(client.privateRoomsReady,false);assert.equal(await client.command('create',{visibility:'invite'}),false);assert.equal(calls,before);assert.equal(client.error,'setup');}finally{client.destroy(false);}
+});
+
+test('create room reuses access buttons, sends invite-only visibility and hides public sharing in the private room',async()=>{
+ const env=dom();let payload,current=null;const client=new RoomClient(users[0],async(action,_id,input)=>{
+  if(action==='create'){payload=input;current={id:users[1],name:input.name,map:'garden',phase:'waiting',host:users[0],visibility:input.visibility,round:null,startsAt:null,endsAt:null,members:[{id:users[0],name:'Host',ready:false,returned:false,look:{petId:'corgi',outfit:{Hat:0,Body:0,Acc:0,Etc:0}},pose:{x:120,height:0,direction:1,action:'idle',progress:0,vx:0}}],racers:[]};}
+  return{room:current,rooms:[],now:Date.now(),privateRoomsReady:true};
+ });let menu;
+ try{
+  await client.command('list');menu=new PlayMenuPopup(()=>{},{rooms:client,nickname:()=> 'Host',inviteHref:'https://example.com/PawHaven/',inviteFriends:()=>{},single:async()=>true,race(){},login(){},dismiss(){}});menu.open('create');
+  const choices=()=>env.host.all().filter(e=>e.getAttribute('data-visibility'));
+  assert.equal(choices().length,2);assert.equal(choices()[0].getAttribute('aria-pressed'),'true');choices()[1].dispatchEvent(new Event('click'));assert.equal(choices()[1].getAttribute('aria-pressed'),'true');
+  env.host.all().find(e=>e.tag==='button'&&e.className?.includes('room-create')).dispatchEvent(new Event('click'));await idle(client);assert.equal(payload.visibility,'invite');assert.equal(client.room.visibility,'invite');assert.equal(menu.inviteButton,undefined);assert.ok(env.host.all().some(e=>e.textContent==='Invite friend'));
+ }finally{menu?.destroy();client.destroy(false);env.restore();}
+});

@@ -1,6 +1,6 @@
 import { bindAria, onLanguageChange, t, type TextKey } from '../settings/i18n';
 import { COURSES, type CourseId } from '../game/CourseCatalog';
-import type { RoomClient, Room } from '../multiplayer/RoomClient';
+import type { RoomClient, Room, RoomVisibility } from '../multiplayer/RoomClient';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { paintPetPortrait } from './PetPortrait';
 import { raceResults } from './RaceResults';
@@ -21,6 +21,8 @@ export class PlayMenuPopup {
   private abort?:AbortController; private unsubscribe?:()=>void; private localeOff?:()=>void;
   private blocked:{element:HTMLElement;inert:boolean}[]=[]; private previousFocus?:HTMLElement;
   private name='';private map:CourseId='garden';
+  private visibility:RoomVisibility='public';
+  private privacyReady=false;
   private singleMap:CourseId='garden';
   private signature='';
   private notice?:TextKey;
@@ -104,12 +106,12 @@ export class PlayMenuPopup {
       this.launching=true;this.options.race(room,client!);this.close(true);return;
     }
     if(this.page==='create'&&room)this.page='multi';
-    if(this.page==='create'&&!room&&!client?.error)return;
+    if(this.page==='create'&&!room&&!client?.error&&this.privacyReady===(client?.privateRoomsReady===true))return;
     if(this.roomEvent&&this.roomEvent.until<Date.now())this.roomEvent=undefined;
     const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
   }
-  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.listed,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent,this.options.invitation?.id]);}
+  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.privateRoomsReady,client?.listed,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent,this.options.invitation?.id]);}
   private clearInvitation(){this.options.invitation?.dismiss();this.options.invitation=undefined;}
   private cancelInvitation(){const button=this.button('roomInviteDismiss',()=>{this.clearInvitation();this.render();});button.setAttribute('data-recovery-control','true');return button;}
   private invitationCard(){
@@ -225,7 +227,7 @@ export class PlayMenuPopup {
     this.footer.classList.remove('room-menu-footer');
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
     if(this.closeButton){const back=this.page!=='mode';this.closeButton.hidden=this.page==='multi'||this.page==='single';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.closeButton.hidden||this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
-    root.replaceChildren();const client=this.options.rooms,room=client?.room;
+    root.replaceChildren();const client=this.options.rooms,room=client?.room;this.privacyReady=client?.privateRoomsReady===true;
     const chatRoom=this.page==='multi'&&room?.phase==='waiting'?room:undefined;
     if(this.chat?.roomId!==chatRoom?.id){this.chat?.destroy();this.chat=undefined;}
     if(chatRoom&&this.options.roomChat&&!this.chat){this.chat=new RoomChatPanel(chatRoom.id,this.options.roomChat(chatRoom));this.panel?.insertBefore(this.chat.element,this.footer);}
@@ -242,17 +244,21 @@ export class PlayMenuPopup {
     else if(this.page==='create'){
       const defaultName=()=>`${this.options.nickname?.()?.trim()||'Player '+client.owner.slice(0,4)}님의 방`;
       const input=document.createElement('input');input.maxLength=24;input.value=this.name;input.placeholder=defaultName();bindAria(input,'roomName');
-      const create=this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name.trim()||defaultName(),map:this.map}))this.page='multi';});});create.classList.add('room-create');
-      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,this.maps(map=>{this.map=map;this.render();},this.map));
+      const create=this.button('createRoom',()=>{void this.action(async()=>{if(await client.command('create',{name:this.name.trim()||defaultName(),map:this.map,visibility:this.visibility}))this.page='multi';});});create.classList.add('room-create');
+      create.disabled=this.visibility==='invite'&&!client.privateRoomsReady;
+      const access=document.createElement('nav');access.className='room-visibility';bindAria(access,'roomAccess');
+      for(const value of ['public','invite'] as const){const choice=this.button(value==='public'?'roomPublic':'roomInviteOnly',()=>{this.visibility=value;this.render();});choice.setAttribute('aria-pressed',String(this.visibility===value));choice.setAttribute('data-visibility',value);choice.disabled=value==='invite'&&!client.privateRoomsReady;access.append(choice);}
+      const hint=this.text(t(!client.privateRoomsReady?'roomPrivacySetup':this.visibility==='invite'?'roomInviteOnlyHint':'roomPublicHint'));hint.className='room-access-hint';
+      input.addEventListener('input',()=>{this.name=input.value;});root.append(input,access,hint,this.maps(map=>{this.map=map;this.render();},this.map));
       this.footer.append(create);this.footer.hidden=false;
     }else if(room){
       this.footer.classList.add('room-menu-footer');this.footer.hidden=false;
       const actions=document.createElement('div');actions.className='room-footer-actions';
       const leave=this.button('leaveRoom',()=>this.navigateBack());leave.classList.add('play-menu-exit');this.footer.append(leave,actions);
-      root.append(this.text(room.name+' · '+t(COURSES[room.map].title)));
+      root.append(this.text(room.name+' · '+t(COURSES[room.map].title)+' · '+t(room.visibility==='invite'?'roomInviteOnly':'roomPublic')));
       if(room.phase==='waiting'){
         const href=this.options.inviteHref??window.location?.href;
-        if(href){this.inviteButton=new RoomInviteButton(room.id,href);actions.append(this.inviteButton.element);}
+        if(href&&room.visibility!=='invite'){this.inviteButton=new RoomInviteButton(room.id,href);actions.append(this.inviteButton.element);}
         if(room.host===client.owner&&this.options.inviteFriends){const invite=this.button('friendInvite',()=>this.options.inviteFriends?.());invite.disabled=client.busy||client.reconnecting||!!client.error||room.members.length>=4;actions.append(invite);}
       }
       if(this.options.invitation){root.append(this.text(t('roomInviteLeaveFirst')),this.cancelInvitation());}

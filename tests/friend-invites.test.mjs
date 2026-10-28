@@ -6,13 +6,13 @@ import {importTs} from './load-typescript.mjs';
 const {FriendActivity,activityTransport}=await importTs('../src/friends/FriendActivity.ts',import.meta.url);
 const db=new PGlite(),users=[1,2,3,4,5].map(n=>`${n}`.repeat(8)+'-1111-4111-8111-111111111111');
 await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;");
-for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610200007_race_countdown.sql','202610230009_friends.sql','202610230010_friend_invites.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
+for(const file of ['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610200007_race_countdown.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610260018_crossroads_course.sql','202610280028_invite_only_rooms.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
 for(const id of users)await db.query('insert into auth.users values($1)',[id]);
 async function as(n,sql,args=[],role='authenticated'){
  await db.exec('set role '+role);try{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[n===null?'':users[n]]);return await db.query(sql,args);}finally{await db.exec('reset role');}
 }
 async function social(n,action='poll',target=null,mode='lobby',ticket=null){return(await as(n,'select public.friend_activity($1,$2,$3,$4) as data',[action,target===null?null:users[target],mode,ticket])).rows[0].data;}
-async function room(n,action='list',id=null){return(await as(n,'select public.multiplayer_command($1,$2) as data',[action,id])).rows[0].data;}
+async function room(n,action='list',id=null,payload={}){return(await as(n,'select public.multiplayer_command($1,$2,$3) as data',[action,id,JSON.stringify(payload)])).rows[0].data;}
 async function link(a,b){await as(a,"select public.friends_command('send',$1)",[users[b]]);await as(b,"select public.friends_command('accept',$1)",[users[a]]);}
 async function prepare(){await link(0,1);await social(1);return(await room(0,'create')).room.id;}
 beforeEach(async()=>{await db.exec('truncate public.mp_rooms cascade;truncate public.player_presence;truncate public.player_friendships;truncate public.player_profiles');for(const [i,name]of ['Host','Friend','Third','Fourth','Other'].entries())await db.query('insert into public.player_profiles(user_id,nickname) values($1,$2)',[users[i],name]);});
@@ -70,6 +70,7 @@ test('playing inbox is deferred, decline consumes ticket and old tickets cannot 
  await assert.rejects(social(1,'decline',0,'lobby',old.ticket),/invite_expired/);assert.equal((await social(1)).invitations.length,1);
  await db.exec(await readFile(new URL('../supabase/migrations/202610230010_friend_invites.sql',import.meta.url),'utf8'));
  assert.equal((await social(1)).invitations[0].ticket,next.ticket);
+ await db.exec(await readFile(new URL('../supabase/migrations/202610280028_invite_only_rooms.sql',import.meta.url),'utf8'));
 });
 test('host leave or ownership transfer invalidates old invitations',async()=>{
  const id=await prepare();await social(0,'invite',1);const inv=(await social(1)).invitations[0];await room(2,'join',id);await room(0,'leave');
@@ -112,4 +113,43 @@ test('background tabs suspend polling, focus resumes it, and account disposal cl
   const activeTimer=activity.timer;activity.destroy();assert.equal(activeTimer._destroyed,true);
   window.dispatchEvent(new Event('focus'));await settle();assert.equal(calls,2);assert.equal(await activity.refresh(),false);
  }finally{activity.destroy();for(const key of Object.keys(saved)){if(saved[key]===undefined)delete globalThis[key];else globalThis[key]=saved[key];}}
+});
+
+test('invite-only rooms are absent from lists and require a current recipient ticket even when the room address is known',async()=>{
+ await link(0,1);await social(1);const created=await room(0,'create',null,{visibility:'invite',name:'Private garden'}),id=created.room.id;
+ assert.equal(created.privateRoomsReady,true);assert.equal(created.room.visibility,'invite');assert.equal(created.rooms.some(r=>r.id===id),false);assert.equal((await room(1)).rooms.some(r=>r.id===id),false);
+ await assert.rejects(room(1,'join',id),/room_unavailable/);await assert.rejects(room(2,'join',id,{invite_ticket:users[3]}),/room_unavailable/);
+ await social(0,'invite',1);const invite=(await social(1)).invitations[0];
+ await assert.rejects(room(2,'join',id,{invite_ticket:invite.ticket}),/room_unavailable/);await assert.rejects(room(1,'join',id,{invite_ticket:users[3]}),/room_unavailable/);
+ const accepted=await social(1,'accept',0,'lobby',invite.ticket);assert.equal(accepted.joined,id);assert.equal((await room(1)).room.visibility,'invite');assert.equal((await social(1,'accept',0,'lobby',invite.ticket)).joined,id);
+ await room(1,'leave');await assert.rejects(room(1,'join',id,{invite_ticket:invite.ticket}),/room_unavailable/);
+ await assert.rejects(as(1,'select * from public.mp_rooms'));
+});
+
+test('private tickets expire, lose authority on host change or friendship removal, and never bypass the last seat',async()=>{
+ for(const n of [1,2,3,4]){await link(0,n);await social(n);}
+ const id=(await room(0,'create',null,{visibility:'invite'})).room.id;
+ for(const n of [1,2,3,4])await social(0,'invite',n);
+ const tickets=[];for(const n of [1,2,3,4])tickets.push([n,(await social(n)).invitations[0].ticket]);
+ await db.query("update public.friend_room_invites set expires_at=clock_timestamp()-interval '1 second' where recipient=$1",[users[1]]);
+ await assert.rejects(room(1,'join',id,{invite_ticket:tickets[0][1]}),/room_unavailable/);
+ await db.query("update public.friend_room_invites set expires_at=clock_timestamp()+interval '60 seconds' where recipient=$1",[users[1]]);
+ await as(0,"select public.friends_command('remove',$1)",[users[4]]);await assert.rejects(room(4,'join',id,{invite_ticket:tickets[3][1]}),/room_unavailable/);
+ for(const [n,ticket]of tickets.slice(0,3))await social(n,'accept',0,'lobby',ticket);
+ assert.equal((await room(0)).room.members.length,4);await assert.rejects(room(4,'join',id,{invite_ticket:tickets[3][1]}),/room_unavailable/);
+ await room(0,'leave');assert.equal((await room(1)).room.host,users[1]);assert.equal((await room(1)).room.visibility,'invite');await assert.rejects(room(4,'join',id,{invite_ticket:tickets[3][1]}),/room_unavailable/);
+});
+
+test('public defaults and the Ready/loaded countdown protocol survive the visibility migration and reapplication',async()=>{
+ const pub=await room(0,'create');assert.equal(pub.room.visibility,'public');assert.ok((await room(1)).rooms.some(r=>r.id===pub.room.id));
+ await room(1,'join',pub.room.id);await room(1,'ready',pub.room.id,{ready:true});const started=await room(0,'start',pub.room.id);assert.equal(started.room.phase,'countdown');assert.equal(started.room.startsAt,null);
+ await room(0,'loaded',pub.room.id,{round:started.room.round});const loaded=await room(1,'loaded',pub.room.id,{round:started.room.round});assert.ok(loaded.room.startsAt>loaded.now+7000);
+ const migration=await readFile(new URL('../supabase/migrations/202610280028_invite_only_rooms.sql',import.meta.url),'utf8');await db.exec(migration);assert.equal((await room(0)).room.id,pub.room.id);assert.equal((await room(0)).room.visibility,'public');
+ await assert.rejects(room(2,'create',null,{visibility:'friends'}),/invalid_visibility/);await assert.rejects(room(2,'create',null,{visibility:false}),/invalid_visibility/);
+});
+
+test('a new private host must issue their own invitation after host transfer',async()=>{
+ await link(0,1);await link(0,2);await social(1);await social(2);const id=(await room(0,'create',null,{visibility:'invite'})).room.id;
+ await social(0,'invite',1);await social(0,'invite',2);const first=(await social(1)).invitations[0],stale=(await social(2)).invitations[0];await social(1,'accept',0,'lobby',first.ticket);await room(0,'leave');
+ await assert.rejects(room(2,'join',id,{invite_ticket:stale.ticket}),/room_unavailable/);await link(1,2);await social(1,'invite',2);const fresh=(await social(2)).invitations.find(i=>i.sender===users[1]);assert.ok(fresh);assert.equal((await social(2,'accept',1,'lobby',fresh.ticket)).joined,id);
 });
