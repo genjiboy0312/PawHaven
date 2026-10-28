@@ -1,0 +1,26 @@
+{
+  "animal": "tuxedo",
+  "atlas": "../Cat_Tuxedo_Runtime_Atlas.png",
+  "frames": "tuxedo-frames.json",
+  "neckAnchors": "tuxedo-neck-anchors.json",
+  "ready": [
+    "idle",
+    "walk",
+    "run",
+    "jump",
+    "doubleJump",
+    "fall",
+    "land",
+    "attack",
+    "skill",
+    "emote"
+  ],
+  "reuse": {
+    "skill": "run",
+    "doubleJump": "jump",
+    "fall": "jump",
+    "land": "jump",
+    "effects": "corgi"
+  },
+  "notes": "8 poses per core clip; see MyAIAgent/PET_SHOP.md"
+}

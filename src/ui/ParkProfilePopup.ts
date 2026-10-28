@@ -1,3 +1,4 @@
+import { petThumbnail } from '../animals/PetCatalog';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { createOutfit } from '../animals/OutfitState';
 import type { ParkMember } from '../park/ParkModel';
@@ -30,7 +31,7 @@ export class ParkProfilePopup {
   const close=document.createElement('button');close.type='button';close.className='settings-close';close.textContent='×';bindAria(close,'close');close.addEventListener('click',()=>this.close(),{signal});
   const stage=document.createElement('div');stage.className='room-pet-stage park-profile-pet';const portrait=document.createElement('span');portrait.className='room-pet';portrait.setAttribute('aria-hidden','true');stage.append(portrait);
   const pet=this.pets.find(p=>p.id===member.look?.petId)??this.pets[0];
-  if(pet)paintPetPortrait(portrait,pet,pet.id==='corgi'?'./assets/characters/corgi/corgi-idle-walk.png':'./assets/characters/myeongrang/idle.png',19,0,{...createOutfit(),...member.look?.outfit});
+  if(pet)paintPetPortrait(portrait,pet,petThumbnail(pet.id),19,0,{...createOutfit(),...member.look?.outfit});
   const name=document.createElement('strong');name.className='park-profile-name';name.textContent=member.name;
   this.label=document.createElement('p');this.label.className='park-profile-relation';
   this.status=document.createElement('p');this.status.setAttribute('role','status');this.status.setAttribute('aria-live','polite');

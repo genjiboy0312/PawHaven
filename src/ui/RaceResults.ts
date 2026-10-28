@@ -1,3 +1,4 @@
+import { petThumbnail, isPetId } from '../animals/PetCatalog';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import type { Room } from '../multiplayer/RoomClient';
 import { t } from '../settings/i18n';
@@ -14,9 +15,9 @@ export function raceResults(racers:Room['racers'],members:Room['members'],owner:
     const rank=document.createElement('span');rank.className='race-place';rank.textContent=racer.time===null?'—':String(place);
     const art=document.createElement('span');art.className='race-result-pet';
     const member=members.find(member=>member.id===racer.id),pet=pets.find(pet=>pet.id===member?.look.petId);
-    if(pet&&['corgi','myeongrang'].includes(pet.id)){
+    if(pet&&isPetId(pet.id)){
       const portrait=document.createElement('span');portrait.className='room-pet';portrait.setAttribute('aria-hidden','true');
-      paintPetPortrait(portrait,pet,pet.id==='corgi'?'./assets/characters/corgi/corgi-idle-walk.png':'./assets/characters/myeongrang/idle.png',7,0,member?.look.outfit);art.append(portrait);
+      paintPetPortrait(portrait,pet,petThumbnail(pet.id),7,0,member?.look.outfit);art.append(portrait);
     }
     const name=document.createElement('strong');name.className='race-result-name';name.textContent=racer.name+(racer.id===owner?' · '+t('raceYou'):'');
     const time=document.createElement('span');time.className='race-result-time';

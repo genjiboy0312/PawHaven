@@ -8,9 +8,10 @@ import { OUTFIT_TABS, type OutfitState, type OutfitTab } from '../../animals/Out
 import { Scene } from './Scene';
 import { wearableItem } from '../../animals/Wearables';
 import { speechSkinItem } from '../../animals/SpeechSkins';
+import { petInfo } from '../../animals/PetCatalog';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
-interface CharacterOptions { beforeClose?: () => Promise<void>; subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
+interface CharacterOptions { ownsPet?:(id:string)=>boolean;beforeClose?: () => Promise<void>; subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
 const CHARACTER_TABS = ['Pets', ...OUTFIT_TABS] as const;
 
 export class CharacterScene extends Scene {
@@ -128,6 +129,7 @@ export class CharacterScene extends Scene {
   }
   private renderPets(): void {
     for (const pet of this.pets) {
+      if(this.options.ownsPet&&!this.options.ownsPet(pet.config.id))continue;
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot pet-slot';
       button.setAttribute('aria-pressed', String(pet.config.id === this.pet.config.id));
       const portrait = document.createElement('span'); portrait.className = 'pet-portrait';
@@ -137,7 +139,7 @@ export class CharacterScene extends Scene {
       portrait.style.backgroundSize = `${texture.source.width / frame.height * 9}cqh ${texture.source.height / frame.height * 9}cqh`;
       portrait.style.backgroundPosition = `${-frame.x / frame.height * 9}cqh ${-frame.y / frame.height * 9}cqh`;
       const name = document.createElement('span'); name.className = 'pet-name'; name.textContent = pet.name;
-      if (pet.config.id === 'corgi' || pet.config.id === 'myeongrang') bindText(name, pet.config.id);
+      const info=petInfo(pet.config.id);if(info)bindText(name,info.name);
       const check = document.createElement('span'); check.className = 'pet-check'; check.textContent = '✓'; check.hidden = pet.config.id !== this.pet.config.id;
       button.append(portrait, name, check);
       button.addEventListener('click', () => { this.selectPet(pet); bindText(this.feedback, 'presetUnsaved'); this.refresh(); });
@@ -145,6 +147,7 @@ export class CharacterScene extends Scene {
     }
   }
   private selectPet(pet: PetChoice): void {
+    if(this.options.ownsPet&&!this.options.ownsPet(pet.config.id))return;
     if (pet.config.id !== this.pet.config.id) {
       this.preview.removeChildren().forEach(child => child.destroy({ children: true })); this.animation.sleepMark.destroy();
       this.animation = new AnimalAnimationController(pet.config);
@@ -159,7 +162,7 @@ export class CharacterScene extends Scene {
     if (!saved) bindText(this.feedback, 'presetEmpty');
     else {
       const pet = this.pets.find(pet => pet.config.id === saved.petId);
-      if (!pet) bindText(this.feedback, 'petUnavailable');
+      if (!pet||this.options.ownsPet&&!this.options.ownsPet(pet.config.id)) bindText(this.feedback, 'petUnavailable');
       else { Object.assign(this.outfit, saved.outfit); OUTFIT_TABS.forEach(category => { if (this.options.owns && !this.options.owns(category, this.outfit[category])) this.outfit[category] = 0; }); this.selectPet(pet); bindText(this.feedback, 'presetLoaded'); this.refresh(); }
     }
     this.refreshPresets();

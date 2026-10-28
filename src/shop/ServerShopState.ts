@@ -6,6 +6,7 @@ import { homeInitialStock, type HomeProductTab } from '../home/HomeCatalog';
 import type { CourseId } from '../game/CourseCatalog';
 import type { RunReward } from './RunReward';
 import { speechSkinItem } from '../animals/SpeechSkins';
+import { isPetId } from '../animals/PetCatalog';
 
 export class ServerShopState {
   private view = new ShopState();
@@ -17,11 +18,19 @@ export class ServerShopState {
   get dailyCoinQuestReady(): boolean { return this.api.result?.snapshot.dailyCoinQuestReady === true; }
   get boxCoinRewardsReady(): boolean { return this.api.result?.snapshot.boxCoinRewardsReady === true; }
   get speechSkinsReady(): boolean { return this.api.result?.snapshot.speechSkinsReady === true; }
+  get petShopReady(){return this.api.result?.snapshot.petShopReady===true;}
+  ownsPet(id:string):boolean{return id==='corgi'||this.petShopReady&&this.api.result?.snapshot.pets?.includes(id)===true;}
+  async buyPet(id:string):Promise<'purchased'|'owned'|'insufficient'|'invalid'>{
+    if(this.ownsPet(id))return 'owned';
+    if(!this.ready||!this.petShopReady||!isPetId(id))return 'invalid';
+    const result=await this.api.execute('buy_pet',{petId:id});
+    return result?.outcome==='purchased'?'purchased':result?.outcome==='owned'?'owned':result?.outcome==='insufficient'?'insufficient':'invalid';
+  }
   feedSerial=0;fedPet='';private feedRevision=-1;
   get snacksReady(){return this.api.result?.snapshot.snacksReady===true;}
   get snacks(){return this.api.result?.snapshot.snacks??0;}
   async feed(petId:string):Promise<boolean>{
-    if(!this.ready||!this.snacksReady||this.snacks<=0||!['corgi','myeongrang'].includes(petId))return false;
+    if(!this.ready||!this.snacksReady||this.snacks<=0||!isPetId(petId)||!this.ownsPet(petId))return false;
     return (await this.api.execute('feed',{petId}))?.outcome==='fed';
   }
   private readonly listeners = new Set<() => void>();

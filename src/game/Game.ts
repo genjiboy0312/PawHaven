@@ -1,3 +1,5 @@
+import { loadTuxedo } from '../animals/loadTuxedo';
+import { PET_IDS, PET_CATALOG } from '../animals/PetCatalog';
 import { AccountStorage } from '../account/AccountStorage';
 import { PlayMenuPopup } from '../ui/PlayMenuPopup';
 import { GAME_FONT } from '../ui/GameFont';
@@ -78,16 +80,17 @@ export class Game {
   private readonly events = new AbortController();
   private corgi: AnimalConfig | undefined;
   private myeongrang: AnimalConfig | undefined;
+  private tuxedo: AnimalConfig | undefined;
   private releaseFrames(): void {
     if(this.courseBackgrounds){Object.values(this.courseBackgrounds).forEach(texture=>texture.destroy(false));this.courseBackgrounds=undefined;}
     if(this.snakeArt){[...this.snakeArt.move,...this.snakeArt.tongue].forEach(texture=>texture.destroy(false));this.snakeArt=undefined;}
     if(this.courseArt){[this.courseArt.grass,this.courseArt.soil,...(this.courseArt.coin?[this.courseArt.coin]:[]),...(this.courseArt.box?[this.courseArt.box]:[]),...Object.values(this.courseArt.markers).map(marker=>marker.texture)].forEach(texture=>{if(!texture.destroyed)texture.destroy(false);});this.courseArt=undefined;}
     if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => {if(!texture.destroyed)texture.destroy(false);}); this.homeTextures = undefined; }
-    const configs = [this.corgi, this.myeongrang].filter((config): config is AnimalConfig => !!config);
+    const configs = [this.corgi, this.myeongrang, this.tuxedo].filter((config): config is AnimalConfig => !!config);
     const textures = new Set(configs.flatMap(config => [...Object.values(config.animations).flatMap(animation => animation.frames),
       ...Object.values(config.effects ?? {}).flat(), ...(config.wardrobe ? [config.wardrobe.santaHat,...[config.wardrobe.topHat,config.wardrobe.bowTie].filter((texture):texture is NonNullable<typeof texture>=>!!texture)] : [])]));
     for (const texture of textures) if (!texture.destroyed) texture.destroy(false);
-    this.corgi = this.myeongrang = undefined;
+    this.corgi = this.myeongrang = this.tuxedo = undefined;
   }
   private initialized = false;
   private readonly resize = (): void => this.scenes?.resize();
@@ -135,6 +138,7 @@ export class Game {
     let presets = new CharacterPresets(playerStorage);
     let character = new CharacterSelection(playerStorage);
     let releaseOwnership = (): void => undefined;
+    let syncPetOwnership = (): void => undefined;
     const makeCommerce = (): CommerceState => {
       releaseOwnership();
       const owner = this.account?.user?.id;
@@ -144,8 +148,8 @@ export class Game {
       releaseOwnership = state.subscribe(() => {
         if (!state.entitlementsKnown || this.commerce !== state) return;
         home.revision++;
-        const look = character.restore(['corgi', 'myeongrang'], (category, index) => state.owns(category, index));
-        Object.assign(this.outfit, look.outfit);
+        const look = character.restore(PET_IDS.filter(id=>state.ownsPet(id)), (category, index) => state.owns(category, index));
+        Object.assign(this.outfit, look.outfit);syncPetOwnership();
       });
       return state;
     };
@@ -153,7 +157,7 @@ export class Game {
     let home = new HomeState(playerStorage, (tab, index) => commerce.entitlementsKnown ? commerce.homeOwned(tab, index) : undefined);
     let records = new SingleRecords(playerStorage);
 
-    const savedCharacter = character.restore(['corgi', 'myeongrang'], (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
+    const savedCharacter = character.restore(commerce.entitlementsKnown?PET_IDS.filter(id=>commerce.ownsPet(id)):PET_IDS, (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
     Object.assign(this.outfit, savedCharacter.outfit);
     const applyGame = (value: GamePreferences): void => {
       host.style.setProperty('--control-scale', String(value.controlSize));
@@ -176,6 +180,7 @@ export class Game {
     const corgi = await loadCorgi((progress) => { if (!this.disposed) preload.setProgress(progress * 0.6); }, this.outfit);
     this.corgi = corgi;
     if (!this.disposed) this.myeongrang = await loadMyeongrang(corgi);
+    if (!this.disposed) this.tuxedo = await loadTuxedo(corgi);
     if (!this.disposed) preload.setProgress(0.9);
     if (!this.disposed) this.courseBackgrounds = await loadCourseBackgrounds();
     if (!this.disposed) this.homeTextures = await loadHome(this.courseBackgrounds);
@@ -184,10 +189,11 @@ export class Game {
     if (this.disposed) { this.releaseFrames(); return; }
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (this.disposed) return;
-    let activePet = savedCharacter.petId === this.myeongrang?.id ? this.myeongrang : corgi;
+    const petConfigs=[corgi,this.myeongrang!,this.tuxedo!];
+    const choosePet=(id:string)=>petConfigs.find(config=>config.id===id)??corgi;
+    let activePet = commerce.ownsPet(character.current.petId)?choosePet(character.current.petId):corgi;
     preload.setProgress(1);
-    const pets = [{ config: corgi, name: 'Corgi', thumbnail: './assets/characters/corgi/corgi-idle-walk.png' },
-      { config: this.myeongrang!, name: 'Myeongrang', thumbnail: './assets/characters/myeongrang/idle.png' }];
+    const pets = petConfigs.map(config=>({config,name:PET_CATALOG[config.id as typeof PET_IDS[number]].name,thumbnail:PET_CATALOG[config.id as typeof PET_IDS[number]].thumbnail}));
     const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab,(category,index)=>{
         if(!commerce.entitlementsKnown||!commerce.owns(category,index))return;
@@ -199,19 +205,19 @@ export class Game {
       if(this.disposed)return;
       const screen=new CharacterScene(activePet,this.outfit,()=>{if(!this.disposed&&this.scenes?.isCurrent(screen))returnTo();},{
         beforeClose,presets,pets,onLookChanged:look=>{character.save(look);},onPetChanged:config=>{activePet=config;},
-        owns:(category,index)=>commerce.owns(category,index),subscribe:callback=>commerce.subscribe(callback),
+        ownsPet:id=>commerce.ownsPet(id),owns:(category,index)=>commerce.owns(category,index),subscribe:callback=>commerce.subscribe(callback),
       });
       this.scenes?.show(screen);
     };
     const saveRoomLook=async()=>{if(this.account?.pendingSave)await this.account.save();};
     const showFriendHome=(saved:Awaited<ReturnType<typeof readFriendHome>>,leave:()=>void)=>{
-      const source=saved.character.petId===this.myeongrang?.id?this.myeongrang!:corgi;
+      const source=choosePet(saved.character.petId);
       const config={...source,wardrobe:source.wardrobe?{...source.wardrobe,outfit:{...saved.character.outfit}}:undefined};
       this.scenes?.show(new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:saved.home,textures:this.homeTextures,open:()=>{}},undefined,{name:saved.nickname,leave}));
     };
     const showPark=(channel?:number)=>{
       const owner=this.account?.user?.id;if(this.disposed||!owner||!accountClient)return;
-      const park=new ParkScene(new ParkClient(accountClient,owner),[corgi,this.myeongrang!],()=>lobby(true),this.homeTextures,openSettings,this.friendClient,{
+      const park=new ParkScene(new ParkClient(accountClient,owner),petConfigs,()=>lobby(true),this.homeTextures,openSettings,this.friendClient,{
         channel,customize:originChannel=>{
           if(this.disposed||this.account?.user?.id!==owner||!this.scenes?.isCurrent(park))return;
           openCharacter(()=>{if(this.account?.user?.id===owner)showPark(originChannel);},async()=>{
@@ -304,13 +310,13 @@ export class Game {
             const raceCommerce = commerce;
             this.friends?.close();this.friendClient?.stop();inGame=true;void this.friendActivity?.refresh();
             const look=room.members.find(m=>m.id===client.owner)?.look;
-            const original=look?.petId===this.myeongrang?.id?this.myeongrang!:corgi;
+            const original=choosePet(look?.petId??'corgi');
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
             this.scenes?.show(new PlayScene(racePet,()=>{
               lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
             },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,rewards:raceCommerce,boxCoins:raceCommerce.boxCoinRewardsReady,
               sound:kind=>{this.audio?.play(kind);},
-              multiplayer:{client,pets:[corgi,this.myeongrang!],reward:(result,collected)=>{if(raceCommerce instanceof ServerShopState&&result.round)void raceCommerce.completeRace(result.id,result.round,collected,result.racers.some(racer=>racer.id===client.owner&&racer.time!==null));},leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
+              multiplayer:{client,pets:petConfigs,reward:(result,collected)=>{if(raceCommerce instanceof ServerShopState&&result.round)void raceCommerce.completeRace(result.id,result.round,collected,result.racers.some(racer=>racer.id===client.owner&&racer.time!==null));},leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
                 failed:()=>{client.destroy();this.rooms=undefined;lobby(true,'multi');}},
             }));
           },
@@ -324,6 +330,11 @@ export class Game {
       currentLobby=scene;this.scenes?.show(scene);void this.friendActivity?.refresh();
       if(initialMenu)openMenu(initialMenu);
     };
+    syncPetOwnership=()=>{
+      const next=commerce.ownsPet(character.current.petId)?choosePet(character.current.petId):corgi;
+      if(next===activePet)return;activePet=next;
+      if(currentLobby&&this.scenes?.isCurrent(currentLobby))lobby(true);
+    };
     this.account.onLoaded(() => {
       if (this.disposed) return;
       this.playMenu?.destroy();this.rooms?.destroy();this.rooms=undefined;
@@ -336,9 +347,9 @@ export class Game {
       records = new SingleRecords(playerStorage);
       commerce.destroy(); commerce = makeCommerce();
       character = new CharacterSelection(playerStorage);
-      const look = character.restore(['corgi', 'myeongrang'], (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
+      const look = character.restore(commerce.entitlementsKnown?PET_IDS.filter(id=>commerce.ownsPet(id)):PET_IDS, (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
       Object.assign(this.outfit, look.outfit);
-      activePet = look.petId === this.myeongrang?.id ? this.myeongrang! : corgi;
+      activePet = commerce.ownsPet(look.petId)?choosePet(look.petId):corgi;
       inGame=false;makeActivity();this.friends = makeFriends();
       this.mailbox=makeMailbox();
       this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));

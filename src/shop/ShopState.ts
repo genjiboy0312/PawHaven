@@ -1,5 +1,6 @@
 import { OUTFIT_TABS, type OutfitTab } from '../animals/OutfitState';
 import { speechSkinItem } from '../animals/SpeechSkins';
+import { isPetId, petInfo } from '../animals/PetCatalog';
 import { homeStockLimit, homeInitialStock, homeKey, homePrice, validHomeProduct, type HomeProductTab } from '../home/HomeCatalog';
 import type { CourseId } from '../game/CourseCatalog';
 import { validRunCoins, RUN_FINISH_BONUS, type RunReward } from './RunReward';
@@ -30,6 +31,13 @@ export class ShopState {
   readonly dailyCoinQuestReady = true;
   readonly boxCoinRewardsReady = true;
   readonly speechSkinsReady = true;
+  readonly petShopReady = true;
+  private pets = new Set<string>(['corgi']);
+  ownsPet(id:string):boolean{return id==='corgi'||this.pets.has(id);}
+  buyPet(id:string):'purchased'|'owned'|'insufficient'|'invalid'{
+    const item=petInfo(id);if(!item)return 'invalid';if(this.ownsPet(id))return 'owned';if(this.balance<item.price)return 'insufficient';
+    this.balance-=item.price;this.pets.add(id);this.save();return 'purchased';
+  }
   runReward?: RunReward;
   private activeRun?: CourseId;
   readonly snacksReady=true;
@@ -38,7 +46,7 @@ export class ShopState {
   get snacks(){return this.treats;}
   feed(petId:string):boolean{
     const now=this.now();
-    if(!['corgi','myeongrang'].includes(petId)||!Number.isFinite(now)||this.treats<=0||this.lastSnack!==null&&now-this.lastSnack<4000)return false;
+    if(!isPetId(petId)||!this.ownsPet(petId)||!Number.isFinite(now)||this.treats<=0||this.lastSnack!==null&&now-this.lastSnack<4000)return false;
     this.treats--;this.lastSnack=now;this.feedSerial++;this.fedPet=petId;this.save();return true;
   }
   readonly busy = false;
@@ -59,6 +67,7 @@ export class ShopState {
     try {
       const saved = JSON.parse(storage?.getItem(SHOP_STORAGE_KEY) ?? 'null');
       if (saved && typeof saved === 'object') {
+        if(Array.isArray(saved.pets))for(const id of saved.pets)if(isPetId(id))this.pets.add(id);
         if(Number.isSafeInteger(saved.snacks)&&saved.snacks>=0&&saved.snacks<=99)this.treats=saved.snacks;
         if(Number.isFinite(saved.lastSnack)&&saved.lastSnack>=0)this.lastSnack=saved.lastSnack;
         if (Number.isSafeInteger(saved.coins) && saved.coins >= 0 && saved.coins <= 1000000) this.balance = saved.coins;
@@ -162,7 +171,7 @@ export class ShopState {
   }
   subscribe(callback: () => void): () => void { this.listeners.add(callback); return () => { this.listeners.delete(callback); }; }
   private save(notify = true): void {
-    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ snacks:this.treats,lastSnack:this.lastSnack,coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], homeItems: this.homeItems, claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
+    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ pets:[...this.pets],snacks:this.treats,lastSnack:this.lastSnack,coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], homeItems: this.homeItems, claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
     if (notify) this.listeners.forEach(callback => callback());
   }
 }

@@ -7,8 +7,8 @@ export interface MyeongrangMap {
   actions: Partial<Record<AnimalAction, { fps: number; scale: number; frames: PetAtlasFrame[] }>>;
 }
 /** Keep complete source cells; independent foot anchors normalize the approved art. */
-export function createMyeongrang(atlases: Record<string, Texture>, map: MyeongrangMap, shared: Pick<AnimalConfig, 'effects' | 'wardrobe'>,necks?:NeckAnchorMap): AnimalConfig {
-  const config: AnimalConfig = { id: 'myeongrang', speed: 90, scale: 0.62, animations: {}, effects: shared.effects, wardrobe: shared.wardrobe };
+export function createAtlasAnimal(atlases: Record<string, Texture>, map: MyeongrangMap, shared: Pick<AnimalConfig, 'effects' | 'wardrobe'>,necks?:NeckAnchorMap,id='myeongrang'): AnimalConfig {
+  const config: AnimalConfig = { id, speed: 90, scale: 0.62, animations: {}, effects: shared.effects, wardrobe: shared.wardrobe };
   for (const [key, clip] of Object.entries(map.actions)) {
     if (!clip.frames.length || !Number.isFinite(clip.scale) || clip.scale <= 0 || !Number.isFinite(clip.fps) || clip.fps <= 0) throw new Error('Invalid Myeongrang animation.');
     config.animations[key as AnimalAction] = {
@@ -33,3 +33,4 @@ export function createMyeongrang(atlases: Record<string, Texture>, map: Myeongra
   config.animations.land = { ...jump, frames: jump.frames.slice(3, 4), head: jump.head?.slice(3, 4), bodyBounds: jump.bodyBounds?.slice(3, 4) };
   if(necks)applyNeckAnchors(config,necks);return config;
 }
+export const createMyeongrang = (atlases:Record<string,Texture>,map:MyeongrangMap,shared:Pick<AnimalConfig,'effects'|'wardrobe'>,necks?:NeckAnchorMap) => createAtlasAnimal(atlases,map,shared,necks);

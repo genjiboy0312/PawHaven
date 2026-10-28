@@ -1,3 +1,4 @@
+import { petThumbnail } from '../animals/PetCatalog';
 import type {AnimalConfig} from '../animals/AnimalConfig';
 import {createOutfit} from '../animals/OutfitState';
 import type {ParkMember} from '../park/ParkModel';
@@ -44,7 +45,7 @@ export class ParkParticipants {
    row.name.textContent=member.name;row.note.textContent=member.id===this.owner?t('parkYou'):this.blocked.has(member.id)?t('friendsBlockState'):'';
    const signature=JSON.stringify(member.look??{});if(row.signature!==signature){
     row.signature=signature;const pet=this.pets.find(p=>p.id===member.look?.petId)??this.pets[0];
-    if(pet)paintPetPortrait(row.portrait,pet,pet.id==='corgi'?'./assets/characters/corgi/corgi-idle-walk.png':'./assets/characters/myeongrang/idle.png',7,0,{...createOutfit(),...member.look?.outfit});
+    if(pet)paintPetPortrait(row.portrait,pet,petThumbnail(pet.id),7,0,{...createOutfit(),...member.look?.outfit});
    }
   }
   if(restore&&!this.element.hidden)this.rows.values().next().value?.button.focus();

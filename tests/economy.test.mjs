@@ -17,7 +17,7 @@ await db.exec(await readFile(new URL('../supabase/migrations/202610170002_server
 await db.exec(await readFile(new URL('../supabase/migrations/202610210008_home_shop.sql', import.meta.url), 'utf8'));
 let sequence = 0;
 const uuid = () => '00000000-0000-4000-8000-' + String(++sequence).padStart(12, '0');
-test('Pets shop reuses owned companions without charging or equipping; future species remain unavailable',async()=>{
+test('Pets shop previews unpaid companions without equipping, purchases ownership, and keeps unavailable species disabled',async()=>{
  Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Node.js'},configurable:true});
  const {Texture}=await import('pixi.js'),{ShopScene}=await importTs('../src/game/scenes/ShopScene.ts',import.meta.url),{ShopState}=await importTs('../src/shop/ShopState.ts',import.meta.url),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);
  class Element extends EventTarget{
@@ -31,12 +31,12 @@ test('Pets shop reuses owned companions without charging or equipping; future sp
  const make=id=>({id,speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3},emote:{frames:[Texture.WHITE],fps:4}}}),corgi=make('corgi'),myeongrang=make('myeongrang'),state=new ShopState(),pets=[{config:corgi,name:'Corgi',thumbnail:'corgi.png'},{config:myeongrang,name:'Myeongrang',thumbnail:'myeongrang.png'}];let scene;
  try{
   scene=new ShopScene(corgi,state,()=>{},()=>{},'Pets',undefined,pets);const panel=host.children[0],content=panel.children[4];
-  assert.deepEqual(panel.children[3].children.map(e=>e.textContent),['Pets','Style','Lobby','Pass']);assert.equal(content.children[1].children.length,2);assert.ok(content.children[1].children.every(e=>e.getAttribute('data-owned')==='true'&&e.children[2].textContent==='Owned'));
+  assert.deepEqual(panel.children[3].children.map(e=>e.textContent),['Pets','Style','Lobby','Pass']);assert.equal(content.children[1].children.length,2);assert.equal(content.children[1].children[0].getAttribute('data-owned'),'true');assert.equal(content.children[1].children[1].getAttribute('data-owned'),'false');
   const first=scene.petAnimation;content.children[1].children[1].dispatchEvent(new Event('click'));assert.equal(scene.petChoice.config.id,'myeongrang');assert.equal(first.sprite.destroyed,true);assert.equal(first.sleepMark.destroyed,true);assert.equal(scene.animation.sprite.destroyed,false);
-  assert.equal(content.children[2].children[1].disabled,true);content.children[2].children[1].dispatchEvent(new Event('click'));assert.equal(state.coins,1000);
+  assert.equal(content.children[2].children[1].disabled,false);assert.equal(state.coins,1000);assert.equal(state.buyPet('myeongrang'),'purchased');assert.equal(content.children[2].children[1].disabled,true);assert.equal(corgi.id,'corgi');
   for(const category of [1,2]){content.children[0].children[category].dispatchEvent(new Event('click'));assert.equal(content.children[1].children.length,1);assert.equal(content.children[1].children[0].disabled,true);assert.equal(content.children[1].children[0].getAttribute('data-owned'),null);assert.equal(content.children[2].children[1].textContent,'Coming soon');assert.equal(scene.preview.visible,false);}
   setLanguage('ko');assert.equal(content.children[0].children[2].textContent,'오리');content.children[0].children[0].dispatchEvent(new Event('click'));assert.equal(content.children[1].children[1].children[1].textContent,'명랑이');assert.equal(content.children[1].children[1].children[2].textContent,'보유 중');assert.equal(scene.preview.visible,true);
-  panel.children[3].children.find(e=>e.getAttribute('data-shop-tab')==='Style').dispatchEvent(new Event('click'));assert.equal(scene.petPreview.visible,false);assert.equal(scene.animation.sprite.visible,true);assert.equal(state.coins,1000);
+  panel.children[3].children.find(e=>e.getAttribute('data-shop-tab')==='Style').dispatchEvent(new Event('click'));assert.equal(scene.petPreview.visible,false);assert.equal(scene.animation.sprite.visible,true);assert.equal(state.coins,500);
   scene.destroy({children:true});scene=undefined;assert.equal(Texture.WHITE.destroyed,false);
  }finally{scene?.destroy({children:true});setLanguage('en');if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
 });

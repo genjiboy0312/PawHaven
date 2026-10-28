@@ -1,3 +1,4 @@
+import { petInfo, petThumbnail } from '../../animals/PetCatalog';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
@@ -56,7 +57,7 @@ export class ShopScene extends Scene {
   private tab: 'Pets' | 'Style' | 'Furniture' | 'Pass';
   constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Pets' | 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void, pets?:readonly PetChoice[], private readonly homeSource?: { state: HomeState; textures?: HomeTextures }) {
     super(); this.tab = initial;
-    this.pets=pets?.length?pets:[{config,name:config.id,thumbnail:config.id==='myeongrang'?'./assets/characters/myeongrang/idle.png':'./assets/characters/corgi/corgi-idle-walk.png'}];
+    this.pets=pets?.length?pets:[{config,name:config.id,thumbnail:petThumbnail(config.id)}];
     this.petChoice=this.pets.find(pet=>pet.config.id===config.id)??this.pets[0];
     this.purchase = new PurchasePopup(state, this.panel);
     Object.assign(this.previewOutfit,config.wardrobe?.outfit);
@@ -98,7 +99,7 @@ export class ShopScene extends Scene {
     coinAmount(this.balance, this.state.entitlementsKnown ? this.state.coins : '—', { balance: true });
     this.balance.setAttribute('data-loading', String(!this.state.entitlementsKnown));
     this.connection.replaceChildren(); const connection = commerceStatus(this.state); if (connection) this.connection.append(connection);
-    const showPet=this.tab==='Pets'&&this.petCategory==='petDogs';
+    const showPet=this.tab==='Pets'&&this.pets.some(pet=>petInfo(pet.config.id)?.category===this.petCategory);
     this.preview.visible = this.platform.visible = this.tab === 'Style'||showPet;
     this.animation.sprite.visible=this.animation.welcomeMark.visible=this.tab==='Style';this.petPreview.visible=showPet;
     this.homePreview.hidden = this.tab !== 'Furniture';
@@ -177,26 +178,32 @@ export class ShopScene extends Scene {
     const categories=document.createElement('nav');categories.className='outfit-tabs shop-categories';bindAria(categories,'categories');
     for(const category of ['petDogs','petCats','petDucks'] as const){const button=document.createElement('button');button.type='button';bindText(button,category);button.setAttribute('aria-pressed',String(this.petCategory===category));button.addEventListener('click',()=>{this.petCategory=category;this.render();});categories.append(button);}
     const grid=document.createElement('div');grid.className='outfit-inventory shop-grid shop-pets-grid';bindAria(grid,'Pets');this.grid=grid;
-    if(this.petCategory==='petDogs'){
-      if(this.petChoice)this.selectPet(this.petChoice);
-      for(const pet of this.pets){
-        const button=document.createElement('button');button.type='button';button.className='outfit-slot shop-slot shop-pet-slot';button.setAttribute('data-pet',pet.config.id);button.setAttribute('data-owned','true');button.setAttribute('aria-pressed',String(this.petChoice?.config.id===pet.config.id));
+    const choices=this.pets.filter(pet=>petInfo(pet.config.id)?.category===this.petCategory);
+    if(choices.length){
+      if(!this.petChoice||!choices.includes(this.petChoice))this.selectPet(choices[0]!);else this.selectPet(this.petChoice);
+      for(const pet of choices){
+        const info=petInfo(pet.config.id)!,owned=this.state.ownsPet(pet.config.id);
+        const button=document.createElement('button');button.type='button';button.className='outfit-slot shop-slot shop-pet-slot';button.setAttribute('data-pet',pet.config.id);button.setAttribute('data-owned',String(owned));button.setAttribute('aria-pressed',String(this.petChoice?.config.id===pet.config.id));
         const portrait=document.createElement('span');portrait.className='pet-portrait';paintPetPortrait(portrait,pet.config,pet.thumbnail,9);
-        const name=document.createElement('span');name.className='pet-name';if(pet.config.id==='corgi'||pet.config.id==='myeongrang')bindText(name,pet.config.id);else name.textContent=pet.name;
-        const owned=document.createElement('span');owned.className='shop-price';bindText(owned,'owned');button.setAttribute('aria-label',name.textContent+' · '+t('owned'));button.append(portrait,name,owned);
+        const name=document.createElement('span');name.className='pet-name';bindText(name,info.name);
+        const price=document.createElement('span');price.className='shop-price';if(owned)bindText(price,'owned');else coinAmount(price,info.price);
+        button.setAttribute('aria-label',t(info.name)+' · '+(owned?t('owned'):info.price+' '+t('coins')));button.append(portrait,name,price);
         button.addEventListener('click',()=>{this.selectPet(pet);this.reaction=1.5;this.render();});grid.append(button);
       }
-    }else{
-      const card=document.createElement('button');card.type='button';card.className='outfit-slot shop-slot shop-pet-placeholder';card.disabled=true;card.setAttribute('data-coming-soon','true');
-      const name=document.createElement('span');name.className='pet-name';bindText(name,this.petCategory);const note=document.createElement('span');note.className='shop-price';bindText(note,'shopComingSoon');card.append(name,note);grid.append(card);
-    }
-    const footer=document.createElement('div');footer.className='shop-purchase';
-    const detail=document.createElement('span');detail.className='shop-detail';const name=document.createElement('strong');
-    const pet=this.petChoice;
-    name.textContent=this.petCategory==='petDogs'&&pet?(pet.config.id==='corgi'||pet.config.id==='myeongrang'?t(pet.config.id):pet.name):t(this.petCategory);
-    const note=document.createElement('span');bindText(note,this.petCategory==='petDogs'?'shopPetOwnedNote':'shopComingSoon');detail.append(name,note);
-    const buy=document.createElement('button');buy.type='button';buy.className='commerce-primary';buy.disabled=true;bindText(buy,this.petCategory==='petDogs'?'owned':'shopComingSoon');buy.setAttribute('data-purchase-state',this.petCategory==='petDogs'?'owned':'comingSoon');footer.append(detail,buy);
-    this.content.append(categories,grid,footer);this.update(0);
+    }else{const card=document.createElement('button');card.type='button';card.className='outfit-slot shop-slot shop-pet-placeholder';card.disabled=true;bindText(card,'shopComingSoon');grid.append(card);}
+    const pet=choices.find(p=>p.config.id===this.petChoice?.config.id),info=pet&&petInfo(pet.config.id),owned=!!pet&&this.state.ownsPet(pet.config.id);
+    const footer=document.createElement('div');footer.className='shop-purchase';const detail=document.createElement('span');detail.className='shop-detail';
+    const name=document.createElement('strong');name.textContent=info?t(info.name):t(this.petCategory);
+    const note=document.createElement('span');if(!info)bindText(note,'shopComingSoon');else if(owned)bindText(note,'shopPetOwnedNote');else if(!this.state.petShopReady)bindText(note,'shopPetSetup');else coinAmount(note,info.price);detail.append(name,note);
+    const buy=document.createElement('button');buy.type='button';buy.className='commerce-primary';
+    const enough=!!info&&this.state.coins>=info.price;
+    buy.textContent=t(!info?'shopComingSoon':owned?'owned':!this.state.petShopReady?'shopUnavailable':!this.state.ready?'economyWorking':!enough?'notEnoughCoins':'buy');
+    buy.disabled=!pet||owned||!this.state.petShopReady||!this.state.ready||!enough;
+    buy.addEventListener('click',()=>{if(!pet||!info||buy.disabled||this.state.ownsPet(pet.config.id))return;
+      this.purchase.open({name:()=>t(info.name),price:info.price,icon:()=>{const icon=document.createElement('span');icon.className='pet-portrait';paintPetPortrait(icon,pet.config,pet.thumbnail,14);return icon;},
+        available:()=>this.state.petShopReady&&!this.state.ownsPet(pet.config.id),fulfilled:()=>this.state.ownsPet(pet.config.id),buy:()=>this.state.buyPet(pet.config.id),purchased:()=>{if(!this.destroyed){this.reaction=1.5;this.render();}}});
+    });
+    footer.append(detail,buy);this.content.append(categories,grid,footer);this.update(0);
   }
   private renderFurniture(scroll: number): void {
     const category = this.homeCategory, selected = this.homeSelected;

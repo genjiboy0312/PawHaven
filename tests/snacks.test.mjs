@@ -51,18 +51,18 @@ test('older servers remain readable and malformed treat stock cannot enter the c
 test('guest quest and treat use persist together without granting a second daily reward',()=>{
  let saved=null,now=new Date(2026,9,24,10).getTime();const storage={getItem:()=>saved,setItem(_k,v){saved=v;}};const shop=new ShopState(storage,()=>now);
  for(let i=0;i<3;i++){shop.recordPet();now+=10000;}assert.equal(shop.claimDaily('pet'),true);assert.equal(shop.snacks,1);assert.equal(shop.claimDaily('pet'),false);
- assert.equal(shop.feed('myeongrang'),true);assert.equal(shop.feedSerial,1);assert.equal(shop.feed('myeongrang'),false);assert.equal(new ShopState(storage,()=>now).snacks,0);
+ assert.equal(shop.buyPet('myeongrang'),'purchased');assert.equal(shop.feed('myeongrang'),true);assert.equal(shop.feedSerial,1);assert.equal(shop.feed('myeongrang'),false);assert.equal(new ShopState(storage,()=>now).snacks,0);
  shop.completeRun();assert.equal(shop.claimDaily('run'),true);assert.equal(shop.feed('corgi'),false);now+=4000;assert.equal(shop.feed('corgi'),true);
 });
 test('unknown feed outcomes retry the same request and trigger exactly one reaction event',async()=>{
  await earn();let fail=true,requests=[];
  const api=new EconomyClient(async request=>{requests.push(request.p_request_id);const value=await command(0,request.p_action,request.p_payload,request.p_request_id);if(request.p_action==='feed'&&fail){fail=false;throw Error('lost response');}return value;},uuid);
  const shop=new ServerShopState(api);const idle=async()=>{for(let i=0;api.busy&&i<1000;i++)await new Promise(r=>setTimeout(r,1));assert.equal(api.busy,false);};
- try{await idle();assert.equal(await shop.feed('myeongrang'),false);assert.equal(shop.feedSerial,0);assert.equal((await command(0)).snapshot.snacks,0);const request=requests.at(-1);await api.retry();assert.equal(requests.at(-1),request);assert.equal(shop.snacks,0);assert.equal(shop.feedSerial,1);assert.equal(shop.fedPet,'myeongrang');await api.retry();assert.equal(shop.feedSerial,1);}finally{shop.destroy();}
+ try{await idle();assert.equal(await shop.feed('corgi'),false);assert.equal(shop.feedSerial,0);assert.equal((await command(0)).snapshot.snacks,0);const request=requests.at(-1);await api.retry();assert.equal(requests.at(-1),request);assert.equal(shop.snacks,0);assert.equal(shop.feedSerial,1);assert.equal(shop.fedPet,'corgi');await api.retry();assert.equal(shop.feedSerial,1);}finally{shop.destroy();}
 });
 class Element extends EventTarget{children=[];style={};hidden=false;disabled=false;attributes=new Map();append(...items){this.children.push(...items);}setAttribute(k,v){this.attributes.set(k,v);}remove(){this.removed=true;}}
 test('pet-side button serializes touches, routes empty stock to quests and cleans up its action',async()=>{
  const old=globalThis.document;globalThis.document={createElement:()=>new Element()};let quests=0,reactions=0;
- const shop=new ShopState({getItem:()=>JSON.stringify({snacks:1}),setItem(){}}),button=new SnackButton(shop,'myeongrang',()=>reactions++,()=>quests++);
+ const shop=new ShopState({getItem:()=>JSON.stringify({snacks:1}),setItem(){}});shop.buyPet('myeongrang');const button=new SnackButton(shop,'myeongrang',()=>reactions++,()=>quests++);
  try{button.reveal();button.element.dispatchEvent(new Event('click'));button.element.dispatchEvent(new Event('click'));await new Promise(r=>setImmediate(r));button.update(0,20,20,960,540);assert.equal(shop.snacks,0);assert.equal(reactions,1);button.update(0,20,20,960,540);assert.equal(reactions,1);assert.equal(button.element.disabled,true);button.update(5,20,20,960,540);button.reveal();button.element.dispatchEvent(new Event('click'));assert.equal(quests,1);button.destroy();assert.equal(button.element.removed,true);}finally{button.destroy();if(old===undefined)delete globalThis.document;else globalThis.document=old;}
 });
