@@ -10,7 +10,7 @@ import { wearableItem } from '../../animals/Wearables';
 import { speechSkinItem } from '../../animals/SpeechSkins';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
-interface CharacterOptions { subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
+interface CharacterOptions { beforeClose?: () => Promise<void>; subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
 const CHARACTER_TABS = ['Pets', ...OUTFIT_TABS] as const;
 
 export class CharacterScene extends Scene {
@@ -33,6 +33,7 @@ export class CharacterScene extends Scene {
   private readonly unsubscribe?: () => void;
   private elapsed = 0;
   private reaction = 0;
+  private closing = false;
 
   constructor(config: AnimalConfig, private readonly outfit: OutfitState, onClose: () => void, private readonly options: CharacterOptions = {}) {
     super();
@@ -50,7 +51,17 @@ export class CharacterScene extends Scene {
     bindAria(this.panel, 'customize');
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'character-close'; close.textContent = '×'; bindAria(close, 'close');
-    close.addEventListener('click', onClose, { once: true, signal: this.abort.signal });
+    close.addEventListener('click', () => {
+      if (this.closing || this.destroyed) return;
+      if (!options.beforeClose) { onClose(); return; }
+      this.closing = true; close.disabled = true; this.panel.inert = true;
+      bindText(this.feedback, 'sync.saving');
+      void options.beforeClose().then(() => { if (!this.destroyed) onClose(); }).catch(() => {
+        if (!this.destroyed) bindText(this.feedback, 'sync.offline');
+      }).finally(() => {
+        if (!this.destroyed) { this.closing = false; close.disabled = false; this.panel.inert = false; }
+      });
+    }, { signal: this.abort.signal });
     this.tabs.className = 'outfit-tabs'; bindAria(this.tabs, 'categories');
     for (const tab of CHARACTER_TABS) {
       const button = document.createElement('button');

@@ -42,7 +42,8 @@ export class ParkScene extends Scene {
  private friendOff?:()=>void;private blockedIds=new Set<string>();private blockSignature='';
  private readonly emotions:ParkEmoteMenu;
  private readonly participants:ParkParticipants;
- constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},private readonly friends?:FriendsClient,options?:{channel?:number;visit?:(id:string,channel:number,signal:AbortSignal)=>Promise<void>}){
+ private readonly characterButton=document.createElement('button');
+ constructor(private readonly client:ParkClient,private readonly pets:AnimalConfig[],private readonly onReturn:()=>void,textures?:HomeTextures,private readonly openSettings:()=>void=()=>{},private readonly friends?:FriendsClient,private readonly options?:{channel?:number;customize?:(channel:number)=>void;visit?:(id:string,channel:number,signal:AbortSignal)=>Promise<void>}){
   super();this.map=new ParkMap(textures);this.actorLayer=this.map.objects;this.world.addChild(this.map);this.addChild(this.world);
   this.profile=new ParkProfilePopup(client.owner,pets,friends,member=>{
    this.whisperTarget=member;this.client.chatError='';this.refresh();this.input.focus({preventScroll:true});
@@ -58,6 +59,11 @@ export class ParkScene extends Scene {
   this.world.position.set(-this.camera.x,-this.camera.y);
   this.hud.className='play-hud park-hud';
   this.header.className='park-header';this.status.className='park-status';this.status.setAttribute('role','status');
+  this.characterButton.type='button';this.characterButton.className='commerce-primary park-character';bindText(this.characterButton,'character');
+  this.characterButton.addEventListener('click',()=>{
+   if(!this.active()||!options?.customize)return;
+   this.blur();this.input.blur();this.chatDock.reset();this.emotions.close();this.participants.close();options.customize(this.client.channel);
+  },{signal:this.abort.signal});
   this.picker.className='settings-panel park-picker';this.picker.setAttribute('role','dialog');bindAria(this.picker,'parkChannels');
   this.chat.className='park-chat';this.log.className='park-chat-log';this.log.setAttribute('role','log');this.log.setAttribute('aria-live','polite');
   const form=this.chatForm;this.input.maxLength=100;this.input.autocomplete='off';bindAria(this.input,'parkMessage');this.input.setAttribute('data-park-input','true');
@@ -124,7 +130,7 @@ export class ParkScene extends Scene {
   if(signature!==this.signature){
    this.signature=signature;this.header.replaceChildren();
    const settings=this.button('settings',()=>{this.blur();this.chatDock.reset();this.emotions.close();this.participants.close();this.openSettings();});settings.classList.add('park-settings');
-   this.header.append(this.participants.toggle,this.button('parkChannels',()=>{this.choosing=true;this.emotions.close();this.participants.close();this.chatDock.reset();this.blur();this.signature='';this.refresh();void c.list();}),this.button('leaveRoom',this.onReturn),this.emotions.toggle,settings);
+   this.header.append(this.participants.toggle,this.button('parkChannels',()=>{this.choosing=true;this.emotions.close();this.participants.close();this.chatDock.reset();this.blur();this.signature='';this.refresh();void c.list();}),this.button('leaveRoom',this.onReturn),this.emotions.toggle,...(this.options?.customize?[this.characterButton]:[]),settings);
    this.status.textContent=c.error?t(c.error as 'parkUnavailable'):c.channel&&!c.connected?t('parkConnecting'):'';
    this.picker.hidden=!this.choosing;this.picker.replaceChildren();
    if(this.choosing){
@@ -134,6 +140,7 @@ export class ParkScene extends Scene {
    }
   }
   this.chat.hidden=!c.channel||this.choosing;
+  this.characterButton.disabled=!this.active();
   this.stick.disabled=!this.active();this.jumpButton.update(this.active()&&this.jumpHeight===0);
   if(!c.channel){this.profile.close();return;}
   const members=c.snapshot.members??[];

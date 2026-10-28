@@ -132,3 +132,14 @@ test('reactions reuse owned actor streams, throttle both sides and discard stale
   c.destroy();assert.equal(c.getEmote(ids[0]),undefined);assert.equal(c.emote('wave'),false);
  }finally{c.destroy();Date.now=originalNow;}
 });
+
+test('returning from character customization publishes saved cosmetics to peers in the same park',async()=>{
+ const channel=4,oldSession='44444444-4444-4444-8444-444444444444',newSession='55555555-5555-4555-8555-555555555555';
+ await command(8,'join',channel,oldSession);await command(9,'join',channel,session);
+ const look={petId:'corgi',outfit:{Hat:2,Body:0,Acc:2,Etc:2}};
+ await db.query('insert into public.player_saves(user_id,snapshot) values($1,$2) on conflict(user_id) do update set snapshot=excluded.snapshot',[ids[8],JSON.stringify({version:1,character:look})]);
+ const returned=await command(8,'join',channel,newSession);assert.deepEqual(returned.members.find(m=>m.id===ids[8]).look,look);
+ await command(8,'leave',channel,oldSession);
+ const peer=await command(9,'sync',channel,session);assert.deepEqual(peer.members.find(m=>m.id===ids[8]).look,look);assert.equal(peer.members.find(m=>m.id===ids[8]).session,newSession);
+ await command(8,'leave',channel,newSession);await command(9,'leave',channel,session);
+});

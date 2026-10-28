@@ -2827,3 +2827,18 @@ test('both animals render the current nickname, retain long Korean names and kee
     } finally { animal.destroy({ children: true }); setLanguage('en'); }
   }
 });
+
+test('character cloud-save gate blocks duplicate closes, retries failures and ignores a destroyed screen',async()=>{
+ class Element extends EventTarget{children=[];attributes=new Map();style={setProperty(){}};classList={add(){}};append(...items){for(const item of items){item.parent=this;this.children.push(item)}}replaceChildren(...items){this.children=[];this.append(...items)}setAttribute(k,v){this.attributes.set(k,v)}getAttribute(k){return this.attributes.get(k)??null}remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this)}}
+ const previous=globalThis.document,host=new Element();globalThis.document={createElement:()=>new Element(),querySelector:()=>host};
+ const {CharacterScene}=await importTs('../src/game/scenes/CharacterScene.ts',import.meta.url);
+ const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};let calls=0,returns=0,resolve,reject,scene;
+ const beforeClose=()=>{calls++;return new Promise((yes,no)=>{resolve=yes;reject=no})},tick=()=>new Promise(r=>setImmediate(r));
+ try{
+  scene=new CharacterScene(config,{Hat:0,Body:0,Acc:0,Etc:0},()=>returns++,{beforeClose});const panel=host.children[0],close=panel.children[0];
+  close.dispatchEvent(new Event('click'));close.dispatchEvent(new Event('click'));assert.equal(calls,1);assert.equal(returns,0);assert.equal(close.disabled,true);assert.equal(panel.inert,true);
+  reject(Error('offline'));await tick();assert.equal(close.disabled,false);assert.equal(panel.inert,false);assert.equal(panel.children.at(-1).getAttribute('data-i18n'),'sync.offline');assert.equal(returns,0);
+  close.dispatchEvent(new Event('click'));resolve();await tick();assert.equal(calls,2);assert.equal(returns,1);scene.destroy({children:true});
+  scene=new CharacterScene(config,{Hat:0,Body:0,Acc:0,Etc:0},()=>returns++,{beforeClose});host.children[0].children[0].dispatchEvent(new Event('click'));scene.destroy({children:true});resolve();await tick();assert.equal(returns,1);
+ }finally{if(scene&&!scene.destroyed)scene.destroy({children:true});if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
+});

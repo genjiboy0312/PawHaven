@@ -195,6 +195,14 @@ export class Game {
       },pets,{state:home,textures:this.homeTextures}));
     };
     let inGame=false;let currentLobby:LobbyScene|undefined;
+    const openCharacter=(returnTo:()=>void,beforeClose?:()=>Promise<void>)=>{
+      if(this.disposed)return;
+      const screen=new CharacterScene(activePet,this.outfit,()=>{if(!this.disposed&&this.scenes?.isCurrent(screen))returnTo();},{
+        beforeClose,presets,pets,onLookChanged:look=>{character.save(look);},onPetChanged:config=>{activePet=config;},
+        owns:(category,index)=>commerce.owns(category,index),subscribe:callback=>commerce.subscribe(callback),
+      });
+      this.scenes?.show(screen);
+    };
     const saveRoomLook=async()=>{if(this.account?.pendingSave)await this.account.save();};
     const showFriendHome=(saved:Awaited<ReturnType<typeof readFriendHome>>,leave:()=>void)=>{
       const source=saved.character.petId===this.myeongrang?.id?this.myeongrang!:corgi;
@@ -204,7 +212,13 @@ export class Game {
     const showPark=(channel?:number)=>{
       const owner=this.account?.user?.id;if(this.disposed||!owner||!accountClient)return;
       const park=new ParkScene(new ParkClient(accountClient,owner),[corgi,this.myeongrang!],()=>lobby(true),this.homeTextures,openSettings,this.friendClient,{
-        channel,visit:async(id,originChannel,signal)=>{
+        channel,customize:originChannel=>{
+          if(this.disposed||this.account?.user?.id!==owner||!this.scenes?.isCurrent(park))return;
+          openCharacter(()=>{if(this.account?.user?.id===owner)showPark(originChannel);},async()=>{
+            await saveRoomLook();
+            if(!this.disposed&&this.account?.user?.id===owner&&this.account.pendingSave)throw Error('park_look_not_saved');
+          });
+        },visit:async(id,originChannel,signal)=>{
           const saved=await readFriendHome(accountClient,owner,id,signal);
           if(signal.aborted||this.disposed||this.account?.user?.id!==owner||!this.scenes?.isCurrent(park))return;
           showFriendHome(saved,()=>showPark(originChannel));
@@ -305,7 +319,7 @@ export class Game {
         this.playMenu=menu;menu.open(page);
       };
       const scene = new LobbyScene(activePet, () => openMenu(), returning, () => {
-        if (!this.disposed) this.scenes?.show(new CharacterScene(activePet, this.outfit, () => lobby(true), { presets, pets, onLookChanged: look => { character.save(look); }, onPetChanged: config => { activePet = config; }, owns: (category, index) => commerce.owns(category, index), subscribe: callback => commerce.subscribe(callback) }));
+        openCharacter(()=>lobby(true));
       }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, snacks: commerce, friends: () => this.friends?.open(), mail:()=>this.mailbox?.open(), mailPending:()=>this.mailClient?.pending??0, mailArrival:()=>this.mailClient?.arrivalVersion??0, requests: () => this.friendClient?.snapshot.incoming.length ?? 0, rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback))); } }, () => this.account?.user ? this.account.nickname : null);
       currentLobby=scene;this.scenes?.show(scene);void this.friendActivity?.refresh();
       if(initialMenu)openMenu(initialMenu);
