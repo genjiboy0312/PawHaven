@@ -1,12 +1,28 @@
 # 말풍선 스킨 시안
 
 - 2026-10-28: 사용자가 구름 모양의 하늘색·분홍색을 제안했고 하늘색 시안부터 제작하도록 요청했다.
-- 현재는 하늘색 v5 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
+- 현재는 하늘색 v6 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
 - 생성: 내장 image_gen 도구. 신규 이미지, 투명 배경. 원본 PNG는 재가공하지 않고 Resources에 복사한다.
 - 리소스: `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype.png`.
 - 스타일 기준: UI_STYLE.md의 블랙·화이트 펫 소파 기준 픽셀 밀도, 평면 2D, 얇은 자연스러운 윤곽, 절제된 색 단계. 구름 굴곡은 크고 완만하게, 중앙 글자 공간은 넉넉하게 유지한다. 글씨는 게임의 Jua로 런타임에 넣기 위해 이미지에는 넣지 않는다.
 
-## 하늘색 v5 상·하단 수정 (최신 사용자 피드백 우선)
+## 하늘색 v6 사용자 참고 이미지 반영 (최신 기준)
+
+- 사용자가 제공한 흑백 생각 말풍선 참고 이미지처럼 좌우 대칭이 강하지 않고 자연스러운 구름 윤곽을 원한다고 명확히 설명했다. 기존 사각형 골격/같은 모서리/규칙적인 봉우리 유지 지시보다 이 참고 형태를 우선한다.
+- 사용자가 첨부한 흑백 생각 말풍선을 형태 참고로 사용했다. 참고 원본을 공개 저장소에 추가하지 않는다. 결과는 흰색 중앙·하늘색 테두리·픽셀 스타일로 제작한 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v6.png`다. 참고처럼 왼쪽 아래 작은 방울 꼬리를 사용했다. 내장 image_gen 편집 사용. 아직 시안이며 게임 연결은 하지 않았다.
+
+```text
+Edit Image 1, the PawHaven sky-blue speech-bubble draft, using Image 2 as the controlling SHAPE reference.
+The user says Image 2 has the natural, not-obviously-bilaterally-symmetric cloud feel they actually wanted. This new shape reference supersedes previous requests to preserve rectangular sides, a rigid frame, a centered pointed tail, or matching corner shapes.
+Image roles:
+- Image 1: edit target; retain only its WHITE center, SKY-BLUE outline color concept, and fine 2D pixel-art game-asset craft.
+- Image 2: essential silhouette/composition reference, the small black-outline thought cloud. Closely follow its compact naturally puffy cloud body and its small two-dot thought tail at lower left, but do NOT reproduce the black outline or white page background.
+Redraw the body as a simple, charming organic cloud dialogue balloon with unevenly sized and unevenly spaced rounded lobes around the whole perimeter, just like Image 2. Subtle asymmetry: left/right lobes do not mirror each other, upper lobes differ gently in size, lower edge is naturally uneven. No obvious rounded rectangular skeleton, no tall straight sides, no long straight top/bottom rails, no repeated scalloped border/crown, no sharp V-shaped valleys or stylized animal ears. Do not exaggerate the irregularity; the reference is calm, compact and friendly.
+Use a spacious pure WHITE interior for later runtime dialogue text. Clean thin pastel SKY-BLUE outline (#93c8e1 family); extremely restrained 1–2 blue edge tones. No blue fill/gradient in the text area, no dark outer rim, no neon cyan fringe, no 3D gloss or heavy shadow. Fine natural pixel-art contour density matching a modest 2D pet game, not huge blocky mosaic pixels and not sterile smooth vector art. Preserve soft genuinely rounded lobes.
+Keep the compact overall proportions of Image 2 with a modestly wider central text space if needed; definitely not a panoramic banner. Exactly one blank cloud and its small lower-left thought dots. Full silhouette visible with modest transparent margins. Genuine transparent alpha outside all components. No text, animal, icons, stars, scenery, sample UI, watermark, black linework or opaque/checkerboard background.
+```
+
+## 하늘색 v5 상·하단 수정 (이력)
 
 - 사용자는 좌우측은 예쁘지만 상단 자체가 어색하다고 했고 하단도 함께 수정하도록 요청했다. 좌우는 유지하고, 상단의 같은 크기 봉우리 반복과 하단의 긴 직선을 크기·높이가 다른 완만한 구름 곡선으로 다듬었다. 흰색 중앙/하늘색 테두리/현재 비율/중앙 꼬리를 유지했다. 내장 image_gen 편집을 사용했으며 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v5.png`에 별도 저장한다. 실제 게임 적용은 아직 하지 않았다.
 
