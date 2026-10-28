@@ -1,12 +1,22 @@
 # 말풍선 스킨 시안
 
 - 2026-10-28: 사용자가 구름 모양의 하늘색·분홍색을 제안했고 하늘색 시안부터 제작하도록 요청했다.
-- 현재는 하늘색 v3 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
+- 현재는 하늘색 v4 시안이며 승인/장착/상점 판매/로비·공원 연동은 아직 진행하지 않았다. 기본 말풍선 구현은 유지한다.
 - 생성: 내장 image_gen 도구. 신규 이미지, 투명 배경. 원본 PNG는 재가공하지 않고 Resources에 복사한다.
 - 리소스: `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype.png`.
 - 스타일 기준: UI_STYLE.md의 블랙·화이트 펫 소파 기준 픽셀 밀도, 평면 2D, 얇은 자연스러운 윤곽, 절제된 색 단계. 구름 굴곡은 크고 완만하게, 중앙 글자 공간은 넉넉하게 유지한다. 글씨는 게임의 Jua로 런타임에 넣기 위해 이미지에는 넣지 않는다.
 
-## 하늘색 v3 비율 수정 (최신 사용자 피드백 우선)
+## 하늘색 v4 상단 굴곡 수정 (최신 사용자 피드백 우선)
+
+- 상단 중앙의 긴 직선을 둥글게 이어지는 구름 굴곡으로 교체했다. v3 비율·흰색 중앙·하늘색 테두리·기존 측면/하단/꼬리는 유지한다. 내장 image_gen 편집을 사용했고 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v4.png`에 별도 저장한다. 게임 연동은 아직 진행하지 않았다.
+
+```text
+Make one targeted edit to this PawHaven speech-bubble prototype. The user specifically points to the long straight horizontal TOP border between the two corner puffs and wants that section to feel soft, rounded and cloudy too.
+Replace that ENTIRE straight top segment with a continuous row of 5–6 broad, softly rounded cloud scallops/lobes. Each lobe should arch upward then dip gently into the next. No long horizontal straight segment must remain along the top. Integrate the corner puffs smoothly into this scalloped top, without making two isolated cat-ear shapes. Keep the lobes similar modest heights, not one enormous central dome. Shape the outline itself, not a decoration drawn inside the bubble.
+Preserve everything else as closely as possible: the current compact balanced width/height, broadly rectangular white central text area, pure WHITE fill, delicate SKY-BLUE-only perimeter, small side/bottom cloud puffs, short downward centered tail, fine natural pixel-art craftsmanship, restrained flat 2D shading, and genuine transparent alpha background. Keep all top lobes outside the generous central text-safe area. No letters, icons, animals, sparkles, scene, checkerboard or extra variants. Full asset visible with modest transparent margins.
+```
+
+## 하늘색 v3 비율 수정 (이력)
 
 - v2가 가로로 너무 길다는 피드백에 따라 가로를 줄이고 세로 여유를 늘렸다. 흰색 중앙/하늘색 테두리/사각형에 붙인 작은 뭉게 형태를 유지한다. 원본을 덮어쓰지 않고 `Resources/Cloud_Speech_Bubble_Sky_Blue_Prototype_v3.png`에 저장한다. 내장 image_gen 편집을 사용했고 실제 게임 적용은 하지 않았다.
 
