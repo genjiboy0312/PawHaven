@@ -17,7 +17,7 @@ test('account curve is permanent, bounded, separate from pass XP and persistent 
  let saved=null;const storage={getItem:()=>saved,setItem:(_,value)=>saved=value},state=new ShopState(storage);const coins=state.coins,snacks=state.snacks;
  state.completeRun();assert.equal(state.accountProgress.xp,0);
  for(let i=0;i<5;i++){state.beginRun('practice');state.completeRun(0);state.completeRun(0);}
- assert.equal(state.accountProgress.level,2);assert.equal(state.accountProgress.xp,100);assert.equal(state.xp,400);assert.equal(state.coins,coins+50+20);assert.equal(state.snacks,snacks+1);assert.equal(state.takeAccountLevelUp().level,2);assert.equal(state.takeAccountLevelUp(),undefined);
+ assert.equal(state.accountProgress.level,2);assert.equal(state.accountProgress.xp,100);assert.equal(state.xp,400);assert.equal(state.coins,coins+50+20);assert.equal(state.snacks,snacks+1);assert.deepEqual(state.accountRunReward,{beforeXP:80,afterXP:100,levelUp:{level:2,coins:20,snacks:1}});assert.equal(state.takeAccountLevelUp().level,2);assert.equal(state.takeAccountLevelUp(),undefined);
  assert.equal(new ShopState(storage).accountProgress.xp,100);assert.equal(accountProgress(ACCOUNT_MAX_XP).percent,100);
 });
 test('server awards XP once per validated single finish, level gifts atomically and isolates accounts',async()=>{
@@ -41,5 +41,12 @@ test('account cap and capped wallets do not overflow; old servers remain compati
 test('server state survives a lost completion response and displays the level notice only once',async()=>{
  await economy(0);await db.query('update public.economy_wallets set account_xp=80 where user_id=$1',[users[0]]);let lose=true;
  const api=new EconomyClient(async request=>{const r=await economy(0,request.p_action,request.p_payload,request.p_request_id);if(request.p_action==='run_finish'&&lose){lose=false;throw Error('lost')}return r;},nonce),state=new ServerShopState(api),idle=async()=>{while(api.busy)await new Promise(r=>setImmediate(r));};
- try{await idle();assert.equal(state.accountProgress.xp,80);await state.beginRun('practice');await db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where user_id=$1",[users[0]]);await state.completeRun(0);assert.equal(state.accountProgress.xp,80);await state.retry();await idle();assert.equal(state.accountProgress.xp,100);assert.equal(state.takeAccountLevelUp().level,2);assert.equal(state.takeAccountLevelUp(),undefined);await api.execute('load');assert.equal(state.takeAccountLevelUp(),undefined);}finally{state.destroy();}
+ try{await idle();assert.equal(state.accountProgress.xp,80);await state.beginRun('practice');await db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where user_id=$1",[users[0]]);await state.completeRun(0);assert.equal(state.accountProgress.xp,80);assert.equal(state.accountRunReward,undefined);await state.retry();await idle();assert.equal(state.accountProgress.xp,100);assert.deepEqual(state.accountRunReward,{beforeXP:80,afterXP:100,levelUp:{level:2,coins:20,snacks:1}});assert.equal(state.takeAccountLevelUp().level,2);assert.equal(state.takeAccountLevelUp(),undefined);const receipt=state.accountRunReward;await api.execute('load');assert.equal(state.accountRunReward,receipt);assert.equal(state.takeAccountLevelUp(),undefined);}finally{state.destroy();}
+});
+
+test('account result presentation bounds the award, respects max-level and preserves image-backed colors',async()=>{
+ const {accountFinishReward}=await importTs('../src/account/AccountProgress.ts',import.meta.url);
+ assert.deepEqual(accountFinishReward(80,100),{beforeXP:80,afterXP:100});assert.deepEqual(accountFinishReward(0,80),{beforeXP:60,afterXP:80});assert.equal(accountFinishReward(100,80),undefined);
+ assert.deepEqual(accountFinishReward(252440,252450),{beforeXP:252440,afterXP:252450});assert.deepEqual(accountFinishReward(252450,252450),{beforeXP:252450,afterXP:252450});
+ for(const name of ['Track','Fill'])assert.deepEqual(await readFile(new URL('../Resources/Account_XP_'+name+'.png',import.meta.url)),await readFile(new URL('../public/assets/ui/surfaces/account-xp-'+name.toLowerCase()+'.png',import.meta.url)));
 });

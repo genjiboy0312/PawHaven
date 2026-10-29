@@ -820,3 +820,24 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .lobby-hud .hud-character{top:auto;bottom:4cqh;left:2.6cqw;display:flex;gap:1.7cqw}
 .lobby-hud .lobby-economy-note{top:18cqh;bottom:auto;max-width:35%}
 @media(prefers-reduced-motion:reduce){.lobby-profile-fill{transition:none}}
+/* Match the existing image-backed controls under browser auto-dark conversion. */
+.lobby-profile-bar{background:transparent url('/assets/ui/surfaces/account-xp-track.png') center/100% 100% no-repeat;color-scheme:only light;forced-color-adjust:none}
+.lobby-profile-fill{background:transparent url('/assets/ui/surfaces/account-xp-fill.png') center/100% 100% no-repeat}
+.lobby-profile *,.account-run-reward{color-scheme:only light;forced-color-adjust:none}
+.account-run-reward{margin:.7cqh 0;padding:.6cqh 0;font-size:inherit}
+.account-run-reward[hidden]{display:none}.account-run-heading{display:flex;justify-content:space-between;gap:1cqw;margin-bottom:.6cqh}
+.account-run-amount{color:#668344;-webkit-text-fill-color:#668344}.account-run-detail{display:block;text-align:right;font-size:.8em;margin-top:.4cqh}
+.account-run-gift{color:#98753d;-webkit-text-fill-color:#98753d}.account-run-gift[hidden]{display:none}
+.account-xp-gain{animation:account-xp-gain .85s ease-out both}.account-xp-level{animation:account-xp-level 1.15s ease-in-out both}
+@keyframes account-xp-gain{from{width:var(--xp-from)}to{width:var(--xp-to)}}
+@keyframes account-xp-level{0%{width:var(--xp-from)}45%{width:100%}46%{width:0}100%{width:var(--xp-to)}}
+@media(prefers-reduced-motion:reduce){.account-xp-gain,.account-xp-level{animation:none;transition:none}}
+/* Keep the complete reward block and return controls inside the existing result frames. */
+.play-hud:not(.race-hud) .play-result{max-height:55cqh}
+.race-podium .run-reward-summary{display:grid;grid-template-columns:1fr 1fr;gap:.25cqh .8cqw;width:100%;margin:.3cqh auto;padding:.5cqh .5cqw}
+.race-podium .run-reward-summary p{margin:.2cqh 0}
+.race-podium .run-reward-summary>p:nth-child(3),.race-podium .account-run-reward,.race-podium .run-reward-summary>div{grid-column:1/-1}
+.race-podium .account-run-reward{margin:.2cqh 0;padding:0}
+.race-podium .race-winner canvas{height:22cqh}
+.race-podium .race-winner canvas{height:20cqh}
+.race-podium-list{gap:.5cqh}.race-podium-list .race-result-row{min-height:5cqh}

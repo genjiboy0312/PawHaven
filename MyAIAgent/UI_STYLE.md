@@ -1,5 +1,8 @@
 # Cozy UI 1차 (2026-10-17)
 
+2026-10-29 프로필 색상 고정: 캐릭터 타이틀의 EXP 바도 CSS 단색 대신 `account-xp-track.png`/`account-xp-fill.png` 표면을 사용한다. 같은 이미지를 결과 경험치 바에 재사용하고, `color-scheme:only light`·`forced-color-adjust:none`·고정 `-webkit-text-fill-color`를 유지한다. Chrome 자동 다크모드 전후 실제 색상을 비교했다. 상세: [ACCOUNT_LEVELS.md](ACCOUNT_LEVELS.md).
+
+
 2026-10-29 계정 프로필 배치 갱신: 좌측 상단은 현재 펫 초상화·닉네임·계정 Lv.·EXP 바, Character/Home은 좌측 하단 가로 배치한다. 아래의 과거 상단 Character/Home 설명보다 이 규칙을 우선한다. 기존 이미지·상태 구독을 재사용하며 상세는 [ACCOUNT_LEVELS.md](ACCOUNT_LEVELS.md).
 
 로비 바닥 구매(2026-10-29): 기본 잔디만 무료, 색상 바닥·봄 모래는 각 200코인 구매 후 선택한다. 기존 무료 Floor 설명보다 이 규칙을 우선한다. 기존 지형 이미지·2열 상점 카드·상태 구독 재사용: [FLOOR_SHOP.md](FLOOR_SHOP.md).

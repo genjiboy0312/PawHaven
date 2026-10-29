@@ -6,11 +6,12 @@ import { homeInitialStock, type HomeProductTab } from '../home/HomeCatalog';
 import type { CourseId } from '../game/CourseCatalog';
 import type { RunReward } from './RunReward';
 import { speechSkinItem } from '../animals/SpeechSkins';
-import type {AccountLevelUp} from '../account/AccountProgress';
+import {accountFinishReward,type AccountRunReward,type AccountLevelUp} from '../account/AccountProgress';
 import { isPetId } from '../animals/PetCatalog';
 
 export class ServerShopState {
   private view = new ShopState();
+  accountRunReward?:AccountRunReward;private rewardXP?:number;
   private levelUp?:AccountLevelUp;private notifiedLevel=1;
   get accountProgressReady(){return this.api.result?.snapshot.accountProgressReady===true;}
   get accountProgress(){return this.view.accountProgress;}
@@ -46,7 +47,10 @@ export class ServerShopState {
       if (result) {
         if(result.account_level_up&&result.account_level_up.level>this.notifiedLevel){this.notifiedLevel=result.account_level_up.level;this.levelUp=result.account_level_up;}
         if (result.run_id === this.rewardRunId) {
-          if (result.run_reward) this.runReward = { status: 'confirmed', collected: result.run_reward.collected, coins: result.run_reward.coins };
+          if (result.run_reward) {
+            this.runReward = { status: 'confirmed', collected: result.run_reward.collected, coins: result.run_reward.coins };
+            if(!this.accountRunReward&&this.rewardXP!==undefined&&result.snapshot.accountProgressReady)this.accountRunReward=accountFinishReward(this.rewardXP,result.snapshot.accountXP!,result.account_level_up);
+          }
           else if (result.outcome === 'run_rejected') this.runReward = { status: 'rejected', collected: this.runReward?.collected ?? 0 };
         }
         if(result.outcome==='fed'&&result.petId&&result.revision!==this.feedRevision){this.feedRevision=result.revision;this.feedSerial++;this.fedPet=result.petId;}
@@ -103,19 +107,19 @@ export class ServerShopState {
     if (!this.ready) return false;
     const result = await this.api.execute('run_start', { map });
     this.runId = result?.run_id;
-    this.rewardRunId = undefined; this.runReward = undefined;
+    this.rewardRunId = undefined; this.runReward = undefined;this.accountRunReward=undefined;this.rewardXP=undefined;
     return !!this.runId;
   }
   async completeRun(collected = 0): Promise<void> {
     const run_id = this.runId; this.runId = undefined;
     if (!run_id) return;
-    this.rewardRunId = run_id;
+    this.rewardRunId = run_id;this.accountRunReward=undefined;this.rewardXP=this.accountProgressReady?this.accountProgress.xp:undefined;
     this.runReward = { status: this.runRewardsReady ? 'pending' : 'unavailable', collected };
     const result = await this.api.execute('run_finish', { run_id, ...(this.runRewardsReady ? { collected } : {}) });
     if (result?.outcome === 'run_rejected' && this.rewardRunId === run_id) this.runReward = { status: 'rejected', collected };
   }
   async completeRace(room: string, round: string, collected: number, finished: boolean): Promise<void> {
-    this.rewardRunId = round;
+    this.rewardRunId = round;this.accountRunReward=undefined;this.rewardXP=this.accountProgressReady?this.accountProgress.xp:undefined;
     this.runReward = { status: !finished ? 'notFinished' : this.raceRewardsReady ? 'pending' : 'unavailable', collected };
     if (!finished || !this.raceRewardsReady) { this.listeners.forEach(listener => listener()); return; }
     await this.api.execute('race_reward', { room, round, collected });

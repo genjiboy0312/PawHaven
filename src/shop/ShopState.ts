@@ -1,4 +1,4 @@
-import {accountProgress,ACCOUNT_MAX_XP,ACCOUNT_RUN_XP,ACCOUNT_LEVEL_COINS,ACCOUNT_LEVEL_SNACKS,type AccountLevelUp} from '../account/AccountProgress';
+import {accountFinishReward,type AccountRunReward,accountProgress,ACCOUNT_MAX_XP,ACCOUNT_RUN_XP,ACCOUNT_LEVEL_COINS,ACCOUNT_LEVEL_SNACKS,type AccountLevelUp} from '../account/AccountProgress';
 import { OUTFIT_TABS, type OutfitTab } from '../animals/OutfitState';
 import { speechSkinItem } from '../animals/SpeechSkins';
 import { isPetId, petInfo } from '../animals/PetCatalog';
@@ -23,6 +23,7 @@ const itemKey = (category: OutfitTab, index: number): string => category + ':' +
 const validItem = (value: string): boolean => OUTFIT_TABS.some(tab => Array.from({ length: 20 }, (_, i) => itemKey(tab, i + 1)).includes(value));
 export class ShopState {
   readonly accountProgressReady=true;
+  accountRunReward?:AccountRunReward;
   private accountExperience=0;private accountLevelUp?:AccountLevelUp;
   get accountProgress(){return accountProgress(this.accountExperience);}
   takeAccountLevelUp(){const notice=this.accountLevelUp;this.accountLevelUp=undefined;return notice;}
@@ -60,7 +61,7 @@ export class ShopState {
   readonly busy = false;
   readonly message = '';
   retry(): void {}
-  beginRun(map: CourseId = 'garden'): boolean { this.activeRun = map; this.runReward = undefined; return true; }
+  beginRun(map: CourseId = 'garden'): boolean { this.activeRun = map; this.runReward = undefined;this.accountRunReward=undefined; return true; }
   destroy(): void { this.listeners.clear(); }
   private balance = 1000;
   private experience = 0;
@@ -165,8 +166,9 @@ export class ShopState {
       this.daily.coins = Math.min(20,this.daily.coins + collected);
       const coins = Math.min(1000000 - this.balance, RUN_FINISH_BONUS + collected);
       this.balance += coins; this.runReward = { status: 'confirmed', collected, coins };
-      const beforeLevel=this.accountProgress.level;this.accountExperience=Math.min(ACCOUNT_MAX_XP,this.accountExperience+ACCOUNT_RUN_XP);
+      const beforeXP=this.accountExperience,beforeLevel=this.accountProgress.level;this.accountExperience=Math.min(ACCOUNT_MAX_XP,this.accountExperience+ACCOUNT_RUN_XP);
       if(this.accountProgress.level>beforeLevel){const coins=Math.min(ACCOUNT_LEVEL_COINS,1000000-this.balance),snacks=Math.min(ACCOUNT_LEVEL_SNACKS,99-this.treats);this.balance+=coins;this.treats+=snacks;this.accountLevelUp={level:this.accountProgress.level,coins,snacks};}
+      this.accountRunReward=accountFinishReward(beforeXP,this.accountExperience,this.accountProgress.level>beforeLevel?this.accountLevelUp:undefined);
 
     }
     this.experience = Math.min(400, this.experience + 100); this.daily.run = 1;

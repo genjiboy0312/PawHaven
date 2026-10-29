@@ -62,7 +62,7 @@ export class RacePodium {
     panel.append(list);
     if(rewards){this.rewardPanel=new RunRewardPanel(rewards,()=>coins??{collected:0,total:0},'race');panel.append(this.rewardPanel.element);}
     else if(coins){const summary=document.createElement('p');summary.className='course-coin-summary coin-amount';summary.textContent=`${t('runCoins')}: ${coins.collected} / ${coins.total}`;panel.append(summary);}
-    panel.append(this.back);this.element.append(panel);document.querySelector('#app')?.append(this.element);this.back.focus();
+    panel.append(this.back);this.element.append(panel);document.querySelector('#app')?.append(this.element);this.back.focus({preventScroll:true});
   }
   update(seconds:number,reduced=false){
     this.elapsed+=seconds;

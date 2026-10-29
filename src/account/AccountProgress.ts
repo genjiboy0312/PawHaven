@@ -11,3 +11,10 @@ export function accountProgress(total=0){
  const max=level===ACCOUNT_MAX_LEVEL;
  return {xp,level,current:max?required:current,required,percent:max?100:current/required*100,max};
 }
+
+export interface AccountRunReward {beforeXP:number;afterXP:number;levelUp?:AccountLevelUp}
+/** Presentation only: wallet values still come from the validated server response. */
+export function accountFinishReward(beforeXP:number,afterXP:number,levelUp?:AccountLevelUp):AccountRunReward|undefined{
+ if(!Number.isSafeInteger(beforeXP)||!Number.isSafeInteger(afterXP)||afterXP<beforeXP)return;
+ return {beforeXP:Math.max(beforeXP,afterXP-ACCOUNT_RUN_XP),afterXP,...(levelUp?{levelUp}: {})};
+}

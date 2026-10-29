@@ -26,3 +26,13 @@ SQL Editor 쿼리 이름: **Account Levels and Finish XP**
 핵심 파일: `src/account/AccountProgress.ts`, `src/ui/LobbyProfile.ts`, `src/shop/ShopState.ts`, `src/shop/ServerShopState.ts`.
 
 검증: 전체 테스트 364개 통과, 타입 검사·프로덕션 빌드 통과. DB에서 싱글/멀티 완주 중복 방지·계정 격리·재화 상한·응답 유실 재시도·마이그레이션 재실행을 검증. 실제 명랑이/도트 로비로 960×540·640×360의 프로필과 메뉴 간격 확인.
+
+## Completion feedback and fixed profile colors (2026-10-29)
+
+- 싱글·멀티 공통 `RunRewardPanel`에 `AccountRewardView`를 추가한다. 보상 확인 전·미완주·거절된 결과에는 EXP를 표시하지 않는다.
+- `accountRunReward`는 완주 직전과 서버 지급 확인 후 EXP로 만든 일시적인 표시 기록이다. 기존 지갑이나 시즌패스에 쓰지 않는다. 동시 계정 갱신은 최대 정상 완주량 20으로 제한해 표시하며, Lv.100 도달 시 실제 차이(+10 등) 또는 +0/MAX를 표시한다.
+- 레벨업은 이전→이후 레벨과 해당 완주의 코인·비스킷 보상을 표시한다. 로비 안내의 소비 여부와 별도여서 어느 화면도 다른 화면의 정보를 지우지 않는다.
+- 결과 DOM은 상태 구독 중 유지한다. 언어·잔액 갱신에 연출을 재시작하지 않으며 `prefers-reduced-motion`에서는 바를 즉시 최종 값으로 표시한다.
+- 프로필·결과 바는 `account-xp-track.png`(#e7dbc2)와 `account-xp-fill.png`(#9dbb76)를 공유한다. 원본은 `Resources/Account_XP_Track.png`, `Resources/Account_XP_Fill.png`, 편집 가능한 SVG는 `public/assets/ui/surfaces/`에 있다. 기존 이미지 표면·고정 글자 색·only light 규칙을 재사용한다.
+- 모바일 결과창 안쪽에서 보상 간격을 조정하며 긴 결과는 기존 세로 스크롤을 사용한다. 멀티의 복귀 버튼 포커스가 우승자 영역을 자동으로 스크롤하지 않는다.
+- 추가 SQL 없음. 034의 기존 완주 보상을 사용한다. 960×540·640×360 싱글/멀티 결과와 레벨업 표시, 언어 변경 시 애니메이션 유지, Chrome 자동 다크모드 전후 프로필 바/글자 실제 색상 동일을 확인했다.
