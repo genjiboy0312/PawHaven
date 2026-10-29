@@ -1,5 +1,7 @@
 # Small Pet House (2026-10-29)
 
+로비 행동 연결(2026-10-29): 집 앞에서 기존 REST/SLEEP 표현으로 쉬고, EMOTE 후 산책한다. 문 앞 목표·터치/이동/회수 중단·가용 영역·검증은 [LOBBY_LIFE.md](LOBBY_LIFE.md)를 참조한다. 게임 맵의 펫하우스는 계속 장식으로만 사용한다.
+
 ## 연결
 - 상점 → 로비 → 가구의 Furniture:6, **펫하우스 / Pet House**, 250 Coins. 초기 수량 0, 구매 전 홈 인벤토리에서 숨긴다. 기존 구매 확인창·ShopState/ServerShopState 구독·다중 배치·소진 흐림·드래그 자동 저장·회수를 재사용한다.
 - 원본 `Resources/Small_Pet_House.png`, 동일 배포 파일 `public/assets/home/small-pet-house.png`. 내장 image_gen으로 생성했다. 상자/검정·흰색 펫 소파를 스타일 참고로 사용했으며 원본 PNG를 재가공하지 않고 복사했다.

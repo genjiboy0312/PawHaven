@@ -1,7 +1,7 @@
 import { CORGI_BEHAVIOR } from './AnimalState';
 import type { AnimalState, BehaviorMode, BehaviorProfile } from './AnimalState';
 
-export interface CushionSpot { id: number; x: number; y: number; depth: number }
+export interface CushionSpot { id: number; x: number; y: number; depth: number; wakeEmote?: boolean }
 /** Renderer-independent daily behavior. One instance owns one animal's timers and target. */
 export class AnimalStateMachine {
   state: AnimalState = 'IDLE';
@@ -12,7 +12,7 @@ export class AnimalStateMachine {
   private targetY = 0;
   private cushions: CushionSpot[] = [];
   private cushion?: CushionSpot;
-  private cushionPhase?: 'approach' | 'rest' | 'sleep';
+  private cushionPhase?: 'approach' | 'rest' | 'sleep' | 'wake';
   private cushionCooldown = 0;
   private sinceCushion = 0;
   get restingCushion(): number | undefined { return this.cushion?.id; }
@@ -145,6 +145,8 @@ export class AnimalStateMachine {
   }
 
   private next(): void {
+    if (this.cushionPhase === 'wake') { this.leaveCushion(); this.enter('WANDER'); return; }
+    if (this.cushionPhase === 'sleep' && this.cushion?.wakeEmote) { this.cushionPhase = 'wake'; this.enter('EMOTE'); return; }
     if (this.cushionPhase === 'rest') { this.cushionPhase = 'sleep'; this.enter('SLEEP'); return; }
     if (this.cushionPhase === 'sleep') this.leaveCushion();
     if (this.state === 'JUMP') { this.enter('LAND'); return; }

@@ -2296,6 +2296,42 @@ test('sofa movement and removal interrupt approach/rest/sleep without teleportin
   }
 });
 
+test('all pets rest at the house door, sleep, emote and resume walking with the shared cooldown',()=>{
+ for(const id of ['corgi','myeongrang','tuxedo'])for(const fps of [30,60,120]){
+  const animal=new Animal({id,speed:90,scale:.62,behavior:cushionProfile,animations:{idle:{frames:[Texture.WHITE],fps:3},walk:{frames:[Texture.WHITE],fps:8},emote:{frames:[Texture.WHITE],fps:4}}},()=>.5);
+  try{
+   animal.setBounds(960,388.8,540);animal.setHome(960,540,[{id:7,tab:'Furniture',option:6,x:.5,y:.75}]);
+   advanceUntil(animal,()=>animal.state==='REST',20,fps);assert.equal(animal.cushionId,7);assert.equal(animal.x,480);assert.equal(animal.y,415);assert.equal(animal.floorDepth,415.5);
+   advanceUntil(animal,()=>animal.state==='SLEEP',2,fps);assert.equal(animal.children[1].visible,true);
+   advanceUntil(animal,()=>animal.state==='EMOTE',2,fps);assert.equal(animal.cushionId,7);assert.equal(animal.children[1].visible,false);assert.equal(animal.speechBubble.visible,true);const origin=[animal.x,animal.y];
+   advanceUntil(animal,()=>animal.state==='WANDER',2,fps);assert.equal(animal.cushionId,undefined);animal.update(.1);assert.ok(Math.hypot(animal.x-origin[0],animal.y-origin[1])>0);
+   for(let i=0;i<5*fps;i++){animal.update(1/fps);assert.equal(animal.cushionId,undefined)}
+  }finally{animal.destroy({children:true})}
+ }
+});
+
+test('house movement/removal and petting interrupt every rest phase without teleporting or stale sleep marks',()=>{
+ for(const phase of ['approach','REST','SLEEP','EMOTE'])for(const change of ['move','remove','pet']){
+  const animal=new Animal({id:'myeongrang',speed:90,scale:.62,behavior:cushionProfile,animations:{idle:{frames:[Texture.WHITE],fps:3},walk:{frames:[Texture.WHITE],fps:8},emote:{frames:[Texture.WHITE],fps:4}}},()=>.5),house={id:9,tab:'Furniture',option:6,x:.3,y:.75};
+  try{
+   animal.setBounds(960,388.8,540);animal.setHome(960,540,[house]);advanceUntil(animal,()=>phase==='approach'?animal.cushionId===9&&animal.state==='WANDER':animal.state===phase);const position=[animal.x,animal.y];
+   if(change==='pet'){assert.equal(animal.pet(),true);assert.equal(animal.cushionId,undefined);assert.equal(animal.state,'EMOTE')}
+   else animal.setHome(960,540,change==='move'?[{...house,x:.6}]:[]);
+   animal.update(0);assert.deepEqual([animal.x,animal.y],position);assert.equal(animal.children[1].visible,false);
+   if(change==='move'&&phase==='approach'){advanceUntil(animal,()=>animal.state==='REST');assert.equal(animal.x,576);assert.equal(animal.y,415)}
+   else if(change!=='pet'){assert.equal(animal.cushionId,undefined);assert.equal(animal.state,'IDLE')}
+  }finally{animal.destroy({children:true})}
+ }
+});
+
+test('missing or unreachable houses preserve ordinary autonomy and nearby sofas remain usable',()=>{
+ const animal=new Animal({id:'corgi',speed:90,scale:.62,behavior:cushionProfile,animations:{idle:{frames:[Texture.WHITE],fps:3},walk:{frames:[Texture.WHITE],fps:8}}},()=>.5);
+ try{
+  animal.setBounds(960,388.8,540);animal.setHome(960,540,[{id:2,tab:'Furniture',option:6,x:.5,y:.87},{id:3,tab:'Etc',option:6,x:.5,y:.75}]);for(let i=0;i<30*60;i++){animal.update(1/60);assert.equal(animal.cushionId,undefined)}
+  animal.setHome(960,540,[{id:4,tab:'Furniture',option:5,x:.5,y:.75}]);advanceUntil(animal,()=>animal.state==='REST'&&animal.cushionId===4);assert.equal(animal.y,391);
+ }finally{animal.destroy({children:true})}
+});
+
 test('lobby depth layers share furniture/animal ordering, keep speech above objects and track Home edits', async () => {
   class Element extends EventTarget {
     children = []; attributes = new Map(); classList = { add() {} };
