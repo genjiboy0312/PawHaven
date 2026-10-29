@@ -1,7 +1,7 @@
 import { Container, Graphics, Sprite, TilingSprite, type Texture } from 'pixi.js';
 import { SKY_COLORS, FLOOR_COLORS, type HomeItem, type HomeLook } from './HomeState';
 import {gardenProp,gardenPropSprite,type GardenPropTextures} from './GardenProps';
-export interface HomeTextures extends GardenPropTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture; noon?:Texture; sunset?:Texture; night?:Texture; cherry?:Texture; cherryFloor?:Texture }
+export interface HomeTextures extends GardenPropTextures { background: Texture; floor: Texture; cushion: Texture; sofa?: Texture; noon?:Texture; sunset?:Texture; night?:Texture; cherry?:Texture; cherryFloor?:Texture; stoneFloor?:Texture }
 /** Shared map renderer; every placed object owns its own view and persistent ID. */
 export class LobbyMap extends Container {
   private readonly paint = new Graphics();
@@ -26,8 +26,8 @@ export class LobbyMap extends Container {
       const texture=[this.textures!.background,this.textures!.noon,this.textures!.sunset,this.textures!.night,this.textures!.cherry][look.Background];
       this.backdrop.visible = !!texture;if(texture)this.backdrop.texture=texture;
       this.backdrop.width = width; this.backdrop.height = height * 0.44;
-      const floor=look.Floor===0?this.textures!.floor:look.Floor===4?this.textures!.cherryFloor:undefined;
-      this.lawn.visible=!!floor;if(floor){this.lawn.texture=floor;this.lawn.tileScale.set(look.Floor===4?160/floor.width:width/floor.width,look.Floor===4?160/floor.height:height*.56/floor.height);}
+      const floor=look.Floor===0?this.textures!.floor:look.Floor===4?this.textures!.cherryFloor:look.Floor===2?this.textures!.stoneFloor:undefined;
+      this.lawn.visible=!!floor;if(floor){this.lawn.texture=floor;this.lawn.tileScale.set(look.Floor!==0?160/floor.width:width/floor.width,look.Floor!==0?160/floor.height:height*.56/floor.height);}
       this.lawn.position.set(0, height * 0.44); this.lawn.width = width; this.lawn.height = height * 0.56;
     }
     for (const [id, view] of this.views) if (!items.some(item => item.id === id)) { view.destroy({ children: true }); this.views.delete(id); }

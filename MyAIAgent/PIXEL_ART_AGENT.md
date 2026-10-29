@@ -1,5 +1,7 @@
 # Paw Haven 픽셀 아트 에이전트
 
+돌길 바닥(2026-10-29): [STONE_PATH.md](STONE_PATH.md). Resources/Stone_Path_Floor.png를 160 world units로 반복하며 index 2의 기존 소유권을 유지한다. 같은 PNG·LobbyMap·상점 구매 컴포넌트를 재사용한다.
+
 벚꽃 테마 및 하늘 구매 규칙(2026-10-29): [CHERRY_SKY.md](CHERRY_SKY.md). 하늘 5종을 Resources에 보관하며 기본 아침만 무료, 나머지는 각 200코인이다. 새 타일과 기존 벚꽃나무로 싱글 벚꽃 산책길을 구성하고 기존 코스/효과를 재사용한다.
 
 2026-10-29 펫 구매 규칙 갱신: 코기만 기본 제공하며 명랑이·턱시도 고양이는 각각 500코인 구매 후 사용한다. 기존 기본 보유 설명보다 이 규칙을 우선한다. 리소스·공통 컴포넌트·서버 검증: [PET_SHOP.md](PET_SHOP.md).

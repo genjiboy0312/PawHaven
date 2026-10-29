@@ -5,7 +5,7 @@ export type HomeTab = typeof HOME_TABS[number];
 export type HomeLook = Record<'Background' | 'Floor', number>;
 export const HOME_STORAGE_KEY = 'pawhaven.home.v1';
 export const SKY_COLORS = ['#edf0df', '#dce8ef', '#f0ded5', '#e4dff0', '#f2dae7'];
-export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#b8ced0', '#cfc3d8', '#d5bd94'];
+export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#a99f90', '#cfc3d8', '#d5bd94'];
 export interface Placement { x: number; y: number }
 export interface HomeItem extends Placement { id: number; tab: PlaceableTab; option: number }
 export function clampPlacement(x: number, y: number): Placement {

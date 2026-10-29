@@ -7,7 +7,7 @@ export const HOME_BACKGROUNDS = [
   {time:'morning',name:'homeMorning'}, {time:'noon',name:'homeNoon'},
   {time:'sunset',name:'homeSunset'}, {time:'night',name:'homeNight'}, {time:'cherry',name:'homeCherrySky'},
 ] as const;
-export const HOME_FLOORS=['homeGrassFloor','homeSandFloor','homeMistFloor','homeLavenderFloor','homeSpringFloor'] as const;
+export const HOME_FLOORS=['homeGrassFloor','homeSandFloor','homeStoneFloor','homeLavenderFloor','homeSpringFloor'] as const;
 export const validHomeItem = (tab: unknown, index: unknown): tab is PlaceableTab =>
   (tab === 'Furniture' || tab === 'Etc') && Number.isInteger(index) && Number(index) > 0 && Number(index) < homeOptions[tab];
 export const validHomeProduct = (tab: unknown, index: unknown): tab is HomeProductTab => validHomeItem(tab,index) || (tab === 'Background'||tab === 'Floor') && Number.isInteger(index) && Number(index) >= 0 && Number(index) < homeOptions[tab];

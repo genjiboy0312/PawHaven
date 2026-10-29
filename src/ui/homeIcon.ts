@@ -15,7 +15,7 @@ export function homeIcon(tab: HomeTab, index: number): HTMLElement {
     const image=document.createElement('img');image.className='outfit-object home-pixel-icon';image.alt='';
     image.src='./assets/backgrounds/'+HOME_BACKGROUNDS[index]!.time+'.png';return image;
   }
-  if(tab==='Floor'&&index===4){const image=document.createElement('img');image.className='outfit-object home-pixel-icon';image.alt='';image.src='./assets/course/cherry-soil.png';return image;}
+  if(tab==='Floor'&&(index===2||index===4)){const image=document.createElement('img');image.className='outfit-object home-pixel-icon';image.alt='';image.src=index===2?'./assets/home/stone-path.png':'./assets/course/cherry-soil.png';return image;}
   if (tab === 'Furniture' && index === 5) {
     const frame = document.createElement('span'); frame.className = 'outfit-object pet-sofa-icon';
     const image = document.createElement('img'); image.src = './assets/home/pet-sofa-black-white.png'; image.alt = '';

@@ -39,9 +39,12 @@ test('local ownership survives reload without consumption or auto-equip; pending
 });
 test('older servers cannot sell floors; spring floor renderer shares the existing soil texture and keeps default lawn',async()=>{
  let calls=0;const api=new EconomyClient(async request=>{calls++;const r=await economy(1,request.p_action,request.p_payload,request.p_request_id);delete r.snapshot.homeFloorShopReady;return r},nonce),state=new ServerShopState(api);while(api.busy)await new Promise(r=>setImmediate(r));const count=calls;assert.equal(await state.buyHome('Floor',4),'invalid');assert.equal(calls,count);state.destroy();
- const base=new Texture({source:new TextureSource({width:500,height:250})}),spring=new Texture({source:new TextureSource({width:1295,height:1215})}),textures={background:Texture.WHITE,floor:base,cherryFloor:spring,cushion:Texture.WHITE},map=new LobbyMap(textures);try{
+ assert.deepEqual(await readFile(new URL('../Resources/Stone_Path_Floor.png',import.meta.url)),await readFile(new URL('../public/assets/home/stone-path.png',import.meta.url)));
+ const stone=new Texture({source:new TextureSource({width:1295,height:1215})});
+ const base=new Texture({source:new TextureSource({width:500,height:250})}),spring=new Texture({source:new TextureSource({width:1295,height:1215})}),textures={background:Texture.WHITE,floor:base,cherryFloor:spring,stoneFloor:stone,cushion:Texture.WHITE},map=new LobbyMap(textures);try{
  map.draw(960,540,{Background:0,Floor:4});const floor=map.children[2];assert.equal(floor.visible,true);assert.equal(floor.texture,spring);assert.equal(floor.tileScale.x,160/1295);assert.equal(floor.y,237.6);
  map.draw(960,540,{Background:0,Floor:0});assert.equal(floor.texture,base);assert.equal(floor.visible,true);assert.equal(floor.tileScale.x,960/500);
- map.draw(960,540,{Background:0,Floor:2});assert.equal(floor.visible,false);
- }finally{map.destroy({children:true});assert.equal(spring.destroyed,false);base.destroy(true);spring.destroy(true)}
+ map.draw(960,540,{Background:0,Floor:2});assert.equal(floor.visible,true);assert.equal(floor.texture,stone);assert.equal(floor.tileScale.x,160/1295);
+ map.draw(960,540,{Background:0,Floor:1});assert.equal(floor.visible,false);
+ }finally{map.destroy({children:true});assert.equal(spring.destroyed,false);assert.equal(stone.destroyed,false);base.destroy(true);spring.destroy(true);stone.destroy(true)}
 });

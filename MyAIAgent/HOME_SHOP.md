@@ -1,5 +1,7 @@
 # 가구 상점 및 펫 소파 (2026-10-21)
 
+돌길 바닥(2026-10-29): [STONE_PATH.md](STONE_PATH.md). Resources/Stone_Path_Floor.png를 160 world units로 반복하며 index 2의 기존 소유권을 유지한다. 같은 PNG·LobbyMap·상점 구매 컴포넌트를 재사용한다.
+
 로비 바닥 구매(2026-10-29): 기본 잔디만 무료, 색상 바닥·봄 모래는 각 200코인 구매 후 선택한다. 기존 무료 Floor 설명보다 이 규칙을 우선한다. 기존 지형 이미지·2열 상점 카드·상태 구독 재사용: [FLOOR_SHOP.md](FLOOR_SHOP.md).
 
 벚꽃 테마 및 하늘 구매 규칙(2026-10-29): [CHERRY_SKY.md](CHERRY_SKY.md). 하늘 5종을 Resources에 보관하며 기본 아침만 무료, 나머지는 각 200코인이다. 새 타일과 기존 벚꽃나무로 싱글 벚꽃 산책길을 구성하고 기존 코스/효과를 재사용한다.
