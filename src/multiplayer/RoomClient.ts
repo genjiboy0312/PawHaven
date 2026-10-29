@@ -6,7 +6,7 @@ import { COURSES } from '../game/CourseCatalog';
 import { prepareRoomAppearance } from './RoomAppearance';
 import type { RoomStream, StreamPose, LobbyStream } from './RoomStream';
 export interface Pose { x: number; height: number; direction: number; action: AnimalAction; progress: number; vx: number }
-export interface RoomMember { id: string; name: string; look: CharacterPreset; ready: boolean; returned: boolean; pose: Pose }
+export interface RoomMember { id: string; name: string; level?:number; look: CharacterPreset; ready: boolean; returned: boolean; pose: Pose }
 export type RoomVisibility = 'public' | 'invite';
 export interface RoomSummary { id: string; name: string; map: CourseId; phase: 'waiting'|'countdown'|'playing'|'results'; count: number; visibility?:RoomVisibility }
 export interface Room extends Omit<RoomSummary,'count'> { host: string; round: string|null; startsAt: number|null; endsAt: number|null; members: RoomMember[]; racers: { id:string;name:string;time:number|null;left:boolean }[] }

@@ -1,5 +1,5 @@
 import type { OutfitState } from '../animals/OutfitState';
-export interface ParkMember { id:string;session:string;name:string;look?:{petId?:string;outfit?:OutfitState} }
+export interface ParkMember { id:string;session:string;name:string;level?:number;look?:{petId?:string;outfit?:OutfitState} }
 export interface ParkMessage {id:number;user_id:string;name:string;message:string;recipient_id?:string|null;recipient_name?:string|null}
 export interface ParkSnapshot {counts:number[];members?:ParkMember[];messages?:ParkMessage[]}
 export interface ParkPose {x:number;y:number;height:number;direction:number;moving:boolean;seq:number}

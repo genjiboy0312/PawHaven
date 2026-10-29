@@ -36,3 +36,13 @@ SQL Editor 쿼리 이름: **Account Levels and Finish XP**
 - 프로필·결과 바는 `account-xp-track.png`(#e7dbc2)와 `account-xp-fill.png`(#9dbb76)를 공유한다. 원본은 `Resources/Account_XP_Track.png`, `Resources/Account_XP_Fill.png`, 편집 가능한 SVG는 `public/assets/ui/surfaces/`에 있다. 기존 이미지 표면·고정 글자 색·only light 규칙을 재사용한다.
 - 모바일 결과창 안쪽에서 보상 간격을 조정하며 긴 결과는 기존 세로 스크롤을 사용한다. 멀티의 복귀 버튼 포커스가 우승자 영역을 자동으로 스크롤하지 않는다.
 - 추가 SQL 없음. 034의 기존 완주 보상을 사용한다. 960×540·640×360 싱글/멀티 결과와 레벨업 표시, 언어 변경 시 애니메이션 유지, Chrome 자동 다크모드 전후 프로필 바/글자 실제 색상 동일을 확인했다.
+
+## Social account level labels (2026-10-29)
+
+- 공원 머리 위와 멀티 대기방 닉네임에 `Lv. 3 닉네임`을 표시한다. 채팅·친구 검색에 사용하는 원래 닉네임 데이터는 유지한다.
+- `accountLevelName` 공통 함수로 1~100의 정수만 표시한다. 레벨이 없는 구버전 서버 또는 잘못된 응답은 원래 닉네임을 표시한다.
+- 공원 레벨 갱신은 기존 Text만 수정해 좌표·점프·애니메이션·상호작용 대상을 유지한다. 기존 참가자 상태 구독을 재사용하며 새 이미지·별도 폴링은 추가하지 않는다.
+- 서버는 현재 채널/방 참가자에 한해 지갑 EXP로 계산한 레벨만 내려준다. 원본 EXP·코인·개별 지갑 조회 권한을 공개하지 않으며 클라이언트가 보낸 level은 사용하지 않는다. 지갑이 아직 없는 계정은 Lv.1이다.
+- SQL Editor 이름: **Social Account Level Labels**. 파일: [202610290035_social_account_levels.sql](../supabase/migrations/202610290035_social_account_levels.sql). 기존 Account Levels and Finish XP(034) 이후 실행한다.
+- 기존 공원 세션 검증, 채팅 차단/귓속말 필터, 초대 전용 방·맵/레디/카운트다운 흐름을 유지한다. 마이그레이션 재실행 시 재화·EXP를 변경하지 않는다.
+- 검증: 실제 DB 응답의 계정별 레벨·지갑 누락·값 조작 무시·세션 및 비공개 방 접근 제한·재실행, 공원 배우 보존, 대기방 갱신·구버전 이름 표시를 테스트한다.

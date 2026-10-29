@@ -1,3 +1,4 @@
+import {accountLevelName} from '../account/AccountProgress';
 import { bindAria, onLanguageChange, t, type TextKey } from '../settings/i18n';
 import { COURSES, type CourseId } from '../game/CourseCatalog';
 import type { RoomClient, Room, RoomVisibility } from '../multiplayer/RoomClient';
@@ -280,7 +281,7 @@ export class PlayMenuPopup {
             const portrait=document.createElement('span');portrait.className='room-pet';portrait.setAttribute('aria-hidden','true');art.append(portrait);
             const pet=this.options.pets?.find(pet=>pet.config.id===member.look.petId);if(pet)this.portraits.push({element:portrait,...pet,outfit:member.look.outfit});
             const details=document.createElement('div');details.className='room-player-info';
-            const name=document.createElement('strong');name.textContent=member.name;
+            const name=document.createElement('strong');name.textContent=accountLevelName(member.name,member.level);
             const status=this.text((isHost?'♛ ':member.ready?'✓ ':'')+t(isHost?'roomHost':member.ready?'ready':'notReady'));details.append(name,status);
             slot.append(art,details);
           }else{slot.setAttribute('data-empty','true');slot.append(this.text(t('emptySeat')));}slots.append(slot);

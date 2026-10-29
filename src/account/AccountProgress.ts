@@ -18,3 +18,8 @@ export function accountFinishReward(beforeXP:number,afterXP:number,levelUp?:Acco
  if(!Number.isSafeInteger(beforeXP)||!Number.isSafeInteger(afterXP)||afterXP<beforeXP)return;
  return {beforeXP:Math.max(beforeXP,afterXP-ACCOUNT_RUN_XP),afterXP,...(levelUp?{levelUp}: {})};
 }
+
+/** Names stay usable against older servers; levels only come from membership RPCs. */
+export function accountLevelName(name:string,level:unknown):string{
+ return Number.isSafeInteger(level)&&Number(level)>=1&&Number(level)<=ACCOUNT_MAX_LEVEL?`Lv. ${level} ${name}`:name;
+}

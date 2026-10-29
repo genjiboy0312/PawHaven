@@ -1292,3 +1292,12 @@ test('create room reuses access buttons, sends invite-only visibility and hides 
   env.host.all().find(e=>e.tag==='button'&&e.className?.includes('room-create')).dispatchEvent(new Event('click'));await idle(client);assert.equal(payload.visibility,'invite');assert.equal(client.room.visibility,'invite');assert.equal(menu.inviteButton,undefined);assert.ok(env.host.all().some(e=>e.textContent==='Invite friend'));
  }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
+test('waiting room names reuse validated account level labels and refresh when membership changes',async()=>{
+ const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);const env=dom();let menu,level=3;
+ const client=new RoomClient(users[0],async(a,r,p)=>{const snapshot=await cmd(0,a,r,p);if(snapshot.room){snapshot.room.members[0].level=level;snapshot.room.members[1].level='99';}return snapshot;});
+ try{
+  menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
+  assert.ok(env.host.all().some(e=>e.textContent==='Lv. 3 '+room.members[0].name));assert.ok(env.host.all().some(e=>e.textContent===client.room.members[1].name));
+  level=4;await client.command('sync');assert.ok(env.host.all().some(e=>e.textContent==='Lv. 4 '+room.members[0].name));
+ }finally{menu?.destroy();client.destroy(false);env.restore();}
+});

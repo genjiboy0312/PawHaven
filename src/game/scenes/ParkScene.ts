@@ -1,3 +1,4 @@
+import {accountLevelName} from '../../account/AccountProgress';
 import { Container,Text,type DestroyOptions } from 'pixi.js';
 import { Scene } from './Scene';
 import type { HomeTextures } from '../../home/LobbyMap';
@@ -174,7 +175,8 @@ export class ParkScene extends Scene {
   this.blur();this.emotions.close();this.participants.close();this.chatDock.reset();this.profile.open(member);
  }
  private actor(member:ParkMember){
-  const signature=JSON.stringify([member.session,member.look,member.name]),old=this.actors.get(member.id);if(old?.signature===signature)return;
+  const label=accountLevelName(member.name,member.level),signature=JSON.stringify([member.session,member.look,member.name]),old=this.actors.get(member.id);
+  if(old?.signature===signature){if(old.name.text!==label)old.name.text=label;return;}
   old?.box.destroy({children:true});
   const source=this.pets.find(p=>p.id===member.look?.petId)??this.pets[0];
   const outfit={...createOutfit(),...member.look?.outfit};
@@ -187,7 +189,7 @@ export class ParkScene extends Scene {
    this.openProfile(current.id);
   });
   if(member.id!==this.client.owner)animation.sprite.tint=0xc9c9c9;
-  const name=new Text({text:member.name,style:{fontFamily:GAME_FONT,fontSize:18,fill:member.id===this.client.owner?'#665039':'#67685d',stroke:{color:'#fff9e9',width:2}}});name.anchor.set(.5);name.y=-145;
+  const name=new Text({text:label,style:{fontFamily:GAME_FONT,fontSize:18,fill:member.id===this.client.owner?'#665039':'#67685d',stroke:{color:'#fff9e9',width:2}}});name.anchor.set(.5);name.y=-145;
   box.addChild(animation.sprite,animation.welcomeMark,name);this.actorLayer.addChild(box);
   this.actors.set(member.id,{box,animation,name,signature,x:this.playerX,y:this.playerY,height:0,until:0});
  }
