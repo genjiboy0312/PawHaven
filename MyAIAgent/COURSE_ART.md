@@ -1,5 +1,7 @@
 # 맵 지형·코스 표식 리소스 (2026-10-21)
 
+숲길 지형(2026-10-29): 로비의 Stone_Path_Floor.png를 courseThemeArt/CourseTerrain에서 160 world units로 재사용한다. 새 PNG·SQL 없이 지형 질감만 바꾸며 물리/배치/보상과 다른 맵 테마는 유지한다. 상세: [STONE_PATH.md](STONE_PATH.md).
+
 ## 재사용 정원 장식 (2026-10-27)
 - CourseDecor.ts의 COURSE_DECOR에 맵별 초록 나무·벚꽃 나무·울타리·장식 상자를 소량 정의한다. Home/Shop과 같은 GardenProps Texture를 사용해 매 프레임 로드/생성하지 않는다. 실루엣은 바닥선에 고정하고 terrain·캐릭터 뒤에 그리며, 장식에 충돌/피격/보상/RPC를 추가하지 않는다. 공격용 상자와는 기존 동작을 분리한다.
 - Game이 loadHome에서 한 번 불러온 소품 Texture를 loadCourseArt에 전달한다. 씬 교체는 Sprite만 정리하며 Game 종료의 공유 Texture 정리는 기존 destroyed guard를 유지한다. Home 배치는 구매 후 사용자 배치를 따르며 게임 맵 장식은 고정 배치다.
@@ -56,4 +58,3 @@ Standalone small side-view pixel-art course flag sprite for PawHaven. Match the 
 ### Course_Finish_Flag.png
 
 Standalone small side-view pixel-art course flag sprite for PawHaven. Match the simple restrained pixel-cluster finish of the wooden crate reference, not a glossy illustration. One thin straight warm-brown wooden pole with flat bottom and a simple cloth flag near its top extending to the RIGHT. Front/side view, modest detail and 2–3 shading levels. Complete flag and full pole centered with generous clear padding. No stand, pedestal, grass, floor, ground shadow, glow, text, letters, extra objects or characters. Genuine transparent background. Keep it readable at a small game size. FINISH flag: a small rectangular black-and-cream checkerboard racing flag, just a few broad readable checker squares and a slight relaxed cloth fold. No other symbols.
-

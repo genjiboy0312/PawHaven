@@ -1,5 +1,6 @@
 import { Assets, Container, Rectangle, Sprite, Texture, TilingSprite } from 'pixi.js';
 import { COURSE_GROUND, type CourseSolid } from './TrainingCourse';
+import type {CourseId} from './CourseCatalog';
 import type {GardenPropTextures} from '../home/GardenProps';
 
 export type CourseMarkerId='start'|'checkpoint'|'finish';
@@ -13,7 +14,7 @@ export interface CourseArt extends GardenPropTextures {
   coin?:Texture;
   box?:Texture;
   grass:Texture;soil:Texture;tileWorldSize:number;
-  cherryGrass?:Texture;cherrySoil?:Texture;grassTileHeight?:number;
+  cherryGrass?:Texture;cherrySoil?:Texture;stoneFloor?:Texture;grassTileHeight?:number;
   markers:Record<CourseMarkerId,{texture:Texture;anchorX:number;anchorY:number;visibleHeight:number}>;
 }
 /** Frame extraction happens at runtime; generated PNGs remain unchanged in Resources. */
@@ -47,7 +48,15 @@ export async function loadCourseArt(props?:GardenPropTextures):Promise<CourseArt
   const [cherryGrass,cherrySoil]=await Promise.all(['cherry-grass.png','cherry-soil.png'].map(name=>Assets.load<Texture>(base+name)));
   cherryGrass.source.scaleMode=cherrySoil.source.scaleMode='nearest';
   const cherryEdge=new Texture({source:cherryGrass.source,frame:new Rectangle(0,0,cherryGrass.width,Math.round(cherryGrass.height*.2))});
-  return Object.assign(art,{cherryGrass:cherryEdge,cherrySoil});
+  const stoneFloor=art.stoneFloor??await Assets.load<Texture>(import.meta.env.BASE_URL+'assets/home/stone-path.png');
+  stoneFloor.source.scaleMode='nearest';
+  return Object.assign(art,{cherryGrass:cherryEdge,cherrySoil,stoneFloor});
+}
+// Theme selection changes texture views only; collision solids and shared assets remain untouched.
+export function courseThemeArt(map:CourseId,art:CourseArt):CourseArt {
+  if(map==='forest'&&art.stoneFloor)return {...art,grass:art.stoneFloor,soil:art.stoneFloor,tileWorldSize:160,grassTileHeight:undefined};
+  if(map==='cherry')return {...art,grass:art.cherryGrass??art.grass,soil:art.cherrySoil??art.soil,grassTileHeight:art.tileWorldSize*.2};
+  return art;
 }
 export class CourseTerrain extends Container {
  constructor(private readonly solids:readonly CourseSolid[],art:CourseArt){

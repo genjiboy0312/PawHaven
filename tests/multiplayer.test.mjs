@@ -19,7 +19,7 @@ const {SingleRecords,SINGLE_RECORDS_KEY}=await importTs('../src/game/SingleRecor
 const {AccountStorage}=await importTs('../src/account/AccountStorage.ts',import.meta.url);
 const {DummyRun}=await importTs('../src/game/DummyRun.ts',import.meta.url);
 const {COURSES}=await importTs('../src/game/CourseCatalog.ts',import.meta.url);
-const {createCourseArt,courseTerrain,courseMarker}=await importTs('../src/game/CourseArt.ts',import.meta.url);
+const {createCourseArt,courseTerrain,courseMarker,courseThemeArt}=await importTs('../src/game/CourseArt.ts',import.meta.url);
 const {RemoteMotion}=await importTs('../src/multiplayer/RemoteMotion.ts',import.meta.url);
 const {raceCountdown}=await importTs('../src/multiplayer/RaceCountdown.ts',import.meta.url);
 const {roomStream}=await importTs('../src/multiplayer/RoomStream.ts',import.meta.url);
@@ -86,6 +86,18 @@ test('textured terrain stays inside every collision solid and marker feet share 
     }
     const bad=structuredClone(artManifest);bad.markers.finish.frame.width=99999;assert.throws(()=>createCourseArt(bundle.images,bad),/invalid_course_marker/);
   }finally{destroyCourseArt(bundle);}
+});
+
+test('forest reuses lobby stone art without changing collisions, markers, other themes or shared texture lifetime',()=>{
+ const env=dom(),bundle=testCourseArt(),stone=new Texture({source:new TextureSource({width:1295,height:1215})}),cherry=new Texture({source:new TextureSource({width:1295,height:250})});let scene;
+ const art={...bundle.art,stoneFloor:stone,cherryGrass:cherry,cherrySoil:stone},original=JSON.stringify(COURSES.forest),config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+ try{
+  assert.equal(courseThemeArt('garden',art),art);assert.equal(courseThemeArt('practice',art),art);assert.equal(courseThemeArt('crossroads',art),art);assert.equal(courseThemeArt('cherry',art).grass,cherry);assert.equal(courseThemeArt('forest',bundle.art),bundle.art);
+  scene=new PlayScene(config,()=>{},{open(){},map:'forest',art});const terrain=scene.world.children.find(child=>child.label==='course-terrain');assert.ok(terrain);assert.equal(terrain.children.length,COURSES.forest.solids.length*2);
+  scene.run.course.forEach((solid,index)=>{for(const tile of terrain.children.slice(index*2,index*2+2)){assert.equal(tile.texture,stone);assert.equal(tile.x,solid.x);assert.equal(tile.y,390-solid.top);assert.equal(tile.width,solid.width);assert.equal(tile.tileScale.x,160/1295)}});
+  assert.equal(JSON.stringify(COURSES.forest),original);assert.equal(art.grass,bundle.art.grass);assert.equal(art.soil,bundle.art.soil);assert.equal(art.markers,bundle.art.markers);
+  scene.destroy({children:true});scene=undefined;assert.equal(stone.destroyed,false);assert.equal(cherry.destroyed,false);
+ }finally{scene?.destroy({children:true});destroyCourseArt(bundle);stone.destroy(true);cherry.destroy(true);env.restore();}
 });
 
 test('every playable map uses shared terrain art and brightens its checkpoint after crossing without destroying shared textures',()=>{
