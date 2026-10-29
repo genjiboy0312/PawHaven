@@ -2,6 +2,7 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { AnimalConfig, AnimalAction, HeadAnchor } from './AnimalConfig';
 import { createOutfit, type OutfitState } from './OutfitState';
 import { applyNeckAnchors, type NeckAnchorMap } from './Wearables';
+import { COLLAR_FITS } from './CollarFits';
 import { SKY_CLOUD } from './SpeechSkins';
 
 interface FrameRect { x: number; y: number; width: number; height: number }
@@ -65,7 +66,7 @@ export async function loadCorgi(onProgress: (progress: number) => void, outfit: 
   const speechCloud = new Texture({ source: speechAtlas.source, frame: new Rectangle(...SKY_CLOUD.frame) });
   const config: AnimalConfig = {
     wardrobe: { santaHat, topHat,bowTie,speechCloud,outfit },
-    id: 'corgi', speed: 90, scale: 0.62,
+    id: 'corgi', speed: 90, scale: 0.62, collarFit: COLLAR_FITS.corgi,
     effects: { attack: effectFrames(effectMap.attack), skill: effectFrames(effectMap.skill) },
     animations: {
       run: { frames: paddedTextures(cleanAtlas, clean.actions.run), fps: 8, ...padded },

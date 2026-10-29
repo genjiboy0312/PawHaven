@@ -5,6 +5,7 @@ import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
 import { wornLayers } from './Wearables';
+import { applyAttachmentPose } from './AttachmentFit';
 import { speechSkinItem } from './SpeechSkins';
 
 export class AnimalAnimationController {
@@ -92,7 +93,7 @@ export class AnimalAnimationController {
     if(this.config.wardrobe)for(const {item,texture,pose}of wornLayers(this.config,this.config.wardrobe.outfit,animation,frame)){
       const layer=item.category==='Hat'?this.hat:this.accessory;if(!layer)continue;
       layer.visible=true;layer.texture=texture;layer.label=item.texture;
-      layer.anchor.set(item.anchorX,item.anchorY);layer.position.set(pose.x,pose.y);layer.scale.set(pose.scale);layer.rotation=pose.rotation;
+      applyAttachmentPose(layer,pose);
     }
     this.sprite.anchor.set(0.5, animation.anchorY ?? 1);
     const breath = state === 'SLEEP' || state === 'REST' ? 1 + Math.sin(elapsed * 2) * 0.012 : 1;

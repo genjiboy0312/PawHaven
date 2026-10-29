@@ -2,6 +2,7 @@ import type { WelcomeConfig } from '../systems/WelcomeSequence';
 import type { BehaviorProfile } from './AnimalState';
 import type { Texture } from 'pixi.js';
 import type { OutfitState } from './OutfitState';
+import type { CollarFit } from './AttachmentFit';
 export interface HeadAnchor { x: number; y: number; width: number; rotation?: number }
 
 export const ACTIONS = [
@@ -15,6 +16,7 @@ export interface AnimalConfig {
   speed: number;
   scale: number;
   animations: AnimationSet;
+  collarFit?: CollarFit;
   wardrobe?: { santaHat: Texture; topHat?:Texture; bowTie?:Texture; speechCloud?:Texture; outfit: OutfitState };
   effects?: Partial<Record<'attack' | 'skill', Texture[]>>;
   behavior?: BehaviorProfile;

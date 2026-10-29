@@ -2880,3 +2880,49 @@ test('character cloud-save gate blocks duplicate closes, retries failures and ig
   scene=new CharacterScene(config,{Hat:0,Body:0,Acc:0,Etc:0},()=>returns++,{beforeClose});host.children[0].children[0].dispatchEvent(new Event('click'));scene.destroy({children:true});resolve();await tick();assert.equal(returns,1);
  }finally{if(scene&&!scene.destroyed)scene.destroy({children:true});if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
 });
+
+
+test('attachment seam registration ignores transparent margins and preserves rotation',async()=>{
+ const {attachmentPose}=await importTs('../src/animals/AttachmentFit.ts',import.meta.url);
+ const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+ const target={x:32,y:-54,width:48,rotation:.35};
+ for(const margin of [0,300]){
+  const art={width:500+margin*2,height:400+margin*2,mount:{back:{x:110+margin,y:90+margin},front:{x:350+margin,y:120+margin}}};
+  const p=attachmentPose(art,target);
+  for(const [key,sign]of [['back',-1],['front',1]]){
+   const a=art.mount[key],x=(a.x-art.width*p.anchorX)*p.scale,y=(a.y-art.height*p.anchorY)*p.scale;
+   close(p.x+x*Math.cos(p.rotation)-y*Math.sin(p.rotation),target.x+sign*target.width/2*Math.cos(target.rotation));
+   close(p.y+x*Math.sin(p.rotation)+y*Math.cos(p.rotation),target.y+sign*target.width/2*Math.sin(target.rotation));
+  }
+ }
+ assert.throws(()=>attachmentPose({width:1,height:1,mount:{back:{x:0,y:0},front:{x:0,y:0}}},target),/Invalid wearable/);
+});
+
+test('all pets reuse one collar art across every neck frame and both directions',async()=>{
+ const {attachmentPose,attachmentTarget}=await importTs('../src/animals/AttachmentFit.ts',import.meta.url);
+ const {COLLAR_FITS,KARAKUSA_SCARF_ART}=await importTs('../src/animals/CollarFits.ts',import.meta.url);
+ for(const id of ['myeongrang','corgi','tuxedo']){
+  const necks=JSON.parse(await readFile(new URL('../public/assets/characters/'+id+'/neck-anchors.json',import.meta.url),'utf8'));
+  const config={id,scale:.62,animations:{},collarFit:COLLAR_FITS[id]};
+  for(const [action,points]of Object.entries(necks))for(let frame=0;frame<points.length;frame++){
+   const clip={neck:points},target=attachmentTarget(config,clip,frame,'collar'),pose=attachmentPose(KARAKUSA_SCARF_ART,target);
+   assert.ok(Object.values(pose).every(Number.isFinite),id+'/'+action+'/'+frame);
+   for(const scale of [.3,.62,1.1])for(const direction of [-1,1]){
+    const visibleSpan=Math.hypot(KARAKUSA_SCARF_ART.mount.front.x-KARAKUSA_SCARF_ART.mount.back.x,KARAKUSA_SCARF_ART.mount.front.y-KARAKUSA_SCARF_ART.mount.back.y)*pose.scale*scale;
+    assert.ok(Math.abs(visibleSpan-points[frame].width*COLLAR_FITS[id].width*scale)<1e-8);
+    assert.equal(pose.x*scale*direction,target.x*scale*direction);
+   }
+   assert.equal(attachmentTarget(config,clip,frame,'neck'),points[frame]);
+  }
+ }
+});
+
+test('collar fitting follows rotated anatomy and requires calibration for a new pet',async()=>{
+ const {attachmentTarget}=await importTs('../src/animals/AttachmentFit.ts',import.meta.url);
+ const clip={neck:[{x:10,y:20,width:10,rotation:Math.PI/2}]};
+ const config={id:'new-pet',animations:{},collarFit:{x:-.5,y:-.2,width:1.5}};
+ const p=attachmentTarget(config,clip,0,'collar');assert.ok(Math.abs(p.x-12)<1e-8);assert.ok(Math.abs(p.y-15)<1e-8);assert.equal(p.width,15);
+ assert.equal(attachmentTarget({...config,collarFit:undefined},clip,0,'collar'),undefined);
+ assert.equal(attachmentTarget(config,clip,99,'collar'),undefined);
+ assert.throws(()=>attachmentTarget({...config,collarFit:{x:0,y:0,width:-1}},clip,0,'collar'),/Invalid collar/);
+});
