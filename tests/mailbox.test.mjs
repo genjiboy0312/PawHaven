@@ -129,3 +129,14 @@ test('lobby attendance waits behind a running mail request and regular polling k
  const client=new MailboxClient(request=>{calls.push(request.p_action);if(calls.length===1)return new Promise(r=>resolve=r);return Promise.resolve(base)});
  const loading=client.run('load');client.start();assert.deepEqual(calls,['load']);resolve(base);await loading;await new Promise(r=>setImmediate(r));assert.deepEqual(calls,['load','attendance']);client.start();await new Promise(r=>setImmediate(r));assert.deepEqual(calls,['load','attendance','attendance']);client.destroy();
 });
+test('one-time admin test coupon generates a private code, preserves issuance and grants 100000 only through mail',async()=>{
+ const sql=await readFile(new URL('../supabase/admin/create_test_coin_coupon.sql',import.meta.url),'utf8');
+ const issue=async()=>{await db.exec(sql);return(await db.query("select * from public.mail_coupons where id='b1843d70-5cc7-4aec-b48a-ecb602ef7ad1'")).rows[0];};
+ const issued=await issue();assert.match(issued.code,/^PAW-TEST-[A-F0-9]{16}$/);assert.equal(issued.max_uses,1);assert.deepEqual(issued.rewards,{coins:100000});
+ const remaining=Date.parse(issued.expires_at)-Date.now();assert.ok(remaining>6.99*86400000&&remaining<=7*86400000+1000);
+ const sent=await redeem(0,issued.code);assert.equal(sent.outcome,'couponSent');assert.equal((await db.query('select coins from public.economy_wallets where user_id=$1',[users[0]])).rows[0].coins,1000);
+ assert.equal((await redeem(1,issued.code)).outcome,'couponExhausted');assert.equal((await command(0,'claim',sent.mail[0].id)).granted,1);assert.equal((await command(0,'claim',sent.mail[0].id)).granted,0);
+ assert.equal((await db.query('select coins from public.economy_wallets where user_id=$1',[users[0]])).rows[0].coins,101000);
+ const repeated=await issue();assert.equal(repeated.code,issued.code);assert.equal(repeated.used_count,1);assert.deepEqual(repeated.expires_at,issued.expires_at);
+ await cooldown();assert.equal((await redeem(0,issued.code)).outcome,'couponUsed');
+});
