@@ -2926,3 +2926,39 @@ test('collar fitting follows rotated anatomy and requires calibration for a new 
  assert.equal(attachmentTarget(config,clip,99,'collar'),undefined);
  assert.throws(()=>attachmentTarget({...config,collarFit:{x:0,y:0,width:-1}},clip,0,'collar'),/Invalid collar/);
 });
+
+
+test('independent cloth depth keeps both rotated seam endpoints pinned',async()=>{
+ const {attachmentPose,applyAttachmentPose}=await importTs('../src/animals/AttachmentFit.ts',import.meta.url);
+ const {Sprite}=await import('pixi.js');
+ const art={width:500,height:400,mount:{back:{x:110,y:90},front:{x:350,y:120}},depth:80};
+ const target={x:12,y:-45,width:70,height:16,rotation:.3};
+ const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+ const transform=(point,p)=>{const x=point.x-art.width*p.anchorX,y=point.y-art.height*p.anchorY;return{x:p.x+p.a*x+p.c*y,y:p.y+p.b*x+p.d*y}};
+ const sourceAngle=Math.atan2(30,240),middle={x:230,y:105};
+ const depthPoint={x:middle.x-Math.sin(sourceAngle)*80,y:middle.y+Math.cos(sourceAngle)*80};
+ for(const width of [50,70,100]){
+  const t={...target,width},p=attachmentPose(art,t);
+  for(const [key,sign]of [['back',-1],['front',1]]){
+   const point=transform(art.mount[key],p);close(point.x,t.x+sign*t.width/2*Math.cos(t.rotation));close(point.y,t.y+sign*t.width/2*Math.sin(t.rotation));
+  }
+  const depth=transform(depthPoint,p);close(depth.x,t.x-Math.sin(t.rotation)*16);close(depth.y,t.y+Math.cos(t.rotation)*16);
+  const sprite=new Sprite(Texture.WHITE);applyAttachmentPose(sprite,p);
+  const local={x:depthPoint.x-art.width*p.anchorX,y:depthPoint.y-art.height*p.anchorY},actual=sprite.toGlobal(local);
+  close(actual.x,depth.x);close(actual.y,depth.y);sprite.destroy();
+ }
+ const thick=attachmentPose(art,{...target,height:28}),thin=attachmentPose(art,target);
+ close(thick.scale,thin.scale);assert.ok(thick.scaleY>thin.scaleY);
+ assert.throws(()=>attachmentPose({...art,depth:0},target),/Invalid wearable/);
+ assert.throws(()=>attachmentPose(art,{...target,height:-1}),/Invalid wearable/);
+});
+
+
+test('pose-specific collar dimensions do not change another action or the bow landmark',async()=>{
+ const {attachmentTarget}=await importTs('../src/animals/AttachmentFit.ts',import.meta.url);
+ const idle={neck:[{x:10,y:20,width:30}]},run={neck:[{x:15,y:18,width:30}]};
+ const config={id:'test',animations:{idle,run},collarFit:{x:0,y:0,width:2,height:.6,poses:{run:{x:-.2,height:.4}}}};
+ assert.equal(attachmentTarget(config,idle,0,'collar').height,18);
+ const moving=attachmentTarget(config,run,0,'collar');assert.equal(moving.x,9);assert.equal(moving.height,12);assert.equal(moving.width,60);
+ assert.equal(attachmentTarget(config,run,0,'neck'),run.neck[0]);
+});

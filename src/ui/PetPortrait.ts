@@ -32,6 +32,6 @@ export function paintPetPortrait(element:HTMLElement,config:AnimalConfig,thumbna
     layer.style.width=item.width*pose.scale*unit+'cqh';layer.style.height=item.height*pose.scale*unit+'cqh';
     layer.style.left=(x-item.width*pose.anchorX*pose.scale)*unit+'cqh';
     layer.style.top=(y-item.height*pose.anchorY*pose.scale)*unit+'cqh';
-    layer.style.transformOrigin=`${pose.anchorX*100}% ${pose.anchorY*100}%`;layer.style.transform=`rotate(${pose.rotation}rad)`;
+    layer.style.transformOrigin=`${pose.anchorX*100}% ${pose.anchorY*100}%`;layer.style.transform=`matrix(${pose.a/pose.scale},${pose.b/pose.scale},${pose.c/pose.scale},${pose.d/pose.scale},0,0)`;
   }
 }

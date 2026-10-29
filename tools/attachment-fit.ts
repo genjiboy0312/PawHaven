@@ -14,7 +14,7 @@ await app.init({ width: 1500, height: 504, background: 0xf5f1e6, antialias: fals
 document.body.append(app.canvas);
 const shared = await loadCorgi(() => {});
 const pets = [await loadMyeongrang(shared), shared, await loadTuxedo(shared)];
-const texture = await Assets.load('/Resources/Karakusa_Bandana_Fitted_Prototype.png');
+const texture = await Assets.load('/Resources/Karakusa_Bandana_Front_Overlay.png');
 texture.source.scaleMode = 'nearest';
 const actors = pets.map((config, i) => {
   const box = new Container(); box.position.set(250+i*500, 370); box.scale.set(2); app.stage.addChild(box);
@@ -28,7 +28,23 @@ const select = document.querySelector<HTMLSelectElement>('#action')!;
 const slider = document.querySelector<HTMLInputElement>('#frame')!;
 const guidesInput = document.querySelector<HTMLInputElement>('#guides')!;
 for (const key of Object.keys(shared.animations)) select.add(new Option(key,key));
+const petSelect = document.querySelector<HTMLSelectElement>('#pet')!;
+const widthInput = document.querySelector<HTMLInputElement>('#width')!;
+const depthInput = document.querySelector<HTMLInputElement>('#depth')!;
 let direction = 1;
+function syncFitControls() {
+  const base=pets.find(p=>p.id===petSelect.value)!.collarFit!;
+  const fit={...base,...base.poses?.[select.value as AnimalAction]};
+  widthInput.value=String(fit.width);depthInput.value=String(fit.height??.65);
+}
+petSelect.onchange=syncFitControls;
+function resizeFit() {
+  const config=pets.find(p=>p.id===petSelect.value)!, action=select.value as AnimalAction;
+  const base=config.collarFit!, patch={width:Number(widthInput.value),height:Number(depthInput.value)};
+  config.collarFit={...base,poses:{...base.poses,[action]:{...base.poses?.[action],...patch}}};
+  pose(action,Number(slider.value));
+}
+widthInput.oninput=resizeFit;depthInput.oninput=resizeFit;
 function pose(action: AnimalAction, frame = 0, facing = direction) {
   direction = facing; select.value = action;
   slider.max = String(Math.max(...pets.map(p => p.animations[action]?.frames.length ?? 1))-1);slider.value=String(frame);
@@ -37,13 +53,14 @@ function pose(action: AnimalAction, frame = 0, facing = direction) {
     const clip = config.animations[action] ?? config.animations.idle!;
     const index = frame % clip.frames.length;
     animal.update('IDLE',0,direction,0,0,0,action,(index+.01)/clip.frames.length);
-    const target = attachmentTarget(config,clip,index,'collar');
+    const target = attachmentTarget(config,clip,index,'collar',action);
     scarf.visible = !!target;
     if (target) applyAttachmentPose(scarf,attachmentPose(KARAKUSA_SCARF_ART,target));
     guides.clear(); guides.visible=guidesInput.checked;
     if(target){const dx=Math.cos(target.rotation??0)*target.width/2,dy=Math.sin(target.rotation??0)*target.width/2;
       guides.moveTo(target.x-dx,target.y-dy).lineTo(target.x+dx,target.y+dy).stroke({width:1,color:0xff4080});}
   }
+  syncFitControls();
   app.renderer.render(app.stage);
 }
 select.onchange=()=>pose(select.value as AnimalAction);

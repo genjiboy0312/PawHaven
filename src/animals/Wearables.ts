@@ -1,7 +1,7 @@
 import type { AnimalAction, AnimalConfig, AnimationSet, HeadAnchor } from './AnimalConfig';
 import type { OutfitState, OutfitTab } from './OutfitState';
 import { SANTA_HAT } from './HatPlacement';
-import { attachmentPose, attachmentTarget, type AttachmentArt, type AttachmentPoint } from './AttachmentFit';
+import { attachmentPose, attachmentTarget, type AttachmentArt, type AttachmentPoint, type AttachmentTarget } from './AttachmentFit';
 
 /** Equipment art and attachment geometry shared by Pixi, inventory and DOM previews. */
 export const WEARABLES = [
@@ -12,7 +12,7 @@ export const WEARABLES = [
 export interface Wearable {
   category: OutfitTab; index: number; texture: 'santaHat' | 'topHat' | 'bowTie'; name: string; file: string;
   width: number; height: number; anchorX: number; anchorY: number; fitWidth: number;
-  attachment: AttachmentPoint; offsetY: number; mount?: AttachmentArt['mount'];
+  attachment: AttachmentPoint; offsetY: number; mount?: AttachmentArt['mount']; depth?: number;
 }
 export const wearableItem=(category:OutfitTab,index:number)=>WEARABLES.find(item=>item.category===category&&item.index===index);
 export type NeckAnchorMap=Partial<Record<AnimalAction,HeadAnchor[]>>;
@@ -24,9 +24,9 @@ export function applyNeckAnchors(config:AnimalConfig,anchors:NeckAnchorMap):void
     clip.neck=points.map(point=>({...point}));
   }
 }
-export function wearablePose(item:Wearable,target:HeadAnchor,bodyScale:number){
+export function wearablePose(item:Wearable,target:AttachmentTarget,bodyScale:number){
   const x=item.width*item.anchorX,y=item.height*item.anchorY;
-  return attachmentPose({width:item.width,height:item.height,mount:item.mount??{back:{x:x-item.fitWidth/2,y},front:{x:x+item.fitWidth/2,y}}},
+  return attachmentPose({width:item.width,height:item.height,depth:item.depth,mount:item.mount??{back:{x:x-item.fitWidth/2,y},front:{x:x+item.fitWidth/2,y}}},
     {...target,y:target.y+item.offsetY/bodyScale});
 }
 export function wornLayers(config:AnimalConfig,outfit:OutfitState,clip:NonNullable<AnimationSet['idle']>,frame:number){
