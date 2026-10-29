@@ -52,7 +52,7 @@ export class EconomyClient {
       } catch (error) {
         if (this.disposed) return;
         const code = (error as { code?: string })?.code;
-        this.connection = ['PGRST202', 'PGRST205', '42501', '42883'].includes(code ?? '') ? 'setup'
+        this.connection = ['PGRST202', 'PGRST205', '42501', '42883', '23514'].includes(code ?? '') ? 'setup'
           : ['22023', '22P02', 'P0001'].includes(code ?? '') ? 'rejected' : 'offline';
         // Resolve current callers so the UI is usable. Keep unknown outcomes for explicit retry.
         this.jobs.forEach(item => item.resolve(undefined));

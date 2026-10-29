@@ -43,6 +43,6 @@ SQL Editor 쿼리 이름: **Account Levels and Finish XP**
 - `accountLevelName` 공통 함수로 1~100의 정수만 표시한다. 레벨이 없는 구버전 서버 또는 잘못된 응답은 원래 닉네임을 표시한다.
 - 공원 레벨 갱신은 기존 Text만 수정해 좌표·점프·애니메이션·상호작용 대상을 유지한다. 기존 참가자 상태 구독을 재사용하며 새 이미지·별도 폴링은 추가하지 않는다.
 - 서버는 현재 채널/방 참가자에 한해 지갑 EXP로 계산한 레벨만 내려준다. 원본 EXP·코인·개별 지갑 조회 권한을 공개하지 않으며 클라이언트가 보낸 level은 사용하지 않는다. 지갑이 아직 없는 계정은 Lv.1이다.
-- SQL Editor 이름: **Social Account Level Labels**. 파일: [202610290035_social_account_levels.sql](../supabase/migrations/202610290035_social_account_levels.sql). 기존 Account Levels and Finish XP(034) 이후 실행한다.
+- SQL Editor 이름: **Social Account Level Labels**. 파일: [202610290035_social_account_levels.sql](../supabase/migrations/202610290035_social_account_levels.sql). 기존 Account Levels and Finish XP(034) 이후 실행한다. 사용자 실행 완료 확인.
 - 기존 공원 세션 검증, 채팅 차단/귓속말 필터, 초대 전용 방·맵/레디/카운트다운 흐름을 유지한다. 마이그레이션 재실행 시 재화·EXP를 변경하지 않는다.
 - 검증: 실제 DB 응답의 계정별 레벨·지갑 누락·값 조작 무시·세션 및 비공개 방 접근 제한·재실행, 공원 배우 보존, 대기방 갱신·구버전 이름 표시를 테스트한다.

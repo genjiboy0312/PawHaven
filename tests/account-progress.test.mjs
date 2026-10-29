@@ -83,3 +83,20 @@ test('park level refresh changes only the label and keeps the existing actor pos
  const scene={actors:new Map([[member.id,old]])};ParkScene.prototype.actor.call(scene,member);assert.equal(old.name.text,'Lv. 3 명랑집사');assert.deepEqual([old.x,old.y,old.height,old.animation.frame],[500,700,60,4]);
  member.level=4;ParkScene.prototype.actor.call(scene,member);assert.equal(old.name.text,'Lv. 4 명랑집사');delete member.level;ParkScene.prototype.actor.call(scene,member);assert.equal(old.name.text,'명랑집사');
 });
+test('latest account and social migrations keep server background and floor purchases ready and retry-safe',async()=>{
+ const api=new EconomyClient(request=>economy(0,request.p_action,request.p_payload,request.p_request_id),nonce),state=new ServerShopState(api),idle=async()=>{while(api.busy)await new Promise(r=>setImmediate(r));};
+ try{await idle();for(const [category,index]of[['Background',4],['Floor',4],['Background',2],['Floor',2]]){assert.equal(await state.buyHome(category,index),'purchased');await idle();assert.equal(state.connection,'ready');assert.equal(state.message,'');assert.equal(state.homeOwned(category,index),1);}assert.equal(state.coins,200);assert.equal(state.accountProgress.xp,0);}finally{state.destroy();}
+});
+
+test('legacy furniture-only checks reproduce stuck surface purchases; repair preserves records and retries once',async()=>{
+ await economy(0);await economy(0,'buy_home',{category:'Furniture',index:5});const before=await economy(0);
+ await db.exec("alter table public.economy_home_items add constraint garden_home_index check(item_index>=1 and item_index<=pawhaven_private.home_max_index(category));alter table public.economy_home_items add constraint garden_home_minimum check(quantity>=pawhaven_private.home_initial_stock(category,item_index));");
+ const requests=[],api=new EconomyClient(request=>{requests.push(request);return economy(0,request.p_action,request.p_payload,request.p_request_id)},nonce),state=new ServerShopState(api),idle=async()=>{while(api.busy)await new Promise(r=>setImmediate(r));};
+ try{await idle();assert.equal(await state.buyHome('Background',4),'invalid');await idle();assert.equal(state.connection,'setup');assert.equal(state.coins,before.snapshot.coins);assert.equal(state.homeOwned('Background',4),0);
+  await db.exec(await readFile(new URL('../supabase/migrations/202610290036_repair_surface_purchases.sql',import.meta.url),'utf8'));await state.retry();await idle();assert.equal(state.connection,'ready');assert.equal(state.homeOwned('Background',4),1);assert.equal(state.coins,before.snapshot.coins-200);assert.equal(state.homeOwned('Furniture',5),1);
+  const buys=requests.filter(r=>r.p_action==='buy_home');assert.equal(buys.length,2);assert.equal(buys[0].p_request_id,buys[1].p_request_id);await state.retry();await idle();assert.equal(state.coins,before.snapshot.coins-200);
+  assert.equal(await state.buyHome('Floor',4),'purchased');await idle();assert.equal(state.homeOwned('Floor',4),1);assert.equal(state.coins,before.snapshot.coins-400);
+  await db.exec(await readFile(new URL('../supabase/migrations/202610290036_repair_surface_purchases.sql',import.meta.url),'utf8'));assert.equal((await economy(0)).snapshot.coins,state.coins);
+  await assert.rejects(db.query("insert into public.economy_home_items values($1,'Floor',2,2)",[users[0]]),/lobby_surface_limit/);await assert.rejects(db.query("insert into public.economy_home_items values($1,'Other',1,1)",[users[0]]),/lobby_home_category/);
+ }finally{state.destroy();}
+});
