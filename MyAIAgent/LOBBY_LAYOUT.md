@@ -1,5 +1,7 @@
 # 16:9 로비 UI 및 자율 생활 개편
 
+2026-10-29 계정 프로필 배치 갱신: 좌측 상단은 현재 펫 초상화·닉네임·계정 Lv.·EXP 바, Character/Home은 좌측 하단 가로 배치한다. 아래의 과거 상단 Character/Home 설명보다 이 규칙을 우선한다. 기존 이미지·상태 구독을 재사용하며 상세는 [ACCOUNT_LEVELS.md](ACCOUNT_LEVELS.md).
+
 날짜: 2026-10-16
 
 ## Implemented

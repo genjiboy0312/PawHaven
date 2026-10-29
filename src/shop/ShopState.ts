@@ -1,3 +1,4 @@
+import {accountProgress,ACCOUNT_MAX_XP,ACCOUNT_RUN_XP,ACCOUNT_LEVEL_COINS,ACCOUNT_LEVEL_SNACKS,type AccountLevelUp} from '../account/AccountProgress';
 import { OUTFIT_TABS, type OutfitTab } from '../animals/OutfitState';
 import { speechSkinItem } from '../animals/SpeechSkins';
 import { isPetId, petInfo } from '../animals/PetCatalog';
@@ -21,6 +22,10 @@ export const itemPrice = (index: number, category?: OutfitTab): number => (categ
 const itemKey = (category: OutfitTab, index: number): string => category + ':' + index;
 const validItem = (value: string): boolean => OUTFIT_TABS.some(tab => Array.from({ length: 20 }, (_, i) => itemKey(tab, i + 1)).includes(value));
 export class ShopState {
+  readonly accountProgressReady=true;
+  private accountExperience=0;private accountLevelUp?:AccountLevelUp;
+  get accountProgress(){return accountProgress(this.accountExperience);}
+  takeAccountLevelUp(){const notice=this.accountLevelUp;this.accountLevelUp=undefined;return notice;}
   readonly connection = 'local';
   readonly ready = true;
   readonly entitlementsKnown = true;
@@ -70,6 +75,7 @@ export class ShopState {
     try {
       const saved = JSON.parse(storage?.getItem(SHOP_STORAGE_KEY) ?? 'null');
       if (saved && typeof saved === 'object') {
+        if(Number.isSafeInteger(saved.accountXP)&&saved.accountXP>=0&&saved.accountXP<=ACCOUNT_MAX_XP)this.accountExperience=saved.accountXP;
         if(Array.isArray(saved.pets))for(const id of saved.pets)if(isPetId(id))this.pets.add(id);
         if(Number.isSafeInteger(saved.snacks)&&saved.snacks>=0&&saved.snacks<=99)this.treats=saved.snacks;
         if(Number.isFinite(saved.lastSnack)&&saved.lastSnack>=0)this.lastSnack=saved.lastSnack;
@@ -159,6 +165,9 @@ export class ShopState {
       this.daily.coins = Math.min(20,this.daily.coins + collected);
       const coins = Math.min(1000000 - this.balance, RUN_FINISH_BONUS + collected);
       this.balance += coins; this.runReward = { status: 'confirmed', collected, coins };
+      const beforeLevel=this.accountProgress.level;this.accountExperience=Math.min(ACCOUNT_MAX_XP,this.accountExperience+ACCOUNT_RUN_XP);
+      if(this.accountProgress.level>beforeLevel){const coins=Math.min(ACCOUNT_LEVEL_COINS,1000000-this.balance),snacks=Math.min(ACCOUNT_LEVEL_SNACKS,99-this.treats);this.balance+=coins;this.treats+=snacks;this.accountLevelUp={level:this.accountProgress.level,coins,snacks};}
+
     }
     this.experience = Math.min(400, this.experience + 100); this.daily.run = 1;
     if (map || rolled || before !== this.experience || progress !== 1) this.save();
@@ -174,7 +183,7 @@ export class ShopState {
   }
   subscribe(callback: () => void): () => void { this.listeners.add(callback); return () => { this.listeners.delete(callback); }; }
   private save(notify = true): void {
-    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ pets:[...this.pets],snacks:this.treats,lastSnack:this.lastSnack,coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], homeItems: this.homeItems, claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
+    try { this.storage?.setItem(SHOP_STORAGE_KEY, JSON.stringify({ accountXP:this.accountExperience,pets:[...this.pets],snacks:this.treats,lastSnack:this.lastSnack,coins: this.balance, xp: this.experience, premium: this.premium, items: [...this.items], homeItems: this.homeItems, claimed: [...this.claimed], daily: this.daily })); } catch { /* Keep the in-memory prototype session. */ }
     if (notify) this.listeners.forEach(callback => callback());
   }
 }

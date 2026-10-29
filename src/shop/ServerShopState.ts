@@ -6,10 +6,15 @@ import { homeInitialStock, type HomeProductTab } from '../home/HomeCatalog';
 import type { CourseId } from '../game/CourseCatalog';
 import type { RunReward } from './RunReward';
 import { speechSkinItem } from '../animals/SpeechSkins';
+import type {AccountLevelUp} from '../account/AccountProgress';
 import { isPetId } from '../animals/PetCatalog';
 
 export class ServerShopState {
   private view = new ShopState();
+  private levelUp?:AccountLevelUp;private notifiedLevel=1;
+  get accountProgressReady(){return this.api.result?.snapshot.accountProgressReady===true;}
+  get accountProgress(){return this.view.accountProgress;}
+  takeAccountLevelUp(){const value=this.levelUp;this.levelUp=undefined;return value;}
   private runId?: string;
   private rewardRunId?: string;
   runReward?: RunReward;
@@ -39,6 +44,7 @@ export class ServerShopState {
     this.unsubscribe = api.subscribe(() => {
       const result = api.result;
       if (result) {
+        if(result.account_level_up&&result.account_level_up.level>this.notifiedLevel){this.notifiedLevel=result.account_level_up.level;this.levelUp=result.account_level_up;}
         if (result.run_id === this.rewardRunId) {
           if (result.run_reward) this.runReward = { status: 'confirmed', collected: result.run_reward.collected, coins: result.run_reward.coins };
           else if (result.outcome === 'run_rejected') this.runReward = { status: 'rejected', collected: this.runReward?.collected ?? 0 };

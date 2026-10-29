@@ -50,8 +50,9 @@ export class AnimalStateMachine {
     x = this.clamp(x);
     if (!this.floor) return { x, y };
     y = Math.max(this.floor.top, Math.min(this.floor.bottom, y));
-    // Keep the bottom-right Play control clear.
+    // Keep the bottom corner controls clear.
     if (x > this.floor.width * 0.8 && y > this.floor.height * 0.7) x = this.floor.width * 0.8;
+    if (x < this.floor.width * 0.28 && y > this.floor.height * 0.7) x = this.floor.width * 0.28;
     return { x, y };
   }
   private leaveCushion(): void {
@@ -174,9 +175,11 @@ export class AnimalStateMachine {
     if (this.state === 'WANDER') {
       let waypointX = this.target, waypointY = this.targetY;
       if (this.floor) {
-        const edgeX = this.floor.width * 0.8, edgeY = this.floor.height * 0.7;
+        const edgeX = this.floor.width * 0.8, leftEdge = this.floor.width * 0.28, edgeY = this.floor.height * 0.7;
         if (this.x > edgeX + 0.001 && this.targetY > edgeY) { waypointX = edgeX; waypointY = this.y; }
         else if (this.y > edgeY + 0.001 && this.target > edgeX) { waypointX = this.x; waypointY = edgeY; }
+        else if(this.x < leftEdge - 0.001 && this.targetY > edgeY){waypointX=leftEdge;waypointY=this.y;}
+        else if(this.y > edgeY + 0.001 && this.target < leftEdge){waypointX=this.x;waypointY=edgeY;}
       }
       const remaining = waypointX - this.x;
       const dy = this.floor ? waypointY - this.y : 0;

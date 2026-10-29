@@ -809,3 +809,14 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .shop-pass .pass-offer-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1cqh 1cqw;}
 .shop-pass .pass-offer-actions>span{grid-column:1/-1;margin:0;}
 .shop-screen .pass-offer-actions button{min-width:0;white-space:normal;font-size:clamp(10px,1.2cqw,16px);}
+/* Persistent account profile. Use the same pet atlas and warm lobby surface. */
+.lobby-profile{position:absolute;top:4cqh;left:2.6cqw;width:27cqw;display:flex;align-items:center;gap:1cqw;color:#716047;-webkit-text-fill-color:#716047;pointer-events:none;color-scheme:only light;forced-color-adjust:none}
+.lobby-profile-avatar{width:11cqh;height:11cqh;flex:none;border:1px solid #d7bc89;border-radius:50%;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;background:transparent url('/assets/ui/surfaces/surface-cd0ff01d029e.png') center/100% 100% no-repeat}
+.lobby-profile-pet{display:block;flex:none;background-repeat:no-repeat;image-rendering:pixelated}
+.lobby-profile-info{flex:1;min-width:0}.lobby-profile-heading{display:flex;align-items:center;gap:.7cqw;margin-bottom:1cqh;font-family:var(--font-round);font-size:clamp(10px,1.5cqw,18px)}
+.lobby-profile-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lobby-profile-level{flex:none;color:#98753d;-webkit-text-fill-color:#98753d}
+.lobby-profile-bar{height:1.3cqh;min-height:4px;border-radius:9px;border:1px solid #d3bc91;background:#e7dbc2;overflow:hidden}.lobby-profile-fill{display:block;height:100%;background:#9dbb76;border-radius:inherit;transition:width .3s ease}
+.lobby-profile-xp{display:block;margin-top:.6cqh;font-size:clamp(8px,.95cqw,12px);text-align:right}.lobby-profile-notice{display:block;font-size:clamp(9px,1.05cqw,13px);white-space:nowrap;color:#92702f;-webkit-text-fill-color:#92702f}
+.lobby-hud .hud-character{top:auto;bottom:4cqh;left:2.6cqw;display:flex;gap:1.7cqw}
+.lobby-hud .lobby-economy-note{top:18cqh;bottom:auto;max-width:35%}
+@media(prefers-reduced-motion:reduce){.lobby-profile-fill{transition:none}}

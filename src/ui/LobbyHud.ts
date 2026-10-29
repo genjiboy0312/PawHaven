@@ -1,3 +1,4 @@
+import {LobbyProfile,type LobbyProfileOptions} from './LobbyProfile';
 import { bindAria, bindText } from '../settings/i18n';
 import type { AnimalVisualState } from '../animals/AnimalState';
 
@@ -15,6 +16,7 @@ type MenuId = keyof typeof ICONS;
 const PET_ICONS:Partial<Record<MenuId,string>>={character:'./assets/icons/lobby-character.svg?v=20261024',friends:'./assets/icons/lobby-friends.png?v=20261024',mail:'./assets/icons/lobby-mail.svg?v=20261024'};
 
 export class LobbyHud {
+  private profile?:LobbyProfile;
   readonly element = document.createElement('section');
   private readonly status = document.createElement('p');
   private readonly petTarget = document.createElement('button');
@@ -36,7 +38,7 @@ export class LobbyHud {
   private readonly mailNotice=document.createElement('span');private readonly mailArrival?:()=>number;private mailVersion=0;private mailNoticeUntil=0;
   private readonly mailBadge=document.createElement('span');private readonly mailPending?:()=>number;private mailCount=-1;
 
-  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void,private readonly visit?:{name:string;leave:()=>void}) {
+  constructor(onPlay?: () => void, fadeIn = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, onHome?: () => void, onPet?: () => void,private readonly visit?:{name:string;leave:()=>void},profile?:LobbyProfileOptions) {
     this.requests=commerce?.requests;
     this.mailPending=commerce?.mailPending;this.mailArrival=commerce?.mailArrival;this.mailVersion=this.mailArrival?.()??0;
     this.rewards = commerce?.rewards;
@@ -110,6 +112,7 @@ export class LobbyHud {
     }, { signal: this.abort.signal });
     this.petTarget.addEventListener('click', event => { if (event.detail === 0) onPet?.(); }, { signal: this.abort.signal });
     this.element.append(this.economyNote, this.petTarget);
+    if(profile){this.profile=new LobbyProfile(profile);this.element.append(this.profile.element);}
     document.querySelector('#app')?.append(this.element);
   }
 
@@ -134,6 +137,7 @@ export class LobbyHud {
     return button;
   }
   update(state: AnimalVisualState): void {
+    this.profile?.updateName();
     if(this.visit)return;
     const version=this.mailArrival?.()??0;if(version>this.mailVersion)this.mailNoticeUntil=performance.now()+3500;this.mailVersion=version;this.mailNotice.hidden=performance.now()>=this.mailNoticeUntil;
     const pending=this.mailPending?.()??0,mailCount=Number.isFinite(pending)?Math.max(0,Math.floor(pending)):0;if(mailCount!==this.mailCount){this.mailCount=mailCount;this.mailBadge.hidden=mailCount===0;this.mailBadge.textContent=mailCount>99?'99+':String(mailCount);}
@@ -159,5 +163,5 @@ export class LobbyHud {
     this.petTarget.setAttribute('style', 'left:' + (x + bounds.x) / width * 100 + '%;top:' + (y + bounds.y) / height * 100 +
       '%;width:' + bounds.width / width * 100 + '%;height:' + bounds.height / height * 100 + '%');
   }
-  destroy(): void { this.abort.abort(); this.element.remove(); }
+  destroy(): void { this.profile?.destroy();this.abort.abort(); this.element.remove(); }
 }

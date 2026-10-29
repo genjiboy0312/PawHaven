@@ -1,8 +1,10 @@
+import {ACCOUNT_MAX_XP,type AccountLevelUp} from '../account/AccountProgress';
 import { homeStockLimit, homeOptions,homeInitialStock, homeKey, validHomeProduct } from '../home/HomeCatalog';
 import type { RunRewardReceipt } from './RunReward';
 import { MAX_COURSE_COINS } from '../game/CourseCoins';
 import { isPetId } from '../animals/PetCatalog';
 export interface EconomySnapshot {
+  accountProgressReady?:boolean;accountXP?:number;
   petShopReady?:boolean;pets?:string[];
   snacks?:number;snacksReady?:boolean;
   homeItems?: Record<string, number>; homeShopReady?: boolean;
@@ -20,7 +22,7 @@ export interface EconomySnapshot {
 }
 export type EconomyAction = 'load' | 'buy' | 'buy_pet' | 'buy_home' | 'feed' | 'pet' | 'claim_daily' | 'claim_pass' | 'unlock_pass' | 'run_start' | 'run_finish' | 'race_reward';
 export interface EconomyRequest { p_action: EconomyAction; p_request_id: string; p_payload: Record<string, unknown> }
-export interface EconomyResult { snapshot: EconomySnapshot; revision: number; outcome: string; run_id?: string;petId?:string; run_reward?: RunRewardReceipt }
+export interface EconomyResult { snapshot: EconomySnapshot; revision: number; outcome: string; run_id?: string;petId?:string; run_reward?: RunRewardReceipt;account_level_up?:AccountLevelUp }
 const integer = (value: unknown, max: number): value is number => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= max;
 const uniqueList = (value: unknown, max: number, valid: (item: unknown) => boolean): value is string[] =>
   Array.isArray(value) && value.length <= max && new Set(value).size === value.length && value.every(valid);
@@ -46,6 +48,8 @@ export function parseEconomyResult(input: unknown): EconomyResult {
     const receipt = result.run_reward;
     if (!receipt || !value.runRewardsReady || result.outcome !== 'finished' || !result.run_id || !integer(receipt.collected,MAX_COURSE_COINS) || receipt.bonus !== 10 || !integer(receipt.coins,10+MAX_COURSE_COINS) || receipt.coins > receipt.collected + receipt.bonus) throw Error('invalid_economy_response');
   }
+  if(value.accountProgressReady!==undefined&&(value.accountProgressReady!==true||!integer(value.accountXP,ACCOUNT_MAX_XP)))throw Error('invalid_economy_response');
+  if(result.account_level_up){const n=result.account_level_up;if(result.outcome!=='finished'||!integer(n.level,100)||n.level<2||!integer(n.coins,20)||!integer(n.snacks,1))throw Error('invalid_economy_response');}
   if(value.petHouseShopReady!==undefined&&(value.petHouseShopReady!==true||!value.homeShopReady))throw Error('invalid_economy_response');
   if(value.homeFloorShopReady!==undefined&&(value.homeFloorShopReady!==true||!value.homeShopReady))throw Error('invalid_economy_response');
   if(value.cherrySkyReady!==undefined&&(value.cherrySkyReady!==true||!value.homeBackgroundShopReady))throw Error('invalid_economy_response');

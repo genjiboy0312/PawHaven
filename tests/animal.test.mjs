@@ -2158,7 +2158,7 @@ test('touches refresh both dialogue and reaction after 0.8 seconds, while spam c
   } finally { animal.destroy({ children: true }); }
 });
 
-test('lobby floor roaming visits both axes and stays clear of the Play control at varied frame rates', () => {
+test('lobby floor roaming visits both axes and stays clear of all bottom controls at varied frame rates', () => {
   for (const fps of [30, 60, 120]) {
     const machine = new AnimalStateMachine(90, CORGI_BEHAVIOR, seededRandom(170));
     machine.setBounds(100, 860); machine.setFloor(960, 540, 390);
@@ -2172,6 +2172,7 @@ test('lobby floor roaming visits both axes and stays clear of the Play control a
       assert.ok(machine.x >= 100 && machine.x <= 860);
       assert.ok(machine.y >= 540 * 0.62 && machine.y <= 540 * 0.86);
       assert.ok(machine.x <= 960 * 0.8 || machine.y <= 540 * 0.7);
+      assert.ok(machine.x >= 960 * 0.28 || machine.y <= 540 * 0.7);
     }
     assert.ok(high - low > 80); assert.ok(right - left > 200);
     machine.setBounds(60, 330); machine.setFloor(390, 300, 216);
@@ -2208,7 +2209,7 @@ test('cushions select a usable nearby target, approach, rest, sleep and release 
 });
 test('moving/removing a cushion retargets an approach and interrupts rest without teleporting the animal', () => {
   const machine = cushionMachine();
-  machine.setCushions([{ id: 8, x: 200, y: 400, depth: 408 }]);
+  machine.setCushions([{ id: 8, x: 200, y: 360, depth: 368 }]);
   advanceUntil(machine, () => machine.cushionActivity === 'approach');
   machine.update(0.3);
   machine.setCushions([{ id: 8, x: 400, y: 450, depth: 458 }]);
@@ -2219,7 +2220,7 @@ test('moving/removing a cushion retargets an approach and interrupts rest withou
   assert.equal(machine.restingCushion, undefined); assert.equal(machine.state, 'IDLE');
   assert.deepEqual([machine.x, machine.y], position);
   const other = cushionMachine();
-  other.setCushions([{ id: 9, x: 200, y: 400, depth: 408 }]);
+  other.setCushions([{ id: 9, x: 200, y: 360, depth: 368 }]);
   advanceUntil(other, () => other.cushionActivity === 'approach');
   other.setCushions([]); assert.equal(other.restingCushion, undefined); assert.equal(other.state, 'IDLE');
   for (let i = 0; i < 1000; i++) other.update(1 / 60);

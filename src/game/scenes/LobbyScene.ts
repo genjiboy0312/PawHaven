@@ -27,7 +27,7 @@ export class LobbyScene extends Scene {
   constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void;snacks?:CommerceState; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }, nickname?: () => string | null | undefined, visit?:{name:string;leave:()=>void}) {
     super(); this.garden = new LobbyMap(home?.textures);
     const pet = (): void => { if (!this.paused && this.animal.pet()){commerce?.pet?.();this.snacks?.reveal();} };
-    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open, pet,visit);
+    this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open, pet,visit,commerce?.snacks?{config,nickname,state:commerce.snacks}:undefined);
     this.welcomeStarted = returning;
     this.animal = new Animal(config, Math.random, nickname);
     if(commerce?.snacks){this.snacks=new SnackButton(commerce.snacks,config.id,()=>{this.feedReaction=true;},commerce.quest);this.hud.element.append(this.snacks.element);}

@@ -2,8 +2,8 @@ import type { AnimalConfig } from '../animals/AnimalConfig';
 import type { OutfitState } from '../animals/OutfitState';
 import { wornLayers } from '../animals/Wearables';
 
-/** Crop the existing Idle atlas for lightweight DOM previews. */
-export function paintPetPortrait(element:HTMLElement,config:AnimalConfig,thumbnail:string,size=10,index=0,outfit?:OutfitState):void {
+/** Crop the existing Idle atlas without allocating another image. */
+export function paintPetFrame(element:HTMLElement,config:AnimalConfig,thumbnail:string,size=10,index=0):void {
   const idle=config.animations.idle;if(!idle?.frames.length)return;
   const texture=idle.frames[index%idle.frames.length]!,frame=texture.frame;
   const height=Math.max(...idle.frames.map(item=>item.frame.height));
@@ -11,6 +11,13 @@ export function paintPetPortrait(element:HTMLElement,config:AnimalConfig,thumbna
   element.style.width=frame.width/height*size+'cqh';element.style.height=frame.height/height*size+'cqh';
   element.style.backgroundSize=`${texture.source.width/height*size}cqh ${texture.source.height/height*size}cqh`;
   element.style.backgroundPosition=`${-frame.x/height*size}cqh ${-frame.y/height*size}cqh`;
+}
+
+/** Preview the same frame with optional worn layers. */
+export function paintPetPortrait(element:HTMLElement,config:AnimalConfig,thumbnail:string,size=10,index=0,outfit?:OutfitState):void {
+  const idle=config.animations.idle;if(!idle?.frames.length)return;
+  const texture=idle.frames[index%idle.frames.length]!,height=Math.max(...idle.frames.map(item=>item.frame.height));
+  paintPetFrame(element,config,thumbnail,size,index);
   // Use this member's server look; the shared config may reference the local player's outfit.
   const layers=outfit?wornLayers(config,outfit,idle,index%idle.frames.length):[];
   for(const category of ['Hat','Acc']){
