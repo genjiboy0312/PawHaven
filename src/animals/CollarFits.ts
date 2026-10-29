@@ -3,7 +3,7 @@ import type { CollarFit, AttachmentArt } from './AttachmentFit';
 /** Neck-local calibration, shared by collar items; height is independent of width. */
 export const COLLAR_FITS: Readonly<Partial<Record<string, CollarFit>>> = {
   corgi: { x: -.524, y: -.468, width: 2.51, height: .70, rotation: .09 },
-  myeongrang: { x: -.418, y: -.537, width: 2.023, height: .65, rotation: -.022,
+  myeongrang: { x: -.29, y: -.68, width: 1.77, height: .55, rotation: .08,
     poses: { run: {x: -.58, y: -.18, width: 1.85, rotation: .12} } },
   tuxedo: { x: -.263, y: -.074, width: 1.904, height: .55, rotation: .046,
     poses: {walk: {y:.02}, run: {x:-.35,y:0,width:1.7}, jump:{y:-.35}} },
