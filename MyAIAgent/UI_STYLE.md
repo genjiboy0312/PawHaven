@@ -1,5 +1,8 @@
 # Cozy UI 1차 (2026-10-17)
 
+2026-10-30 카탈로그 정리: 준비 중/더미 칸을 채우지 않고 실제 리소스만 표시한다. 꾸미기 Etc는 말풍선/Speech Bubbles로 표기하되 홈 기타와 저장 키는 유지한다. 의상은 outfitItems, 홈은 HOME_READY_ITEMS를 공유한다. 세부 기준: [CATALOG_CLEANUP.md](CATALOG_CLEANUP.md).
+
+
 2026-10-29 프로필 색상 고정: 캐릭터 타이틀의 EXP 바도 CSS 단색 대신 `account-xp-track.png`/`account-xp-fill.png` 표면을 사용한다. 같은 이미지를 결과 경험치 바에 재사용하고, `color-scheme:only light`·`forced-color-adjust:none`·고정 `-webkit-text-fill-color`를 유지한다. Chrome 자동 다크모드 전후 실제 색상을 비교했다. 상세: [ACCOUNT_LEVELS.md](ACCOUNT_LEVELS.md).
 
 

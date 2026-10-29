@@ -20,3 +20,7 @@ export const HOME_ITEM_NAMES = {
   Furniture: ['none', 'homeBench', 'homePlant', 'homeTable', 'homeCushion', 'petSofa', 'petHouse'],
   Etc: ['none', 'homeFlowers', 'homeStones', 'homeLamp', 'homeFence', 'homeGreenTree', 'homeCherryTree', 'homeCrate'],
 } as const;
+
+/** Runtime art exists for these products. Legacy ownership/save IDs remain valid. */
+export const HOME_READY_ITEMS:Record<HomeProductTab,readonly number[]>={Background:[0,1,2,3,4],Floor:[0,2,4],Furniture:[4,5,6],Etc:[4,5,6,7]};
+export const homeItemReady=(tab:HomeProductTab,index:number):boolean=>HOME_READY_ITEMS[tab].includes(index);

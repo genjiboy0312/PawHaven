@@ -34,8 +34,8 @@ test('Pets shop previews unpaid companions without equipping, purchases ownershi
   assert.deepEqual(panel.children[3].children.map(e=>e.textContent),['Pets','Style','Lobby','Pass']);assert.equal(content.children[1].children.length,2);assert.equal(content.children[1].children[0].getAttribute('data-owned'),'true');assert.equal(content.children[1].children[1].getAttribute('data-owned'),'false');
   const first=scene.petAnimation;content.children[1].children[1].dispatchEvent(new Event('click'));assert.equal(scene.petChoice.config.id,'myeongrang');assert.equal(first.sprite.destroyed,true);assert.equal(first.sleepMark.destroyed,true);assert.equal(scene.animation.sprite.destroyed,false);
   assert.equal(content.children[2].children[1].disabled,false);assert.equal(state.coins,1000);assert.equal(state.buyPet('myeongrang'),'purchased');assert.equal(content.children[2].children[1].disabled,true);assert.equal(corgi.id,'corgi');
-  for(const category of [1,2]){content.children[0].children[category].dispatchEvent(new Event('click'));assert.equal(content.children[1].children.length,1);assert.equal(content.children[1].children[0].disabled,true);assert.equal(content.children[1].children[0].getAttribute('data-owned'),null);assert.equal(content.children[2].children[1].textContent,'Coming soon');assert.equal(scene.preview.visible,false);}
-  setLanguage('ko');assert.equal(content.children[0].children[2].textContent,'오리');content.children[0].children[0].dispatchEvent(new Event('click'));assert.equal(content.children[1].children[1].children[1].textContent,'명랑이');assert.equal(content.children[1].children[1].children[2].textContent,'보유 중');assert.equal(scene.preview.visible,true);
+  assert.equal(content.children[0].children.length,1);assert.equal(content.children[0].children[0].textContent,'Dogs');
+  setLanguage('ko');assert.equal(content.children[0].children[0].textContent,'강아지');content.children[0].children[0].dispatchEvent(new Event('click'));assert.equal(content.children[1].children[1].children[1].textContent,'명랑이');assert.equal(content.children[1].children[1].children[2].textContent,'보유 중');assert.equal(scene.preview.visible,true);
   panel.children[3].children.find(e=>e.getAttribute('data-shop-tab')==='Style').dispatchEvent(new Event('click'));assert.equal(scene.petPreview.visible,false);assert.equal(scene.animation.sprite.visible,true);assert.equal(state.coins,500);
   scene.destroy({children:true});scene=undefined;assert.equal(Texture.WHITE.destroyed,false);
  }finally{scene?.destroy({children:true});setLanguage('en');if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
@@ -173,7 +173,7 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     await idle(api);
     editor = new HomeScene(home, () => {}, textures);
     host.children[0].children[3].children[2].dispatchEvent(new Event('click'));
-    assert.equal(host.children[0].children[4].children.length, 4);
+    assert.equal(host.children[0].children[4].children.length, 1);
     assert.equal(host.children[0].children[4].children.some(item => item.getAttribute('aria-label')?.includes('Black & White Pet Sofa')), false);
     editor.destroy({ children: true });
     shop = new ShopScene({ id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } }, state, () => {}, () => {});
@@ -181,8 +181,9 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Pets', 'Style', 'Lobby', 'Pass']);
     panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Furniture').dispatchEvent(new Event('click'));
     panel.children[4].children[0].children[2].dispatchEvent(new Event('click'));
-    const content = panel.children[4]; assert.equal(content.children[1].children.length, 6);
-    assert.equal(content.children[1].children[4].children[0].children[0].src, './assets/home/pet-sofa-black-white.png');
+    const content = panel.children[4]; assert.equal(content.children[1].children.length, 3);
+    assert.equal(content.children[1].children[1].children[0].children[0].src, './assets/home/pet-sofa-black-white.png');
+    content.children[1].children[1].dispatchEvent(new Event('click'));
     const buy = content.children[2].children[1]; buy.dispatchEvent(new Event('click')); buy.dispatchEvent(new Event('click'));
     assert.equal(state.coins, 1000); assert.equal(host.children.length, 2); assert.equal(panel.inert, true);
     assert.match(host.querySelector('.purchase-after').textContent, /750/);
@@ -197,18 +198,18 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     editor = new HomeScene(home, () => {}, textures); editor.resize(960, 540);
     const homePanel = host.children[0], tabs = homePanel.children[3], inventory = homePanel.children[4];
     tabs.children[2].dispatchEvent(new Event('click'));
-    assert.match(inventory.children[4].getAttribute('aria-label'), /Black & White Pet Sofa/);
-    assert.equal(inventory.children[4].disabled, false); inventory.children[4].dispatchEvent(new Event('click'));
-    assert.equal(home.items.length, 1); assert.equal(inventory.children[4].disabled, true); assert.equal(inventory.children[4].children[1].textContent, '0');
+    assert.match(inventory.children[1].getAttribute('aria-label'), /Black & White Pet Sofa/);
+    assert.equal(inventory.children[1].disabled, false); inventory.children[1].dispatchEvent(new Event('click'));
+    assert.equal(home.items.length, 1); assert.equal(inventory.children[1].disabled, true); assert.equal(inventory.children[1].children[1].textContent, '0');
     const rendered = editor.children[0].objects.children[0].children[1];
     assert.equal(rendered.texture, sofa); assert.equal(rendered.width, 170); assert.ok(rendered.height < 67);
     home.move(home.items[0].id, 0.75, 0.82);
     editor.destroy({ children: true }); assert.equal(sofa.destroyed, false);
     editor = new HomeScene(home, () => {}, textures);
     host.children[0].children[3].children[2].dispatchEvent(new Event('click'));
-    assert.equal(host.children[0].children[4].children.length, 5);
-    assert.equal(host.children[0].children[4].children[4].disabled, true);
-    assert.equal(host.children[0].children[4].children[4].children[1].textContent, '0');
+    assert.equal(host.children[0].children[4].children.length, 2);
+    assert.equal(host.children[0].children[4].children[1].disabled, true);
+    assert.equal(host.children[0].children[4].children[1].children[1].textContent, '0');
     editor.destroy({ children: true });
     lobby = new LobbyMap(textures); lobby.draw(960, 540, home.current, home.items);
     assert.equal(lobby.objects.children[0].x, 720); assert.equal(lobby.objects.children[0].children[1].texture, sofa);
@@ -591,7 +592,7 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
     assert.equal(new CharacterSelection(storage).current.outfit.Hat,1);
     click(content.children[1].children[1]);assert.equal(scene.animation.hat.label,'topHat');assert.equal(outfit.Hat,1);
     click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Hat,1);click(action());assert.equal(outfit.Hat,2);
-    click(content.children[0].children[2]);click(content.children[1].children[1]);assert.equal(scene.animation.accessory.visible,true);assert.equal(outfit.Acc,0);
+    click(content.children[0].children[2]);click(content.children[1].children[0]);assert.equal(scene.animation.accessory.visible,true);assert.equal(outfit.Acc,0);
     click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Acc,0);click(action());assert.equal(outfit.Acc,2);assert.equal(outfit.Hat,2);assert.equal(state.coins,775);assert.equal(saves,3);
     assert.deepEqual(new CharacterSelection(storage).current.outfit,outfit);
     scene.destroy({children:true});scene=undefined;assert.equal(config.wardrobe.santaHat.destroyed,false);
@@ -630,17 +631,15 @@ test('server Shop blocks unfinished listings and preserves existing ownership wi
     assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'owned');
     assert.equal(content.children[2].children[0].children[0].textContent, 'Santa Hat');
     content.children[1].scrollTop = 77;
-    content.children[1].children[2].dispatchEvent(new Event('click'));
-    const buy = content.children[2].children[1]; assert.equal(buy.disabled, true); assert.equal(buy.getAttribute('data-purchase-state'), 'comingSoon');
-    buy.dispatchEvent(new Event('click'));
-    await idle(api);
-    assert.equal(state.coins, 1000); assert.equal(state.owns('Hat', 3), false);
-    assert.equal((await db.query("select count(*) as n from public.economy_requests where command='buy'")).rows[0].n, 0);
+    assert.equal(content.children[1].children.length,2);
+    assert.equal(state.coins,1000);assert.equal(state.owns('Hat',3),false);
+    assert.equal((await db.query("select count(*) as n from public.economy_requests where command='buy'")).rows[0].n,0);
     await command(A, 'buy', { category: 'Hat', index: 3 }); // Pre-existing entitlement loaded from another session.
     await api.execute('load'); await idle(api);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 3), true);
     assert.equal(content.children[2].children[1].disabled, true);
-    assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'comingSoon');
+    assert.equal(content.children[2].children[1].getAttribute('data-purchase-state'), 'owned');
+    assert.equal(content.children[1].children.length,2);
     assert.equal(content.children[1].scrollTop, 77);
     assert.match(host.children[0].children[2].textContent, /925/);
   } finally {

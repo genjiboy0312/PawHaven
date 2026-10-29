@@ -841,3 +841,4 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .race-podium .race-winner canvas{height:22cqh}
 .race-podium .race-winner canvas{height:20cqh}
 .race-podium-list{gap:.5cqh}.race-podium-list .race-result-row{min-height:5cqh}
+.shop-style>.catalog-empty{position:absolute;top:42%;left:0;right:0;margin:0;text-align:center;color:#8a806d;-webkit-text-fill-color:#8a806d;font:400 clamp(11px,1.4cqw,18px) var(--font-round)}

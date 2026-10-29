@@ -1,5 +1,6 @@
 export type Language = 'en' | 'ko';
 const en = {
+  speechBubbles:'Speech Bubbles',catalogEmpty:'No items in this category.',
   profileReward:'{coins} Coins · {snacks} Biscuit',profileGuest:'Guest',accountLevelUp:'Level up!',accountLevel:'Account level',accountXP:'Account EXP',
   tuxedo:'Tuxedo Cat',shopPetSetup:'Pet purchases need a server update.',
   attendanceMailTitle:'Daily Visit Gift',attendanceMailBody:'Thank you for visiting today!\nHere are {coins} Coins for your next little purchase.\nOne gift per day, based on Korean time. Collect it with Receive.',
@@ -126,6 +127,7 @@ const en = {
 } as const;
 export type TextKey = keyof typeof en;
 const ko: Record<TextKey, string> = {
+  speechBubbles:'말풍선',catalogEmpty:'이 분류에 등록된 아이템이 없어요.',
   profileReward:'코인 {coins} · 비스킷 {snacks}',profileGuest:'게스트',accountLevelUp:'레벨 업!',accountLevel:'계정 레벨',accountXP:'계정 경험치',
   tuxedo:'턱시도 고양이',shopPetSetup:'서버 업데이트 후 펫을 구매할 수 있어요.',
   attendanceMailTitle:'오늘의 출석 선물',attendanceMailBody:'오늘도 만나러 와 주셔서 고마워요!\n작은 꾸미기를 위한 {coins}코인을 준비했어요.\n한국 시간 기준 하루 한 번 지급되며, 받기를 눌러 수령해 주세요.',

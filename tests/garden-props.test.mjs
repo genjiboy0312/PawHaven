@@ -68,7 +68,7 @@ test('new garden stock is server-priced, idempotent, bounded and recognized by m
 
 test('shop lobby previews reuse room art, replace temporary products and never write saved room state',()=>{
  const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},home=new HomeState(storage);
- home.select('Background',2);home.select('Floor',3);home.place('Furniture',1);
+ home.select('Background',2);home.select('Floor',3);home.place('Furniture',4);
  const before=JSON.stringify([...data]),saved=JSON.stringify({look:home.current,items:home.items}),revision=home.revision;
  const texture=()=>new Texture({source:new TextureSource({width:160,height:100})});
  const textures={background:texture(),noon:texture(),sunset:texture(),night:texture(),floor:texture(),cushion:texture(),sofa:texture(),greenTree:texture(),cherryTree:texture(),fence:texture(),crate:texture()};
@@ -271,4 +271,10 @@ test('yesterday mail remains separate, attendance response loss retries safely a
  const client=new MailboxClient(async request=>{requests.push(request.p_action);const result=await as(1,'select public.daily_attendance_mail() as data');if(lost){lost=false;throw Error('lost response')}return result;});
  assert.equal(await client.run('attendance'),false);assert.equal(await client.run('load'),true);assert.deepEqual(requests,['attendance','attendance']);assert.equal(client.snapshot.mail.filter(m=>m.kind==='attendance').length,2);
  const today=client.snapshot.mail.find(m=>m.kind==='attendance'&&m.title==='Daily Visit Gift');assert.ok(today);const paid=await as(1,"select public.mailbox_command('claim',$1) as data",[today.id]);assert.equal(paid.received.coins,30);assert.equal((await economy(1)).snapshot.coins,before+30);assert.equal((await as(1,'select public.daily_attendance_mail() as data')).mail.filter(m=>m.kind==='attendance').length,2);client.destroy();
+});
+test('retired home prototypes stay in saved ownership while only resource-backed objects are drawn',async()=>{
+ const {HomeState}=await importTs('../src/home/HomeState.ts',import.meta.url),{LobbyMap}=await importTs('../src/home/LobbyMap.ts',import.meta.url);
+ const saved=new Map(),storage={getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v)},home=new HomeState(storage);
+ const legacy=home.place('Furniture',1),real=home.place('Furniture',4);home.select('Floor',1);const before=JSON.stringify([...saved]),map=new LobbyMap();
+ try{map.draw(960,540,home.current,home.items);assert.deepEqual(map.objects.children.map(c=>c.label),[String(real)]);assert.equal(home.items.some(item=>item.id===legacy),true);assert.equal(home.current.Floor,1);assert.equal(JSON.stringify([...saved]),before);}finally{map.destroy({children:true});}
 });

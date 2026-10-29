@@ -1,7 +1,7 @@
 import type { DestroyOptions } from 'pixi.js';
 import { HOME_TABS, homeOptions, HomeState, clampPlacement, placementPoint, type PlaceableTab, type Placement, type HomeTab } from '../../home/HomeState';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
-import { HOME_BACKGROUNDS } from '../../home/HomeCatalog';
+import { HOME_BACKGROUNDS,homeItemReady } from '../../home/HomeCatalog';
 import {gardenProp,GARDEN_PROPS} from '../../home/GardenProps';
 import { onLanguageChange } from '../../settings/i18n';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
@@ -55,6 +55,7 @@ export class HomeScene extends Scene {
     Array.from(this.tabs.children).forEach((button, index) => button.setAttribute('aria-pressed', String(HOME_TABS[index] === this.tab)));
     this.inventory.replaceChildren(); this.inventory.scrollTop = 0; this.inventory.scrollLeft = 0;
     for (let index = this.tab === 'Furniture' || this.tab === 'Etc' ? 1 : 0; index < homeOptions[this.tab]; index++) {
+      if(!homeItemReady(this.tab,index))continue;
       const placeable = this.tab === 'Furniture' || this.tab === 'Etc';
       if (placeable && this.state.owned(this.tab as PlaceableTab, index) === 0) continue;
       if (this.tab === 'Background' && !this.state.backgroundAvailable(index)||this.tab==='Floor'&&!this.state.floorAvailable(index)) continue;
@@ -80,7 +81,7 @@ export class HomeScene extends Scene {
     }
   }
   private drawMap(): void {
-    const items = this.state.items;
+    const items = this.state.items.filter(item=>homeItemReady(item.tab,item.option));
     if (this.drag) { const item = items.find(item => item.id === this.drag!.id); if (item) Object.assign(item, this.drag.preview); }
     this.map.draw(this.viewWidth, this.viewHeight, this.state.current, items);
     for (const element of Array.from(this.placements.children) as HTMLButtonElement[]) {
@@ -105,7 +106,7 @@ export class HomeScene extends Scene {
   }
   private renderPlacements(): void {
     this.placements.replaceChildren();
-    for (const item of this.state.items) {
+    for (const item of this.state.items.filter(item=>homeItemReady(item.tab,item.option))) {
       const { id, tab } = item;
       const button = document.createElement('button'); button.type = 'button'; button.className = 'home-placement';
       button.setAttribute('data-placement', String(id)); bindAria(button, tab);

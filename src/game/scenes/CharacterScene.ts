@@ -4,7 +4,7 @@ import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
-import { OUTFIT_TABS, type OutfitState, type OutfitTab } from '../../animals/OutfitState';
+import { OUTFIT_TABS, outfitReady, type OutfitState, type OutfitTab } from '../../animals/OutfitState';
 import { Scene } from './Scene';
 import { wearableItem } from '../../animals/Wearables';
 import { speechSkinItem } from '../../animals/SpeechSkins';
@@ -66,7 +66,7 @@ export class CharacterScene extends Scene {
     this.tabs.className = 'outfit-tabs'; bindAria(this.tabs, 'categories');
     for (const tab of CHARACTER_TABS) {
       const button = document.createElement('button');
-      button.type = 'button'; bindText(button, tab);
+      button.type = 'button'; bindText(button, tab==='Etc'?'speechBubbles':tab);
       button.addEventListener('click', () => { this.tab = tab; this.refresh(); }, { signal: this.abort.signal });
       this.tabs.append(button);
     }
@@ -105,6 +105,7 @@ export class CharacterScene extends Scene {
     if (this.tab === 'Pets') { this.renderPets(); return; }
     const category = this.tab;
     for (let index = 0; index <= 20; index++) {
+      if(index&&!outfitReady(category,index))continue;
       if (index && this.options.owns && !this.options.owns(category, index)) continue;
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'outfit-slot';

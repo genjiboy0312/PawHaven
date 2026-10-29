@@ -45,6 +45,6 @@ test('older servers cannot sell floors; spring floor renderer shares the existin
  map.draw(960,540,{Background:0,Floor:4});const floor=map.children[2];assert.equal(floor.visible,true);assert.equal(floor.texture,spring);assert.equal(floor.tileScale.x,160/1295);assert.equal(floor.y,237.6);
  map.draw(960,540,{Background:0,Floor:0});assert.equal(floor.texture,base);assert.equal(floor.visible,true);assert.equal(floor.tileScale.x,960/500);
  map.draw(960,540,{Background:0,Floor:2});assert.equal(floor.visible,true);assert.equal(floor.texture,stone);assert.equal(floor.tileScale.x,160/1295);
- map.draw(960,540,{Background:0,Floor:1});assert.equal(floor.visible,false);
+ map.draw(960,540,{Background:0,Floor:1});assert.equal(floor.visible,true);assert.equal(floor.texture,base);
  }finally{map.destroy({children:true});assert.equal(spring.destroyed,false);assert.equal(stone.destroyed,false);base.destroy(true);spring.destroy(true);stone.destroy(true)}
 });

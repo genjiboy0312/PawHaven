@@ -2,7 +2,7 @@ import { petInfo, petThumbnail } from '../../animals/PetCatalog';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
-import { OUTFIT_TABS, createOutfit, outfitReady, type OutfitTab } from '../../animals/OutfitState';
+import { OUTFIT_TABS, createOutfit, outfitReady, outfitItems, type OutfitTab } from '../../animals/OutfitState';
 import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { itemPrice } from '../../shop/ShopState';
 import type { CommerceState } from '../../shop/CommerceState';
@@ -10,7 +10,7 @@ import { commerceStatus } from '../../ui/CommerceStatus';
 import { coinAmount } from '../../ui/CoinAmount';
 import { itemIcon } from '../../ui/itemIcon';
 import { passOffer } from '../../ui/PassOffer';
-import { homeOptions, homePrice, homeStockLimit } from '../../home/HomeCatalog';
+import { homeOptions, homePrice, homeStockLimit, homeItemReady, HOME_READY_ITEMS } from '../../home/HomeCatalog';
 import { HOME_TABS, type HomeTab, type HomeState } from '../../home/HomeState';
 import type { HomeTextures } from '../../home/LobbyMap';
 import { HomeShopPreview } from '../../home/HomeShopPreview';
@@ -114,12 +114,12 @@ export class ShopScene extends Scene {
     const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories';
     bindAria(categories, 'categories');
     for (const category of OUTFIT_TABS) {
-      const button = document.createElement('button'); button.type = 'button'; bindText(button, category); button.setAttribute('aria-pressed', String(this.category === category));
-      button.addEventListener('click', () => { this.category = category; this.selected = 1; this.grid = undefined; this.render(); }); categories.append(button);
+      const button = document.createElement('button'); button.type = 'button'; bindText(button, category==='Etc'?'speechBubbles':category); button.setAttribute('aria-pressed', String(this.category === category));
+      button.addEventListener('click', () => { this.category = category; this.selected = outfitItems(category)[0]??0; this.grid = undefined; this.render(); }); categories.append(button);
     }
     const grid = document.createElement('div'); grid.className = 'outfit-inventory shop-grid';
     this.grid = grid; bindAria(grid, 'items');
-    for (let index = 1; index <= 20; index++) {
+    for (const index of outfitItems(this.category)) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot shop-slot';
       const owned = this.state.entitlementsKnown && this.state.owns(this.category, index);
       const ready = outfitReady(this.category, index);
@@ -135,6 +135,7 @@ export class ShopScene extends Scene {
     const footer = document.createElement('div'); footer.className = 'shop-purchase';
     const detail = document.createElement('span'); detail.className = 'shop-detail';
     const name = document.createElement('strong'); name.textContent = this.itemName(this.category, this.selected);
+    if(!outfitItems(this.category).length){const empty=document.createElement('p');empty.className='catalog-empty';bindText(empty,'catalogEmpty');this.content.append(categories,grid,empty);return;}
     const ready = outfitReady(this.category, this.selected);
     const owned = this.state.entitlementsKnown && this.state.owns(this.category, this.selected);
     const cost = document.createElement('span'); cost.className = 'shop-cost';
@@ -176,7 +177,7 @@ export class ShopScene extends Scene {
   }
   private renderPets():void{
     const categories=document.createElement('nav');categories.className='outfit-tabs shop-categories';bindAria(categories,'categories');
-    for(const category of ['petDogs','petCats','petDucks'] as const){const button=document.createElement('button');button.type='button';bindText(button,category);button.setAttribute('aria-pressed',String(this.petCategory===category));button.addEventListener('click',()=>{this.petCategory=category;this.render();});categories.append(button);}
+    for(const category of (['petDogs','petCats','petDucks'] as const).filter(category=>this.pets.some(pet=>petInfo(pet.config.id)?.category===category))){const button=document.createElement('button');button.type='button';bindText(button,category);button.setAttribute('aria-pressed',String(this.petCategory===category));button.addEventListener('click',()=>{this.petCategory=category;this.render();});categories.append(button);}
     const grid=document.createElement('div');grid.className='outfit-inventory shop-grid shop-pets-grid';bindAria(grid,'Pets');this.grid=grid;
     const choices=this.pets.filter(pet=>petInfo(pet.config.id)?.category===this.petCategory);
     if(choices.length){
@@ -190,7 +191,7 @@ export class ShopScene extends Scene {
         button.setAttribute('aria-label',t(info.name)+' · '+(owned?t('owned'):info.price+' '+t('coins')));button.append(portrait,name,price);
         button.addEventListener('click',()=>{this.selectPet(pet);this.reaction=1.5;this.render();});grid.append(button);
       }
-    }else{const card=document.createElement('button');card.type='button';card.className='outfit-slot shop-slot shop-pet-placeholder';card.disabled=true;bindText(card,'shopComingSoon');grid.append(card);}
+    }else{const empty=document.createElement('p');empty.className='catalog-empty';bindText(empty,'catalogEmpty');this.content.append(categories,grid,empty);return;}
     const pet=choices.find(p=>p.config.id===this.petChoice?.config.id),info=pet&&petInfo(pet.config.id),owned=!!pet&&this.state.ownsPet(pet.config.id);
     const footer=document.createElement('div');footer.className='shop-purchase';const detail=document.createElement('span');detail.className='shop-detail';
     const name=document.createElement('strong');name.textContent=info?t(info.name):t(this.petCategory);
@@ -214,13 +215,14 @@ export class ShopScene extends Scene {
     const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories'; bindAria(categories, 'categories');
     for (const tab of HOME_TABS) {
       const button = document.createElement('button'); button.type = 'button'; bindText(button, tab); button.setAttribute('aria-pressed', String(category === tab));
-      button.addEventListener('click', () => { this.homeCategory = tab; this.homeSelected = tab === 'Furniture' ? 5 : tab === 'Etc' ? 1 : 0; this.grid = undefined; this.render(); }); categories.append(button);
+      button.addEventListener('click', () => { this.homeCategory = tab; this.homeSelected = HOME_READY_ITEMS[tab][0]!; this.grid = undefined; this.render(); }); categories.append(button);
     }
     const grid = document.createElement('div'); grid.className = 'outfit-inventory shop-grid'; this.grid = grid; bindAria(grid, 'items');
     const reusable = category === 'Background' || category === 'Floor';
     if (reusable) grid.classList.add('shop-background-grid');
     for (let index = reusable ? 0 : 1; index < homeOptions[category]; index++) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outfit-slot shop-slot';
+      if(!homeItemReady(category,index))continue;
       const count = this.state.entitlementsKnown ? this.state.homeOwned(category, index) : '—';
       button.append(homeIcon(category, index)); button.setAttribute('aria-pressed', String(selected === index));
       button.setAttribute('aria-label', `${homeItemName(category, index)} · ${t('owned')}: ${count}`);

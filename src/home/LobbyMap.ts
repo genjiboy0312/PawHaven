@@ -1,3 +1,4 @@
+import {homeItemReady} from './HomeCatalog';
 import { Container, Graphics, Sprite, TilingSprite, type Texture } from 'pixi.js';
 import { SKY_COLORS, FLOOR_COLORS, type HomeItem, type HomeLook } from './HomeState';
 import {gardenProp,gardenPropSprite,type GardenPropTextures} from './GardenProps';
@@ -18,6 +19,8 @@ export class LobbyMap extends Container {
     this.objects.sortableChildren = true; this.addChild(this.objects); this.label = 'lobby-map';
   }
   draw(width: number, height: number, look: HomeLook, items: readonly HomeItem[] = []): void {
+    look={Background:homeItemReady('Background',look.Background)?look.Background:0,Floor:homeItemReady('Floor',look.Floor)?look.Floor:0};
+    items=items.filter(item=>homeItemReady(item.tab,item.option));
     const g = this.paint;
     g.clear().rect(0, 0, width, height).fill(SKY_COLORS[look.Background])
       .rect(0, height * 0.44, width, height * 0.56).fill(FLOOR_COLORS[look.Floor]);
