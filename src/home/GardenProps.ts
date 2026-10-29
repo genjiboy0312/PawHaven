@@ -1,6 +1,7 @@
 import {Assets,Rectangle,Sprite,Texture} from 'pixi.js';
 /** One asset definition for shop icons, editable homes and course scenery. PNGs stay untouched. */
 export const GARDEN_PROPS={
+ petHouse:{tab:'Furniture',option:6,file:'assets/home/small-pet-house.png',source:[1254,1254],frame:[208,346,844,608],width:170,courseHeight:105},
  greenTree:{option:5,file:'assets/home/small-green-tree.png',source:[1254,1254],frame:[135,227,1018,875],width:142,courseHeight:110},
  cherryTree:{option:6,file:'assets/home/small-cherry-tree.png',source:[1254,1254],frame:[133,224,1022,878],width:142,courseHeight:110},
  fence:{option:4,file:'assets/home/low-wooden-fence.png',source:[1983,793],frame:[331,260,1322,341],width:158,courseHeight:30},
@@ -8,7 +9,7 @@ export const GARDEN_PROPS={
 } as const;
 export type GardenProp=keyof typeof GARDEN_PROPS;
 export type GardenPropTextures=Partial<Record<GardenProp,Texture>>;
-export function gardenProp(tab:string,index:number):GardenProp|undefined{return tab==='Etc'?(Object.keys(GARDEN_PROPS) as GardenProp[]).find(id=>GARDEN_PROPS[id].option===index):undefined;}
+export function gardenProp(tab:string,index:number):GardenProp|undefined{return(Object.keys(GARDEN_PROPS) as GardenProp[]).find(id=>{const spec=GARDEN_PROPS[id];return ('tab' in spec?spec.tab:'Etc')===tab&&spec.option===index;});}
 export async function loadGardenProps():Promise<GardenPropTextures>{
  return Object.fromEntries(await Promise.all((Object.keys(GARDEN_PROPS) as GardenProp[]).map(async id=>{
   const spec=GARDEN_PROPS[id],image=await Assets.load<Texture>(import.meta.env.BASE_URL+spec.file);image.source.scaleMode='nearest';

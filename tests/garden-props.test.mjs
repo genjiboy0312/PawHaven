@@ -41,7 +41,7 @@ test('park themes reuse four backgrounds and preserve scenery, actors and shared
  }finally{map.destroy({children:true});assert.ok(Object.values(textures).every(t=>!t.destroyed));Object.values(textures).forEach(t=>t.destroy(true));}
 });
 test('garden sprites share original PNGs and purchased stock; scenery never mutates course geometry',async()=>{
- const names={greenTree:'Small_Green_Tree_Prototype.png',cherryTree:'Small_Cherry_Tree_Prototype.png',fence:'Low_Wooden_Fence_Prototype.png',crate:'Wooden_Box_Prototype.png'};
+ const names={petHouse:'Small_Pet_House.png',greenTree:'Small_Green_Tree_Prototype.png',cherryTree:'Small_Cherry_Tree_Prototype.png',fence:'Low_Wooden_Fence_Prototype.png',crate:'Wooden_Box_Prototype.png'};
  const textures={};for(const [id,s]of Object.entries(GARDEN_PROPS)){
   const original=await readFile(new URL('../Resources/'+names[id],import.meta.url)),png=await readFile(new URL('../public/'+s.file,import.meta.url));assert.ok(original.equals(png));assert.equal(png.readUInt32BE(16),s.source[0]);assert.equal(png.readUInt32BE(20),s.source[1]);
   assert.ok(s.frame[0]>=0&&s.frame[1]>=0&&s.frame[0]+s.frame[2]<=s.source[0]&&s.frame[1]+s.frame[3]<=s.source[1]);textures[id]=new Texture({source:new TextureSource({width:s.frame[2],height:s.frame[3]})});

@@ -73,11 +73,12 @@ export class ServerShopState {
   get hasPass(): boolean { return this.view.hasPass; }
   get homeShopReady(): boolean { return this.api.result?.snapshot.homeShopReady === true; }
   get homeBackgroundShopReady(): boolean { return this.api.result?.snapshot.homeBackgroundShopReady === true; }
+  get petHouseShopReady():boolean{return this.api.result?.snapshot.petHouseShopReady===true;}
   get homeFloorShopReady():boolean{return this.api.result?.snapshot.homeFloorShopReady===true;}
   get cherrySkyReady():boolean{return this.api.result?.snapshot.cherrySkyReady===true;}
   homeOwned(tab: HomeProductTab, index: number): number { return this.homeShopReady ? this.view.homeOwned(tab, index) : homeInitialStock(tab, index); }
   async buyHome(category: HomeProductTab, index: number): Promise<'purchased' | 'limit' | 'insufficient' | 'invalid'> {
-    if (!this.ready || !this.homeShopReady || category==='Floor'&&!this.homeFloorShopReady || category === 'Background' && (!this.homeBackgroundShopReady || index===4&&!this.cherrySkyReady)) return 'invalid';
+    if (!this.ready || !this.homeShopReady || category==='Furniture'&&index===6&&!this.petHouseShopReady || category==='Floor'&&!this.homeFloorShopReady || category === 'Background' && (!this.homeBackgroundShopReady || index===4&&!this.cherrySkyReady)) return 'invalid';
     const result = await this.api.execute('buy_home', { category, index });
     return result?.outcome === 'purchased' ? 'purchased' : result?.outcome === 'limit' ? 'limit' : result?.outcome === 'insufficient' ? 'insufficient' : 'invalid';
   }

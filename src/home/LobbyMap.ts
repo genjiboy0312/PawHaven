@@ -46,6 +46,8 @@ export class LobbyMap extends Container {
             const sprite = new Sprite(this.textures.sofa); sprite.anchor.set(0.5, 0.9);
             sprite.width = 170; sprite.scale.y = sprite.scale.x; view.addChild(sprite);
           }
+          const id=gardenProp(item.tab,item.option),sprite=id&&this.textures?gardenPropSprite(id,this.textures):undefined;
+          if(sprite)view.addChild(sprite);
           this.drawFurniture(item.option, shape, cushion);
         } else {
           const id=gardenProp(item.tab,item.option),sprite=id&&this.textures?gardenPropSprite(id,this.textures):undefined;

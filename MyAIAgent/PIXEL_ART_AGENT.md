@@ -1,5 +1,7 @@
 # Paw Haven 픽셀 아트 에이전트
 
+펫하우스(2026-10-29): [PET_HOUSE.md](PET_HOUSE.md). Resources/Small_Pet_House.png 한 장을 Furniture:6 상품·홈 배치·친구 방문·각 맵 결승 장식에 공유한다. 250코인, 초기 0개, 기존 구매/배치/저장 컴포넌트를 재사용한다.
+
 숲길 지형(2026-10-29): 로비의 Stone_Path_Floor.png를 courseThemeArt/CourseTerrain에서 160 world units로 재사용한다. 새 PNG·SQL 없이 지형 질감만 바꾸며 물리/배치/보상과 다른 맵 테마는 유지한다. 상세: [STONE_PATH.md](STONE_PATH.md).
 
 돌길 바닥(2026-10-29): [STONE_PATH.md](STONE_PATH.md). Resources/Stone_Path_Floor.png를 160 world units로 반복하며 index 2의 기존 소유권을 유지한다. 같은 PNG·LobbyMap·상점 구매 컴포넌트를 재사용한다.

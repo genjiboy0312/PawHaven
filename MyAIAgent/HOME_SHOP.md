@@ -1,5 +1,7 @@
 # 가구 상점 및 펫 소파 (2026-10-21)
 
+펫하우스(2026-10-29): [PET_HOUSE.md](PET_HOUSE.md). Resources/Small_Pet_House.png 한 장을 Furniture:6 상품·홈 배치·친구 방문·각 맵 결승 장식에 공유한다. 250코인, 초기 0개, 기존 구매/배치/저장 컴포넌트를 재사용한다.
+
 돌길 바닥(2026-10-29): [STONE_PATH.md](STONE_PATH.md). Resources/Stone_Path_Floor.png를 160 world units로 반복하며 index 2의 기존 소유권을 유지한다. 같은 PNG·LobbyMap·상점 구매 컴포넌트를 재사용한다.
 
 로비 바닥 구매(2026-10-29): 기본 잔디만 무료, 색상 바닥·봄 모래는 각 200코인 구매 후 선택한다. 기존 무료 Floor 설명보다 이 규칙을 우선한다. 기존 지형 이미지·2열 상점 카드·상태 구독 재사용: [FLOOR_SHOP.md](FLOOR_SHOP.md).

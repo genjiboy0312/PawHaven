@@ -8,6 +8,7 @@ export interface EconomySnapshot {
   homeItems?: Record<string, number>; homeShopReady?: boolean;
   homeBackgroundShopReady?: boolean;
   homeFloorShopReady?:boolean;
+  petHouseShopReady?:boolean;
   cherrySkyReady?:boolean;
   runRewardsReady?: boolean;
   raceRewardsReady?: boolean;
@@ -45,6 +46,7 @@ export function parseEconomyResult(input: unknown): EconomyResult {
     const receipt = result.run_reward;
     if (!receipt || !value.runRewardsReady || result.outcome !== 'finished' || !result.run_id || !integer(receipt.collected,MAX_COURSE_COINS) || receipt.bonus !== 10 || !integer(receipt.coins,10+MAX_COURSE_COINS) || receipt.coins > receipt.collected + receipt.bonus) throw Error('invalid_economy_response');
   }
+  if(value.petHouseShopReady!==undefined&&(value.petHouseShopReady!==true||!value.homeShopReady))throw Error('invalid_economy_response');
   if(value.homeFloorShopReady!==undefined&&(value.homeFloorShopReady!==true||!value.homeShopReady))throw Error('invalid_economy_response');
   if(value.cherrySkyReady!==undefined&&(value.cherrySkyReady!==true||!value.homeBackgroundShopReady))throw Error('invalid_economy_response');
   if (value.homeBackgroundShopReady !== undefined && (value.homeBackgroundShopReady !== true || !value.homeShopReady)) throw Error('invalid_economy_response');

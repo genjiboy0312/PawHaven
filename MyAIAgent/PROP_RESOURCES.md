@@ -1,5 +1,7 @@
 # 박스·코인·펫 소파 리소스
 
+펫하우스(2026-10-29): [PET_HOUSE.md](PET_HOUSE.md). Resources/Small_Pet_House.png 한 장을 Furniture:6 상품·홈 배치·친구 방문·각 맵 결승 장식에 공유한다. 250코인, 초기 0개, 기존 구매/배치/저장 컴포넌트를 재사용한다.
+
 ## 정원 소품 상점·맵 연결 (2026-10-27)
 - built-in image_gen으로 벚꽃 나무와 낮은 울타리를 생성하고 원본 그대로 Resources/Small_Cherry_Tree_Prototype.png, Resources/Low_Wooden_Fence_Prototype.png에 저장했다. 초록 나무와 기존 상자도 재사용한다. 각 PNG를 public/assets/home 또는 기존 assets/items에 바이트 변경 없이 보관했다. 새 이미지의 실제 alpha 배경을 유지하며 외부 이미지 편집·리사이즈는 없다.
 - GardenProps.ts가 원본 크기·런타임 crop·표시 크기·Etc 슬롯을 한 곳에서 정의한다. 같은 Texture/메타데이터를 Home·Shop·친구 방문·우편 첨부·CourseDecor가 공유한다. 이미지별 사각 배경·바닥 원형·외부 그림자는 없다.

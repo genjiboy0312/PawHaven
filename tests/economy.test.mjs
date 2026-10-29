@@ -181,7 +181,7 @@ test('Furniture shop purchases update the Home sofa inventory and its shared lob
     assert.deepEqual(panel.children[3].children.map(tab => tab.textContent), ['Pets', 'Style', 'Lobby', 'Pass']);
     panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Furniture').dispatchEvent(new Event('click'));
     panel.children[4].children[0].children[2].dispatchEvent(new Event('click'));
-    const content = panel.children[4]; assert.equal(content.children[1].children.length, 5);
+    const content = panel.children[4]; assert.equal(content.children[1].children.length, 6);
     assert.equal(content.children[1].children[4].children[0].children[0].src, './assets/home/pet-sofa-black-white.png');
     const buy = content.children[2].children[1]; buy.dispatchEvent(new Event('click')); buy.dispatchEvent(new Event('click'));
     assert.equal(state.coins, 1000); assert.equal(host.children.length, 2); assert.equal(panel.inert, true);

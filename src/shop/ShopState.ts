@@ -27,6 +27,7 @@ export class ShopState {
   readonly homeShopReady = true;
   readonly homeBackgroundShopReady = true;
   readonly homeFloorShopReady = true;
+  readonly petHouseShopReady = true;
   readonly cherrySkyReady = true;
   readonly runRewardsReady = true;
   readonly raceRewardsReady = false;
