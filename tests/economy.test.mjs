@@ -592,7 +592,7 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
     assert.equal(new CharacterSelection(storage).current.outfit.Hat,1);
     click(content.children[1].children[1]);assert.equal(scene.animation.hat.label,'topHat');assert.equal(outfit.Hat,1);
     click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Hat,1);click(action());assert.equal(outfit.Hat,2);
-    click(content.children[0].children[2]);click(content.children[1].children[0]);assert.equal(scene.animation.accessory.visible,true);assert.equal(outfit.Acc,0);
+    click(content.children[0].children[1]);click(content.children[1].children[0]);assert.equal(scene.animation.accessory.visible,true);assert.equal(outfit.Acc,0);
     click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Acc,0);click(action());assert.equal(outfit.Acc,2);assert.equal(outfit.Hat,2);assert.equal(state.coins,775);assert.equal(saves,3);
     assert.deepEqual(new CharacterSelection(storage).current.outfit,outfit);
     scene.destroy({children:true});scene=undefined;assert.equal(config.wardrobe.santaHat.destroyed,false);

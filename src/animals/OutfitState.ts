@@ -1,6 +1,8 @@
 import { wearableItem } from './Wearables';
 import { speechSkinItem } from './SpeechSkins';
 export const OUTFIT_TABS = ['Hat', 'Body', 'Acc', 'Etc'] as const;
+/** Visible cosmetic tabs; Body remains a legacy save field. Effects appear with actual items. */
+export const OUTFIT_MENU_TABS = ['Hat','Acc','Etc'] as const;
 export type OutfitTab = typeof OUTFIT_TABS[number];
 export type OutfitState = Record<OutfitTab, number>;
 /** Items with character art connected across Character, Lobby and Play. */

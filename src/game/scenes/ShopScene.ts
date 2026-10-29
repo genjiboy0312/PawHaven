@@ -2,7 +2,7 @@ import { petInfo, petThumbnail } from '../../animals/PetCatalog';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
-import { OUTFIT_TABS, createOutfit, outfitReady, outfitItems, type OutfitTab } from '../../animals/OutfitState';
+import { OUTFIT_MENU_TABS, createOutfit, outfitReady, outfitItems, type OutfitTab } from '../../animals/OutfitState';
 import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { itemPrice } from '../../shop/ShopState';
 import type { CommerceState } from '../../shop/CommerceState';
@@ -113,7 +113,7 @@ export class ShopScene extends Scene {
     }
     const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories';
     bindAria(categories, 'categories');
-    for (const category of OUTFIT_TABS) {
+    for (const category of OUTFIT_MENU_TABS) {
       const button = document.createElement('button'); button.type = 'button'; bindText(button, category==='Etc'?'speechBubbles':category); button.setAttribute('aria-pressed', String(this.category === category));
       button.addEventListener('click', () => { this.category = category; this.selected = outfitItems(category)[0]??0; this.grid = undefined; this.render(); }); categories.append(button);
     }

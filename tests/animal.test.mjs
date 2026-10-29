@@ -1129,7 +1129,7 @@ test('Character opens a stationary preview, keeps category selection without equ
     assert.equal(character.disabled, false);
     character.dispatchEvent(new Event('click'));
     const scene = app.stage.children[0], panel = host.children[0], tabs = panel.children[1], inventory = panel.children[2];
-    assert.deepEqual(tabs.children.map(button => button.textContent), ['Pets', 'Hat', 'Body', 'Acc', 'Speech Bubbles']);
+    assert.deepEqual(tabs.children.map(button => button.textContent), ['Pets', 'Hat', 'Acc', 'Speech Bubbles']);
     assert.equal(inventory.children.length, 1);
     assert.equal(inventory.children[0].children[0].className, 'pet-portrait');
     assert.equal(inventory.children[0].children[2].hidden, false);
@@ -1163,7 +1163,7 @@ test('Character opens a stationary preview, keeps category selection without equ
     assert.equal(new CharacterSelection(storage).current.outfit.Hat, 2);
     assert.equal(inventory.children[2].attributes.get('aria-pressed'), 'true');
     tabs.children[2].dispatchEvent(new Event('click'));
-    assert.equal(inventory.children.length,1);inventory.children[0].dispatchEvent(new Event('click')); assert.equal(outfit.Body, 0);
+    assert.equal(inventory.children.length,2);inventory.children[0].dispatchEvent(new Event('click')); assert.equal(outfit.Acc, 0);
     tabs.children[1].dispatchEvent(new Event('click'));
     assert.equal(inventory.children[2].attributes.get('aria-pressed'), 'true');
     inventory.children[0].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 0);

@@ -4,7 +4,7 @@ import { bindAria, bindText, onLanguageChange, t } from '../../settings/i18n';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
-import { OUTFIT_TABS, outfitReady, type OutfitState, type OutfitTab } from '../../animals/OutfitState';
+import { OUTFIT_TABS, OUTFIT_MENU_TABS, outfitReady, type OutfitState, type OutfitTab } from '../../animals/OutfitState';
 import { Scene } from './Scene';
 import { wearableItem } from '../../animals/Wearables';
 import { speechSkinItem } from '../../animals/SpeechSkins';
@@ -12,7 +12,7 @@ import { petInfo } from '../../animals/PetCatalog';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
 interface CharacterOptions { ownsPet?:(id:string)=>boolean;beforeClose?: () => Promise<void>; subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
-const CHARACTER_TABS = ['Pets', ...OUTFIT_TABS] as const;
+const CHARACTER_TABS = ['Pets', ...OUTFIT_MENU_TABS] as const;
 
 export class CharacterScene extends Scene {
   private readonly preview = new Container();

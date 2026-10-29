@@ -1,5 +1,8 @@
 # Cozy UI 1차 (2026-10-17)
 
+2026-10-30 꾸미기 분류: 상의 탭을 제거해 모자·장식·말풍선으로 표시한다. UI는 OUTFIT_MENU_TABS를 공유하고 저장 포맷의 OUTFIT_TABS/Body는 유지한다. 이펙트는 실제 후광·발자국 아이템을 추가할 때 노출한다. 갈색 배낭 시안은 [BROWN_BACKPACK_PROTOTYPE.md](BROWN_BACKPACK_PROTOTYPE.md).
+
+
 2026-10-30 카탈로그 정리: 준비 중/더미 칸을 채우지 않고 실제 리소스만 표시한다. 꾸미기 Etc는 말풍선/Speech Bubbles로 표기하되 홈 기타와 저장 키는 유지한다. 의상은 outfitItems, 홈은 HOME_READY_ITEMS를 공유한다. 세부 기준: [CATALOG_CLEANUP.md](CATALOG_CLEANUP.md).
 
 
