@@ -172,7 +172,7 @@ test('park profile reuses worn portraits and server friend requests, acceptance 
  const env=dom(),background=new Element();env.host.append(background);
  const client=new FriendsClient(users[0],(action,target,query)=>command(0,action,target===null?null:users.indexOf(target),query));
  const texture={frame:{x:0,y:0,width:64,height:64},orig:{width:64,height:64},source:{width:128,height:64}};
- const pet={id:'corgi',scale:1,animations:{idle:{frames:[texture],fps:4,head:[{x:0,y:-48,width:30}],neck:[{x:0,y:-30,width:20}]}},wardrobe:{santaHat:{},bowTie:{},outfit:{Hat:0,Acc:0,Body:0,Etc:0}}};
+ const pet={id:'corgi',scale:1,animations:{idle:{frames:[texture],fps:4,head:[{x:0,y:-48,width:30}],neck:[{x:0,y:-30,width:20}]}},wardrobe:{textures: { santaHat:{},bowTie:{} },outfit:{Hat:0,Acc:0,Body:0,Etc:0}}};
  const popup=new ParkProfilePopup(users[0],[pet],client),member={id:users[1],name:'Corgi',session:'lease',look:{petId:'corgi',outfit:{Hat:1,Acc:2,Body:0,Etc:0}}};
  const click=label=>{const button=env.host.all().find(e=>e.tag==='button'&&e.textContent===label);assert.ok(button,label);assert.equal(button.disabled,false);button.dispatchEvent(new Event('click'));};
  try{

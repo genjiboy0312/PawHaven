@@ -88,7 +88,7 @@ export class Game {
     if (this.homeTextures) { Object.values(this.homeTextures).forEach(texture => {if(!texture.destroyed)texture.destroy(false);}); this.homeTextures = undefined; }
     const configs = [this.corgi, this.myeongrang, this.tuxedo].filter((config): config is AnimalConfig => !!config);
     const textures = new Set(configs.flatMap(config => [...Object.values(config.animations).flatMap(animation => animation.frames),
-      ...Object.values(config.effects ?? {}).flat(), ...(config.wardrobe ? [config.wardrobe.santaHat,...[config.wardrobe.topHat,config.wardrobe.bowTie,config.wardrobe.karakusaScarf].filter((texture):texture is NonNullable<typeof texture>=>!!texture)] : [])]));
+      ...Object.values(config.effects ?? {}).flat(), ...Object.values(config.wardrobe?.textures ?? {})]));
     for (const texture of textures) if (!texture.destroyed) texture.destroy(false);
     this.corgi = this.myeongrang = this.tuxedo = undefined;
   }

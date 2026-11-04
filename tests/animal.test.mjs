@@ -22,7 +22,7 @@ test('formal outfit layers reuse all pet head frames, stay independent and share
     const heads=id==='corgi'?corgi:Object.fromEntries(Object.entries(personal.actions).map(([key,clip])=>[key,clip.frames.map(frame=>frame.head)]));
     const animations=Object.fromEntries(Object.entries(heads).map(([key,head])=>[key,{head,frames:head.map(()=>Texture.WHITE),fps:8,scale:id==='myeongrang'?personal.actions[key].scale:1}]));
     const necks=JSON.parse(await readFile(new URL('../public/assets/characters/'+id+'/neck-anchors.json',import.meta.url),'utf8'));
-    const outfit={Hat:2,Acc:2,Body:0,Etc:0},config={id,speed:90,scale:.62,animations,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit}};
+    const outfit={Hat:2,Acc:2,Body:0,Etc:0},config={id,speed:90,scale:.62,animations,wardrobe:{textures: { santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE },outfit}};
     applyNeckAnchors(config,Object.fromEntries(Object.entries(necks).filter(([action])=>animations[action])));
     const view=new AnimalAnimationController(config);
     try{
@@ -1118,7 +1118,7 @@ test('Character opens a stationary preview, keeps category selection without equ
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
   const selection = new CharacterSelection(storage);
   const outfit = createOutfit(); let returns = 0;
-  config.wardrobe = { outfit, santaHat: Texture.WHITE };
+  config.wardrobe = { outfit, textures: { santaHat: Texture.WHITE } };
   for (const animation of Object.values(config.animations)) animation.head = animation.frames.map(() => ({ x: 18, y: -170, width: 88 }));
   const lobby = () => manager.show(new LobbyScene(config, undefined, true, () => {
     manager.show(new CharacterScene(config, outfit, () => { returns++; lobby(); }, { presets, onLookChanged: value => selection.save(value) }));
@@ -1704,7 +1704,7 @@ test('Santa hat follows every animation frame and body transform, shared selecti
     frames: Array(head.length).fill(Texture.WHITE), fps: 4, head,
     ...(head.length === 4 || key === 'fall' || key === 'land' ? { scale: 212 / 164, anchorY: 400 / 512 } : {}),
   }]));
-  const config = { id: 'corgi', speed: 90, scale: 0.62, animations, wardrobe: { santaHat: Texture.WHITE, outfit } };
+  const config = { id: 'corgi', speed: 90, scale: 0.62, animations, wardrobe: { textures: { santaHat: Texture.WHITE }, outfit } };
   const views = Array.from({ length: 3 }, () => new AnimalAnimationController(config));
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
   try {
@@ -1870,7 +1870,7 @@ test('Myeongrang cells fit their real PNGs, preserve padding and reuse Corgi eff
     atlases[key] = new Texture({ source: new TextureSource({ width: source.width, height: source.height }) });
   }
   const outfit = { Hat: 1, Body: 0, Acc: 0, Etc: 0 };
-  const shared = { effects: { attack: [Texture.WHITE], skill: [Texture.WHITE] }, wardrobe: { outfit, santaHat: Texture.WHITE } };
+  const shared = { effects: { attack: [Texture.WHITE], skill: [Texture.WHITE] }, wardrobe: { outfit, textures: { santaHat: Texture.WHITE } } };
   const config = createMyeongrang(atlases, map, shared), controller = new AnimalAnimationController(config);
   try {
     assert.equal(config.id, 'myeongrang'); assert.equal(config.effects, shared.effects); assert.equal(config.wardrobe, shared.wardrobe);
@@ -1936,7 +1936,7 @@ test('Myeongrang selection reaches lobby, game body/VFX and presets, and Corgi c
   const atlases = Object.fromEntries(Object.entries(map.sources).map(([key, source]) => [key, new Texture({ source: new TextureSource({ width: source.width, height: source.height }) })]));
   const outfit = { Hat: 1, Body: 0, Acc: 0, Etc: 0 }, presets = new CharacterPresets();
   const corgi = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } },
-    effects: { attack: [Texture.WHITE], skill: [Texture.WHITE] }, wardrobe: { santaHat: Texture.WHITE, outfit } };
+    effects: { attack: [Texture.WHITE], skill: [Texture.WHITE] }, wardrobe: { textures: { santaHat: Texture.WHITE }, outfit } };
   const myeongrang = createMyeongrang(atlases, map, corgi);
   let active = corgi;
   const manager = new SceneManager({ stage: new Container(), screen: { width: 960, height: 540 } });
@@ -2976,7 +2976,7 @@ test('purchased scarf uses the actual accessory layer for all pets and calibrate
   const necks=JSON.parse(await readFile(new URL('../public/assets/characters/'+id+'/neck-anchors.json',import.meta.url),'utf8'));
   const outfit={Hat:0,Body:0,Acc:3,Etc:0};
   const animations=Object.fromEntries(Object.entries(necks).map(([action,neck])=>[action,{neck,frames:neck.map(()=>Texture.WHITE),fps:8}]));
-  const config={id,scale:.62,speed:90,collarFit:COLLAR_FITS[id],animations,wardrobe:{santaHat:Texture.WHITE,bowTie:Texture.WHITE,karakusaScarf:Texture.WHITE,outfit}};
+  const config={id,scale:.62,speed:90,collarFit:COLLAR_FITS[id],animations,wardrobe:{textures: { santaHat:Texture.WHITE,bowTie:Texture.WHITE,karakusaScarf:Texture.WHITE },outfit}};
   const view=new AnimalAnimationController(config);
   try{
    for(const [action,clip]of Object.entries(animations))for(let frame=0;frame<clip.frames.length;frame++)for(const direction of [-1,1]){

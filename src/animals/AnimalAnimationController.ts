@@ -50,13 +50,12 @@ export class AnimalAnimationController {
     this.sprite.anchor.set(0.5, 1);
     this.sprite.scale.set(config.scale);
     if (config.wardrobe) {
-      this.hat = new Sprite(config.wardrobe.santaHat);
-      // The full generated canvas is preserved; anchor is the centre of the brim.
+      this.hat = new Sprite();
       this.hat.visible = false;
-      this.hat.label = 'santa-hat';
+      this.hat.label = 'hat';
       this.sprite.addChild(this.hat);
-      this.accessory=new Sprite(config.wardrobe.bowTie??config.wardrobe.santaHat);
-      this.accessory.visible=false;this.accessory.label='bow-tie';this.sprite.addChild(this.accessory);
+      this.accessory=new Sprite();
+      this.accessory.visible=false;this.accessory.label='accessory';this.sprite.addChild(this.accessory);
     }
     this.sleepMark.anchor.set(0.5);
     this.sleepMark.visible = false;

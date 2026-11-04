@@ -832,14 +832,14 @@ test('portraits attach each member hat to trimmed animated head anchors without 
   const env=dom(),element=new Element(),outfit={Hat:1,Body:0,Acc:0,Etc:0};
   const frame={frame:{x:20,y:40,width:100,height:120},source:{width:400,height:300},orig:{width:256,height:240},trim:{x:78,y:120}};
   const head=[{x:10,y:-90,width:40},{x:16,y:-85,width:42,rotation:.1}];
-  const config={id:'corgi',scale:.62,wardrobe:{santaHat:Texture.WHITE,outfit},animations:{idle:{frames:[frame,frame],fps:3,head}}};
+  const config={id:'corgi',scale:.62,wardrobe:{textures: { santaHat:Texture.WHITE },outfit},animations:{idle:{frames:[frame,frame],fps:3,head}}};
   try{
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
-    config.wardrobe.topHat=Texture.WHITE;config.wardrobe.bowTie=Texture.WHITE;
+    config.wardrobe.textures.topHat=Texture.WHITE;config.wardrobe.textures.bowTie=Texture.WHITE;
     config.animations.idle.neck=[{x:12,y:-35,width:20},{x:13,y:-32,width:20}];
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:2,Acc:2});assert.equal(element.children.length,2);assert.match(element.querySelector('.pet-portrait-hat').style.backgroundImage,/black-top-hat/);assert.match(element.querySelector('.pet-portrait-acc').style.backgroundImage,/red-bow-tie/);
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0,Acc:2});assert.equal(element.children.length,1);assert.ok(element.querySelector('.pet-portrait-acc'));
-    config.wardrobe.karakusaScarf=Texture.WHITE;config.collarFit={x:0,y:0,width:2,height:.6};
+    config.wardrobe.textures.karakusaScarf=Texture.WHITE;config.collarFit={x:0,y:0,width:2,height:.6};
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0,Acc:3});assert.match(element.querySelector('.pet-portrait-acc').style.backgroundImage,/karakusa-scarf/);assert.match(element.querySelector('.pet-portrait-acc').style.transform,/matrix/);
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
     paintPetPortrait(element,config,'atlas.png',10,0,outfit);const hat=element.children[0];assert.ok(hat);const first=hat.style.left;
@@ -854,7 +854,7 @@ test('portraits attach each member hat to trimmed animated head anchors without 
 test('waiting room shows real pets, individual outfits, Ready state and host transfer without leaking animation timers',async()=>{
   const room=(await cmd(0,'create')).room;await cmd(1,'join',room.id);await cmd(1,'ready',room.id,{ready:true});
   const env=dom(),client=new RoomClient(users[1],async(a,r,p)=>{const value=await cmd(1,a,r,p);for(const member of value.room?.members??[])member.look.outfit.Hat=member.id===users[0]?1:0;return value;});let menu;
-  const config={id:'corgi',scale:.62,wardrobe:{santaHat:Texture.WHITE,outfit:{Hat:1,Body:0,Acc:0,Etc:0}},animations:{idle:{frames:[Texture.WHITE],fps:8,head:[{x:0,y:-1,width:1}]}}};
+  const config={id:'corgi',scale:.62,wardrobe:{textures: { santaHat:Texture.WHITE },outfit:{Hat:1,Body:0,Acc:0,Etc:0}},animations:{idle:{frames:[Texture.WHITE],fps:8,head:[{x:0,y:-1,width:1}]}}};
   try{
     menu=new PlayMenuPopup(()=>{},{rooms:client,pets:[{config,thumbnail:'./assets/characters/corgi/corgi-idle-walk.png'}],single:async()=>true,race(){},login(){},dismiss(){}});
     menu.open('multi');await idle(client);
@@ -891,7 +891,7 @@ test('final podium centers the winner with the chosen pet and hat, animates exis
   const env=dom(),hud=new Element();env.host.append(hud);let podium,returned=0;
   const draws=[];const context={setTransform(){},clearRect(){},save(){},restore(){},translate(){},rotate(){},scale(){},drawImage(...args){draws.push(args);}};
   const create=document.createElement;document.createElement=tag=>{const e=create(tag);if(tag==='canvas')e.getContext=()=>context;return e;};
-  const config={id:'myeongrang',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},emote:{frames:[Texture.WHITE,Texture.WHITE,Texture.WHITE],fps:8,head:Array(3).fill({x:0,y:-1,width:20})}},wardrobe:{santaHat:Texture.WHITE,outfit:{Hat:0}}};
+  const config={id:'myeongrang',speed:90,scale:0.62,animations:{idle:{frames:[Texture.WHITE],fps:3},emote:{frames:[Texture.WHITE,Texture.WHITE,Texture.WHITE],fps:8,head:Array(3).fill({x:0,y:-1,width:20})}},wardrobe:{textures: { santaHat:Texture.WHITE },outfit:{Hat:0}}};
   const racers=[{id:'slow',name:'Second',time:9000},{id:'win',name:'<Winner>',time:8000},{id:'third',name:'Third',time:10000},{id:'left',name:'Last',time:null}];
   try{
     podium=new RacePodium(racers,[{id:'win',look:{petId:'myeongrang',outfit:{Hat:1}}}],'slow',[config],hud,()=>returned++);

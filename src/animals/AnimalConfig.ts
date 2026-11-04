@@ -1,3 +1,4 @@
+import type { WearableTexture } from './Wearables';
 import type { WelcomeConfig } from '../systems/WelcomeSequence';
 import type { BehaviorProfile } from './AnimalState';
 import type { Texture } from 'pixi.js';
@@ -17,7 +18,7 @@ export interface AnimalConfig {
   scale: number;
   animations: AnimationSet;
   collarFit?: CollarFit;
-  wardrobe?: { santaHat: Texture; topHat?:Texture; bowTie?:Texture; karakusaScarf?:Texture; speechCloud?:Texture; outfit: OutfitState };
+  wardrobe?: { textures: Partial<Record<WearableTexture, Texture>>; speechCloud?:Texture; outfit: OutfitState };
   effects?: Partial<Record<'attack' | 'skill', Texture[]>>;
   behavior?: BehaviorProfile;
   welcome?: WelcomeConfig;
