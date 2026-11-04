@@ -839,6 +839,8 @@ test('portraits attach each member hat to trimmed animated head anchors without 
     config.animations.idle.neck=[{x:12,y:-35,width:20},{x:13,y:-32,width:20}];
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:2,Acc:2});assert.equal(element.children.length,2);assert.match(element.querySelector('.pet-portrait-hat').style.backgroundImage,/black-top-hat/);assert.match(element.querySelector('.pet-portrait-acc').style.backgroundImage,/red-bow-tie/);
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0,Acc:2});assert.equal(element.children.length,1);assert.ok(element.querySelector('.pet-portrait-acc'));
+    config.wardrobe.karakusaScarf=Texture.WHITE;config.collarFit={x:0,y:0,width:2,height:.6};
+    paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0,Acc:3});assert.match(element.querySelector('.pet-portrait-acc').style.backgroundImage,/karakusa-scarf/);assert.match(element.querySelector('.pet-portrait-acc').style.transform,/matrix/);
     paintPetPortrait(element,config,'atlas.png',10,0,{...outfit,Hat:0});assert.equal(element.children.length,0);
     paintPetPortrait(element,config,'atlas.png',10,0,outfit);const hat=element.children[0];assert.ok(hat);const first=hat.style.left;
     paintPetPortrait(element,config,'atlas.png',10,1,outfit);assert.equal(element.children[0],hat);assert.notEqual(hat.style.left,first);assert.equal(hat.style.transform,'rotate(0.1rad)');

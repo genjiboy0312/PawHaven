@@ -16,7 +16,7 @@ export function itemIcon(category: OutfitTab, index: number): HTMLImageElement {
   const item=wearableItem(category,index);
   if (item) {
     image.src = './assets/items/'+item.file;
-    image.classList.add(item.texture==='santaHat'?'santa-hat-icon':item.texture==='topHat'?'top-hat-icon':'bow-tie-icon');
+    image.classList.add(item.texture==='santaHat'?'santa-hat-icon':item.texture==='topHat'?'top-hat-icon':item.texture==='karakusaScarf'?'scarf-icon':'bow-tie-icon');
     return image;
   }
   const color = '#' + outfitColor(index).toString(16).padStart(6, '0');

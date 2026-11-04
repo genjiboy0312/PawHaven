@@ -5,7 +5,7 @@ import { SpeechBubble } from './SpeechBubble';
 import type { AnimalAction, AnimalConfig } from './AnimalConfig';
 import type { AnimalVisualState } from './AnimalState';
 import { wornLayers } from './Wearables';
-import { applyAttachmentPose } from './AttachmentFit';
+import { applyAttachmentPose } from './AttachmentLayer';
 import { speechSkinItem } from './SpeechSkins';
 
 export class AnimalAnimationController {

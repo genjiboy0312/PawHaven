@@ -576,7 +576,7 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
   const previous=globalThis.document,host=new Element();globalThis.document={createElement:()=>new Element(),querySelector:()=>host};
   const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)},selection=new CharacterSelection(storage);
   const state=new ShopState();state.items.clear();const outfit={Hat:0,Body:0,Acc:0,Etc:0};let saves=0,scene;
-  const config={id:'myeongrang',speed:90,scale:.62,wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,outfit},animations:{idle:{frames:[Texture.WHITE],fps:3,head:[{x:0,y:-1,width:1}],neck:[{x:0,y:-.3,width:.5}]}}};
+  const config={id:'myeongrang',speed:90,scale:.62,collarFit:{x:0,y:0,width:2,height:.6},wardrobe:{santaHat:Texture.WHITE,topHat:Texture.WHITE,bowTie:Texture.WHITE,karakusaScarf:Texture.WHITE,outfit},animations:{idle:{frames:[Texture.WHITE],fps:3,head:[{x:0,y:-1,width:1}],neck:[{x:0,y:-.3,width:.5}]}}};
   const click=e=>e.dispatchEvent(new Event('click'));
   try{
     scene=new ShopScene(config,state,()=>{},()=>{},'Style',(category,index)=>{outfit[category]=index;selection.save({petId:config.id,outfit});saves++;});
@@ -595,6 +595,10 @@ test('Shop try-on never equips on selection, cancellation or purchase; explicit 
     click(content.children[0].children[1]);click(content.children[1].children[0]);assert.equal(scene.animation.accessory.visible,true);assert.equal(outfit.Acc,0);
     click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Acc,0);click(action());assert.equal(outfit.Acc,2);assert.equal(outfit.Hat,2);assert.equal(state.coins,775);assert.equal(saves,3);
     assert.deepEqual(new CharacterSelection(storage).current.outfit,outfit);
+    click(content.children[1].children[1]);assert.equal(scene.animation.accessory.label,'karakusaScarf');assert.equal(outfit.Acc,2);
+    click(action());click(host.querySelector('.purchase-confirm'));await new Promise(r=>setImmediate(r));assert.equal(outfit.Acc,2);
+    click(action());assert.equal(outfit.Acc,3);assert.equal(outfit.Hat,2);assert.equal(state.coins,700);assert.equal(saves,4);
+    assert.equal(new CharacterSelection(storage).current.outfit.Acc,3);
     scene.destroy({children:true});scene=undefined;assert.equal(config.wardrobe.santaHat.destroyed,false);
   }finally{scene?.destroy({children:true});if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
 });
@@ -733,4 +737,14 @@ test('nickname SQL allows one free name, rejects duplicates and prevents direct 
     error => error.code === '42501');
   await assert.rejects(() => as(null, "select public.claim_player_nickname('Anon')", [], 'anon'),
     error => error.code === '42501');
+});
+
+
+test('scarf uses the existing server purchase with ownership isolation and one debit',async()=>{
+ assert.equal((await load(A)).snapshot.items.includes('Acc:3'),false);
+ const request=uuid(),payload={category:'Acc',index:3,price:0};
+ const purchased=await command(A,'buy',payload,request);assert.equal(purchased.outcome,'purchased');assert.equal(purchased.snapshot.coins,925);assert.ok(purchased.snapshot.items.includes('Acc:3'));
+ const replay=await command(A,'buy',payload,request);assert.equal(replay.snapshot.coins,925);
+ const owned=await command(A,'buy',payload);assert.equal(owned.outcome,'owned');assert.equal(owned.snapshot.coins,925);
+ assert.equal((await load(B)).snapshot.items.includes('Acc:3'),false);
 });

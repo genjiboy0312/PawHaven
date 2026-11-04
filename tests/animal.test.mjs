@@ -1163,7 +1163,7 @@ test('Character opens a stationary preview, keeps category selection without equ
     assert.equal(new CharacterSelection(storage).current.outfit.Hat, 2);
     assert.equal(inventory.children[2].attributes.get('aria-pressed'), 'true');
     tabs.children[2].dispatchEvent(new Event('click'));
-    assert.equal(inventory.children.length,2);inventory.children[0].dispatchEvent(new Event('click')); assert.equal(outfit.Acc, 0);
+    assert.equal(inventory.children.length,3);inventory.children[0].dispatchEvent(new Event('click')); assert.equal(outfit.Acc, 0);
     tabs.children[1].dispatchEvent(new Event('click'));
     assert.equal(inventory.children[2].attributes.get('aria-pressed'), 'true');
     inventory.children[0].dispatchEvent(new Event('click')); assert.equal(outfit.Hat, 0);
@@ -2929,7 +2929,8 @@ test('collar fitting follows rotated anatomy and requires calibration for a new 
 
 
 test('independent cloth depth keeps both rotated seam endpoints pinned',async()=>{
- const {attachmentPose,applyAttachmentPose}=await importTs('../src/animals/AttachmentFit.ts',import.meta.url);
+ const {attachmentPose}=await importTs('../src/animals/AttachmentFit.ts',import.meta.url);
+ const {applyAttachmentPose}=await importTs('../src/animals/AttachmentLayer.ts',import.meta.url);
  const {Sprite}=await import('pixi.js');
  const art={width:500,height:400,mount:{back:{x:110,y:90},front:{x:350,y:120}},depth:80};
  const target={x:12,y:-45,width:70,height:16,rotation:.3};
@@ -2961,4 +2962,31 @@ test('pose-specific collar dimensions do not change another action or the bow la
  assert.equal(attachmentTarget(config,idle,0,'collar').height,18);
  const moving=attachmentTarget(config,run,0,'collar');assert.equal(moving.x,9);assert.equal(moving.height,12);assert.equal(moving.width,60);
  assert.equal(attachmentTarget(config,run,0,'neck'),run.neck[0]);
+});
+
+
+test('purchased scarf uses the actual accessory layer for all pets and calibrated actions',async()=>{
+ const {AnimalAnimationController}=await importTs('../src/animals/AnimalAnimationController.ts',import.meta.url);
+ const {COLLAR_FITS}=await importTs('../src/animals/CollarFits.ts',import.meta.url);
+ const {wornLayers,wearableItem}=await importTs('../src/animals/Wearables.ts',import.meta.url);
+ const {outfitItems}=await importTs('../src/animals/OutfitState.ts',import.meta.url);
+ assert.deepEqual(outfitItems('Acc'),[2,3]);assert.equal(wearableItem('Acc',3).attachment,'collar');
+ assert.deepEqual(await readFile(new URL('../Resources/Karakusa_Bandana_Front_Overlay.png',import.meta.url)),await readFile(new URL('../public/assets/items/karakusa-scarf.png',import.meta.url)));
+ for(const id of ['corgi','myeongrang','tuxedo']){
+  const necks=JSON.parse(await readFile(new URL('../public/assets/characters/'+id+'/neck-anchors.json',import.meta.url),'utf8'));
+  const outfit={Hat:0,Body:0,Acc:3,Etc:0};
+  const animations=Object.fromEntries(Object.entries(necks).map(([action,neck])=>[action,{neck,frames:neck.map(()=>Texture.WHITE),fps:8}]));
+  const config={id,scale:.62,speed:90,collarFit:COLLAR_FITS[id],animations,wardrobe:{santaHat:Texture.WHITE,bowTie:Texture.WHITE,karakusaScarf:Texture.WHITE,outfit}};
+  const view=new AnimalAnimationController(config);
+  try{
+   for(const [action,clip]of Object.entries(animations))for(let frame=0;frame<clip.frames.length;frame++)for(const direction of [-1,1]){
+    view.update('IDLE',0,direction,0,0,0,action,(frame+.01)/clip.frames.length);
+    assert.equal(view.accessory.visible,true);assert.equal(view.accessory.label,'karakusaScarf');assert.equal(view.accessory.texture,Texture.WHITE);
+    assert.ok([view.accessory.x,view.accessory.y,view.accessory.scale.x,view.accessory.scale.y,view.accessory.skew.x,view.accessory.skew.y].every(Number.isFinite));
+   }
+   outfit.Acc=0;view.update('IDLE',0,1);assert.equal(view.accessory.visible,false);
+   const remote=wornLayers(config,{...outfit,Acc:3},animations.idle,0);assert.equal(remote[0].item.texture,'karakusaScarf');assert.equal(outfit.Acc,0);
+   outfit.Acc=2;view.update('IDLE',0,1);assert.equal(view.accessory.label,'bowTie');
+  }finally{view.sprite.destroy({children:true});view.sleepMark.destroy();view.welcomeMark.destroy({children:true});}
+ }
 });

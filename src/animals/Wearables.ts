@@ -1,6 +1,7 @@
 import type { AnimalAction, AnimalConfig, AnimationSet, HeadAnchor } from './AnimalConfig';
 import type { OutfitState, OutfitTab } from './OutfitState';
 import { SANTA_HAT } from './HatPlacement';
+import { KARAKUSA_SCARF_ART } from './CollarFits';
 import { attachmentPose, attachmentTarget, type AttachmentArt, type AttachmentPoint, type AttachmentTarget } from './AttachmentFit';
 
 /** Equipment art and attachment geometry shared by Pixi, inventory and DOM previews. */
@@ -8,9 +9,10 @@ export const WEARABLES = [
   {category:'Hat',index:1,texture:'santaHat',name:'santaHat',file:'santa-hat.png',width:1536,height:1024,anchorX:SANTA_HAT.anchorX,anchorY:SANTA_HAT.anchorY,fitWidth:550,attachment:'head',offsetY:5},
   {category:'Hat',index:2,texture:'topHat',name:'blackTopHat',file:'black-top-hat.png',width:1536,height:1024,anchorX:768/1536,anchorY:738/1024,fitWidth:850/0.6,attachment:'head',offsetY:5},
   {category:'Acc',index:2,texture:'bowTie',name:'redBowTie',file:'red-bow-tie.png',width:1536,height:1024,anchorX:768/1536,anchorY:535/1024,fitWidth:995,attachment:'neck',offsetY:0},
+  {category:'Acc',index:3,texture:'karakusaScarf',name:'karakusaScarf',file:'karakusa-scarf.png',...KARAKUSA_SCARF_ART,anchorX:752.5/1536,anchorY:347.5/1024,fitWidth:Math.hypot(1015,95),attachment:'collar',offsetY:0},
 ] as const;
 export interface Wearable {
-  category: OutfitTab; index: number; texture: 'santaHat' | 'topHat' | 'bowTie'; name: string; file: string;
+  category: OutfitTab; index: number; texture: 'santaHat' | 'topHat' | 'bowTie' | 'karakusaScarf'; name: string; file: string;
   width: number; height: number; anchorX: number; anchorY: number; fitWidth: number;
   attachment: AttachmentPoint; offsetY: number; mount?: AttachmentArt['mount']; depth?: number;
 }

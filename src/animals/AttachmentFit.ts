@@ -1,5 +1,4 @@
 import type { AnimalConfig, AnimationSet, HeadAnchor } from './AnimalConfig';
-import { Matrix, type Sprite } from 'pixi.js';
 import type { AnimalAction } from './AnimalConfig';
 
 export type AttachmentPoint = 'head' | 'neck' | 'collar';
@@ -56,9 +55,4 @@ export function attachmentPose(art: AttachmentArt, target: AttachmentTarget): At
     c: ct*scale*ss - st*scaleY*cs, d: st*scale*ss + ct*scaleY*cs,
     rotation: targetAngle - sourceAngle,
     anchorX: (back.x + front.x) / 2 / art.width, anchorY: (back.y + front.y) / 2 / art.height };
-}
-
-export function applyAttachmentPose(layer: Sprite, pose: AttachmentPose): void {
-  layer.anchor.set(pose.anchorX, pose.anchorY);
-  layer.setFromMatrix(new Matrix(pose.a, pose.b, pose.c, pose.d, pose.x, pose.y));
 }

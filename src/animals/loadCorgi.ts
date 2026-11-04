@@ -59,13 +59,13 @@ export async function loadCorgi(onProgress: (progress: number) => void, outfit: 
   });
   const santaHat = await Assets.load<Texture>(import.meta.env.BASE_URL + 'assets/items/santa-hat.png');
   santaHat.source.scaleMode = 'nearest';
-  const [topHat,bowTie]=await Promise.all(['black-top-hat.png','red-bow-tie.png'].map(file=>Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/'+file)));
-  topHat.source.scaleMode=bowTie.source.scaleMode='nearest';
+  const [topHat,bowTie,karakusaScarf]=await Promise.all(['black-top-hat.png','red-bow-tie.png','karakusa-scarf.png'].map(file=>Assets.load<Texture>(import.meta.env.BASE_URL+'assets/items/'+file)));
+  topHat.source.scaleMode=bowTie.source.scaleMode=karakusaScarf.source.scaleMode='nearest';
   const speechAtlas = await Assets.load<Texture>(import.meta.env.BASE_URL + 'assets/items/' + SKY_CLOUD.file);
   speechAtlas.source.scaleMode = 'linear';
   const speechCloud = new Texture({ source: speechAtlas.source, frame: new Rectangle(...SKY_CLOUD.frame) });
   const config: AnimalConfig = {
-    wardrobe: { santaHat, topHat,bowTie,speechCloud,outfit },
+    wardrobe: { santaHat, topHat,bowTie,karakusaScarf,speechCloud,outfit },
     id: 'corgi', speed: 90, scale: 0.62, collarFit: COLLAR_FITS.corgi,
     effects: { attack: effectFrames(effectMap.attack), skill: effectFrames(effectMap.skill) },
     animations: {
