@@ -1312,7 +1312,9 @@ test('Settings overlays a live run, pauses controls, applies sound values, resto
     assert.equal(feedback.tag, 'a'); assert.equal(feedback.textContent, 'Send Feedback');
     assert.equal(feedback.getAttribute('href'), 'mailto:genjiman0312@gmail.com?subject=%5BPawHaven%20Feedback%5D');
     assert.equal(content.children.at(-2).textContent, 'genjiman0312@gmail.com');
-    assert.ok(content.children[3].textContent.includes('bugs'));
+    assert.equal(content.children[2].children[0].textContent, 'Build');
+    assert.equal(content.children[2].children[1].textContent.trim(), 'local');
+    assert.ok(content.children.some(child => child.textContent?.includes('bugs')));
     const aboutControls = panel.querySelectorAll(); assert.equal(aboutControls.at(-1), feedback);
     feedback.focus();
     overlay.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Tab' }));
