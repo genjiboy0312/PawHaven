@@ -44,6 +44,7 @@ jobs:
           path: test-results.log
       - name: Typecheck and build
         env:
+          VITE_BUILD_SHA: ${{ github.sha }}
           VITE_SUPABASE_URL: https://rgsbqfjnhdvmqxrlqawm.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable__tjTdqyp80AH5UCWR9QcLA_PHXbX3Sz
         run: npm run build

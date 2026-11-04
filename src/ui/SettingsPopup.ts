@@ -98,7 +98,14 @@ export class SettingsPopup {
     }
     if (this.tab === 'About') {
       const title = document.createElement('p'); title.textContent = 'Paw Haven'; this.content.append(title);
-      this.paragraph('version'); this.paragraph('aboutText');
+      this.paragraph('version');
+      const build = document.createElement('p');
+      const buildLabel = document.createElement('span'); bindText(buildLabel, 'buildLabel');
+      const buildId = document.createElement('code');
+      buildId.textContent = ' ' + (import.meta.env?.VITE_BUILD_SHA?.slice(0, 7) || 'local');
+      build.append(buildLabel, buildId);
+      this.content.append(build);
+      this.paragraph('aboutText');
       this.paragraph('feedbackHint');
       const email = document.createElement('p'); email.className = 'feedback-email'; email.textContent = 'genjiman0312@gmail.com';
       const feedback = document.createElement('a'); feedback.className = 'settings-feedback';
