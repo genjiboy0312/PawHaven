@@ -16,6 +16,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      release_files: ${{ steps.release.outputs.files }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -45,6 +47,12 @@ jobs:
           VITE_SUPABASE_URL: https://rgsbqfjnhdvmqxrlqawm.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable__tjTdqyp80AH5UCWR9QcLA_PHXbX3Sz
         run: npm run build
+      - name: Record startup file hashes
+        id: release
+        shell: bash
+        run: |
+          files="$(node scripts/check-pages-build.mjs record)"
+          echo "files=$files" >> "$GITHUB_OUTPUT"
       - name: Upload site
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
@@ -64,3 +72,10 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+      - name: Checkout verification script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify live build
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+          RELEASE_FILES: ${{ needs.build.outputs.release_files }}
+        run: node scripts/check-pages-build.mjs verify
