@@ -329,9 +329,13 @@ test('sync retry preserves offline customization and refuses to overwrite a newe
     assert.equal(service.pendingSave, true);
     client.failure = { code: 'network' }; await service.save();
     assert.equal(service.status, 'offline');
-    client.failure = null; await service.retrySync();
+    const selection = new CharacterSelection(service.storage);
+    const latest = selection.current;
+    latest.outfit.Hat = 2;
+    selection.save(latest);
+    client.failure = null; await service.save();
     assert.equal(service.pendingSave, false);
-    assert.equal(remote.get('a').snapshot.character.petId, 'myeongrang');
+    assert.deepEqual(remote.get('a').snapshot.character, latest);
     new HomeState(service.storage).select('Floor', 2);
     remote.get('a').revision++;
     const device = service.storage.snapshot(), revision = remote.get('a').revision;

@@ -354,6 +354,8 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .character-screen .character-presets .preset-save { grid-template-columns: 1fr; background:url("/assets/ui/surfaces/surface-d952217f79a6.png") center/100% 100% no-repeat; border-color: #a6bb7d; color: #5e7540;-webkit-text-fill-color:#5e7540; padding-inline: 1.6cqw; }
 .character-screen .character-presets button:active { transform: translateY(0.2cqh); }
 .character-screen .preset-feedback { font-size: clamp(9px, 1.2cqw, 15px); line-height: 1.35; color: #867556;-webkit-text-fill-color:#867556; }
+.character-screen .preset-feedback p { margin: 0; }
+.character-screen .preset-feedback button { margin-top: .6cqh; }
 @media (prefers-reduced-motion: reduce) {
   .character-screen > .character-close:active, .character-screen .character-presets button:active { transform: none; }
 }

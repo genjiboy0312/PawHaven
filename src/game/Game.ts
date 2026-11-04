@@ -204,7 +204,7 @@ export class Game {
     const openCharacter=(returnTo:()=>void,beforeClose?:()=>Promise<void>)=>{
       if(this.disposed)return;
       const screen=new CharacterScene(activePet,this.outfit,()=>{if(!this.disposed&&this.scenes?.isCurrent(screen))returnTo();},{
-        beforeClose,presets,pets,onLookChanged:look=>{character.save(look);},onPetChanged:config=>{activePet=config;},
+        account:this.account,beforeClose,presets,pets,onLookChanged:look=>{character.save(look);},onPetChanged:config=>{activePet=config;},
         ownsPet:id=>commerce.ownsPet(id),owns:(category,index)=>commerce.owns(category,index),subscribe:callback=>commerce.subscribe(callback),
       });
       this.scenes?.show(screen);
