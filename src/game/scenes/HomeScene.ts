@@ -7,9 +7,11 @@ import { onLanguageChange } from '../../settings/i18n';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
 import { bindAria, bindText, t } from '../../settings/i18n';
 import { Scene } from './Scene';
+import { SaveFeedback, type SaveAccount } from '../../ui/SaveFeedback';
 
 export class HomeScene extends Scene {
   private readonly map: LobbyMap;
+  private readonly saveFeedback: SaveFeedback;
   private readonly placements = document.createElement('div');
   private readonly remove = document.createElement('button');
   private selected?: number;
@@ -23,7 +25,7 @@ export class HomeScene extends Scene {
   private tab: HomeTab = 'Background';
   private viewWidth = 960;
   private viewHeight = 540;
-  constructor(private readonly state: HomeState, onClose: () => void, textures?: HomeTextures, subscribe?: (callback: () => void) => () => void) {
+  constructor(private readonly state: HomeState, onClose: () => void, textures?: HomeTextures, subscribe?: (callback: () => void) => () => void, account?: SaveAccount) {
     super(); this.map = new LobbyMap(textures); this.addChild(this.map);
     this.panel.className = 'home-screen'; bindAria(this.panel, 'home');
     const title = document.createElement('h2'); title.className = 'shop-title'; bindText(title, 'home');
@@ -40,7 +42,10 @@ export class HomeScene extends Scene {
     this.placements.className = 'home-placements';
     this.remove.type = 'button'; this.remove.className = 'home-remove commerce-primary'; bindText(this.remove, 'remove');
     this.remove.addEventListener('click', () => this.removeSelected(), { signal: this.abort.signal });
-    this.panel.append(title, close, drawer, this.tabs, this.inventory, hint, this.placements, this.remove);
+    this.saveFeedback = new SaveFeedback(account, 'homeSavedDevice');
+    this.saveFeedback.element.className = 'home-save-feedback';
+    this.saveFeedback.showSave();
+    this.panel.append(title, close, drawer, this.tabs, this.inventory, hint, this.placements, this.remove, this.saveFeedback.element);
     if (typeof window !== 'undefined') {
       window.addEventListener('blur', () => this.cancelDrag(), { signal: this.abort.signal });
       window.addEventListener('resize', () => this.cancelDrag(), { signal: this.abort.signal });
@@ -151,5 +156,5 @@ export class HomeScene extends Scene {
     if (redraw) this.drawMap();
   }
   resize(width: number, height: number): void { this.cancelDrag(false); this.viewWidth = width; this.viewHeight = height; this.drawMap(); }
-  override destroy(options?: DestroyOptions): void { this.cancelDrag(false); this.unsubscribe?.(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); }
+  override destroy(options?: DestroyOptions): void { this.cancelDrag(false); this.unsubscribe?.(); this.saveFeedback.destroy(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); }
 }

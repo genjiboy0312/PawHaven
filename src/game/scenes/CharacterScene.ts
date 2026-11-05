@@ -8,11 +8,11 @@ import { OUTFIT_TABS, OUTFIT_MENU_TABS, outfitReady, type OutfitState, type Outf
 import { Scene } from './Scene';
 import { wearableItem } from '../../animals/Wearables';
 import { speechSkinItem } from '../../animals/SpeechSkins';
-import type { AccountService } from '../../account/AccountService';
+import { SaveFeedback, type SaveAccount } from '../../ui/SaveFeedback';
 import { petInfo } from '../../animals/PetCatalog';
 
 export interface PetChoice { config: AnimalConfig; name: string; thumbnail: string }
-interface CharacterOptions { account?: Pick<AccountService, 'status' | 'pendingSave' | 'canSave' | 'subscribe' | 'save'>; ownsPet?:(id:string)=>boolean;beforeClose?: () => Promise<void>; subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
+interface CharacterOptions { account?: SaveAccount; ownsPet?:(id:string)=>boolean;beforeClose?: () => Promise<void>; subscribe?: (callback: () => void) => () => void; onLookChanged?: (look: CharacterPreset) => void; presets?: CharacterPresets; pets?: PetChoice[]; onPetChanged?: (config: AnimalConfig) => void; owns?: (category: OutfitTab, index: number) => boolean }
 const CHARACTER_TABS = ['Pets', ...OUTFIT_MENU_TABS] as const;
 
 export class CharacterScene extends Scene {
@@ -30,10 +30,7 @@ export class CharacterScene extends Scene {
   private readonly presetStates: HTMLSpanElement[] = [];
   private readonly save = document.createElement('button');
   private readonly localeOff: () => void;
-  private readonly feedback = document.createElement('p');
-  private readonly retry = document.createElement('button');
-  private readonly unsubscribeAccount?: () => void;
-  private showingLookSave = false;
+  private readonly saveFeedback: SaveFeedback;
   private tab: typeof CHARACTER_TABS[number] = 'Pets';
   private readonly unsubscribe?: () => void;
   private elapsed = 0;
@@ -92,25 +89,12 @@ export class CharacterScene extends Scene {
       this.showFeedback('presetSaved'); this.refreshPresets();
     }, { signal: this.abort.signal });
     presets.append(save);
-    const feedbackArea = document.createElement('div');
-    feedbackArea.className = 'preset-feedback';
-    this.feedback.setAttribute('role', 'status');
-    this.retry.type = 'button';
-    this.retry.className = 'commerce-primary';
-    this.retry.hidden = true;
-    bindText(this.retry, 'accountRetry');
-    this.retry.addEventListener('click', () => {
-      const account = this.options.account;
-      if (account?.canSave && account.pendingSave) void account.save();
-    }, { signal: this.abort.signal });
-    feedbackArea.append(this.feedback, this.retry);
-    this.panel.append(close, this.tabs, this.inventory, presets, feedbackArea);
+    this.saveFeedback = new SaveFeedback(options.account);
+    this.saveFeedback.element.className = 'preset-feedback';
+    this.panel.append(close, this.tabs, this.inventory, presets, this.saveFeedback.element);
     this.refreshPresets();
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = options.subscribe?.(() => this.refresh());
-    this.unsubscribeAccount = options.account?.subscribe(() => {
-      if (this.showingLookSave && !this.closing) this.refreshLookSave();
-    });
     this.localeOff = onLanguageChange(() => this.refreshPresets());
     this.refresh(); this.update(0);
   }
@@ -174,25 +158,8 @@ export class CharacterScene extends Scene {
     }
     this.pet = pet; this.options.onPetChanged?.(pet.config); this.notifyLook(); this.reaction = 1.5; this.refreshPresets();
   }
-  private showFeedback(key: TextKey): void {
-    this.showingLookSave = false;
-    this.retry.hidden = true;
-    bindText(this.feedback, key);
-  }
-  private showLookSave(): void {
-    this.showingLookSave = true;
-    this.refreshLookSave();
-  }
-  private refreshLookSave(): void {
-    const account = this.options.account;
-    const status = account?.status ?? 'guest';
-    const key = status === 'guest' ? 'lookSavedDevice'
-      : status === 'saved' && account?.pendingSave ? 'sync.saving'
-      : status === 'offline' && !account?.canSave ? 'lookSaveAccount'
-      : `sync.${status}` as const;
-    if (this.feedback.getAttribute('data-i18n') !== key) bindText(this.feedback, key);
-    this.retry.hidden = !(status === 'offline' && account?.pendingSave && account.canSave);
-  }
+  private showFeedback(key: TextKey): void { this.saveFeedback.showNotice(key); }
+  private showLookSave(): void { this.saveFeedback.showSave(); }
   private notifyLook(): void { this.options.onLookChanged?.({ petId: this.pet.config.id, outfit: { ...this.outfit } }); }
   private loadPreset(slot: number): void {
     this.activePreset = slot; this.presets.selectedSlot = slot;
@@ -228,7 +195,7 @@ export class CharacterScene extends Scene {
     if (speech) { this.animation.welcomeMark.scale.set(.55); this.animation.welcomeMark.position.set(0,-200); }
   }
   override destroy(options?: DestroyOptions): void {
-    this.unsubscribe?.(); this.unsubscribeAccount?.(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options);
+    this.unsubscribe?.(); this.saveFeedback.destroy(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options);
     this.animation.sleepMark.destroy();
   }
 }

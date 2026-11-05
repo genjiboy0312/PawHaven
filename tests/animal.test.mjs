@@ -3020,3 +3020,46 @@ test('purchased scarf uses the actual accessory layer for all pets and calibrate
   }finally{view.sprite.destroy({children:true});view.sleepMark.destroy();view.welcomeMark.destroy({children:true});}
  }
 });
+
+
+test('Home save feedback follows edits without replacing drag targets, retries once and releases its subscription', async () => {
+  class Element extends EventTarget {
+    children=[]; attributes=new Map(); style={}; classList={add(){}};
+    append(...items){for(const item of items){item.parent=this;this.children.push(item);}}
+    replaceChildren(...items){this.children=[];this.append(...items);}
+    setAttribute(k,v){this.attributes.set(k,v);} getAttribute(k){return this.attributes.get(k)??null;}
+    remove(){if(this.parent)this.parent.children=this.parent.children.filter(item=>item!==this);}
+  }
+  const previous=globalThis.document,host=new Element();
+  globalThis.document={createElement:()=>new Element(),querySelector:()=>host};
+  const {HomeScene}=await importTs('../src/game/scenes/HomeScene.ts',import.meta.url);
+  const listeners=new Set(),emit=()=>listeners.forEach(fn=>fn()),tick=()=>new Promise(r=>setImmediate(r));
+  let saves=0,loads=0,release,scene,submitted;
+  const account={status:'saved',pendingSave:false,canSave:true,
+    subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},
+    async save(){saves++;submitted=home.items;this.status='saving';this.canSave=false;emit();await new Promise(r=>release=r);this.status='saved';this.pendingSave=false;this.canSave=true;emit();},
+    async retrySync(){loads++;this.status='loading';emit();await tick();this.status='offline';emit();},
+  };
+  const home=new HomeState({getItem(){return null;},setItem(){account.pendingSave=true;emit();}});
+  try {
+    scene=new HomeScene(home,()=>{},undefined,undefined,account);
+    const panel=host.children[0],[message,retry]=panel.children.at(-1).children;
+    assert.equal(message.getAttribute('data-i18n'),'sync.saved');
+    panel.children[3].children[2].dispatchEvent(new Event('click'));
+    panel.children[4].children[0].dispatchEvent(new Event('click'));
+    assert.equal(message.getAttribute('data-i18n'),'sync.saving');
+    const target=panel.children[6].children[0];
+    account.status='offline';emit();assert.equal(retry.hidden,false);
+    const key=new Event('keydown');Object.defineProperty(key,'key',{value:'ArrowRight'});target.dispatchEvent(key);
+    assert.equal(panel.children[6].children[0],target);
+    retry.dispatchEvent(new Event('click'));retry.dispatchEvent(new Event('click'));
+    assert.equal(saves,1);assert.deepEqual(submitted,home.items);assert.equal(retry.hidden,true);
+    release();await tick();assert.equal(message.getAttribute('data-i18n'),'sync.saved');
+    account.status='offline';account.canSave=false;emit();assert.equal(retry.hidden,false);
+    retry.dispatchEvent(new Event('click'));retry.dispatchEvent(new Event('click'));await tick();await tick();
+    assert.equal(loads,1);assert.equal(retry.hidden,false);assert.equal(retry.disabled,false);
+    account.status='conflict';emit();assert.equal(retry.hidden,true);assert.equal(message.getAttribute('data-i18n'),'sync.conflict');
+    scene.destroy({children:true});scene=undefined;assert.equal(listeners.size,0);
+    scene=new HomeScene(home,()=>{});assert.equal(host.children[0].children.at(-1).children[0].getAttribute('data-i18n'),'homeSavedDevice');
+  } finally {scene?.destroy({children:true});if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
+});
