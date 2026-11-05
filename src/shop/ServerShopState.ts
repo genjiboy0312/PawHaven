@@ -106,7 +106,8 @@ export class ServerShopState {
   async beginRun(map: CourseId = 'garden'): Promise<boolean> {
     if (!this.ready) return false;
     const result = await this.api.execute('run_start', { map });
-    this.runId = result?.run_id;
+    if (!result?.run_id) return false;
+    this.runId = result.run_id;
     this.rewardRunId = undefined; this.runReward = undefined;this.accountRunReward=undefined;this.rewardXP=undefined;
     return !!this.runId;
   }

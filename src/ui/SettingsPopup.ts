@@ -1,3 +1,4 @@
+import { SingleRunMenu, type SingleRunContext } from './SingleRunMenu';
 import { ControlLayoutEditor } from './ControlLayoutEditor';
 import { AccountPanel } from './AccountPanel';
 import { diagnosticInfo } from './DiagnosticInfo';
@@ -14,6 +15,7 @@ interface SettingsAudio {
   play(kind: 'click' | 'bgm'): void;
 }
 export class SettingsPopup {
+  private runMenu?: SingleRunMenu;
   private layoutEditor?: ControlLayoutEditor;
   private accountPanel?: AccountPanel;
   private installButton?: InstallAppButton;
@@ -29,7 +31,7 @@ export class SettingsPopup {
   get opened(): boolean { return !!this.element; }
   constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService, private readonly installation?: AppInstall) {}
   openAccount(): void { this.tab='Account'; this.open(); }
-  open(playSound = true): void {
+  open(playSound = true, singleRun?: SingleRunContext): void {
     if (this.opened) return;
     const host = document.querySelector<HTMLElement>('#app');
     if (!host) return;
@@ -60,6 +62,7 @@ export class SettingsPopup {
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }, { signal: this.abort.signal });
+    if (singleRun?.active()) this.runMenu = new SingleRunMenu(this.panel, singleRun, () => this.close());
     this.render(); close.focus();
   }
   private button(label: string, action: () => void, signal = this.abort!.signal): HTMLButtonElement {
@@ -158,6 +161,7 @@ export class SettingsPopup {
   }
   close(): void {
     if (!this.opened) return;
+    this.runMenu?.destroy(); this.runMenu = undefined;
     this.layoutEditor?.destroy(); this.layoutEditor = undefined;
     this.installButton?.destroy(); this.installButton = undefined;
     this.accountPanel?.destroy(); this.accountPanel = undefined; this.pageAbort?.abort(); this.abort?.abort(); this.element?.remove(); this.element = undefined; this.panel = undefined; this.content = undefined; this.tabs = undefined;

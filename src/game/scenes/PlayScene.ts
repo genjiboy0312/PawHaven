@@ -103,6 +103,7 @@ export class PlayScene extends Scene {
   private suspended = false;
   private recoveryPopup?: RunRecoveryPopup;
   private recoverySince?: number;
+  get inProgress(): boolean { return !this.destroyed && !this.settings?.multiplayer && !this.run.won && !this.returned; }
   override setPaused(paused: boolean): void {
     this.paused = paused; this.blur();
     if (paused) this.closeRecovery();

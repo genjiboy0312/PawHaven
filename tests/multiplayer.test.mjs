@@ -1328,3 +1328,22 @@ test('touch and keyboard queue the same landing jump with one sound, and pausing
   assert.equal(scene.run.jumpSequence,2);assert.equal(scene.run.grounded,true);assert.equal(sounds.filter(s=>s==='jump').length,2);
  }finally{scene?.destroy({children:true});env.restore();}
 });
+
+
+test('single pause actions confirm, prevent duplicate requests and keep settings paused on restart failure',async()=>{
+ const env=dom();const {SettingsPopup}=await importTs('../src/ui/SettingsPopup.ts',import.meta.url),{SoundSettings}=await importTs('../src/settings/SoundSettings.ts',import.meta.url);
+ let popup,restarts=0,leaves=0,release;const pauses=[];const tick=()=>new Promise(r=>setImmediate(r));
+ const context={active:()=>true,restart:()=>{restarts++;return new Promise(r=>release=r);},leave:()=>leaves++};
+ try{
+  popup=new SettingsPopup(new SoundSettings(),{apply(){},play(){}},paused=>pauses.push(paused));popup.open(true,context);
+  const action=kind=>env.host.all().find(e=>e.getAttribute('data-run-action')===kind);
+  action('restart').dispatchEvent(new Event('click'));env.host.querySelector('.confirm-cancel').dispatchEvent(new Event('click'));assert.equal(restarts,0);assert.equal(popup.opened,true);assert.equal(pauses.at(-1),true);
+  action('restart').dispatchEvent(new Event('click'));const accept=env.host.querySelector('.confirm-accept');accept.dispatchEvent(new Event('click'));accept.dispatchEvent(new Event('click'));assert.equal(restarts,1);assert.equal(env.host.querySelector('.confirm-overlay').inert,true);
+  release(false);await tick();assert.equal(popup.opened,true);assert.equal(pauses.at(-1),true);assert.equal(env.host.querySelector('.confirm-overlay'),undefined);assert.equal(env.host.querySelector('.single-run-actions').children.at(-1).hidden,false);
+  action('restart').dispatchEvent(new Event('click'));env.host.querySelector('.confirm-accept').dispatchEvent(new Event('click'));release(true);await tick();assert.equal(popup.opened,false);assert.equal(restarts,2);assert.equal(pauses.at(-1),false);
+  popup.open();assert.equal(env.host.querySelector('.single-run-actions'),undefined);popup.close();
+  popup.open(true,{...context,active:()=>false});assert.equal(env.host.querySelector('.single-run-actions'),undefined);popup.close();
+  popup.open(true,context);action('leave').dispatchEvent(new Event('click'));env.host.querySelector('.confirm-accept').dispatchEvent(new Event('click'));await tick();assert.equal(leaves,1);assert.equal(popup.opened,false);
+  popup.open(true,context);action('restart').dispatchEvent(new Event('click'));env.host.querySelector('.confirm-accept').dispatchEvent(new Event('click'));popup.close();popup.open();release(true);await tick();assert.equal(popup.opened,true);assert.equal(env.host.querySelector('.confirm-overlay'),undefined);
+ }finally{popup?.destroy();env.restore();}
+});

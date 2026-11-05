@@ -755,3 +755,16 @@ test('scarf uses the existing server purchase with ownership isolation and one d
  const owned=await command(A,'buy',payload);assert.equal(owned.outcome,'owned');assert.equal(owned.snapshot.coins,925);
  assert.equal((await load(B)).snapshot.items.includes('Acc:3'),false);
 });
+
+
+test('failed mid-run restart retains the existing completion token and grants no rewards',async()=>{
+ const listeners=new Set(),calls=[];let fail=false;
+ const api={ready:true,result:undefined,connection:'ready',busy:false,issue:undefined,subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},
+  async execute(action,payload){calls.push({action,payload});return action==='run_start'&&!fail?{run_id:'original-run'}:undefined;},destroy(){}};
+ const state=new ServerShopState(api);
+ try{
+  assert.equal(await state.beginRun('practice'),true);fail=true;assert.equal(await state.beginRun('practice'),false);
+  assert.equal(calls.some(c=>c.action==='run_finish'),false);
+  await state.completeRun(0);assert.deepEqual(calls.at(-1),{action:'run_finish',payload:{run_id:'original-run'}});
+ }finally{state.destroy();}
+});
