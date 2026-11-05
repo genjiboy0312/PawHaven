@@ -1450,11 +1450,11 @@ test('Shop blocks unfinished listings, preserves legacy items and links pass rew
     click(utilities.children[2]);
     let panel = host.children[0], content = panel.children[4];
     assert.equal(panel.children[2].textContent, 'Coins: 925');
-    assert.equal(content.children[1].children.length, 2);
-    click(content.children[1].children[1]); click(content.children[2].children[1]);
-    assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true); assert.equal(content.children[2].children[1].disabled, true);
-    assert.equal(content.children[2].children[1].textContent, 'Owned');
-    assert.equal(content.children[1].children.length,2);
+    assert.equal(content.children[2].children.length, 2);
+    click(content.children[2].children[1]); click(content.children[3].children[1]);
+    assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 2), true); assert.equal(content.children[3].children[1].disabled, true);
+    assert.equal(content.children[3].children[1].textContent, 'Owned');
+    assert.equal(content.children[2].children.length,2);
     assert.equal(state.coins, 925); assert.equal(state.owns('Hat', 3), false);
     click(panel.children[3].children.find(button=>button.getAttribute('data-shop-tab')==='Pass'));
     assert.equal(content.querySelector('.pass-offer-buy').textContent, 'Purchase · Free test');
