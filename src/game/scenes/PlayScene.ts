@@ -131,7 +131,7 @@ export class PlayScene extends Scene {
     this.axis = 0; this.pointer = undefined; this.knob.style.transform = '';
     if (pointer !== undefined && this.stick.hasPointerCapture(pointer)) this.stick.releasePointerCapture(pointer);
   };
-  private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); };
+  private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); this.run.clearJumpInput(); };
 
   constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
     super();
@@ -308,11 +308,11 @@ export class PlayScene extends Scene {
   }
   private act(kind: 'jump' | 'dash' | 'attack'): void {
     if (this.paused || this.suspended || this.recoveryPopup || this.run.won || !this.raceStarted) return;
-    const before = kind === 'jump' ? this.run.velocity : this.run[kind];
+    const before = kind === 'jump' ? this.run.jumpSequence : this.run[kind];
     if (kind === 'jump') this.run.jump();
     else if (kind === 'dash') this.run.startDash();
     else this.run.startAttack();
-    const after = kind === 'jump' ? this.run.velocity : this.run[kind];
+    const after = kind === 'jump' ? this.run.jumpSequence : this.run[kind];
     if (after > before) this.settings?.sound?.(kind);
     this.updateControls();
   }
@@ -323,7 +323,7 @@ export class PlayScene extends Scene {
   }
   private updateControls():void{
     const active=!this.paused&&!this.suspended&&!this.recoveryPopup&&!this.podium&&this.raceStarted;
-    this.controls.get('jump')?.update(active&&this.run.canJump);
+    this.controls.get('jump')?.update(active&&this.run.canQueueJump);
     this.controls.get('attack')?.update(active&&this.run.canAttack);
     this.controls.get('dash')?.update(active&&this.run.canDash,this.run.dashCooldown,this.run.dashCooldownDuration);
   }
@@ -349,6 +349,7 @@ export class PlayScene extends Scene {
   private restoreRacePose(){
     const client=this.settings?.multiplayer?.client,room=client?.room,mine=room?.members.find(member=>member.id===client?.owner);
     if(!client||!room||!mine||this.run.won)return;
+    this.run.clearJumpInput();
     this.run.x=mine.pose.x;this.run.height=mine.pose.height;this.run.direction=mine.pose.direction;
     this.run.velocity=0;this.run.horizontalVelocity=0;this.run.dash=0;this.run.attack=0;this.run.land=0;
     this.run.hitReaction.reset();
@@ -438,10 +439,11 @@ export class PlayScene extends Scene {
     if(this.network(seconds))return;
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
-    const respawns = this.run.respawns;
+    const respawns = this.run.respawns, jumpSequence = this.run.jumpSequence;
     const raceClient=this.settings?.multiplayer?.client,start=raceClient?.room?.startsAt;
     const enemyTime=raceClient&&start!=null?Math.max(0,(raceClient.serverTime-start)/1000):undefined;
     if(this.raceStarted||this.run.won)this.run.update(seconds, axis,enemyTime);
+    if (this.run.jumpSequence !== jumpSequence) this.settings?.sound?.('jump');
     this.snakeFeedback.observe();
     if(this.settings?.multiplayer&&!this.startPoseSent&&this.raceStarted&&!this.run.won){this.startPoseSent=true;this.settings.multiplayer.client.publishStartPose();}
     const multi=this.settings?.multiplayer,room=multi?.client.room;

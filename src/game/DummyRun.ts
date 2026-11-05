@@ -32,6 +32,11 @@ export class DummyRun {
   readonly targets: { x: number; broken: boolean }[];
   readonly snakes:PatrolSnake[];private snakeHitSequence=0;
   private exitTime = -1;
+  private coyoteTime = 0;
+  private jumpBuffer = 0;
+  jumpSequence = 0;
+  readonly coyoteDuration = .1;
+  readonly jumpBufferDuration = .12;
   readonly attackDuration = 0.48;
   readonly dashDuration = 0.32;
   readonly dashCooldownDuration = 0.8;
@@ -63,18 +68,29 @@ export class DummyRun {
     // Cancel an existing burst, without imposing a stun or changing vertical motion.
     if (this.dash > 0) this.horizontalVelocity = 0;
     this.dash = 0;
+    this.clearJumpInput();
     return true;
   }
   get returnReady(): boolean { return this.options.manualReturn ? this.exitTime >= 0.4 : this.victoryTime >= 1.9; }
   get fade(): number { return Math.max(0, Math.min(1, this.options.manualReturn ? this.exitTime / 0.4 : (this.victoryTime - 1.5) / 0.4)); }
   leave(): void { if (this.won && this.exitTime < 0) this.exitTime = 0; }
   cancelLeave(): void { this.exitTime = -1; }
-  get canJump():boolean{return !this.won&&this.grounded&&this.dash===0;}
+  get canQueueJump():boolean{return !this.won&&this.dash===0;}
+  get canJump():boolean{return this.canQueueJump&&(this.grounded||this.coyoteTime>0);}
   get canDash():boolean{return !this.won&&this.grounded&&this.attack===0&&this.dashCooldown<=0;}
   get canAttack():boolean{return !this.won&&this.dash===0&&this.attack===0;}
-  jump(): void { if (this.canJump) this.velocity = 440; }
+  jump(): void {
+    if (!this.canQueueJump) return;
+    this.jumpBuffer = this.jumpBufferDuration;
+    this.consumeJump();
+  }
+  clearJumpInput(): void { this.jumpBuffer = this.coyoteTime = 0; }
+  private consumeJump(): void {
+    if (this.jumpBuffer <= 0 || !this.canJump) return;
+    this.clearJumpInput(); this.velocity = 440; this.land = 0; this.jumpSequence++;
+  }
   startDash(): void {
-    if (this.canDash) { this.horizontalVelocity = this.direction * 1100 * this.movementScale; this.dash = this.dashDuration; this.dashCooldown = this.dashCooldownDuration; }
+    if (this.canDash) { this.clearJumpInput(); this.horizontalVelocity = this.direction * 1100 * this.movementScale; this.dash = this.dashDuration; this.dashCooldown = this.dashCooldownDuration; }
   }
   startAttack(): void { if (this.canAttack) this.attack = this.attackDuration; }
   action(axis: number): AnimalAction {
@@ -87,6 +103,7 @@ export class DummyRun {
   }
   private respawn(): void {
     this.respawns++;
+    this.clearJumpInput();
     this.hitReaction.reset();
     this.platformVelocity=0;
     this.x = this.checkpoint; this.height = 0; this.direction = 1;
@@ -111,6 +128,11 @@ export class DummyRun {
     }
   }
   private step(seconds: number, input: number): boolean {
+    const wasDashing = this.dash > 0;
+    if (wasDashing) this.clearJumpInput();
+    else this.coyoteTime = this.grounded ? this.coyoteDuration : Math.max(0, this.coyoteTime - seconds);
+    this.jumpBuffer = Math.max(0, this.jumpBuffer - seconds);
+    this.consumeJump();
     const support=this.velocity<=0?this.platforms.find(p=>this.overlaps(p.solid)&&Math.abs(this.height-p.solid.top)<.000001):undefined;
     this.syncPlatforms(this.enemyTime);
     const carry=support?.delta??0;this.platformVelocity=carry/seconds;
@@ -179,6 +201,10 @@ export class DummyRun {
       this.hitReaction.reset();
       this.platformVelocity=0;
       this.x = this.finish; this.victoryTime = 0; this.velocity = 0; this.horizontalVelocity = 0;
+      this.clearJumpInput();
+    } else {
+      if (this.grounded && !wasDashing) this.coyoteTime = this.coyoteDuration;
+      this.consumeJump();
     }
     return false;
   }

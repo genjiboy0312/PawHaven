@@ -1309,3 +1309,22 @@ test('waiting room names reuse validated account level labels and refresh when m
   level=4;await client.command('sync');assert.ok(env.host.all().some(e=>e.textContent==='Lv. 4 '+room.members[0].name));
  }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
+
+
+test('touch and keyboard queue the same landing jump with one sound, and pausing clears the queue',()=>{
+ const env=dom(),sounds=[];let scene;
+ const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+ const falling=()=>{scene.run.clearJumpInput();scene.run.height=8;scene.run.velocity=-200;};
+ try{
+  scene=new PlayScene(config,()=>{},{open(){},sound:kind=>sounds.push(kind)});
+  const jump=scene.controls.get('jump');falling();scene.updateControls();assert.equal(jump.element.disabled,false);
+  jump.element.dispatchEvent(Object.assign(new Event('pointerdown',{cancelable:true}),{button:0,pointerId:1}));
+  assert.equal(scene.run.jumpSequence,0);assert.equal(sounds.filter(s=>s==='jump').length,0);
+  scene.update(.08);assert.equal(scene.run.jumpSequence,1);assert.equal(sounds.filter(s=>s==='jump').length,1);
+  falling();window.dispatchEvent(Object.assign(new Event('keydown',{cancelable:true}),{code:'Space',repeat:false}));
+  window.dispatchEvent(Object.assign(new Event('keydown',{cancelable:true}),{code:'Space',repeat:true}));
+  scene.update(.08);assert.equal(scene.run.jumpSequence,2);assert.equal(sounds.filter(s=>s==='jump').length,2);
+  falling();scene.act('jump');scene.setPaused(true);scene.setPaused(false);scene.update(.1);
+  assert.equal(scene.run.jumpSequence,2);assert.equal(scene.run.grounded,true);assert.equal(sounds.filter(s=>s==='jump').length,2);
+ }finally{scene?.destroy({children:true});env.restore();}
+});
