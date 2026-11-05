@@ -48,6 +48,27 @@ jobs:
           VITE_SUPABASE_URL: https://rgsbqfjnhdvmqxrlqawm.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable__tjTdqyp80AH5UCWR9QcLA_PHXbX3Sz
         run: npm run build
+      - name: Install Chromium for purchase check
+        run: npx playwright install --with-deps chromium
+      - name: Verify guest purchase and reload
+        shell: bash
+        env:
+          PAGES_URL: http://127.0.0.1:4173/
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 "$PAGES_URL" > /dev/null
+          node scripts/check-pages-startup.mjs purchase
+      - name: Preserve purchase check diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-purchase-failure
+          path: |
+            smoke-diagnostics/
+            preview.log
+          if-no-files-found: ignore
       - name: Record startup file hashes
         id: release
         shell: bash
