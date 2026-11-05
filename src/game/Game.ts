@@ -1,3 +1,4 @@
+import { applyControlLayout } from '../settings/ControlLayout';
 import { loadTuxedo } from '../animals/loadTuxedo';
 import { PET_IDS, PET_CATALOG } from '../animals/PetCatalog';
 import { AccountStorage } from '../account/AccountStorage';
@@ -160,7 +161,7 @@ export class Game {
     const savedCharacter = character.restore(commerce.entitlementsKnown?PET_IDS.filter(id=>commerce.ownsPet(id)):PET_IDS, (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
     Object.assign(this.outfit, savedCharacter.outfit);
     const applyGame = (value: GamePreferences): void => {
-      host.style.setProperty('--control-scale', String(value.controlSize));
+      applyControlLayout(host, value);
       host.classList.toggle('left-handed', value.leftHanded);
     };
     setLanguage(gameSettings.current.language); applyGame(gameSettings.current);

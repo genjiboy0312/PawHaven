@@ -1,3 +1,4 @@
+import { ControlLayoutEditor } from './ControlLayoutEditor';
 import { AccountPanel } from './AccountPanel';
 import { diagnosticInfo } from './DiagnosticInfo';
 import type { AccountService } from '../account/AccountService';
@@ -13,6 +14,7 @@ interface SettingsAudio {
   play(kind: 'click' | 'bgm'): void;
 }
 export class SettingsPopup {
+  private layoutEditor?: ControlLayoutEditor;
   private accountPanel?: AccountPanel;
   private installButton?: InstallAppButton;
   private element?: HTMLElement;
@@ -83,6 +85,12 @@ export class SettingsPopup {
       this.slider('controlSize', Math.round(options.controlSize * 100), 80, 120, value => this.changeGame({ controlSize: value / 100 }));
       this.toggle('leftHanded', options.leftHanded, value => this.changeGame({ leftHanded: value }));
       this.toggle('vibration', options.vibration, value => this.changeGame({ vibration: value }));
+      const edit = this.button(t('controlLayout'), () => {
+        const host = document.querySelector<HTMLElement>('#app');
+        if (!host || !this.element || this.layoutEditor) return;
+        this.layoutEditor = new ControlLayoutEditor(host, this.element, this.game.current, layout => this.changeGame({ controlLayout: layout }), () => { this.layoutEditor?.destroy(); this.layoutEditor = undefined; });
+      }, this.pageAbort.signal);
+      bindText(edit, 'controlLayout'); this.content.append(edit);
       this.paragraph('keyboardHelp'); return;
     }
     if (this.tab === 'Display') {
@@ -150,6 +158,7 @@ export class SettingsPopup {
   }
   close(): void {
     if (!this.opened) return;
+    this.layoutEditor?.destroy(); this.layoutEditor = undefined;
     this.installButton?.destroy(); this.installButton = undefined;
     this.accountPanel?.destroy(); this.accountPanel = undefined; this.pageAbort?.abort(); this.abort?.abort(); this.element?.remove(); this.element = undefined; this.panel = undefined; this.content = undefined; this.tabs = undefined;
     for (const item of this.blocked) item.element.inert = item.inert;
