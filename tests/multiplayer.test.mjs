@@ -449,7 +449,8 @@ test('an invitation never replaces an existing membership; leaving first reveals
 
 test('room menu renders four cards per page with counts and blocks full/running rooms',async()=>{
   const env=dom();const rooms=Array.from({length:6},(_,i)=>({id:String(i),name:'Room '+i,map:'garden',phase:i===1?'playing':'waiting',count:i===2?4:2}));
-  const client=new RoomClient(users[0],async()=>({room:null,rooms,now:Date.now()}));let menu;
+  let hold=false,release,calls=0;
+  const client=new RoomClient(users[0],async()=>{calls++;if(hold)await new Promise(r=>release=r);return{room:null,rooms:[...rooms],now:Date.now()};});let menu;
   try{
     menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
     const pager=env.host.querySelector('.room-pages');assert.equal(pager.children.length,2);assert.equal(pager.children[0].children.length,4);assert.equal(pager.children[1].children.length,2);
@@ -459,6 +460,11 @@ test('room menu renders four cards per page with counts and blocks full/running 
     navigation.children[2].dispatchEvent(new Event('click'));assert.equal(pager.scrollLeft,500);assert.equal(navigation.children[1].textContent,'2 / 2');
     assert.equal(menu.closeButton.hidden,true);assert.equal(menu.closeButton.disabled,true);
     assert.equal(footer.contains(env.host.querySelector('.play-menu-exit')),true);
+    const refresh=env.host.querySelector('.room-refresh'),before=calls;hold=true;
+    refresh.dispatchEvent(new Event('click'));refresh.dispatchEvent(new Event('click'));
+    assert.equal(calls,before+1);assert.equal(env.host.querySelector('.room-refresh').disabled,true);
+    rooms.push({id:'new',name:'New room',map:'garden',phase:'waiting',count:1});release();await idle(client);await new Promise(r=>setImmediate(r));hold=false;
+    assert.equal(env.host.querySelector('.room-refresh').disabled,false);assert.ok(env.host.all().some(e=>e.textContent==='New room'));
     env.host.querySelector('.play-menu-exit').dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(footer.hidden,true);assert.equal(menu.closeButton.hidden,false);
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });

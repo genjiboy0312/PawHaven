@@ -1,4 +1,5 @@
 import { AccountPanel } from './AccountPanel';
+import { diagnosticInfo } from './DiagnosticInfo';
 import type { AccountService } from '../account/AccountService';
 import { bindAria, bindText, setLanguage, t, type TextKey } from '../settings/i18n';
 import { GameSettings } from '../settings/GameSettings';
@@ -105,6 +106,7 @@ export class SettingsPopup {
       buildId.textContent = ' ' + (import.meta.env?.VITE_BUILD_SHA?.slice(0, 7) || 'local');
       build.append(buildLabel, buildId);
       this.content.append(build);
+      this.content.append(diagnosticInfo(this.pageAbort.signal));
       this.paragraph('aboutText');
       this.paragraph('feedbackHint');
       const email = document.createElement('p'); email.className = 'feedback-email'; email.textContent = 'genjiman0312@gmail.com';

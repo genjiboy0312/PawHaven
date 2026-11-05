@@ -298,7 +298,10 @@ export class PlayMenuPopup {
       if(client.notice==='round'&&['countdown','playing'].includes(room.phase))root.append(this.button('raceResume',()=>client.clearNotice()));
       if(this.roomEvent){const event=this.text(t(this.roomEvent.key).replace('{name}',this.roomEvent.name));event.className='room-event';event.setAttribute('role','status');root.append(event);}
     }else{
-      const create=this.button('createRoom',()=>{this.page='create';this.render();});create.classList.add('room-create');root.append(create);
+      const toolbar=document.createElement('div');toolbar.className='room-list-toolbar';
+      const refresh=this.button('friendsRefresh',()=>{void this.action(()=>client.command('list'));});refresh.classList.add('room-refresh');refresh.setAttribute('data-recovery-control','true');
+      const create=this.button('createRoom',()=>{this.page='create';this.render();});create.classList.add('room-create');
+      toolbar.append(refresh,create);root.append(toolbar);
       const pager=document.createElement('div');pager.className='room-pages';
       const rooms=client.snapshot.rooms;
       for(let offset=0;offset<rooms.length;offset+=4){
