@@ -1,8 +1,11 @@
+import { SingleRecordPanel } from './SingleRecordPanel';
+import type { SingleRecordSync } from '../account/SingleRecordSync';
 import type { AccountService } from '../account/AccountService';
 import { t, type TextKey } from '../settings/i18n';
 
 /** Settings owns this view's lifetime; account operations can finish after closing it. */
 export class AccountPanel {
+  private recordPanel?: SingleRecordPanel;
   private readonly abort = new AbortController();
   private readonly unsubscribe: () => void;
   private identity = '';
@@ -11,7 +14,7 @@ export class AccountPanel {
   private feedback?: HTMLElement;
   private identityLabel?: HTMLElement;
   private controls: HTMLButtonElement[] = [];
-  constructor(private readonly host: HTMLElement, private readonly account: AccountService) {
+  constructor(private readonly host: HTMLElement, private readonly account: AccountService, private readonly records?: SingleRecordSync) {
     this.render();
     this.unsubscribe = account.subscribe(() => {
       const identity = account.user?.id + ':' + account.nickname;
@@ -50,6 +53,7 @@ export class AccountPanel {
     } finally { this.account.setBusy(false); if (!this.abort.signal.aborted) this.refresh(); }
   }
   private render(): void {
+    this.recordPanel?.destroy();this.recordPanel=undefined;
     this.identity = this.account.user?.id + ':' + this.account.nickname;
     this.controls = []; this.host.replaceChildren();
     this.host.classList.add('account-content');
@@ -97,6 +101,7 @@ export class AccountPanel {
       this.button('accountImport', () => this.account.importGuest());
       this.button('accountLogout', () => this.account.logout());
     }
+    if (this.account.user && this.records) this.recordPanel = new SingleRecordPanel(this.host, this.records);
     this.refresh();
   }
   private refresh(): void {
@@ -120,5 +125,5 @@ export class AccountPanel {
         (key === 'accountLoad' && ['loading', 'saving'].includes(this.account.status));
     }
   }
-  destroy(): void { this.abort.abort(); this.unsubscribe(); this.host.classList.remove('account-content'); }
+  destroy(): void { this.recordPanel?.destroy(); this.abort.abort(); this.unsubscribe(); this.host.classList.remove('account-content'); }
 }

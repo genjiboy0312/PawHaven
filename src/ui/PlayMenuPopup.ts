@@ -45,6 +45,7 @@ export class PlayMenuPopup {
     nickname?:()=>string|null|undefined;
     best?:(map:CourseId)=>number|null;
     goals?:(map:CourseId)=>readonly SingleGoal[];
+    recordNote?:()=>TextKey;
     invitation?:{id:string;dismiss:()=>void};
     inviteHref?:string;
     inviteFriends?:()=>void;
@@ -170,6 +171,16 @@ export class PlayMenuPopup {
       info.append(heading,description,stats,singleGoals(id,this.options.goals?.(id)??[]));card.append(info);
     }return card;
   }
+  refreshRecords():void {
+    if(this.page!=='single'||!this.overlay)return;
+    for(const card of Array.from(this.overlay.querySelectorAll<HTMLElement>('.single-map-card'))){
+      const map=card.getAttribute('data-map') as CourseId;if(!Object.hasOwn(COURSES,map))continue;
+      const record=card.querySelector<HTMLElement>('.single-map-best'),best=this.options.best?.(map);
+      if(record)record.textContent=best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge');
+      const goals=card.querySelector<HTMLElement>('.single-goals');if(goals)goals.replaceChildren(...Array.from(singleGoals(map,this.options.goals?.(map)??[]).children));
+    }
+    const note=this.overlay.querySelector<HTMLElement>('.single-record-note');if(note)note.textContent=t(this.options.recordNote?.()??'singleLocalRecords');
+  }
   private singleMaps(){
     const change=this.button('changeMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
     change.textContent=t('changeMap')+' ('+Object.keys(COURSES).length+') ▾';change.setAttribute('aria-haspopup','dialog');change.setAttribute('aria-expanded','false');
@@ -177,7 +188,7 @@ export class PlayMenuPopup {
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
     const card=this.singleCard(this.singleMap);card.querySelector('.single-map-heading')?.append(change);
-    actions.append(play,this.text(t('singleLocalRecords')));return[card,actions];
+    const note=this.text(t(this.options.recordNote?.()??'singleLocalRecords'));note.className='single-record-note';actions.append(play,note);return[card,actions];
   }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;

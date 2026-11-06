@@ -1,3 +1,4 @@
+import { SingleRecords } from '../game/SingleRecords';
 import { CharacterSelection, CHARACTER_STORAGE_KEY } from '../animals/CharacterSelection';
 import { CharacterPresets, PRESET_STORAGE_KEY, type CharacterPreset } from '../animals/CharacterPresets';
 import { HomeState, HOME_STORAGE_KEY } from '../home/HomeState';
@@ -48,6 +49,9 @@ export class AccountStorage {
   }
   setMeta(value: Meta): void { this.write(this.key('sync'), JSON.stringify(value)); }
 
+  singleRecords(owner = this.owner): SingleRecords {
+    return new SingleRecords({ getItem: key => this.read(this.key(key, owner)), setItem: (key, value) => this.write(this.key(key, owner), value) });
+  }
   snapshot(owner = this.owner): PlayerSnapshot {
     const source = { getItem: (key: string) => this.read(this.key(key, owner)), setItem() {} };
     // Preserve purchased placements while their separate server inventory is loading.

@@ -1,3 +1,4 @@
+import type { SingleRecordSync } from '../account/SingleRecordSync';
 import { backAction } from './BackNavigation';
 import { SingleRunMenu, type SingleRunContext } from './SingleRunMenu';
 import { ControlLayoutEditor } from './ControlLayoutEditor';
@@ -30,7 +31,7 @@ export class SettingsPopup {
   private blocked: { element: HTMLElement; inert: boolean }[] = [];
   private tab: 'Sound' | 'Controls' | 'Display' | 'Language' | 'Account' | 'About' = 'Sound';
   get opened(): boolean { return !!this.element; }
-  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService, private readonly installation?: AppInstall) {}
+  constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService, private readonly installation?: AppInstall, private readonly records?: () => SingleRecordSync | undefined) {}
   openAccount(): void { this.tab='Account'; this.open(); }
   open(playSound = true, singleRun?: SingleRunContext, requestLeave = false): void {
     if (this.opened) return;
@@ -78,7 +79,7 @@ export class SettingsPopup {
     this.accountPanel?.destroy(); this.accountPanel = undefined;
     this.installButton?.destroy(); this.installButton = undefined;
     this.content.replaceChildren();
-    if (this.tab === 'Account' && this.account) { this.accountPanel = new AccountPanel(this.content, this.account); return; }
+    if (this.tab === 'Account' && this.account) { this.accountPanel = new AccountPanel(this.content, this.account, this.records?.()); return; }
     if (this.tab === 'Account') {
       const title = document.createElement('p'); title.className = 'settings-guest'; title.textContent = t('guest');
       const hint = document.createElement('p'); hint.textContent = t('accountSoon');

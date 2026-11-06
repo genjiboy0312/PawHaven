@@ -52,3 +52,10 @@ test('a second real reconnect during an in-flight request is serialized instead 
   f.online();f.offline();f.online();f.online();assert.equal(calls,1);release();await tick();await tick();assert.equal(calls,2);assert.equal(max,1);
  }finally{f.recovery.destroy();}
 });
+
+test('reconnect recovers personal records between wallet and account without repeat uploads',async()=>{
+ const f=fixture();try{
+  f.set({...f.state,records:{async retryConnection(){f.events.push(['records']);}}});
+  f.online();f.online();await tick();await tick();assert.deepEqual(f.events,[['wallet'],['records'],['account',true]]);
+ }finally{f.recovery.destroy();}
+});

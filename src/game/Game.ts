@@ -14,7 +14,7 @@ import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
 import { RoomInvitation } from '../multiplayer/RoomInvitation';
 import { roomStream, lobbyStream } from '../multiplayer/RoomStream';
 import type { CourseId } from './CourseCatalog';
-import { SingleRecords } from './SingleRecords';
+import { SingleRecordSync, singleRecordTransport } from '../account/SingleRecordSync';
 import { loadCourseArt, type CourseArt } from './CourseArt';
 import { loadCourseBackgrounds, type CourseBackgrounds } from './CourseBackgrounds';
 import { AccountService } from '../account/AccountService';
@@ -64,6 +64,8 @@ export class Game {
   private playMenu?:PlayMenuPopup;
   private account?: AccountService;
   private networkRecovery?: NetworkRecovery;
+  private recordSync?: SingleRecordSync;
+  private recordOff?: () => void;
   private commerce?: CommerceState;
   private homeTextures?: HomeTextures;
   private courseArt?:CourseArt;
@@ -158,7 +160,18 @@ export class Game {
     };
     let commerce = makeCommerce();
     let home = new HomeState(playerStorage, (tab, index) => commerce.entitlementsKnown ? commerce.homeOwned(tab, index) : undefined);
-    let records = new SingleRecords(playerStorage);
+    let records = playerStorage.singleRecords();
+    const makeRecords = (): void => {
+      this.recordOff?.(); this.recordSync?.destroy(); this.recordSync = undefined;
+      records = playerStorage.singleRecords();
+      const off = records.subscribe(() => this.playMenu?.refreshRecords());
+      const owner = this.account?.user?.id;
+      const sync = owner && accountClient ? new SingleRecordSync(records, () => playerStorage.singleRecords(null).snapshot(), singleRecordTransport(accountClient, owner), () => !this.disposed && this.account?.user?.id === owner) : undefined;
+      this.recordSync = sync;
+      const statusOff = sync?.subscribe(() => this.playMenu?.refreshRecords());
+      this.recordOff = () => { off(); statusOff?.(); };
+    };
+    makeRecords();
 
     const savedCharacter = character.restore(commerce.entitlementsKnown?PET_IDS.filter(id=>commerce.ownsPet(id)):PET_IDS, (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
     Object.assign(this.outfit, savedCharacter.outfit);
@@ -168,7 +181,7 @@ export class Game {
     };
     setLanguage(gameSettings.current.language); applyGame(gameSettings.current);
     this.audio = new AudioSystem(preferences.current);
-    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused), gameSettings, applyGame, this.account, this.installation);
+    this.settings = new SettingsPopup(preferences, this.audio, paused => this.scenes?.setPaused(paused), gameSettings, applyGame, this.account, this.installation, () => this.recordSync);
     const openSettings = (): void => this.settings?.open();
     this.app.renderer.on('resize', this.resize);
     this.app.ticker.add(this.tick);
@@ -301,7 +314,7 @@ export class Game {
         this.rooms=rooms;
         const menu=new PlayMenuPopup(paused=>this.scenes?.setPaused(paused),{
           invitation:invitation.room?{id:invitation.room,dismiss:clearInvitation}:undefined,
-          rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
+          rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),recordNote:()=>!this.recordSync?'singleLocalRecords':this.recordSync.status==='saved'?'singleCloudRecords':this.recordSync.status==='setup'?'singleRecordSetup':this.recordSync.status==='offline'?'singleRecordOffline':'singleRecordsPending',single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           roomChat:owner&&accountClient?room=>roomChatConnection(accountClient,owner,room.id):undefined,
           inviteFriends:()=>this.friends?.open(),
           park:()=>{
@@ -351,7 +364,7 @@ export class Game {
       this.quests?.destroy(); this.friends?.destroy();this.mailbox?.destroy();this.mailClient?.destroy();
       presets = new CharacterPresets(playerStorage);
       home = new HomeState(playerStorage, (tab, index) => commerce.entitlementsKnown ? commerce.homeOwned(tab, index) : undefined);
-      records = new SingleRecords(playerStorage);
+      makeRecords();
       commerce.destroy(); commerce = makeCommerce();
       character = new CharacterSelection(playerStorage);
       const look = character.restore(commerce.entitlementsKnown?PET_IDS.filter(id=>commerce.ownsPet(id)):PET_IDS, (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
@@ -364,7 +377,7 @@ export class Game {
       lobby(true,resumeInvitation?'multi':undefined);
       if (reopenSettings&&!resumeInvitation) this.settings?.open(false);
     });
-    this.networkRecovery = new NetworkRecovery(() => ({ account: this.account, commerce, allowAccountLoad: !inGame && !this.playMenu && !this.rooms?.room && !!currentLobby && this.scenes?.isCurrent(currentLobby) === true }));
+    this.networkRecovery = new NetworkRecovery(() => ({ account: this.account, commerce, records: this.recordSync, allowAccountLoad: !inGame && !this.playMenu && !this.rooms?.room && !!currentLobby && this.scenes?.isCurrent(currentLobby) === true }));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.account?.storage.meta.dirty) void this.account.save(); }, { signal: this.events.signal });
     this.scenes.show(new TitleScene(() => lobby(false,invitation.room?'multi':undefined)));
 
@@ -375,6 +388,7 @@ export class Game {
     if (this.disposed) return;
     this.disposed = true;
     this.networkRecovery?.destroy();
+    this.recordOff?.(); this.recordSync?.destroy();
     this.installation.destroy();
     this.mailbox?.destroy();this.mailClient?.destroy();
     this.friendInbox?.destroy();this.friendActivity?.destroy();

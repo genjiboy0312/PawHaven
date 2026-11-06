@@ -888,3 +888,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .single-run-actions button { min-height:32px; padding:1cqh 1.5cqw; font-size:clamp(11px,1.4cqw,18px); }
 .single-run-actions p { flex-basis:100%; margin:0; font:400 clamp(10px,1.3cqw,17px)/1.35 var(--font-body); color:#975f3f; -webkit-text-fill-color:#975f3f; }
 .single-run-actions p[hidden] { display:none; }
+
+.single-record-account { margin-top:2cqh; padding-top:1cqh; border-top:1px solid var(--ui-edge); }
+.single-record-account h3 { margin:.5cqh 0; font:400 1.8cqw var(--font-body); }
+.single-record-account button { margin:0 1cqw 1cqh 0; }

@@ -1,5 +1,5 @@
 type Failure = { at: string; operation: string; durationMs: number; status?: number; code: string };
-const RPCS = new Set(['save_player_state','claim_player_nickname','economy_command','multiplayer_command','room_chat_command','park_command','park_chat_command','friends_command','friend_activity','visit_friend_home','mailbox_command','daily_attendance_mail','redeem_coupon']);
+const RPCS = new Set(['sync_single_records','save_player_state','claim_player_nickname','economy_command','multiplayer_command','room_chat_command','park_command','park_chat_command','friends_command','friend_activity','visit_friend_home','mailbox_command','daily_attendance_mail','redeem_coupon']);
 const ACTIONS = new Set(['load','buy','buy_home','buy_pet','feed','claim','claim_daily','unlock_pass','run_start','run_finish','list','sync','create','join','leave','ready','start','map','pose','finish','return','send','redeem','attendance']);
 
 function operation(input: RequestInfo | URL, init?: RequestInit): string {
