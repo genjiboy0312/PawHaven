@@ -451,6 +451,8 @@ test('purchase confirmation reconciles a lost server response once and ignores c
 });
 
 test('lost purchase responses retry with the same id and restore the latest server balance', async () => {
+  const {NetworkRecovery}=await importTs('../src/account/NetworkRecovery.ts',import.meta.url);
+  const target=new EventTarget();let recovery;
   const calls = []; let lose = true;
   const api = new EconomyClient(async request => {
     calls.push(request);
@@ -464,11 +466,15 @@ test('lost purchase responses retry with the same id and restore the latest serv
     assert.equal(await state.buy('Hat', 2), 'invalid'); await idle(api);
     assert.equal(api.connection, 'offline'); assert.equal(state.ready, false); assert.equal(state.coins, 1000);
     await command(A, 'buy', { category: 'Body', index: 2 }); // another device
-    await api.retry();
+    assert.equal(state.hasPendingRequests,true);
+    const account={user:{id:A},async recoverConnection(){return false;}};
+    recovery=new NetworkRecovery(()=>({account,commerce:state,allowAccountLoad:true}),target);
+    target.dispatchEvent(new Event('online'));target.dispatchEvent(new Event('online'));await idle(api);
+    assert.equal(state.hasPendingRequests,false);
     assert.equal(state.coins, 850); assert.equal(state.owns('Hat', 2), true); assert.equal(state.ready, true);
     const purchases = calls.filter(call => call.p_action === 'buy');
     assert.equal(purchases.length, 2); assert.equal(purchases[0].p_request_id, purchases[1].p_request_id);
-  } finally { state.destroy(); }
+  } finally { recovery?.destroy(); state.destroy(); }
 });
 
 test('an interrupted earlier request does not discard a queued run finish', async () => {

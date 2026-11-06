@@ -14,6 +14,7 @@ export class EconomyClient {
   private readonly abort = new AbortController();
   private readonly listeners = new Set<() => void>();
   constructor(private readonly transport: Transport, private readonly uuid = () => crypto.randomUUID(), private readonly now = Date.now) {}
+  get pendingRequests(): number { return this.jobs.length; }
   get busy(): boolean { return !!this.work; }
   get ready(): boolean { return this.connection === 'ready' && !!this.result && !this.busy; }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }

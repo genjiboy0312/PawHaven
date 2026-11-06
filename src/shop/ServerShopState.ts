@@ -71,6 +71,10 @@ export class ServerShopState {
     return this.connection === 'ready' || (this.connection === 'loading' && this.api.result) ? '' : t(('economy.' + this.connection) as Parameters<typeof t>[0]);
   }
   retry(): void { void this.api.retry(); }
+  get hasPendingRequests(): boolean { return this.api.pendingRequests > 0; }
+  async retryConnection(): Promise<void> {
+    if (this.connection === 'offline' && !this.busy) await this.api.retry();
+  }
   async reload():Promise<void>{if(!await this.api.execute('load'))throw Error('economy_reload_failed');}
   refreshDaily(): void { this.api.refresh(); }
   get dailyQuests() { this.api.refresh(); return this.view.dailyQuests.filter(quest => quest.id !== 'coins' || this.dailyCoinQuestReady).map(quest => ({ ...quest, canClaim: this.ready && quest.canClaim })); }

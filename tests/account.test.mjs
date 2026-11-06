@@ -409,3 +409,18 @@ test('dialogue follows the game nickname after setup, logout and a different acc
     assert.ok(!dialogue.message.includes('명랑친구'));
   } finally { service.destroy(); setLanguage('en'); }
 });
+
+
+test('network recovery reloads a failed account without losing local edits and never overwrites a conflict',async()=>{
+ const remote=new Map(),client=fakeClient(remote),service=new AccountService(new AccountStorage(disk()),client);let reads=0;
+ const original=client.from;client.from=table=>{reads++;return original(table);};
+ try{
+  await service.initialize();await service.save();client.failure={code:'network'};await service.load(false);
+  assert.equal(service.status,'offline');new HomeState(service.storage).select('Floor',2);const snapshot=service.storage.snapshot(),before=reads;
+  client.failure=null;assert.equal(await service.recoverConnection(false),true);assert.equal(reads,before);assert.deepEqual(service.storage.snapshot(),snapshot);
+  assert.equal(await service.recoverConnection(true),false);assert.equal(service.status,'saved');assert.equal(service.pendingSave,false);assert.deepEqual(remote.get('a').snapshot,snapshot);
+  new HomeState(service.storage).select('Background',2);remote.get('a').revision++;
+  await service.recoverConnection(true);assert.equal(service.status,'conflict');assert.equal(service.pendingSave,true);assert.equal(remote.get('a').snapshot.home.Background,0);
+  const count=client.calls.length;await service.recoverConnection(true);assert.equal(client.calls.length,count);
+ }finally{service.destroy();}
+});

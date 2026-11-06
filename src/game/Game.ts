@@ -1,3 +1,4 @@
+import { NetworkRecovery } from '../account/NetworkRecovery';
 import { applyControlLayout } from '../settings/ControlLayout';
 import { loadTuxedo } from '../animals/loadTuxedo';
 import { PET_IDS, PET_CATALOG } from '../animals/PetCatalog';
@@ -62,6 +63,7 @@ export class Game {
   private mailClient?:MailboxClient;private mailbox?:MailboxPopup;
   private playMenu?:PlayMenuPopup;
   private account?: AccountService;
+  private networkRecovery?: NetworkRecovery;
   private commerce?: CommerceState;
   private homeTextures?: HomeTextures;
   private courseArt?:CourseArt;
@@ -324,7 +326,7 @@ export class Game {
                 failed:()=>{client.destroy();this.rooms=undefined;lobby(true,'multi');}},
             }));
           },
-          dismiss:keep=>{this.playMenu=undefined;if(!keep){rooms?.destroy();if(this.rooms===rooms)this.rooms=undefined;}},
+          dismiss:keep=>{this.playMenu=undefined;if(!keep){rooms?.destroy();if(this.rooms===rooms)this.rooms=undefined;}this.networkRecovery?.resume();},
         });
         this.playMenu=menu;menu.open(page);
       };
@@ -333,6 +335,7 @@ export class Game {
       }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, snacks: commerce, friends: () => this.friends?.open(), mail:()=>this.mailbox?.open(), mailPending:()=>this.mailClient?.pending??0, mailArrival:()=>this.mailClient?.arrivalVersion??0, requests: () => this.friendClient?.snapshot.incoming.length ?? 0, rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback), this.account)); } }, () => this.account?.user ? this.account.nickname : null);
       currentLobby=scene;this.scenes?.show(scene);void this.friendActivity?.refresh();
       if(initialMenu)openMenu(initialMenu);
+      this.networkRecovery?.resume();
     };
     syncPetOwnership=()=>{
       const next=commerce.ownsPet(character.current.petId)?choosePet(character.current.petId):corgi;
@@ -361,7 +364,7 @@ export class Game {
       lobby(true,resumeInvitation?'multi':undefined);
       if (reopenSettings&&!resumeInvitation) this.settings?.open(false);
     });
-    window.addEventListener('online', () => { if (this.account?.storage.meta.dirty) void this.account.save(); }, { signal: this.events.signal });
+    this.networkRecovery = new NetworkRecovery(() => ({ account: this.account, commerce, allowAccountLoad: !inGame && !this.playMenu && !this.rooms?.room && !!currentLobby && this.scenes?.isCurrent(currentLobby) === true }));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.account?.storage.meta.dirty) void this.account.save(); }, { signal: this.events.signal });
     this.scenes.show(new TitleScene(() => lobby(false,invitation.room?'multi':undefined)));
 
@@ -371,6 +374,7 @@ export class Game {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.networkRecovery?.destroy();
     this.installation.destroy();
     this.mailbox?.destroy();this.mailClient?.destroy();
     this.friendInbox?.destroy();this.friendActivity?.destroy();

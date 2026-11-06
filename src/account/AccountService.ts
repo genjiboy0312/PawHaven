@@ -29,6 +29,14 @@ export class AccountService {
     await this.load(false);
     if (this.canSave && this.pendingSave) await this.save();
   }
+  /** Returns true when a destructive initial reload must wait for a safe screen. */
+  async recoverConnection(allowLoad: boolean): Promise<boolean> {
+    if (this.disposed || !this.user || this.busy || ['loading','saving','conflict','setup'].includes(this.status)) return false;
+    if (this.canSave && this.pendingSave) { await this.save(); return false; }
+    if (this.status !== 'offline' || this.ready) return false;
+    if (!allowLoad) return true;
+    await this.retrySync(); return false;
+  }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   onLoaded(listener: () => void): () => void { this.loadedListeners.add(listener); return () => { this.loadedListeners.delete(listener); }; }
   private emit(): void { if (!this.disposed) this.listeners.forEach(listener => listener()); }
