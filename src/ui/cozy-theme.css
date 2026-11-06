@@ -532,7 +532,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .room-event { color: #8c7956;-webkit-text-fill-color:#8c7956; padding: 1cqh 1cqw; border-radius: 1cqw; background:transparent url("/assets/ui/surfaces/surface-80b522617e90.png") center/100% 100% no-repeat; }
 .room-map-preview .room-change-map { margin-left: auto; padding: 1cqh 1.5cqw; }
 .room-map-backdrop { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background:transparent url("/assets/ui/surfaces/surface-fd08e4c50914.png") center/100% 100% no-repeat; border-radius: inherit; pointer-events: auto; }
-.room-map-picker { position: relative; width: 65%; height: 66%; display: flex; flex-direction: column; gap: 2cqh; }
+.room-map-picker { position: relative; width: 65%; height: 90%; display: flex; flex-direction: column; gap: 1cqh; }
 .room-map-choices { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); overflow-y: auto; min-height: 0; flex: 1; padding: 1cqh; align-content: start; }
 .room-map-choices > button { min-height: 16cqh; }
 .room-map-status { margin: 0; font-size: 1.4cqw; }
@@ -627,7 +627,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .confirm-panel>h2{padding:0 4cqw;font-size:clamp(18px,2.6cqw,34px);}
 .confirm-panel>p{margin:1cqh 0;padding:1cqh 0;font:400 clamp(12px,1.5cqw,20px)/1.5 var(--font-body);text-align:center;}
 .confirm-panel .purchase-actions button{min-height:36px;min-width:9cqw;}
-.single-map-picker { width: 78%; height: 84%; }
+.single-map-picker { width: 78%; height: 90%; }
 .single-map-choices { margin: 1cqh 0 0; }
 .single-map-choices .single-map-card { min-height: 0; font-size: 1.7cqw; }
 .single-map-choices .single-map-card::before { height: 9cqh; margin-bottom: 1cqh; }
@@ -899,3 +899,9 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .map-survival { border-top:.5cqh solid #e2bb6f !important; }
 .survival-hud.race-hud[data-results="true"] .play-progress { visibility:visible; }
 .survival-hud .play-victory:not(.race-countdown) { font-size:clamp(20px,3cqw,40px); }
+.game-mode-filter { flex:none; margin:0; }
+.game-mode-tabs { display:flex; gap:1cqw; }
+.game-mode-tabs button { flex:1; min-height:30px; padding:.8cqh 1cqw; font:400 clamp(11px,1.5cqw,20px) var(--font-body); }
+.game-mode-goal { margin:.8cqh 0 0; font:400 clamp(10px,1.2cqw,16px)/1.25 var(--font-body); color:var(--ui-ink); -webkit-text-fill-color:var(--ui-ink); }
+.game-mode-badge { display:inline-flex; align-self:flex-start; margin:.5cqh .5cqw .3cqh 0; padding:.3cqh .7cqw; border:1px solid var(--ui-edge); border-radius:1cqh; background:transparent url('/assets/ui/surfaces/surface-77d9c54d1098.png') center/100% 100% no-repeat; color:var(--ui-ink); -webkit-text-fill-color:var(--ui-ink); font:400 clamp(10px,1.2cqw,16px) var(--font-body); }
+.game-mode-badge[data-game-mode="survival"] { background-image:url('/assets/ui/surfaces/surface-f416d5b046d4.png'); }

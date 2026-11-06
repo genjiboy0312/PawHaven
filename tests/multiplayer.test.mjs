@@ -454,7 +454,7 @@ test('room menu renders four cards per page with counts and blocks full/running 
   try{
     menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>true,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);
     const pager=env.host.querySelector('.room-pages');assert.equal(pager.children.length,2);assert.equal(pager.children[0].children.length,4);assert.equal(pager.children[1].children.length,2);
-    assert.equal(pager.children[0].children[0].children[1].textContent,'2 / 4 · Waiting');assert.equal(pager.children[0].children[1].disabled,true);assert.equal(pager.children[0].children[2].disabled,true);
+    assert.equal(pager.children[0].children[0].children.at(-1).textContent,'2 / 4 · Waiting');assert.equal(pager.children[0].children[1].disabled,true);assert.equal(pager.children[0].children[2].disabled,true);
     const footer=env.host.querySelector('.play-menu-footer'),navigation=env.host.querySelector('.room-navigation');
     assert.equal(footer.contains(navigation),true);assert.equal(menu.content.contains(navigation),false);assert.equal(footer.hidden,false);
     navigation.children[2].dispatchEvent(new Event('click'));assert.equal(pager.scrollLeft,500);assert.equal(navigation.children[1].textContent,'2 / 2');
@@ -609,7 +609,7 @@ test('single map choice launches without an account and restores the lobby input
     assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
     assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (6) ▾');
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
-    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,6);
+    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,5);
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='forest').getAttribute('data-map'),'forest');
     choices.children.find(c=>c.getAttribute('data-map')==='practice').dispatchEvent(new Event('click'));
@@ -733,7 +733,7 @@ test('forest can launch as single but never leaks into room creation after switc
     assert.equal(env.host.querySelector('.play-menu-back'),undefined);assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Multiplayer').dispatchEvent(new Event('click'));await idle(client);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));
-    const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice','crossroads','survival']);assert.equal(maps.find(e=>e.getAttribute('data-map')==='survival').disabled,true);
+    const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice','crossroads']);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);assert.equal(client.room.map,'garden');
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
@@ -1390,4 +1390,53 @@ test('eliminated multiplayer clients spectate shared moving phases, acknowledge 
 test('old servers cannot receive survival create/map commands until capability is advertised',async()=>{
  let calls=0;const client=new RoomClient(users[0],async()=>{calls++;return{room:null,rooms:[],now:Date.now(),survivalReady:true};});
  try{assert.equal(await client.command('create',{map:'survival'}),false);assert.equal(calls,0);await client.command('list');assert.equal(client.survivalReady,true);assert.equal(await client.command('create',{map:'survival'}),true);assert.equal(calls,2);}finally{client.destroy(false);}
+});
+
+test('shared game-mode buttons localize goals, ignore repeated selection and release click listeners',async()=>{
+ const env=dom(),{GameModeTabs,gameModeBadge}=await importTs('../src/ui/GameModeTabs.ts',import.meta.url),{setLanguage}=await importTs('../src/settings/i18n.ts',import.meta.url);let component;
+ try{
+  const changes=[];component=new GameModeTabs('race',mode=>changes.push(mode));env.host.append(component.element);
+  const [race,survival]=component.element.children[0].children;
+  assert.equal(race.getAttribute('aria-pressed'),'true');assert.equal(component.element.children[1].getAttribute('data-i18n'),'gameRaceGoal');
+  survival.dispatchEvent(new Event('click'));survival.dispatchEvent(new Event('click'));assert.deepEqual(changes,['survival']);assert.equal(component.element.children[1].getAttribute('data-i18n'),'gameSurvivalGoal');
+  assert.equal(gameModeBadge('survival').getAttribute('data-game-mode'),'survival');assert.equal(gameModeBadge('forest').textContent,'Race');
+  component.destroy();race.dispatchEvent(new Event('click'));assert.deepEqual(changes,['survival']);
+  setLanguage('ko');component=new GameModeTabs('survival',()=>{});assert.equal(component.element.children[0].children[1].textContent,'서바이벌');assert.equal(component.element.children[1].textContent,'끝까지 살아남기');
+ }finally{component?.destroy();setLanguage('en');env.restore();}
+});
+test('single picker filters modes without changing the selected map until a card is chosen',()=>{
+ const env=dom();let menu;
+ try{
+  menu=new PlayMenuPopup(()=>{},{single:async()=>false,race(){},login(){},dismiss(){}});menu.open('single');
+  env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
+  const filter=env.host.querySelector('.game-mode-tabs'),choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,5);
+  filter.children[1].dispatchEvent(new Event('click'));assert.deepEqual(choices.children.map(c=>c.getAttribute('data-map')),['survival']);assert.equal(menu.singleMap,'garden');
+  menu.closeMapPicker();menu.openMapPicker();assert.equal(env.host.querySelector('.game-mode-tabs').children[0].getAttribute('aria-pressed'),'true');
+  env.host.querySelector('.game-mode-tabs').children[1].dispatchEvent(new Event('click'));env.host.querySelector('.single-map-choices').children[0].dispatchEvent(new Event('click'));
+  assert.equal(menu.singleMap,'survival');menu.openMapPicker();assert.equal(env.host.querySelector('.game-mode-tabs').children[1].getAttribute('aria-pressed'),'true');
+ }finally{menu?.destroy();env.restore();}
+});
+test('room creation keeps its title while changing mode and blocks unsupported survival creation',async()=>{
+ for(const ready of [false,true]){
+  const env=dom(),client=new RoomClient(users[0],async()=>({room:null,rooms:[],now:Date.now(),privateRoomsReady:true,...ready?{survivalReady:true}:{}}));let menu;
+  try{
+   menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>false,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);menu.page='create';menu.render();
+   const input=menu.content.children.find(c=>c.tag==='input');input.value='My custom room';input.dispatchEvent(new Event('input'));
+   env.host.querySelector('.game-mode-tabs').children[1].dispatchEvent(new Event('click'));
+   assert.equal(menu.content.children.find(c=>c.tag==='input').value,'My custom room');assert.equal(menu.map,'survival');assert.equal(env.host.querySelector('.mode-cards').children.length,1);assert.equal(env.host.querySelector('.room-create').disabled,!ready);
+   env.host.querySelector('.game-mode-tabs').children[0].dispatchEvent(new Event('click'));assert.equal(menu.map,'garden');assert.equal(env.host.querySelector('.mode-cards').children.length,3);assert.equal(env.host.querySelector('.room-create').disabled,false);
+  }finally{menu?.destroy();client.destroy(false);env.restore();}
+ }
+});
+test('host mode filtering sends no map command until selection and room cards show their game types',async()=>{
+ const env=dom(),room=(await cmd(0,'create')).room,calls=[];
+ let state={room,rooms:[{id:room.id,name:'Race room',map:'garden',phase:'waiting',count:1},{id:users[4],name:'Survival room',map:'survival',phase:'waiting',count:2}],now:Date.now(),survivalReady:true};
+ const client=new RoomClient(users[0],async(action,id,payload)=>{calls.push(action);if(action==='map')state={...state,room:{...state.room,map:payload.map}};return{...state,now:Date.now()};});let menu;
+ try{
+  menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>false,race(){},login(){},dismiss(){}});menu.open('multi');await idle(client);env.host.querySelector('.room-change-map').dispatchEvent(new Event('click'));
+  env.host.querySelector('.game-mode-tabs').children[1].dispatchEvent(new Event('click'));assert.equal(calls.filter(a=>a==='map').length,0);assert.equal(client.room.map,'garden');
+  const choices=env.host.querySelector('.room-map-choices');assert.equal(choices.children.length,1);choices.children[0].dispatchEvent(new Event('click'));await idle(client);assert.equal(client.room.map,'survival');
+  state={...state,room:null};await client.command('list');const cards=env.host.querySelector('.room-pages').children[0].children;
+  assert.equal(cards[0].querySelector('.game-mode-badge').textContent,'Race');assert.equal(cards[1].querySelector('.game-mode-badge').textContent,'Survival');
+ }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
