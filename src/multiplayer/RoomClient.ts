@@ -9,8 +9,8 @@ export interface Pose { x: number; height: number; direction: number; action: An
 export interface RoomMember { id: string; name: string; level?:number; look: CharacterPreset; ready: boolean; returned: boolean; pose: Pose }
 export type RoomVisibility = 'public' | 'invite';
 export interface RoomSummary { id: string; name: string; map: CourseId; phase: 'waiting'|'countdown'|'playing'|'results'; count: number; visibility?:RoomVisibility }
-export interface Room extends Omit<RoomSummary,'count'> { host: string; round: string|null; startsAt: number|null; endsAt: number|null; members: RoomMember[]; racers: { id:string;name:string;time:number|null;left:boolean }[] }
-export interface RoomSnapshot { room:Room|null; rooms:RoomSummary[]; now:number; privateRoomsReady?:boolean }
+export interface Room extends Omit<RoomSummary,'count'> { host: string; round: string|null; startsAt: number|null; endsAt: number|null; members: RoomMember[]; racers: { id:string;name:string;time:number|null;left:boolean;eliminatedMs?:number|null;winner?:boolean }[] }
+export interface RoomSnapshot { room:Room|null; rooms:RoomSummary[]; now:number; privateRoomsReady?:boolean; survivalReady?:boolean }
 export const RACE_SYNC_MS=100;
 type Transport = (action:string,room:string|null,payload:Record<string,unknown>,signal:AbortSignal)=>Promise<unknown>;
 export function roomTransport(client: SupabaseClient, owner:string,saveLook?:()=>Promise<void>):Transport {
@@ -51,6 +51,7 @@ export class RoomClient {
   private readonly abort=new AbortController(); private readonly listeners=new Set<()=>void>();
   constructor(readonly owner:string,private readonly transport:Transport,private readonly stream?:RoomStream,private readonly lobby?:LobbyStream){}
   get room(){return this.snapshot.room;}
+  get survivalReady(){return this.snapshot.survivalReady===true;}
   get privateRoomsReady(){return this.snapshot.privateRoomsReady===true;}
   get reconnecting(){return this.needsSync;}
   get serverTime(){return this.clockOffset===undefined?this.snapshot.now:performance.now()+this.clockOffset;}
@@ -128,6 +129,7 @@ export class RoomClient {
   }
   async command(action:string,payload:Record<string,unknown>={},roomId?:string):Promise<boolean>{
     if(this.closed||this.busy||(this.needsSync&&!['sync','list'].includes(action)))return false;
+    if(['create','map'].includes(action)&&payload.map==='survival'&&!this.survivalReady){this.error='setup';this.emit();return false;}
     if(action==='create'&&payload.visibility==='invite'&&!this.privateRoomsReady){this.error='setup';this.emit();return false;}
     this.busy=true;this.emit();
     try {if(this.work)await this.work;if(this.needsSync&&!['sync','list'].includes(action))return false;return await this.send(action,payload,roomId);}
@@ -144,6 +146,7 @@ export class RoomClient {
         const data=await this.transport(action,roomId??this.room?.id??null,payload,signal) as RoomSnapshot;
         if(this.closed||revision!==this.revision)return false;
         if(!data||!Number.isFinite(data.now)||!Array.isArray(data.rooms)||data.rooms.length>80||
+          (data.survivalReady!==undefined&&data.survivalReady!==true)||
           (data.privateRoomsReady!==undefined&&data.privateRoomsReady!==true)||
           (data.room && (data.room.visibility!==undefined&&!['public','invite'].includes(data.room.visibility)||!Array.isArray(data.room.members)||data.room.members.length>4||!Object.hasOwn(COURSES,data.room.map)||!COURSES[data.room.map].multiplayer)))throw Error('invalid_room');
         const previous=this.room;

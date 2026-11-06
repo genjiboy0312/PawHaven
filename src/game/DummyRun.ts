@@ -1,14 +1,16 @@
+import { SurvivalRound } from './SurvivalArena';
 import type { AnimalAction } from '../animals/AnimalConfig';
 import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
 import { HitReaction, type PlayerHit } from './HitReaction';
 import {PatrolSnake,type SnakePatrol} from './PatrolSnake';
 import { MovingPlatform } from './MovingPlatform';
 import { CoinCollection, type CoinPlacement } from './CourseCoins';
-export interface RunOptions { finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[]; boxCoins?:boolean }
+export interface RunOptions { survivalSeconds?: number; finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[]; boxCoins?:boolean }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
   readonly start = 120;
+  readonly survival?: SurvivalRound;
   readonly finish: number;
   readonly hitReaction: HitReaction;
   readonly halfWidth = 24;
@@ -44,16 +46,17 @@ export class DummyRun {
   constructor(readonly course: readonly CourseSolid[] = TRAINING_COURSE, private readonly movementScale = 1, private readonly options: RunOptions = {}) {
     this.finish = options.finish ?? 2520;
     this.course=course.map(solid=>{
-      if(!solid.motion)return solid;
+      if(!solid.motion)return options.survivalSeconds ? { ...solid } : solid;
       const platform=new MovingPlatform(solid);this.platforms.push(platform);return platform.solid;
     });
+    if (options.survivalSeconds) this.survival = new SurvivalRound(options.survivalSeconds, this.course);
     this.snakes=(options.snakes??[]).map(patrol=>new PatrolSnake(patrol,options.snakeHeight));
     this.hitReaction = new HitReaction(options.playerCombat === true||this.snakes.length>0);
     this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));
     this.coins=new CoinCollection(options.coins??[],this.course,options.boxCoins?this.targets:[]);
   }
   private overlaps(solid: CourseSolid, x = this.x): boolean {
-    return x + this.halfWidth > solid.x + 0.000001 && x - this.halfWidth < solid.x + solid.width - 0.000001;
+    return !solid.disabled && x + this.halfWidth > solid.x + 0.000001 && x - this.halfWidth < solid.x + solid.width - 0.000001;
   }
   get grounded(): boolean {
     return this.velocity <= 0 && this.course.some(solid => this.overlaps(solid) && Math.abs(this.height - solid.top) < 0.000001);
@@ -128,6 +131,7 @@ export class DummyRun {
     }
   }
   private step(seconds: number, input: number): boolean {
+    this.survival?.sync(this.enemyTime);
     const wasDashing = this.dash > 0;
     if (wasDashing) this.clearJumpInput();
     else this.coyoteTime = this.grounded ? this.coyoteDuration : Math.max(0, this.coyoteTime - seconds);
@@ -180,7 +184,14 @@ export class DummyRun {
     }
     // A dash that leaves a ledge becomes a fall; air dashing remains disabled.
     if (!this.grounded && this.dash > 0) this.dash = 0;
-    if (this.height < -190) { this.respawn(); return true; }
+    if (this.height < -190) {
+      if (this.survival) { this.survival.eliminated = true; this.victoryTime = 0; this.velocity = this.horizontalVelocity = 0; this.clearJumpInput(); }
+      else this.respawn();
+      return true;
+    }
+    if (this.survival && this.survival.elapsed >= this.survival.duration) {
+      this.survival.succeeded = true; this.victoryTime = 0; this.velocity = this.horizontalVelocity = 0; this.clearJumpInput(); return true;
+    }
     if (this.options.checkpoint && this.x >= this.options.checkpoint && this.grounded) this.checkpoint = this.options.checkpoint;
     if (this.attack > 0 && this.height < 72 && this.height + this.bodyHeight > 0) {
       for (const target of this.targets) {
@@ -197,7 +208,7 @@ export class DummyRun {
         this.receiveHit({sequence:++this.snakeHitSequence,direction:this.x<snake.x?-1:1});
     }
     this.coins.collect(this.x,this.height,this.halfWidth,this.bodyHeight);
-    if (this.x >= this.finish - 0.000001 && this.grounded) {
+    if (!this.survival && this.x >= this.finish - 0.000001 && this.grounded) {
       this.hitReaction.reset();
       this.platformVelocity=0;
       this.x = this.finish; this.victoryTime = 0; this.velocity = 0; this.horizontalVelocity = 0;

@@ -1,3 +1,5 @@
+import { SurvivalPlatformsView } from '../SurvivalPlatformsView';
+import { SURVIVAL_SINGLE_SECONDS, SURVIVAL_MULTI_SECONDS } from '../SurvivalArena';
 import { backAction } from '../../ui/BackNavigation';
 import { ConfirmPopup } from '../../ui/ConfirmPopup';
 import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../../settings/i18n';
@@ -41,6 +43,9 @@ import { RunRewardPanel } from '../../ui/RunRewardPanel';
 
 export class PlayScene extends Scene {
   private rewardPanel?: RunRewardPanel;
+  private eliminationPending = false;
+  private readonly survival: boolean;
+  private survivalView?: SurvivalPlatformsView;
   private readonly run:DummyRun;
   private readonly courseEnd:number;
   private readonly peers=new Map<string,{box:Container;animation:AnimalAnimationController;effect:AnimalEffects;name:Text;motion:RemoteMotion}>();
@@ -140,7 +145,8 @@ export class PlayScene extends Scene {
   constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: (leaving?: boolean) => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
-    this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
+    this.survival = settings?.map==='survival';
+    this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,survivalSeconds:this.survival?(settings?.multiplayer?SURVIVAL_MULTI_SECONDS:SURVIVAL_SINGLE_SECONDS):undefined,playerCombat:map.playerCombat&&!!settings?.multiplayer,
       snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:settings?.art?.coin?COURSE_COINS[settings.map??'garden']:[],boxCoins:!!settings?.art?.coin&&settings.boxCoins!==false});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
@@ -173,15 +179,16 @@ export class PlayScene extends Scene {
     }
     if(terrain instanceof Graphics)for (const solid of this.run.course) {
       const y = COURSE_GROUND - solid.top;
-      const view=solid.motion?new Graphics():terrain,x=solid.motion?0:solid.x;
+      const separate=!!solid.motion||this.survival;const view=separate?new Graphics():terrain,x=separate?0:solid.x;
       view.rect(x, y, solid.width, solid.top - solid.bottom).fill(forest?(solid.top?'#b9ad85':'#a9c39b'):(solid.top ? '#c8b38a' : '#b5cd99'))
         .rect(x, y, solid.width, 6).fill(forest?'#6f936e':(solid.top ? '#a48d65' : '#78905c'));
-      if(solid.motion){view.x=solid.x;this.movingTerrain.push({solid,view});this.world.addChild(view);}
+      if(separate){view.x=solid.x;this.movingTerrain.push({solid,view});this.world.addChild(view);}
     }
     if(settings?.art)this.world.addChild(courseDecor(settings.map??'garden',settings.art));
     this.world.addChild(terrain);
+    if(this.survival){this.survivalView=new SurvivalPlatformsView(this.run.course);this.world.addChild(this.survivalView);}
     if(settings?.art?.coin){this.coinView=new CourseCoinsView(this.run.coins,settings.art.coin,()=>this.settings?.sound?.('coin'));this.world.addChild(this.coinView);}
-    for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
+    if(!this.survival)for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
       const flag = new Text({ text: t(label), style: { fontFamily: GAME_FONT, fontSize: 23, fontWeight: '400', fill: map.time==='night'?'#fff4db':'#455b3b', stroke:map.time==='night'?{color:'#233c50',width:2}:undefined } });
       this.labels.push({ text: flag, key: label });
       flag.position.set(x - 40, 240);
@@ -208,7 +215,7 @@ export class PlayScene extends Scene {
       this.localName=this.playerName(mine?.name??'',true);this.nameLayer.addChild(this.localName);
       this.world.addChild(this.nameLayer);
     }
-    this.hud.className = 'play-hud';
+    this.hud.className = 'play-hud'+(this.survival?' survival-hud':'');
     bindAria(this.hud, 'gameControls');
     this.stick.className = 'play-stick';
     this.stick.type = 'button';
@@ -217,7 +224,8 @@ export class PlayScene extends Scene {
     this.stick.append(this.knob);
     const actions = document.createElement('div');
     actions.className = 'play-actions';
-    actions.append(this.button('attack', () => this.act('attack')), this.button('dash', () => this.act('dash')), this.button('jump', () => this.act('jump')));
+    if(!this.survival)actions.append(this.button('attack', () => this.act('attack')));
+    actions.append(this.button('dash', () => this.act('dash')), this.button('jump', () => this.act('jump')));
     const settingsButton = document.createElement('button');
     settingsButton.type = 'button'; settingsButton.className = 'play-circle'; bindText(settingsButton, 'settings');
     settingsButton.addEventListener('click', () => { this.blur(); settingsButton.focus(); this.settings?.open(); }, { signal: this.abort.signal });
@@ -250,8 +258,8 @@ export class PlayScene extends Scene {
     this.hud.append(this.result, this.progress);
     if(settings?.multiplayer){
       this.hud.classList.add('race-hud');
-      this.courseProgress=new RaceProgress(settings.multiplayer.client.owner);this.hud.append(this.courseProgress.element);
-      this.standings=new RaceStandings(settings.multiplayer.client.owner);this.standings.element.hidden=true;this.hud.append(this.standings.element);
+      if(!this.survival){this.courseProgress=new RaceProgress(settings.multiplayer.client.owner);this.hud.append(this.courseProgress.element);
+      this.standings=new RaceStandings(settings.multiplayer.client.owner);this.standings.element.hidden=true;this.hud.append(this.standings.element);}
       this.syncStatus.className='race-sync-status';this.hud.append(this.syncStatus);
       settings.multiplayer.client.pose=()=>this.pose();
       this.retry.hidden=true;bindText(this.back,'returnRoom');
@@ -322,7 +330,7 @@ export class PlayScene extends Scene {
     }, () => { close(); this.setPaused(false); });
   }
   private act(kind: 'jump' | 'dash' | 'attack'): void {
-    if (this.paused || this.suspended || this.recoveryPopup || this.run.won || !this.raceStarted) return;
+    if (this.paused || this.suspended || this.recoveryPopup || this.run.won || !this.raceStarted || this.survival&&kind==='attack') return;
     const before = kind === 'jump' ? this.run.jumpSequence : this.run[kind];
     if (kind === 'jump') this.run.jump();
     else if (kind === 'dash') this.run.startDash();
@@ -363,7 +371,9 @@ export class PlayScene extends Scene {
   }
   private restoreRacePose(){
     const client=this.settings?.multiplayer?.client,room=client?.room,mine=room?.members.find(member=>member.id===client?.owner);
-    if(!client||!room||!mine||this.run.won)return;
+    if(!client||!room||!mine)return;
+    if(this.run.survival&&room.racers.find(racer=>racer.id===client.owner)?.eliminatedMs!=null){this.run.survival.eliminated=true;this.run.victoryTime=0;}
+    if(this.run.won)return;
     this.run.clearJumpInput();
     this.run.x=mine.pose.x;this.run.height=mine.pose.height;this.run.direction=mine.pose.direction;
     this.run.velocity=0;this.run.horizontalVelocity=0;this.run.dash=0;this.run.attack=0;this.run.land=0;
@@ -416,6 +426,7 @@ export class PlayScene extends Scene {
       const sample=client.peerPose(member),pose=sample.pose;
       peer.motion.push(pose,sample.at);peer.motion.update(performance.now(),seconds,!client.error&&!client.reconnecting,sample.delay);
       peer.box.x=Math.max(120,Math.min(this.run.finish,peer.motion.x));peer.box.y=COURSE_GROUND-peer.motion.height;
+      const eliminated=this.survival&&room?.racers.find(racer=>racer.id===member.id)?.eliminatedMs!=null;peer.box.visible=peer.name.visible=!eliminated;
       peer.name.text=member.name;peer.name.position.set(peer.box.x,peer.box.y-155);
       peer.animation.update('IDLE',this.elapsed,pose.direction,0,0,seconds,pose.action,['attack','skill','jump','land'].includes(pose.action)?pose.progress:undefined);
       peer.effect.update(pose.action,pose.progress,pose.direction,peer.animation.sprite,pose.vx);
@@ -439,8 +450,8 @@ export class PlayScene extends Scene {
       if(signature!==this.resultSignature){
         this.resultSignature=signature;
         this.podium?.destroy();this.podium=undefined;
-        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false),this.run.coins.items.length?{collected:this.run.coins.collected,total:this.run.coins.items.length}:undefined,this.settings?.rewards);
-        else this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,false));
+        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false),this.run.coins.items.length?{collected:this.run.coins.collected,total:this.run.coins.items.length}:undefined,this.settings?.rewards,this.survival);
+        else if(!this.survival)this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,false));
         this.hud.setAttribute('data-podium',String(!!this.podium));
       }
       if(this.podium){this.podium.back.disabled=this.back.disabled;this.podium.update(seconds,this.settings?.preferences?.().effects===false);this.podium.element.style.opacity=String(1-this.run.fade);}
@@ -462,6 +473,10 @@ export class PlayScene extends Scene {
     this.snakeFeedback.observe();
     if(this.settings?.multiplayer&&!this.startPoseSent&&this.raceStarted&&!this.run.won){this.startPoseSent=true;this.settings.multiplayer.client.publishStartPose();}
     const multi=this.settings?.multiplayer,room=multi?.client.room;
+    if(this.survival&&multi&&room?.phase==='playing'&&this.run.survival?.eliminated&&!this.eliminationPending&&!multi.client.busy&&!multi.client.error&&!multi.client.reconnecting&&room.racers.find(racer=>racer.id===multi.client.owner)?.eliminatedMs==null){
+      this.eliminationPending=true;
+      void multi.client.command('eliminate',{round:this.raceRound,height:-200}).finally(()=>{this.eliminationPending=false;});
+    }
     if(this.courseProgress&&multi&&room){
       this.courseProgress.element.hidden=room.phase==='results';
       const entries=room.racers.filter(racer=>!racer.left||racer.time!==null).map(racer=>({
@@ -480,7 +495,7 @@ export class PlayScene extends Scene {
     this.sceneRendered=true;
     if (this.run.won && !this.completed) {
       this.completed = true;
-      if(this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
+      if(!this.survival&&this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
       else if(!this.settings?.multiplayer){
         const completion=this.settings?.record?.(this.run.elapsed,this.run.respawns);
         if(completion&&typeof completion==='object')this.completion=completion;
@@ -500,10 +515,18 @@ export class PlayScene extends Scene {
       });
     }
   }
+  private survivalTime(): number {
+    const client=this.settings?.multiplayer?.client,room=client?.room;
+    if(!client||room?.startsAt==null)return this.run.survival?.elapsed??0;
+    if(room.phase==='results')return Math.max(0,...room.racers.map(racer=>racer.time??0))/1000;
+    return Math.max(0,(client.serverTime-room.startsAt)/1000);
+  }
   private render(seconds: number, axis: number): void {
     this.updateControls();
     const run = this.run;
-    if(run.platforms.length){this.terrainView?.update();this.movingTerrain.forEach(({solid,view})=>{view.x=solid.x;});}
+    if(this.survival&&this.settings?.multiplayer)run.survival?.syncPlatforms(this.survivalTime());
+    if(run.platforms.length||this.survival){this.terrainView?.update(this.settings?.preferences?.().effects!==false);this.movingTerrain.forEach(({solid,view})=>{view.x=solid.x;view.visible=!solid.disabled;view.tint=solid.warning?0xffc56b:0xffffff;view.alpha=solid.warning && this.settings?.preferences?.().effects!==false ? .5+.5*Math.abs(Math.sin(this.elapsed*11)) : 1;});}
+    this.survivalView?.update(this.elapsed,this.settings?.preferences?.().effects!==false);
     this.coinView?.update(seconds,this.settings?.preferences?.().effects!==false,{x:run.x,height:run.height});
     const target = cameraTarget(run.x, this.courseEnd);
     const preferences = this.settings?.preferences?.();
@@ -512,6 +535,7 @@ export class PlayScene extends Scene {
     this.skyClouds?.update(this.cameraX);
     this.world.x = -this.cameraX * PLAY_ZOOM;
     this.pet.position.set(run.x, COURSE_GROUND - run.height);
+    this.pet.visible=!(this.settings?.multiplayer&&run.survival?.eliminated);if(this.localName)this.localName.visible=this.pet.visible;
     this.localName?.position.set(this.pet.x,this.pet.y-155);
     const action = run.action(axis);
     const progress = action === 'attack' ? 1 - run.attack / run.attackDuration
@@ -534,6 +558,19 @@ export class PlayScene extends Scene {
     if (!this.returned) this.stats.textContent = this.retryFailed ? t('runRetryFailed') : record;
     this.progress.textContent = `${Math.floor((run.x - run.start) / (run.finish - run.start) * 100)}% · ${t('runTime')} ${run.elapsed.toFixed(1)}s${run.checkpoint > run.start ? ' · ' + t('checkpoint') + ' ✓' : ''}`;
     if(coinText)this.progress.textContent+=' · '+coinText;
+    if(this.survival){
+      const multi=this.settings?.multiplayer,room=multi?.client.room;
+      const elapsed=this.survivalTime();
+      const limit=multi?SURVIVAL_MULTI_SECONDS:SURVIVAL_SINGLE_SECONDS;
+      const alive=room?.racers.filter(racer=>racer.eliminatedMs==null&&!racer.left).length??1;
+      this.progress.textContent=`${t('survivalTime')} ${Math.min(limit,elapsed).toFixed(1)} / ${limit}s`+(multi?' · '+t('survivalAlive').replace('{count}',String(alive)):'');
+      if(!this.retryFailed)this.stats.textContent=`${t('survivalTime')} ${(run.survival?.elapsed??0).toFixed(2)}s · ${t('survivalPrototype')}`;
+      if(!multi)this.victory.textContent=t(run.survival?.succeeded?'survivalClear':'survivalLost');
+      else if(room?.phase!=='results'){
+        this.result.hidden=true;
+        this.victory.hidden=!run.survival?.eliminated;this.victory.textContent=t('survivalSpectating');
+      }
+    }
     this.targetViews.forEach((view, index) => { if(view instanceof BoxTargetView)view.update(seconds,preferences?.effects!==false);else view.visible = !run.targets[index]!.broken; });
     const active = run.checkpoint > run.start;
     if (this.checkpointLit !== active) {

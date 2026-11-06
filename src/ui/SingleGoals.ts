@@ -5,6 +5,7 @@ import { t } from '../settings/i18n';
 /** Shared compact goal badges for map cards and the single-run result. */
 export function singleGoals(map:CourseId,earned:readonly SingleGoal[],fresh:readonly SingleGoal[]=[]):HTMLElement {
   const row=document.createElement('div');row.className='single-goals';row.setAttribute('role','group');row.setAttribute('aria-label',t('singleGoals'));
+  if(map==='survival'){row.hidden=true;return row;}
   for(const goal of SINGLE_GOALS){
     const achieved=earned.includes(goal),isNew=fresh.includes(goal);
     const label=goal==='finish'?t('singleGoalFinish'):goal==='noFalls'?t('singleGoalNoFalls'):t('singleGoalTime').replace('{seconds}',String(COURSES[map].goalSeconds));

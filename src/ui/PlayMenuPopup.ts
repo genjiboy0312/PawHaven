@@ -24,7 +24,7 @@ export class PlayMenuPopup {
   private blocked:{element:HTMLElement;inert:boolean}[]=[]; private previousFocus?:HTMLElement;
   private name='';private map:CourseId='garden';
   private visibility:RoomVisibility='public';
-  private privacyReady=false;
+  private privacyReady=false;private survivalReady=false;
   private singleMap:CourseId='garden';
   private signature='';
   private notice?:TextKey;
@@ -109,12 +109,12 @@ export class PlayMenuPopup {
       this.launching=true;this.options.race(room,client!);this.close(true);return;
     }
     if(this.page==='create'&&room)this.page='multi';
-    if(this.page==='create'&&!room&&!client?.error&&this.privacyReady===(client?.privateRoomsReady===true))return;
+    if(this.page==='create'&&!room&&!client?.error&&this.privacyReady===(client?.privateRoomsReady===true)&&this.survivalReady===(client?.survivalReady===true))return;
     if(this.roomEvent&&this.roomEvent.until<Date.now())this.roomEvent=undefined;
     const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
   }
-  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.privateRoomsReady,client?.listed,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent,this.options.invitation?.id]);}
+  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.privateRoomsReady,client?.survivalReady,client?.listed,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent,this.options.invitation?.id]);}
   private clearInvitation(){this.options.invitation?.dismiss();this.options.invitation=undefined;}
   private cancelInvitation(){const button=this.button('roomInviteDismiss',()=>{this.clearInvitation();this.render();});button.setAttribute('data-recovery-control','true');return button;}
   private invitationCard(){
@@ -152,7 +152,7 @@ export class PlayMenuPopup {
       if(!map.multiplayer)continue;
       const b=this.button(map.title,()=>select(id as CourseId));b.className='commerce-primary map-card map-'+id;
       b.setAttribute('data-map',id);
-      b.setAttribute('aria-pressed',String(id===current));b.append(this.text(map.seconds));b.disabled=this.busy;grid.append(b);
+      b.setAttribute('aria-pressed',String(id===current));b.append(this.text(map.seconds));b.disabled=this.busy||(id==='survival'&&!this.options.rooms?.survivalReady);if(id==='survival'&&!this.options.rooms?.survivalReady)b.append(this.text(t('survivalSetup')));grid.append(b);
     }return grid;
   }
   private singleCard(id:CourseId,select?:()=>void){
@@ -162,7 +162,7 @@ export class PlayMenuPopup {
     const name=document.createElement('strong');name.textContent=t(map.title);
     const description=this.text(t(map.description));description.className='single-map-description';
     const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
-    const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';
+    const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';if(id==='survival')record.textContent=t('survivalGoal');
     if(select)card.append(description,duration,record,singleGoals(id,this.options.goals?.(id)??[]));
     else{
       const info=document.createElement('div');info.className='single-map-info';
@@ -176,10 +176,10 @@ export class PlayMenuPopup {
     for(const card of Array.from(this.overlay.querySelectorAll<HTMLElement>('.single-map-card'))){
       const map=card.getAttribute('data-map') as CourseId;if(!Object.hasOwn(COURSES,map))continue;
       const record=card.querySelector<HTMLElement>('.single-map-best'),best=this.options.best?.(map);
-      if(record)record.textContent=best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge');
+      if(record)record.textContent=map==='survival'?t('survivalGoal'):best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge');
       const goals=card.querySelector<HTMLElement>('.single-goals');if(goals)goals.replaceChildren(...Array.from(singleGoals(map,this.options.goals?.(map)??[]).children));
     }
-    const note=this.overlay.querySelector<HTMLElement>('.single-record-note');if(note)note.textContent=t(this.options.recordNote?.()??'singleLocalRecords');
+    const note=this.overlay.querySelector<HTMLElement>('.single-record-note');if(note)note.textContent=t(this.singleMap==='survival'?'survivalPrototype':this.options.recordNote?.()??'singleLocalRecords');
   }
   private singleMaps(){
     const change=this.button('changeMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
@@ -188,7 +188,7 @@ export class PlayMenuPopup {
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
     const card=this.singleCard(this.singleMap);card.querySelector('.single-map-heading')?.append(change);
-    const note=this.text(t(this.options.recordNote?.()??'singleLocalRecords'));note.className='single-record-note';actions.append(play,note);return[card,actions];
+    const note=this.text(t(this.singleMap==='survival'?'survivalPrototype':this.options.recordNote?.()??'singleLocalRecords'));note.className='single-record-note';actions.append(play,note);return[card,actions];
   }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;
@@ -223,7 +223,7 @@ export class PlayMenuPopup {
     if(!this.mapPicker)return;const client=this.options.rooms,room=client?.room;
     if(this.pickerSingle){if(this.page!=='single'||this.busy)this.closeMapPicker();return;}
     if(!room||room.host!==client?.owner||room.phase!=='waiting'){this.closeMapPicker();return;}
-    for(const button of Array.from(this.mapPicker.querySelectorAll<HTMLButtonElement>('button'))){const map=button.getAttribute('data-map');if(map){button.disabled=client.busy||client.reconnecting||!!client.error;button.setAttribute('aria-pressed',String(map===room.map));}}
+    for(const button of Array.from(this.mapPicker.querySelectorAll<HTMLButtonElement>('button'))){const map=button.getAttribute('data-map');if(map){button.disabled=client.busy||client.reconnecting||!!client.error||(map==='survival'&&!client.survivalReady);button.setAttribute('aria-pressed',String(map===room.map));}}
     const status=this.mapPicker.querySelector<HTMLElement>('.room-map-status');if(status)status.textContent=client.error?t('multiRejected'):client.reconnecting?t('multiReconnecting'):'';
   }
   private closeMapPicker(){
@@ -240,7 +240,7 @@ export class PlayMenuPopup {
     this.footer.classList.remove('room-menu-footer');
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
     if(this.closeButton){const back=this.page!=='mode';this.closeButton.hidden=this.page==='multi'||this.page==='single';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.closeButton.hidden||this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
-    root.replaceChildren();const client=this.options.rooms,room=client?.room;this.privacyReady=client?.privateRoomsReady===true;
+    root.replaceChildren();const client=this.options.rooms,room=client?.room;this.privacyReady=client?.privateRoomsReady===true;this.survivalReady=client?.survivalReady===true;
     const chatRoom=this.page==='multi'&&room?.phase==='waiting'?room:undefined;
     if(this.chat?.roomId!==chatRoom?.id){this.chat?.destroy();this.chat=undefined;}
     if(chatRoom&&this.options.roomChat&&!this.chat){this.chat=new RoomChatPanel(chatRoom.id,this.options.roomChat(chatRoom));this.panel?.insertBefore(this.chat.element,this.footer);}

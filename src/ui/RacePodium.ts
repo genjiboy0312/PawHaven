@@ -17,17 +17,17 @@ export class RacePodium {
   private bounds={x:0,y:-150,width:200,height:150};
   private readonly wasInert:boolean;
   private rewardPanel?: RunRewardPanel;
-  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void,coins?:{collected:number;total:number},rewards?:CommerceState){
+  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void,coins?:{collected:number;total:number},rewards?:CommerceState,survival=false){
     this.wasInert=hud.inert;hud.inert=true;
     this.element.className='race-podium-overlay';
     const panel=document.createElement('section');panel.className='settings-panel race-podium';
     panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label',t('raceResults'));
-    const title=document.createElement('h2');title.textContent=t('racePodiumTitle');panel.append(title);
-    const sorted=[...racers].sort((a,b)=>(a.time??Infinity)-(b.time??Infinity));
-    const winner=sorted.find(r=>r.time!==null);
+    const title=document.createElement('h2');title.textContent=t(survival?'survivalWinner':'racePodiumTitle');panel.append(title);
+    const sorted=[...racers].sort((a,b)=>survival?Number(!!b.winner)-Number(!!a.winner)||Number(a.left)-Number(b.left)||(b.time??b.eliminatedMs??0)-(a.time??a.eliminatedMs??0):(a.time??Infinity)-(b.time??Infinity));
+    const winner=sorted.find(r=>survival?r.winner:r.time!==null);
     if(winner){
       const hero=document.createElement('div');hero.className='race-winner';hero.setAttribute('data-self',String(winner.id===owner));
-      const place=document.createElement('strong');place.className='race-winner-place';place.textContent='1st';
+      const place=document.createElement('strong');place.className='race-winner-place';place.textContent=survival&&racers.filter(r=>r.winner).length>1?t('survivalTied'):'1st';
       this.canvas.width=480;this.canvas.height=280;this.canvas.setAttribute('aria-hidden','true');
       const name=document.createElement('strong');name.className='race-winner-name';name.textContent=winner.name;
       hero.append(place,this.canvas,name);panel.append(hero);
@@ -45,16 +45,16 @@ export class RacePodium {
         this.bounds={x:left,y:top,width:Math.max(1,right-left),height:Math.max(1,bottom-top)};
         this.animation.restart();
       }
-    }else{const note=document.createElement('p');note.className='race-no-winner';note.textContent=t('raceNoWinner');panel.append(note);}
+    }else{const note=document.createElement('p');note.className='race-no-winner';note.textContent=t(survival?'survivalNoWinner':'raceNoWinner');panel.append(note);}
     const list=document.createElement('div');list.className='race-podium-list';list.setAttribute('role','list');
     let place=0,last:number|null=null;
     sorted.forEach((racer,index)=>{
       if(racer.time!==null){if(racer.time!==last)place=index+1;last=racer.time;}
       if(racer.id===winner?.id)return;
       const row=document.createElement('div');row.className='race-result-row';row.setAttribute('role','listitem');row.setAttribute('data-self',String(racer.id===owner));
-      const rank=document.createElement('span');rank.className='race-place';rank.textContent=racer.time===null?'DNF':String(place);
+      const rank=document.createElement('span');rank.className='race-place';rank.textContent=survival?(racer.winner?'1':String(index+1)):racer.time===null?'DNF':String(place);
       const name=document.createElement('strong');name.className='race-result-name';name.textContent=racer.name;
-      row.append(rank,name);list.append(row);
+      row.append(rank,name);if(survival){const duration=document.createElement('span');duration.textContent=((racer.time??racer.eliminatedMs??0)/1000).toFixed(1)+'s';row.append(duration);}list.append(row);
     });
     this.back.type='button';this.back.className='commerce-primary';this.back.textContent=t('returnRoom');
     this.back.addEventListener('click',onReturn,{signal:this.abort.signal});

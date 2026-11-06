@@ -107,8 +107,8 @@ test('every playable map uses shared terrain art and brightens its checkpoint af
     for(const [id,map]of Object.entries(COURSES)){
       scene=new PlayScene(config,()=>{},{open(){},map:id,art:bundle.art});scene.update(.01);
       assert.equal(scene.world.children.find(c=>c.label==='course-terrain').children.length,map.solids.length*2);
-      for(const [key,x]of [['start',120],['checkpoint',map.checkpoint],['finish',map.finish]]){const marker=scene.world.children.find(c=>c.label==='course-'+key);assert.equal(marker.x,x);assert.equal(marker.y,390);}
-      assert.equal(scene.checkpointMarker.alpha,.6);scene.run.x=map.checkpoint+10;scene.update(.02);assert.equal(scene.checkpointMarker.alpha,1);assert.equal(scene.checkpointMarker.tint,0xffffff);
+      if(id!=='survival')for(const [key,x]of [['start',120],['checkpoint',map.checkpoint],['finish',map.finish]]){const marker=scene.world.children.find(c=>c.label==='course-'+key);assert.equal(marker.x,x);assert.equal(marker.y,390);}
+      if(id!=='survival'){assert.equal(scene.checkpointMarker.alpha,.6);scene.run.x=map.checkpoint+10;scene.update(.02);assert.equal(scene.checkpointMarker.alpha,1);assert.equal(scene.checkpointMarker.tint,0xffffff);}else assert.equal(scene.checkpointMarker,undefined);
       scene.destroy({children:true});scene=undefined;assert.equal(bundle.art.markers.checkpoint.texture.destroyed,false);
     }
   }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
@@ -607,9 +607,9 @@ test('single map choice launches without an account and restores the lobby input
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
-    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (5) ▾');
+    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (6) ▾');
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
-    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,5);
+    const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,6);
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='forest').getAttribute('data-map'),'forest');
     choices.children.find(c=>c.getAttribute('data-map')==='practice').dispatchEvent(new Event('click'));
@@ -640,6 +640,7 @@ test('single personal records keep the faster valid completion and survive a loc
 test('single goals accumulate across runs, include exact time limits and award a slower clean run only once',()=>{
   const records=new SingleRecords();
   for(const [map,course]of Object.entries(COURSES)){
+    if(map==='survival'){assert.deepEqual(records.complete(map,30,0).newGoals,[]);continue;}
     assert.deepEqual(records.complete(map,course.goalSeconds+.001,1).newGoals,['finish']);
     assert.deepEqual(records.complete(map,course.goalSeconds,2).newGoals,['time']);
     const clean=records.complete(map,course.goalSeconds+5,0);
@@ -732,7 +733,7 @@ test('forest can launch as single but never leaks into room creation after switc
     assert.equal(env.host.querySelector('.play-menu-back'),undefined);assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Multiplayer').dispatchEvent(new Event('click'));await idle(client);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));
-    const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice','crossroads']);
+    const maps=env.host.querySelector('.mode-cards').children;assert.deepEqual(maps.map(e=>e.getAttribute('data-map')),['garden','practice','crossroads','survival']);assert.equal(maps.find(e=>e.getAttribute('data-map')==='survival').disabled,true);
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Create room').dispatchEvent(new Event('click'));await idle(client);assert.equal(client.room.map,'garden');
   }finally{menu?.destroy();client.destroy(false);env.restore();}
 });
@@ -754,12 +755,12 @@ test('single and multiplayer use one top back action while preserving pagination
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'mode');
     assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Single').dispatchEvent(new Event('click'));
-    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (5) ▾');
+    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (6) ▾');
     assert.ok(env.host.querySelector('.single-map-heading').children.includes(change));
     change.dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.room-map-picker').getAttribute('aria-label'),'Choose map');
     env.host.querySelector('.room-map-picker').querySelector('.settings-close').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'single');
-    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (5) ▾');
+    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (6) ▾');
     assert.equal(env.host.querySelector('.play-menu-back').hidden,true);assert.equal(env.host.querySelector('.play-menu-back').disabled,true);
     const leave=env.host.querySelector('.play-menu-exit');assert.equal(leave.textContent,'나가기');assert.equal(env.host.querySelector('.play-menu-footer').contains(leave),true);
     leave.dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(menu.closeButton.hidden,false);
@@ -1359,4 +1360,34 @@ test('game back asks before leaving multiplayer and cancellation resumes local i
   env.host.querySelector('.confirm-cancel').dispatchEvent(new Event('click'));assert.equal(scene.paused,false);assert.equal(leaves,0);
   scene.navigateBack();env.host.querySelector('.confirm-accept').dispatchEvent(new Event('click'));assert.equal(leaves,1);assert.equal(env.host.querySelector('.confirm-overlay'),undefined);
  }finally{scene?.destroy({children:true});client.destroy(false);env.restore();}
+});
+
+test('survival scene reuses controls and terrain but has no race markers, attacks, goals or respawn',()=>{
+ const env=dom(),bundle=testCourseArt();let scene;
+ try{
+  scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'survival',art:bundle.art,retry:async()=>true});
+  assert.equal(scene.controls.has('attack'),false);assert.equal(scene.controls.has('jump'),true);assert.equal(scene.controls.has('dash'),true);
+  scene.act('attack');assert.equal(scene.run.attack,0);assert.equal(scene.labels.length,0);
+  for(let i=0;i<481;i++)scene.update(1/60);
+  assert.equal(scene.run.survival.eliminated,true);assert.equal(scene.run.respawns,0);assert.equal(scene.result.hidden,false);assert.match(scene.victory.textContent,/Try again/);assert.match(scene.progress.textContent,/Survival/);
+  assert.equal(scene.goalDetails.children.length,0);
+ }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
+});
+test('eliminated multiplayer clients spectate shared moving phases, acknowledge once and use survival results',async()=>{
+ const env=dom(),bundle=testCourseArt();let scene,time=8000,eliminations=0;
+ const members=users.slice(0,3).map((id,i)=>({id,name:'Pet'+i,look:{petId:'corgi',outfit:{Hat:0,Body:0,Acc:0,Etc:0}},ready:false,returned:false,pose:{x:120,height:0,direction:1,action:'idle',progress:0,vx:0}}));
+ const room={id:'aaaaaaaa-1111-4111-8111-111111111111',host:users[0],map:'survival',phase:'playing',round:'bbbbbbbb-1111-4111-8111-111111111111',startsAt:0,endsAt:60000,members,racers:members.map(m=>({id:m.id,name:m.name,time:null,left:false,eliminatedMs:null}))};
+ const client={owner:users[0],room,get serverTime(){return time;},recoverySerial:0,busy:false,error:'',reconnecting:false,peerPose:m=>({pose:m.pose,at:performance.now()}),publishStartPose(){},async command(action){if(action==='eliminate'){eliminations++;room.racers[0].eliminatedMs=8000;}return true;}};
+ try{
+  scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'survival',art:bundle.art,multiplayer:{client,pets:[{id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}}],leave(){}}});
+  scene.run.height=-195;scene.update(.01);await new Promise(r=>setImmediate(r));
+  assert.equal(eliminations,1);assert.equal(scene.result.hidden,true);assert.equal(scene.pet.visible,false);assert.equal(scene.victory.textContent,'Spectating');
+  time=13000;scene.update(.01);assert.equal(eliminations,1);assert.equal(scene.run.course[2].disabled,true);assert.equal(scene.result.hidden,true);
+  room.phase='results';room.racers.forEach((r,i)=>{r.time=i?13000:8000;r.winner=i>0;});scene.update(.01);
+  assert.ok(scene.podium);assert.equal(scene.podium.element.querySelector('.race-winner-place').textContent,'Joint winner');assert.equal(scene.podium.element.querySelector('.race-place').textContent,'1');time=18000;scene.update(.01);assert.match(scene.progress.textContent,/13\.0 \/ 60s/);
+ }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
+});
+test('old servers cannot receive survival create/map commands until capability is advertised',async()=>{
+ let calls=0;const client=new RoomClient(users[0],async()=>{calls++;return{room:null,rooms:[],now:Date.now(),survivalReady:true};});
+ try{assert.equal(await client.command('create',{map:'survival'}),false);assert.equal(calls,0);await client.command('list');assert.equal(client.survivalReady,true);assert.equal(await client.command('create',{map:'survival'}),true);assert.equal(calls,2);}finally{client.destroy(false);}
 });

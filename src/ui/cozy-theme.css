@@ -895,3 +895,7 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .home-history { position:absolute; left:50%; bottom:3%; transform:translateX(-50%); display:flex; gap:1cqw; z-index:4; pointer-events:auto; }
 .home-history button { min-height:32px; padding:1cqh 1.4cqw; font:400 clamp(11px,1.4cqw,18px) var(--font-body); white-space:nowrap; }
 .home-history button:disabled { opacity:.45; cursor:default; }
+.map-survival::before { background-image:url('/assets/backgrounds/noon.png'); background-position:center; }
+.map-survival { border-top:.5cqh solid #e2bb6f !important; }
+.survival-hud.race-hud[data-results="true"] .play-progress { visibility:visible; }
+.survival-hud .play-victory:not(.race-countdown) { font-size:clamp(20px,3cqw,40px); }

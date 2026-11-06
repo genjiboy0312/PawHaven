@@ -5,6 +5,7 @@ export interface CoinPlacement {readonly x:number;readonly height:number;readonl
 /** World centres; solid-bound coordinates are offsets from that platform. */
 const GARDEN_COINS:readonly CoinPlacement[]=[{x:260,height:36},{x:500,height:115},{x:1000,height:36},{x:1550,height:130},{x:2140,height:36},{x:2730,height:36},{x:3500,height:120},{x:4300,height:36},{x:5000,height:115},{x:6100,height:36}];
 export const COURSE_COINS:Record<CourseId,readonly CoinPlacement[]>={
+ survival:[],
  practice:[{x:280,height:110},{x:620,height:110},{x:1000,height:36},{x:1250,height:115},{x:1530,height:36},{x:1920,height:120},{x:2310,height:36}],
  garden:GARDEN_COINS, cherry:GARDEN_COINS,
  forest:[{x:420,height:115},{x:850,height:120},{x:1530,height:115},{x:2100,height:36},{x:2750,height:36},{x:4410,height:65},{x:4720,height:90},{x:5300,height:36},{x:6800,height:36},{x:8500,height:36},{x:9850,height:36}],

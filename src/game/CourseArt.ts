@@ -69,7 +69,7 @@ export class CourseTerrain extends Container {
     }
   }
  }
- update():void {this.children.forEach((tile,index)=>{const solid=this.solids[Math.floor(index/2)]!;tile.position.set(solid.x,COURSE_GROUND-solid.top);});}
+ update(blink=true):void {this.children.forEach((tile,index)=>{const solid=this.solids[Math.floor(index/2)]!;tile.position.set(solid.x,COURSE_GROUND-solid.top);tile.visible=!solid.disabled;tile.tint=solid.warning?0xffc56b:0xffffff;tile.alpha=solid.warning && blink ? .5+.5*Math.abs(Math.sin(performance.now()/90)) : 1;});}
 }
 export function courseTerrain(solids:readonly CourseSolid[],art:CourseArt):CourseTerrain {
   return new CourseTerrain(solids,art);
