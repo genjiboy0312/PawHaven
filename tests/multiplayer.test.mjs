@@ -1347,3 +1347,16 @@ test('single pause actions confirm, prevent duplicate requests and keep settings
   popup.open(true,context);action('restart').dispatchEvent(new Event('click'));env.host.querySelector('.confirm-accept').dispatchEvent(new Event('click'));popup.close();popup.open();release(true);await tick();assert.equal(popup.opened,true);assert.equal(env.host.querySelector('.confirm-overlay'),undefined);
  }finally{popup?.destroy();env.restore();}
 });
+
+
+test('game back asks before leaving multiplayer and cancellation resumes local input',async()=>{
+ const env=dom();let scene,leaves=0;const client=new RoomClient(users[0],(a,r,p)=>cmd(0,a,r,p));
+ try{
+  await cmd(0,'create');client.start();await idle(client);
+  const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  scene=new PlayScene(config,()=>{},{open(){},multiplayer:{client,pets:[config],leave:()=>leaves++}});
+  scene.navigateBack();assert.equal(scene.paused,true);assert.equal(leaves,0);assert.ok(env.host.querySelector('.confirm-overlay'));
+  env.host.querySelector('.confirm-cancel').dispatchEvent(new Event('click'));assert.equal(scene.paused,false);assert.equal(leaves,0);
+  scene.navigateBack();env.host.querySelector('.confirm-accept').dispatchEvent(new Event('click'));assert.equal(leaves,1);assert.equal(env.host.querySelector('.confirm-overlay'),undefined);
+ }finally{scene?.destroy({children:true});client.destroy(false);env.restore();}
+});

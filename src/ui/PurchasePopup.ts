@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { onLanguageChange, t } from '../settings/i18n';
 import type { CommerceState } from '../shop/CommerceState';
 import { coinAmount } from './CoinAmount';
@@ -29,7 +30,7 @@ export class PurchasePopup {
     this.opener = typeof HTMLElement !== 'undefined' && document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     this.blocked = Array.from(host.children).filter((node): node is HTMLElement => typeof HTMLElement !== 'undefined' && node instanceof HTMLElement).map(element => ({ element, inert: element.inert }));
     this.blocked.forEach(entry => { entry.element.inert = true; });
-    const overlay = document.createElement('div'); overlay.className = 'settings-overlay purchase-overlay'; this.overlay = overlay;
+    const overlay = document.createElement('div'); overlay.className = 'settings-overlay purchase-overlay'; this.overlay = overlay; backAction(overlay, () => this.close());
     const panel = document.createElement('section'); panel.className = 'settings-panel purchase-panel'; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true');
     const title = document.createElement('h2');
     const art = document.createElement('div'); art.className = 'purchase-art'; art.append(item.icon());

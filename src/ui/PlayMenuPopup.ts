@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import {accountLevelName} from '../account/AccountProgress';
 import { bindAria, onLanguageChange, t, type TextKey } from '../settings/i18n';
 import { COURSES, type CourseId } from '../game/CourseCatalog';
@@ -56,7 +57,7 @@ export class PlayMenuPopup {
     this.abort=new AbortController();this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
     this.blocked=Array.from(host.children).filter((e):e is HTMLElement=>e instanceof HTMLElement).map(element=>({element,inert:element.inert}));
     this.blocked.forEach(b=>{b.element.inert=true;});this.pause(true);
-    const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
+    const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;backAction(overlay,()=>this.navigateBack());
     const panel=document.createElement('section');this.panel=panel;panel.className='settings-panel play-menu-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'play');
     this.title=document.createElement('h2');const close=this.button('close',()=>this.navigateBack());this.closeButton=close;close.className='settings-close';close.textContent='×';bindAria(close,'close');
     this.content=document.createElement('div');this.content.className='settings-content play-menu-content';this.footer.className='play-menu-footer';this.footer.hidden=true;panel.append(this.title,close,this.content,this.footer);overlay.append(panel);host.append(overlay);
@@ -198,7 +199,7 @@ export class PlayMenuPopup {
       }));
     }else choices=this.maps(map=>{void client!.command('map',{map}).then(ok=>{if(ok)this.closeMapPicker();else this.refreshMapPicker();});},room!.map);
     choices.className='mode-cards room-map-choices'+(single?' single-map-choices':'');
-    const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close,choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;
+    const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close,choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;backAction(overlay,()=>{if(!this.options.rooms?.busy)this.closeMapPicker();});
     panel.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.closeMapPicker();return;}
       if(event.key!=='Tab')return;

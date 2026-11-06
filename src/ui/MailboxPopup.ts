@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import {bindAria,bindText,onLanguageChange,t,type TextKey} from '../settings/i18n';
 import {MailboxClient,hasMailRewards,mailGroup,type PlayerMail} from '../mail/MailboxClient';
 import {itemIcon} from './itemIcon';
@@ -17,7 +18,7 @@ export class MailboxPopup {
   if(this.state)this.state.receipt=undefined;
   this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
   this.blocked=Array.from(host.children).filter((e):e is HTMLElement=>e instanceof HTMLElement).map(element=>({element,inert:element.inert}));this.blocked.forEach(b=>{b.element.inert=true;});this.pause(true);
-  const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay;
+  const overlay=document.createElement('div');overlay.className='settings-overlay';this.overlay=overlay; backAction(overlay, () => this.close());
   const panel=document.createElement('section');panel.className='settings-panel mailbox-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'mail');
   const title=document.createElement('h2');bindText(title,'mail');const close=this.button('close',()=>this.close());close.removeAttribute('data-i18n');close.textContent='×';close.className='settings-close';bindAria(close,'close');
   const content=document.createElement('div');content.className='settings-content mailbox-content';this.list=document.createElement('div');this.list.className='mailbox-list';this.detail=document.createElement('section');this.detail.className='mailbox-detail';content.append(this.list,this.detail);

@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import {LobbyProfile,type LobbyProfileOptions} from './LobbyProfile';
 import { bindAria, bindText } from '../settings/i18n';
 import type { AnimalVisualState } from '../animals/AnimalState';
@@ -50,6 +51,7 @@ export class LobbyHud {
     this.economyNote.append(this.economyCaption, this.economyRetry);
     this.element.className = 'lobby-hud';
     if(visit){
+      backAction(this.element, visit.leave);
       this.element.classList.add('home-visit-hud');
       const heading=document.createElement('header'),label=document.createElement('span'),name=document.createElement('strong'),note=document.createElement('p');
       bindText(label,'homeVisitLabel');name.textContent=visit.name;bindText(note,'homeVisitNote');heading.append(label,name,note);

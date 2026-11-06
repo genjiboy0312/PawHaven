@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { bindText, bindAria } from '../settings/i18n';
 
 /** Small foreground recovery prompt using the shared settings panel style. */
@@ -7,7 +8,7 @@ export class RunRecoveryPopup {
   private readonly wasInert: boolean;
   constructor(private readonly hud: HTMLElement, failed: boolean, proceed: () => void) {
     this.wasInert = hud.inert; hud.inert = true;
-    this.element.className = 'settings-overlay run-recovery-overlay';
+    this.element.className = 'settings-overlay run-recovery-overlay'; backAction(this.element, proceed);
     const panel = document.createElement('section'); panel.className = 'settings-panel run-recovery-panel';
     panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true');
     bindAria(panel, failed ? 'runConnectionLost' : 'runPaused');

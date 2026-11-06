@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { applyControlLayout, CONTROL_IDS, controlPointer, copyControlLayout, moveControl, type ControlId, type ControlLayout, type ControlPoint } from '../settings/ControlLayout';
 import type { GamePreferences } from '../settings/GameSettings';
 import { bindAria, bindText } from '../settings/i18n';
@@ -16,7 +17,7 @@ export class ControlLayoutEditor {
     this.draft = copyControlLayout(preferences.controlLayout);
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     this.wasInert = parent.inert; parent.inert = true;
-    this.element.className = 'settings-overlay controls-layout-overlay'; this.element.setAttribute('role','dialog'); this.element.setAttribute('aria-modal','true'); bindAria(this.element,'controlLayout');
+    this.element.className = 'settings-overlay controls-layout-overlay'; backAction(this.element, close); this.element.setAttribute('role','dialog'); this.element.setAttribute('aria-modal','true'); bindAria(this.element,'controlLayout');
     const toolbar = document.createElement('div'); toolbar.className = 'controls-layout-toolbar';
     const heading = document.createElement('h2'); bindText(heading,'controlLayout');
     const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'commerce-primary'; bindText(reset,'controlLayoutReset');

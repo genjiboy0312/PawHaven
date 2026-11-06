@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { petThumbnail } from '../animals/PetCatalog';
 import type {AnimalConfig} from '../animals/AnimalConfig';
 import {createOutfit} from '../animals/OutfitState';
@@ -14,7 +15,7 @@ export class ParkParticipants {
  private readonly localeOff=onLanguageChange(()=>this.render());
  constructor(private readonly pets:AnimalConfig[],private readonly owner:string,select:(id:string)=>void){
   const {signal}=this.abort;this.toggle.type='button';this.toggle.className='park-people-toggle';this.toggle.disabled=true;this.toggle.setAttribute('aria-expanded','false');bindAria(this.toggle,'parkParticipants');
-  this.element.className='settings-panel park-participants';this.element.hidden=true;this.element.setAttribute('role','group');bindAria(this.element,'parkParticipants');
+  this.element.className='settings-panel park-participants';this.element.hidden=true; backAction(this.element, () => this.close());this.element.setAttribute('role','group');bindAria(this.element,'parkParticipants');
   const heading=document.createElement('h2');bindText(heading,'parkParticipants');const close=document.createElement('button');close.type='button';close.className='settings-close';close.textContent='×';bindAria(close,'close');
   close.addEventListener('click',()=>{this.close();this.toggle.focus();},{signal});this.list.className='park-participant-list';this.element.append(heading,close,this.list);
   this.toggle.addEventListener('click',()=>{if(!this.enabled)return;const open=this.element.hidden!==false;this.element.hidden=!open;this.toggle.setAttribute('aria-expanded',String(open));if(open)this.rows.values().next().value?.button.focus();},{signal});

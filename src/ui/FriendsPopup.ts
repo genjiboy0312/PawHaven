@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../settings/i18n';
 import { FriendsClient, type Friend, type FriendAction } from '../friends/FriendsClient';
 import { ConfirmPopup } from './ConfirmPopup';
@@ -24,7 +25,7 @@ export class FriendsPopup {
     this.blocked = Array.from(host.children).filter((element): element is HTMLElement => element instanceof HTMLElement)
       .map(element => ({ element, inert: element.inert }));
     this.blocked.forEach(item => { item.element.inert = true; }); this.pause(true);
-    const overlay = document.createElement('div'); overlay.className = 'settings-overlay'; this.overlay = overlay;
+    const overlay = document.createElement('div'); overlay.className = 'settings-overlay'; this.overlay = overlay; backAction(overlay, () => this.close());
     const panel = document.createElement('section'); panel.className = 'settings-panel friends-panel';
     this.panel=panel;
     panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); bindAria(panel, 'friends');

@@ -1,3 +1,4 @@
+import { backAction } from '../../ui/BackNavigation';
 import { petInfo, petThumbnail } from '../../animals/PetCatalog';
 import { Container, Graphics, type DestroyOptions } from 'pixi.js';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
@@ -84,6 +85,7 @@ export class ShopScene extends Scene {
     this.homePreview.className = 'shop-home-preview';
     this.previewNote.className='shop-preview-note';this.previewNote.setAttribute('role','status');
     this.panel.append(title, close, this.balance, this.tabs, this.content, this.connection, this.homePreview,this.previewNote);
+    backAction(this.panel, () => close.click());
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = state.subscribe(() => this.render());
     this.localeOff = onLanguageChange(() => this.render()); this.render(); this.update(0);

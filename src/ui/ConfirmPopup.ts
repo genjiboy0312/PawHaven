@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { bindAria, bindText, type TextKey } from '../settings/i18n';
 
 /** Small reusable confirmation using the existing panel and action styles. */
@@ -9,7 +10,7 @@ export class ConfirmPopup {
   constructor(private readonly parent:HTMLElement,title:TextKey,note:TextKey,confirm:TextKey,proceed:()=>void,cancel:()=>void){
     this.wasInert=parent.inert;parent.inert=true;
     this.opener=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
-    this.element.className='settings-overlay confirm-overlay';
+    this.element.className='settings-overlay confirm-overlay'; backAction(this.element, cancel);
     const panel=document.createElement('section');panel.className='settings-panel purchase-panel confirm-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,title);
     const heading=document.createElement('h2');bindText(heading,title);
     const text=document.createElement('p');bindText(text,note);

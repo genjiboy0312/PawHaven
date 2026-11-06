@@ -1,3 +1,5 @@
+import { backAction } from '../../ui/BackNavigation';
+import { ConfirmPopup } from '../../ui/ConfirmPopup';
 import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../../settings/i18n';
 import type { GamePreferences } from '../../settings/GameSettings';
 import { Container, Graphics, Text, type DestroyOptions } from 'pixi.js';
@@ -100,6 +102,7 @@ export class PlayScene extends Scene {
   private readonly controls=new Map<ControlAction,ActionButton>();
   private readonly abort = new AbortController();
   private paused = false;
+  private leavePrompt?: ConfirmPopup;
   private suspended = false;
   private recoveryPopup?: RunRecoveryPopup;
   private recoverySince?: number;
@@ -134,7 +137,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); this.run.clearJumpInput(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: () => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: (leaving?: boolean) => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,playerCombat:map.playerCombat&&!!settings?.multiplayer,
@@ -259,6 +262,7 @@ export class PlayScene extends Scene {
       const leave=this.button('leaveRoom',()=>settings.multiplayer?.leave());leave.className='play-circle race-leave';
       this.hud.append(this.countdown,leave);
     }
+    backAction(this.hud, () => this.navigateBack());
     document.querySelector('#app')?.append(this.hud);
     const signal = this.abort.signal;
     const move = (event: PointerEvent): void => {
@@ -306,6 +310,16 @@ export class PlayScene extends Scene {
   private refreshGoals():void{
     if(this.settings?.multiplayer||!this.settings?.goals)return;
     this.goalDetails.replaceChildren(singleGoals(this.settings.map??'garden',this.completion?.goals??this.settings.goals(),this.completion?.newGoals));
+  }
+  private navigateBack(): void {
+    if (this.returned || this.destroyed || this.leavePrompt) return;
+    if (this.run.won) { this.back.click(); return; }
+    if (!this.settings?.multiplayer) { this.settings?.open(true); return; }
+    this.setPaused(true);
+    const close = () => { this.leavePrompt?.destroy(); this.leavePrompt = undefined; };
+    this.leavePrompt = new ConfirmPopup(this.hud, 'roomLeaveTitle', 'runAbandonNote', 'leaveRoom', () => {
+      close(); this.settings?.multiplayer?.leave();
+    }, () => { close(); this.setPaused(false); });
   }
   private act(kind: 'jump' | 'dash' | 'attack'): void {
     if (this.paused || this.suspended || this.recoveryPopup || this.run.won || !this.raceStarted) return;
@@ -531,6 +545,7 @@ export class PlayScene extends Scene {
     if (run.won) this.blur();
   }
   override destroy(options?: DestroyOptions): void {
+    this.leavePrompt?.destroy(); this.leavePrompt = undefined;
     this.rewardPanel?.destroy();
     if(!this.snakeFeedback.parent)this.snakeFeedback.destroy({children:true});
     this.standings?.destroy();

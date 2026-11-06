@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { petThumbnail } from '../animals/PetCatalog';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { createOutfit } from '../animals/OutfitState';
@@ -25,7 +26,7 @@ export class ParkProfilePopup {
   this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:undefined;
   this.blocked=Array.from(host.children).filter((el):el is HTMLElement=>el instanceof HTMLElement).map(element=>({element,inert:element.inert}));
   this.blocked.forEach(item=>{item.element.inert=true;});
-  const overlay=document.createElement('div');overlay.className='settings-overlay park-profile-overlay';this.overlay=overlay;
+  const overlay=document.createElement('div');overlay.className='settings-overlay park-profile-overlay';this.overlay=overlay; backAction(overlay, () => this.close());
   const panel=document.createElement('section');panel.className='settings-panel park-profile-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');bindAria(panel,'parkProfile');this.panel=panel;
   const title=document.createElement('h2');title.textContent=t('parkProfile');title.dataset.profileTitle='true';
   const close=document.createElement('button');close.type='button';close.className='settings-close';close.textContent='×';bindAria(close,'close');close.addEventListener('click',()=>this.close(),{signal});

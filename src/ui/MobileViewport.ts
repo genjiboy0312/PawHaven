@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { t } from '../settings/i18n';
 
 export async function enterLandscape():Promise<void>{
@@ -42,7 +43,7 @@ export function installMobileViewport(host:HTMLElement):()=>void{
     if(input.getAttribute('data-keyboard-chat')==='true')return;
     if(!['text','search','email','password','url','tel','number',''].includes(input.type))return;
     source=input;wasInert=host.inert;host.inert=true;
-    editor=document.createElement('section');editor.className='mobile-text-editor';editor.setAttribute('role','dialog');editor.setAttribute('aria-modal','true');editor.setAttribute('aria-label',t('textEntry'));
+    editor=document.createElement('section');editor.className='mobile-text-editor';backAction(editor,()=>close(false));editor.setAttribute('role','dialog');editor.setAttribute('aria-modal','true');editor.setAttribute('aria-label',t('textEntry'));
     const panel=document.createElement('div');panel.className='mobile-text-panel';
     const label=document.createElement('label');label.textContent=input.getAttribute('aria-label')||input.placeholder||t('textEntry');
     copy=document.createElement('input');copy.type=input.type;copy.value=input.value;copy.placeholder=input.placeholder;copy.enterKeyHint='done';copy.autocomplete=input.autocomplete;copy.inputMode=input.inputMode;

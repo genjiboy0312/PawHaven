@@ -280,10 +280,10 @@ export class Game {
           let completion = Promise.resolve();
           const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
-            open: () => this.settings?.open(true, {
+            open: (leaving = false) => this.settings?.open(true, {
               active: () => !this.disposed && commerce === runCommerce && this.scenes?.isCurrent(play) === true && play.inProgress,
               restart: () => launch(play, map), leave: () => lobby(true),
-            }), preferences: () => gameSettings.current, map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
+            }, leaving), preferences: () => gameSettings.current, map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
             sound: kind => { this.audio?.play(kind); if (kind !== 'coin' && gameSettings.current.vibration) navigator.vibrate?.(20); },
             boxCoins:runCommerce.boxCoinRewardsReady, rewards: runCommerce, complete: collected => { completion = Promise.resolve(runCommerce.completeRun(collected)); },
             record:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:()=>runRecords.goals(map),

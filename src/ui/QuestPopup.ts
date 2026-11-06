@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { bindText, onLanguageChange, t } from '../settings/i18n';
 import type { CommerceState } from '../shop/CommerceState';
 import { commerceStatus } from './CommerceStatus';
@@ -28,7 +29,7 @@ export class QuestPopup {
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     this.blocked = Array.from(host.children).filter((element): element is HTMLElement => element instanceof HTMLElement).map(element => ({ element, inert: element.inert }));
     this.blocked.forEach(item => { item.element.inert = true; }); this.pause(true);
-    const overlay = document.createElement('div'); overlay.className = 'settings-overlay'; this.overlay = overlay;
+    const overlay = document.createElement('div'); overlay.className = 'settings-overlay'; this.overlay = overlay; backAction(overlay, () => this.close());
     const panel = document.createElement('section'); panel.className = 'settings-panel quest-panel'; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-label', t('quest'));
     const heading = document.createElement('h2'); bindText(heading, 'quest');
     const close = document.createElement('button'); close.type = 'button'; close.className = 'settings-close'; close.textContent = '×'; close.setAttribute('aria-label', t('close'));

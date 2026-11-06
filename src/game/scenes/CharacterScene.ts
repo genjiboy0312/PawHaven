@@ -1,3 +1,4 @@
+import { backAction } from '../../ui/BackNavigation';
 import { itemIcon } from '../../ui/itemIcon';
 import { CharacterPresets, type CharacterPreset } from '../../animals/CharacterPresets';
 import { bindAria, bindText, onLanguageChange, t, type TextKey } from '../../settings/i18n';
@@ -93,6 +94,7 @@ export class CharacterScene extends Scene {
     this.saveFeedback.element.className = 'preset-feedback';
     this.panel.append(close, this.tabs, this.inventory, presets, this.saveFeedback.element);
     this.refreshPresets();
+    backAction(this.panel, () => close.click());
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = options.subscribe?.(() => this.refresh());
     this.localeOff = onLanguageChange(() => this.refreshPresets());

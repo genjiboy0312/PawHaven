@@ -1,3 +1,4 @@
+import { backAction } from '../../ui/BackNavigation';
 import type { DestroyOptions } from 'pixi.js';
 import { HOME_TABS, homeOptions, HomeState, clampPlacement, placementPoint, type PlaceableTab, type Placement, type HomeTab } from '../../home/HomeState';
 import { homeIcon, homeItemName } from '../../ui/homeIcon';
@@ -50,6 +51,7 @@ export class HomeScene extends Scene {
       window.addEventListener('blur', () => this.cancelDrag(), { signal: this.abort.signal });
       window.addEventListener('resize', () => this.cancelDrag(), { signal: this.abort.signal });
     }
+    backAction(this.panel, () => close.click());
     document.querySelector('#app')?.append(this.panel);
     this.unsubscribe = subscribe?.(() => { this.cancelDrag(false); this.render(); });
     this.localeOff = onLanguageChange(() => this.render()); this.render();

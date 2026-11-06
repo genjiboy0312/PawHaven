@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import {PARK_EMOTES,type ParkEmoteKind} from '../park/ParkModel';
 import {bindAria,bindText,type TextKey} from '../settings/i18n';
 
@@ -13,7 +14,7 @@ export class ParkEmoteMenu {
   const {signal}=this.abort;
   this.toggle.type='button';this.toggle.className='commerce-primary park-emote-toggle';this.toggle.textContent='♡';this.toggle.disabled=true;
   bindAria(this.toggle,'parkEmotes');this.toggle.setAttribute('aria-expanded','false');
-  this.element.className='settings-panel park-emote-menu';this.element.hidden=true;this.element.setAttribute('role','group');bindAria(this.element,'parkEmotes');
+  this.element.className='settings-panel park-emote-menu';this.element.hidden=true; backAction(this.element, () => this.close());this.element.setAttribute('role','group');bindAria(this.element,'parkEmotes');
   this.toggle.addEventListener('click',()=>{if(!this.enabled)return;this.setOpen(this.element.hidden!==false);},{signal});
   for(const kind of PARK_EMOTES){
    const button=document.createElement('button');button.type='button';button.className='commerce-primary';button.dataset.emote=kind;bindText(button,PARK_EMOTE_LABELS[kind]);

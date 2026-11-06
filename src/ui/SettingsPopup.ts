@@ -1,3 +1,4 @@
+import { backAction } from './BackNavigation';
 import { SingleRunMenu, type SingleRunContext } from './SingleRunMenu';
 import { ControlLayoutEditor } from './ControlLayoutEditor';
 import { AccountPanel } from './AccountPanel';
@@ -31,7 +32,7 @@ export class SettingsPopup {
   get opened(): boolean { return !!this.element; }
   constructor(private readonly store: SoundSettings, private readonly audio: SettingsAudio, private readonly pause: (paused: boolean) => void, private readonly game = new GameSettings(), private readonly applyGame: (preferences: GamePreferences) => void = () => undefined, private readonly account?: AccountService, private readonly installation?: AppInstall) {}
   openAccount(): void { this.tab='Account'; this.open(); }
-  open(playSound = true, singleRun?: SingleRunContext): void {
+  open(playSound = true, singleRun?: SingleRunContext, requestLeave = false): void {
     if (this.opened) return;
     const host = document.querySelector<HTMLElement>('#app');
     if (!host) return;
@@ -40,7 +41,7 @@ export class SettingsPopup {
     this.blocked = Array.from(host.children).filter((item): item is HTMLElement => item instanceof HTMLElement).map(element => ({ element, inert: element.inert }));
     for (const item of this.blocked) item.element.inert = true;
     this.pause(true); if (playSound) this.audio.play('click');
-    this.element = document.createElement('div'); this.element.className = 'settings-overlay';
+    this.element = document.createElement('div'); this.element.className = 'settings-overlay'; backAction(this.element, () => this.close());
     this.panel = document.createElement('section'); this.panel.className = 'settings-panel';
     this.panel.setAttribute('role', 'dialog'); this.panel.setAttribute('aria-modal', 'true'); bindAria(this.panel, 'settings');
     const heading = document.createElement('h2'); bindText(heading, 'settings');
@@ -64,6 +65,7 @@ export class SettingsPopup {
     }, { signal: this.abort.signal });
     if (singleRun?.active()) this.runMenu = new SingleRunMenu(this.panel, singleRun, () => this.close());
     this.render(); close.focus();
+    if (requestLeave) this.runMenu?.requestLeave();
   }
   private button(label: string, action: () => void, signal = this.abort!.signal): HTMLButtonElement {
     const button = document.createElement('button'); button.type = 'button'; button.textContent = label;

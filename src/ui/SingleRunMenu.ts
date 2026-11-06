@@ -25,6 +25,7 @@ export class SingleRunMenu {
     this.status.setAttribute('role','status'); this.status.hidden = true;
     this.element.append(this.status); parent.append(this.element);
   }
+  requestLeave(): void { this.confirm('leave'); }
   private confirm(action: 'restart' | 'leave'): void {
     if (this.disposed || this.busy || this.prompt || !this.context.active()) return;
     this.status.hidden = true;

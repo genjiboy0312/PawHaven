@@ -1,3 +1,4 @@
+import { backAction } from '../../ui/BackNavigation';
 import {accountLevelName} from '../../account/AccountProgress';
 import { Container,Text,type DestroyOptions } from 'pixi.js';
 import { Scene } from './Scene';
@@ -59,6 +60,7 @@ export class ParkScene extends Scene {
   this.participants=new ParkParticipants(pets,client.owner,id=>this.openProfile(id));
   this.world.position.set(-this.camera.x,-this.camera.y);
   this.hud.className='play-hud park-hud';
+  backAction(this.hud,()=>{if(this.choosing&&this.client.channel){this.choosing=false;this.signature='';this.refresh();}else this.onReturn();});
   this.header.className='park-header';this.status.className='park-status';this.status.setAttribute('role','status');
   this.characterButton.type='button';this.characterButton.className='commerce-primary park-character';bindText(this.characterButton,'character');
   this.characterButton.addEventListener('click',()=>{
