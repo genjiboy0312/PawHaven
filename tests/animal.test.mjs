@@ -1849,6 +1849,18 @@ test('Home drag/drop saves only on release, handles rotation/cancel, removal and
     assert.equal(home.remaining('Furniture', 4), 1); assert.equal(inventory.children[0].disabled, false);
     assert.equal(inventory.children[0].children.at(-1).textContent, '1');
     assert.equal(home.items.length, 2); assert.equal(map.objects.children.length, 2);
+    const [undo, redo] = panel.children[8].children;
+    assert.equal(undo.disabled, false); assert.equal(redo.disabled, true);
+    undo.dispatchEvent(new Event('click'));
+    assert.equal(home.items.length, 3); assert.equal(inventory.children[0].disabled, true);
+    assert.equal(inventory.children[0].children.at(-1).textContent, '0');
+    redo.dispatchEvent(new Event('click')); assert.equal(home.items.length, 2);
+    const active = layer.children.find(button => Number(button.getAttribute('data-placement')) === copy.id);
+    pointer(active, 'pointerdown', 21, copy.x, copy.y); pointer(active, 'pointermove', 21, .7, .8);
+    pointer(active, 'pointercancel', 21, .7, .8);
+    undo.dispatchEvent(new Event('click')); assert.equal(home.items.length, 3);
+    assert.ok(Math.abs(home.items.find(item => item.id === copy.id).x - .52) < .000001);
+    redo.dispatchEvent(new Event('click')); assert.equal(home.items.length, 2);
     scene.destroy({ children: true }); assert.equal(Texture.WHITE.destroyed, false);
     const config = { id: 'corgi', speed: 90, scale: 0.62, animations: { idle: { frames: [Texture.WHITE], fps: 3 } } };
     const lobby = new LobbyScene(config, undefined, true, undefined, undefined, undefined, { state: new HomeState(storage), textures, open() {} });

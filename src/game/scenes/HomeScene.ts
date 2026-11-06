@@ -1,3 +1,4 @@
+import { HomeHistory } from '../../home/HomeHistory';
 import { backAction } from '../../ui/BackNavigation';
 import type { DestroyOptions } from 'pixi.js';
 import { HOME_TABS, homeOptions, HomeState, clampPlacement, placementPoint, type PlaceableTab, type Placement, type HomeTab } from '../../home/HomeState';
@@ -11,6 +12,10 @@ import { Scene } from './Scene';
 import { SaveFeedback, type SaveAccount } from '../../ui/SaveFeedback';
 
 export class HomeScene extends Scene {
+  private readonly history: HomeHistory;
+  private readonly historyOff: () => void;
+  private readonly undo = document.createElement('button');
+  private readonly redo = document.createElement('button');
   private readonly map: LobbyMap;
   private readonly saveFeedback: SaveFeedback;
   private readonly placements = document.createElement('div');
@@ -27,7 +32,7 @@ export class HomeScene extends Scene {
   private viewWidth = 960;
   private viewHeight = 540;
   constructor(private readonly state: HomeState, onClose: () => void, textures?: HomeTextures, subscribe?: (callback: () => void) => () => void, account?: SaveAccount) {
-    super(); this.map = new LobbyMap(textures); this.addChild(this.map);
+    super(); this.history = new HomeHistory(state); this.map = new LobbyMap(textures); this.addChild(this.map);
     this.panel.className = 'home-screen'; bindAria(this.panel, 'home');
     const title = document.createElement('h2'); title.className = 'shop-title'; bindText(title, 'home');
     const close = document.createElement('button'); close.type = 'button'; close.className = 'character-close'; close.textContent = '×'; bindAria(close, 'close');
@@ -46,14 +51,22 @@ export class HomeScene extends Scene {
     this.saveFeedback = new SaveFeedback(account, 'homeSavedDevice');
     this.saveFeedback.element.className = 'home-save-feedback';
     this.saveFeedback.showSave();
-    this.panel.append(title, close, drawer, this.tabs, this.inventory, hint, this.placements, this.remove, this.saveFeedback.element);
+    const history = document.createElement('div'); history.className = 'home-history';
+    this.undo.type = this.redo.type = 'button';
+    this.undo.className = 'commerce-primary home-undo'; this.redo.className = 'commerce-primary home-redo';
+    bindText(this.undo, 'homeUndo'); bindText(this.redo, 'homeRedo');
+    this.undo.addEventListener('click', () => this.restoreHistory(false), { signal: this.abort.signal });
+    this.redo.addEventListener('click', () => this.restoreHistory(true), { signal: this.abort.signal });
+    history.append(this.undo, this.redo);
+    this.historyOff = this.history.subscribe(() => this.refreshHistory()); this.refreshHistory();
+    this.panel.append(title, close, drawer, this.tabs, this.inventory, hint, this.placements, this.remove, history, this.saveFeedback.element);
     if (typeof window !== 'undefined') {
       window.addEventListener('blur', () => this.cancelDrag(), { signal: this.abort.signal });
       window.addEventListener('resize', () => this.cancelDrag(), { signal: this.abort.signal });
     }
     backAction(this.panel, () => close.click());
     document.querySelector('#app')?.append(this.panel);
-    this.unsubscribe = subscribe?.(() => { this.cancelDrag(false); this.render(); });
+    this.unsubscribe = subscribe?.(() => { this.cancelDrag(false); this.history.reconcile(); this.render(); });
     this.localeOff = onLanguageChange(() => this.render()); this.render();
   }
   private render(): void {
@@ -81,8 +94,8 @@ export class HomeScene extends Scene {
       button.addEventListener('click', () => {
         this.cancelDrag(false);
         if (this.tab === 'Furniture' || this.tab === 'Etc') {
-          const id = this.state.place(this.tab, index); if (id === undefined) return; this.selected = id;
-        } else this.state.select(this.tab, index);
+          this.edit(() => { const id = this.state.place(this.tab as PlaceableTab, index); if (id !== undefined) this.selected = id; });
+        } else this.edit(() => { this.state.select(this.tab as 'Background' | 'Floor', index); });
         this.render();
       }); this.inventory.append(button);
     }
@@ -131,7 +144,7 @@ export class HomeScene extends Scene {
       });
       button.addEventListener('pointerup', event => {
         if (!this.drag || this.drag.pointer !== event.pointerId) return;
-        const { id, preview } = this.drag; this.state.move(id, preview.x, preview.y); this.cancelDrag();
+        const { id, preview } = this.drag; this.edit(() => { this.state.move(id, preview.x, preview.y); }); this.cancelDrag();
       });
       for (const name of ['pointercancel', 'lostpointercapture'] as const) button.addEventListener(name, event => { if (this.drag?.pointer === event.pointerId) this.cancelDrag(); });
       button.addEventListener('click', () => { if (this.drag) return; this.selected = id; this.drawMap(); });
@@ -140,7 +153,7 @@ export class HomeScene extends Scene {
         event.preventDefault(); this.cancelDrag(false); this.selected = id;
         if (event.key === 'Delete' || event.key === 'Backspace') { this.removeSelected(); return; }
         const point = this.state.items.find(item => item.id === id)!;
-        this.state.move(id, point.x + (event.key === 'ArrowRight' ? 16 / 960 : event.key === 'ArrowLeft' ? -16 / 960 : 0), point.y + (event.key === 'ArrowDown' ? 16 / 540 : event.key === 'ArrowUp' ? -16 / 540 : 0));
+        this.edit(() => { this.state.move(id, point.x + (event.key === 'ArrowRight' ? 16 / 960 : event.key === 'ArrowLeft' ? -16 / 960 : 0), point.y + (event.key === 'ArrowDown' ? 16 / 540 : event.key === 'ArrowUp' ? -16 / 540 : 0)); });
         this.drawMap();
       });
       this.placements.append(button);
@@ -149,8 +162,18 @@ export class HomeScene extends Scene {
   }
   private removeSelected(): void {
     this.cancelDrag(false);
-    if (this.selected !== undefined) this.state.remove(this.selected);
+    if (this.selected !== undefined) this.edit(() => { this.state.remove(this.selected!); });
     this.selected = undefined; this.render();
+  }
+  private refreshHistory(): void { this.undo.disabled = !this.history.canUndo; this.redo.disabled = !this.history.canRedo; }
+  private edit(action: () => void): void { if (this.history.apply(action)) this.saveFeedback.showSave(); }
+  private restoreHistory(redo: boolean): void {
+    this.cancelDrag(false);
+    const available = redo ? this.history.canRedo : this.history.canUndo; if (!available) return;
+    if (redo ? this.history.redo() : this.history.undo()) this.saveFeedback.showSave();
+    else this.saveFeedback.showNotice('homeHistoryUnavailable');
+    if (!this.state.items.some(item => item.id === this.selected)) this.selected = undefined;
+    this.render();
   }
   private cancelDrag(redraw = true): void {
     const drag = this.drag; this.drag = undefined;
@@ -158,5 +181,5 @@ export class HomeScene extends Scene {
     if (redraw) this.drawMap();
   }
   resize(width: number, height: number): void { this.cancelDrag(false); this.viewWidth = width; this.viewHeight = height; this.drawMap(); }
-  override destroy(options?: DestroyOptions): void { this.cancelDrag(false); this.unsubscribe?.(); this.saveFeedback.destroy(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); }
+  override destroy(options?: DestroyOptions): void { this.cancelDrag(false); this.unsubscribe?.(); this.historyOff(); this.history.destroy(); this.saveFeedback.destroy(); this.localeOff(); this.abort.abort(); this.panel.remove(); super.destroy(options); }
 }

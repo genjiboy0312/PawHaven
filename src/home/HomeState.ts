@@ -6,6 +6,7 @@ export type HomeLook = Record<'Background' | 'Floor', number>;
 export const HOME_STORAGE_KEY = 'pawhaven.home.v1';
 export const SKY_COLORS = ['#edf0df', '#dce8ef', '#f0ded5', '#e4dff0', '#f2dae7'];
 export const FLOOR_COLORS = ['#c4d6a7', '#d5c6a6', '#a99f90', '#cfc3d8', '#d5bd94'];
+export interface HomeSnapshot { look: HomeLook; items: HomeItem[] }
 export interface Placement { x: number; y: number }
 export interface HomeItem extends Placement { id: number; tab: PlaceableTab; option: number }
 export function clampPlacement(x: number, y: number): Placement {
@@ -66,9 +67,28 @@ export class HomeState {
     } catch { /* Defaults work without storage. */ }
     this.reconcileOwnership();
   }
+  snapshot(): HomeSnapshot { return { look: { ...this.value }, items: this.objects.map(item => ({ ...item })) }; }
+  /** Restore an editor snapshot without minting inventory or reusing placement IDs. */
+  restore(snapshot: HomeSnapshot): boolean {
+    for (const tab of ['Background', 'Floor'] as const) {
+      const option = snapshot.look[tab];
+      if (option !== this.value[tab] && !(tab === 'Background' ? this.backgroundAvailable(option) : this.floorAvailable(option))) return false;
+    }
+    const counts = new Map<string, number>();
+    for (const item of snapshot.items) {
+      const key = item.tab + ':' + item.option, count = (counts.get(key) ?? 0) + 1; counts.set(key, count);
+      // Preserve hidden legacy placements, but never restore more than owned stock.
+      const existing = this.objects.filter(current => current.tab === item.tab && current.option === item.option).length;
+      if (count > Math.max(existing, this.owned(item.tab, item.option))) return false;
+    }
+    this.value = { ...snapshot.look }; this.objects = snapshot.items.map(item => ({ ...item }));
+    for (const item of this.objects) this.nextId = Math.max(this.nextId, item.id + 1);
+    this.save(); return true;
+  }
   select(tab: 'Background' | 'Floor', option: number): boolean {
     if (!['Background', 'Floor'].includes(tab) || !Number.isInteger(option) || option < 0 || option >= homeOptions[tab]) return false;
     if (tab === 'Background' && !this.backgroundAvailable(option)||tab==='Floor'&&!this.floorAvailable(option)) return false;
+    if (this.value[tab] === option) return true;
     this.value[tab] = option; this.save(); return true;
   }
   place(tab: PlaceableTab, option: number): number | undefined {
@@ -80,7 +100,9 @@ export class HomeState {
   move(id: number, x: number, y: number): boolean {
     const item = this.objects.find(item => item.id === id);
     if (!item || !Number.isFinite(x) || !Number.isFinite(y)) return false;
-    Object.assign(item, clampPlacement(x, y)); this.save(); return true;
+    const point = clampPlacement(x, y);
+    if (item.x === point.x && item.y === point.y) return true;
+    Object.assign(item, point); this.save(); return true;
   }
   remove(id: number): boolean {
     const index = this.objects.findIndex(item => item.id === id);
