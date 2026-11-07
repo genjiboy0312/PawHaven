@@ -195,3 +195,89 @@ test('the flat sweep warns and collapses adjacent pairs, and running alone can e
   assert.equal(run.jumpSequence, 0);
  }
 });
+
+test('Multiplayer Coin Rush shares a 30-second deadline and preserves independent, idempotent pickup masks',async()=>{
+ const sql=await readFile(new URL('../supabase/migrations/202611080041_multiplayer_coin_rush.sql',import.meta.url),'utf8');
+ await db.exec(sql);
+ const {state,id,round}=await start('coinRush',3);
+ assert.equal(state.coinRushReady,true);
+ assert.equal(state.room.endsAt-state.room.startsAt,30000);
+ const pose=(mask,time,extra={})=>({round,x:120,height:0,direction:1,action:'idle',coinMask:mask,coinTime:time,...extra});
+ assert.ok((await cmd(0,'pose',id,pose(1,0))).room.racers.every(r=>r.coinMask===0));
+ await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds',ends_at=clock_timestamp()+interval '20 seconds' where id=$1",[id]);
+ await assert.rejects(cmd(3,'pose',id,pose(1,9000)),/not_a_member/);
+ await assert.rejects(cmd(0,'pose',id,pose(1,9000,{round:users[3]})),/stale_round/);
+ await assert.rejects(cmd(0,'pose',id,pose(4096,9000)),/invalid_coin_rush_score/);
+ await assert.rejects(cmd(0,'pose',id,pose(2,22000)),/invalid_coin_rush_score/);
+ await assert.rejects(cmd(0,'finish',id,{round}),/invalid_finish/);
+ await cmd(0,'pose',id,pose(1,9000,{user:users[1]}));
+ await cmd(0,'pose',id,pose(4,9100));
+ const mine=(room,who)=>room.racers.find(r=>r.id===users[who]);
+ let room=(await cmd(1,'sync',id)).room;
+ assert.equal(mine(room,0).coinMask,5);assert.equal(mine(room,1).coinMask,0);
+ room=(await cmd(1,'pose',id,pose(1,9300))).room;
+ assert.equal(mine(room,1).coinMask,1);assert.equal(mine(room,0).coinMask,5);
+ room=(await cmd(0,'pose',id,pose(4095,9500))).room;
+ const first=mine(room,0).coinFinishMs;assert.ok(first>=9500&&first<10000);
+ room=(await cmd(0,'pose',id,pose(4095,9800))).room;
+ assert.equal(mine(room,0).coinFinishMs,first);
+ assert.equal(room.phase,'playing');
+ await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '30.25 seconds',ends_at=clock_timestamp()-interval '.25 seconds' where id=$1",[id]);
+ room=(await cmd(1,'pose',id,pose(3,29900))).room;
+ assert.equal(mine(room,1).coinMask,3);assert.equal(room.phase,'playing');
+ await db.query("update public.mp_rooms set ends_at=clock_timestamp()-interval '2 seconds' where id=$1",[id]);
+ room=(await cmd(1,'pose',id,pose(4095,29900))).room;
+ assert.equal(room.phase,'results');assert.equal(mine(room,1).coinMask,3);
+ assert.equal((await cmd(0,'pose',id,pose(4095,9500))).room.phase,'results');
+ assert.ok(room.racers.every(r=>r.time===null));
+ await db.exec(sql);
+ assert.equal((await cmd(2,'sync',id)).room.phase,'results');
+});
+
+test('all remaining Coin Rush players can finish early without qualifying for racing rewards',async()=>{
+ const {id,round}=await start('coinRush',2);
+ await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '9 seconds',ends_at=clock_timestamp()+interval '21 seconds' where id=$1",[id]);
+ const pose={round,x:120,height:0,direction:1,coinMask:4095,coinTime:8900};
+ assert.equal((await cmd(0,'pose',id,pose)).room.phase,'playing');
+ const room=(await cmd(1,'pose',id,pose)).room;
+ assert.equal(room.phase,'results');assert.ok(room.racers.every(r=>r.coinMask===4095&&r.coinFinishMs!==null));
+ await db.exec('set role authenticated');
+ try{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[users[0]]);
+  await assert.rejects(db.query("select public.economy_command('run_start',gen_random_uuid(),'{\"map\":\"coinRush\"}'::jsonb)"),/invalid_run_map/);
+  const result=(await db.query("select public.economy_command('race_reward',gen_random_uuid(),$1::jsonb) result",[JSON.stringify({room:id,round,collected:12})])).rows[0].result;
+  assert.equal(result.outcome,'run_rejected');
+ }finally{await db.exec('reset role');}
+ assert.equal((await db.query('select count(*) as count from public.economy_race_rewards where room_id=$1',[id])).rows[0].count,0);
+});
+
+test('two RoomClients send score updates through the normal pose path and recover a lost acknowledgment',async()=>{
+ const {RoomClient}=await importTs('../src/multiplayer/RoomClient.ts',import.meta.url);
+ const {id}=await start('coinRush',2);
+ await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '9 seconds',ends_at=clock_timestamp()+interval '21 seconds' where id=$1",[id]);
+ let loseAck=false,packets=[];
+ const a=new RoomClient(users[0],async(action,room,payload)=>{
+  if(action==='pose')packets.push(payload.coinMask);
+  const state=await cmd(0,action,room,payload);
+  if(loseAck&&action==='pose'){loseAck=false;throw Error('lost response');}
+  return state;
+ });
+ const b=new RoomClient(users[1],(action,room,payload)=>cmd(1,action,room,payload));
+ const pose=()=>({x:120,height:0,direction:1,action:'idle',progress:0,vx:0});
+ // Drive polls explicitly so the fixture's single database session stays serialized.
+ for(const client of [a,b]){client.schedule=()=>{};client.pose=pose;}
+ try{
+  await a.command('sync',{},id);await b.command('sync',{},id);
+  a.reportCollection(1,8950);loseAck=true;await a.poll();
+  assert.equal(a.reconnecting,true);
+  await a.poll();
+  assert.equal(a.room.racers.find(r=>r.id===a.owner).coinMask,1);
+  await a.poll();assert.deepEqual(packets,[1,undefined]);
+  await b.poll();assert.equal(b.room.racers.find(r=>r.id===b.owner).coinMask,0);
+  b.reportCollection(1,9000);await b.poll();
+  assert.ok(b.room.racers.every(r=>r.coinMask===1));
+  a.reportCollection(3,9050);await a.poll();
+  assert.equal(a.room.racers.find(r=>r.id===a.owner).coinMask,3);
+  assert.equal(a.room.racers.find(r=>r.id===b.owner).coinMask,1);
+ }finally{a.destroy(false);b.destroy(false);}
+});

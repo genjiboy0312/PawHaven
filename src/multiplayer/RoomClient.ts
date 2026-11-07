@@ -3,14 +3,15 @@ import type { AnimalAction } from '../animals/AnimalConfig';
 import type { CharacterPreset } from '../animals/CharacterPresets';
 import type { CourseId } from '../game/CourseCatalog';
 import { COURSES, courseMode } from '../game/CourseCatalog';
+import { COIN_RUSH_FULL_MASK, COIN_RUSH_MAX_MS } from '../game/CourseCoins';
 import { prepareRoomAppearance } from './RoomAppearance';
 import type { RoomStream, StreamPose, LobbyStream } from './RoomStream';
 export interface Pose { x: number; height: number; direction: number; action: AnimalAction; progress: number; vx: number }
 export interface RoomMember { id: string; name: string; level?:number; look: CharacterPreset; ready: boolean; returned: boolean; pose: Pose }
 export type RoomVisibility = 'public' | 'invite';
 export interface RoomSummary { id: string; name: string; map: CourseId; phase: 'waiting'|'countdown'|'playing'|'results'; count: number; visibility?:RoomVisibility }
-export interface Room extends Omit<RoomSummary,'count'> { host: string; round: string|null; startsAt: number|null; endsAt: number|null; members: RoomMember[]; racers: { id:string;name:string;time:number|null;left:boolean;eliminatedMs?:number|null;winner?:boolean }[] }
-export interface RoomSnapshot { room:Room|null; rooms:RoomSummary[]; now:number; privateRoomsReady?:boolean; survivalReady?:boolean; terracesReady?:boolean }
+export interface Room extends Omit<RoomSummary,'count'> { host: string; round: string|null; startsAt: number|null; endsAt: number|null; members: RoomMember[]; racers: { id:string;name:string;time:number|null;left:boolean;eliminatedMs?:number|null;winner?:boolean;coinMask?:number;coinFinishMs?:number|null }[] }
+export interface RoomSnapshot { room:Room|null; rooms:RoomSummary[]; now:number; privateRoomsReady?:boolean; survivalReady?:boolean; terracesReady?:boolean; coinRushReady?:boolean }
 export const RACE_SYNC_MS=100;
 type Transport = (action:string,room:string|null,payload:Record<string,unknown>,signal:AbortSignal)=>Promise<unknown>;
 export function roomTransport(client: SupabaseClient, owner:string,saveLook?:()=>Promise<void>):Transport {
@@ -30,6 +31,7 @@ export class RoomClient {
   rejection:''|'already_in_room'|'room_closed'|'room_unavailable'|'auth'='';
   pose?:()=>Pose;
   private finishPose?:Pose;
+  private collectionReport?: { round: string; coinMask: number; coinTime: number };
   private needsSync=false;
   notice:''|'restored'|'removed'|'round'='';
   recoverySerial=0;
@@ -52,7 +54,13 @@ export class RoomClient {
   constructor(readonly owner:string,private readonly transport:Transport,private readonly stream?:RoomStream,private readonly lobby?:LobbyStream){}
   get room(){return this.snapshot.room;}
   get terracesReady(){return this.snapshot.terracesReady===true;}
-  canSelectMap(map:CourseId):boolean {return COURSES[map].multiplayer && (map==='terraces'?this.terracesReady:courseMode(map)!=='survival'||this.survivalReady);}
+  get coinRushReady() { return this.snapshot.coinRushReady === true; }
+  canSelectMap(map: CourseId): boolean {
+    if (!COURSES[map].multiplayer) return false;
+    if (map === 'coinRush') return this.coinRushReady;
+    if (map === 'terraces') return this.terracesReady;
+    return courseMode(map) !== 'survival' || this.survivalReady;
+  }
   get survivalReady(){return this.snapshot.survivalReady===true;}
   get privateRoomsReady(){return this.snapshot.privateRoomsReady===true;}
   get reconnecting(){return this.needsSync;}
@@ -117,6 +125,21 @@ export class RoomClient {
     if(this.closed||this.needsSync||this.error||!this.room?.startsAt||this.serverTime<this.room.startsAt||!['countdown','playing'].includes(this.room.phase))return;
     this.closeStream?.flush?.();this.startPosePending=true;this.schedule();
   }
+  reportCollection(coinMask: number, coinTime: number): void {
+    const room = this.room;
+    if (this.closed || room?.map !== 'coinRush' || !room.round || room.phase === 'results') return;
+    if (!Number.isInteger(coinMask) || coinMask < 1 || coinMask > COIN_RUSH_FULL_MASK ||
+        !Number.isInteger(coinTime) || coinTime < 0 || coinTime > COIN_RUSH_MAX_MS) return;
+    const previous = this.collectionReport?.round === room.round ? this.collectionReport : undefined;
+    this.collectionReport = { round: room.round, coinMask: coinMask | (previous?.coinMask ?? 0), coinTime };
+    this.schedule();
+  }
+  private get pendingCollection() {
+    const room = this.room, report = this.collectionReport;
+    if (!report || room?.map !== 'coinRush' || room.round !== report.round || room.phase === 'results') return;
+    const saved = room.racers.find(racer => racer.id === this.owner)?.coinMask ?? 0;
+    if (report.coinMask & ~saved) return report;
+  }
   private async poll(){
     if(this.closed||this.busy||this.work)return;
     if(this.backgrounded||typeof document!=='undefined'&&document.hidden)return;
@@ -127,7 +150,7 @@ export class RoomClient {
     if(this.finishPose&&room?.phase==='playing'&&!room.racers.find(r=>r.id===this.owner)?.time){await this.submitFinish();return;}
     const moving=room&&this.pose&&(room.phase==='playing'||room.phase==='countdown'&&room.startsAt!==null&&this.serverTime>=room.startsAt)&&!this.needsSync;
     this.startPosePending=false;
-    await this.send(moving?'pose':room?'sync':'list',moving?{...this.pose!(),round:room.round}:{});
+    await this.send(moving?'pose':room?'sync':'list',moving?{...this.pose!(),round:room.round,...this.pendingCollection}:{});
   }
   async command(action:string,payload:Record<string,unknown>={},roomId?:string):Promise<boolean>{
     if(this.closed||this.busy||(this.needsSync&&!['sync','list'].includes(action)))return false;
@@ -148,11 +171,19 @@ export class RoomClient {
         const data=await this.transport(action,roomId??this.room?.id??null,payload,signal) as RoomSnapshot;
         if(this.closed||revision!==this.revision)return false;
         if(!data||!Number.isFinite(data.now)||!Array.isArray(data.rooms)||data.rooms.length>80||
+          (data.coinRushReady!==undefined&&data.coinRushReady!==true)||
           (data.terracesReady!==undefined&&data.terracesReady!==true)||
           (data.survivalReady!==undefined&&data.survivalReady!==true)||
           (data.privateRoomsReady!==undefined&&data.privateRoomsReady!==true)||
           (data.room && (data.room.visibility!==undefined&&!['public','invite'].includes(data.room.visibility)||!Array.isArray(data.room.members)||data.room.members.length>4||!Object.hasOwn(COURSES,data.room.map)||!COURSES[data.room.map].multiplayer)))throw Error('invalid_room');
+        if (data.room?.map === 'coinRush' && (data.coinRushReady !== true || !Array.isArray(data.room.racers) ||
+          data.room.racers.length > 4 || data.room.racers.some(racer =>
+            !Number.isInteger(racer.coinMask) || racer.coinMask! < 0 || racer.coinMask! > COIN_RUSH_FULL_MASK ||
+            (racer.coinMask === COIN_RUSH_FULL_MASK
+              ? !Number.isInteger(racer.coinFinishMs) || racer.coinFinishMs! < 0 || racer.coinFinishMs! > COIN_RUSH_MAX_MS
+              : racer.coinFinishMs !== null)))) throw Error('invalid_coin_rush_score');
         const previous=this.room;
+        if (data.room?.round !== previous?.round || data.room?.phase === 'results') this.collectionReport = undefined;
         if(previous&&!data.room&&action!=='leave')this.notice='removed';
         else if(this.needsSync&&previous&&data.room&&previous.round&&previous.round!==data.room.round)this.notice='round';
         else if(this.needsSync&&data.room&&data.room.id===previous?.id)this.notice='restored';
@@ -179,7 +210,7 @@ export class RoomClient {
   private schedule(){
     clearTimeout(this.timer);if(this.closed||this.busy||this.backgrounded||(typeof document!=='undefined'&&document.hidden))return;
     const racing=this.pose&&['countdown','playing'].includes(this.room?.phase??'');
-    const delay=racing?Math.max(16,(this.directConnected?800:RACE_SYNC_MS)-(performance.now()-this.requestStarted)):this.room?(this.lobbyConnected?600:300):1200;
+    const delay=racing?Math.max(16,(this.directConnected && !this.pendingCollection ? 800 : RACE_SYNC_MS)-(performance.now()-this.requestStarted)):this.room?(this.lobbyConnected?600:300):1200;
     this.timer=setTimeout(()=>{void this.poll();},this.error?2500:this.needsSync||this.startPosePending?0:this.roomRefresh?30:delay);
   }
   async finish(pose:Pose){

@@ -25,7 +25,7 @@ export class PlayMenuPopup {
   private blocked:{element:HTMLElement;inert:boolean}[]=[]; private previousFocus?:HTMLElement;
   private name='';private map:CourseId='garden';
   private visibility:RoomVisibility='public';
-  private privacyReady=false;private survivalReady=false;private terracesReady=false;private createLocked=false;
+  private privacyReady=false;private survivalReady=false;private terracesReady=false;private coinRushReady=false;private createLocked=false;
   private singleMap:CourseId='garden';
   private signature='';
   private notice?:TextKey;
@@ -112,7 +112,7 @@ export class PlayMenuPopup {
       this.launching=true;this.options.race(room,client!);this.close(true);return;
     }
     if(this.page==='create'&&room)this.page='multi';
-    if(this.page==='create'&&!room&&!client?.error&&this.privacyReady===(client?.privateRoomsReady===true)&&this.survivalReady===(client?.survivalReady===true)&&this.terracesReady===(client?.terracesReady===true)&&this.createLocked===(this.busy||!!client?.busy||!!client?.reconnecting))return;
+    if(this.page==='create'&&!room&&!client?.error&&this.privacyReady===(client?.privateRoomsReady===true)&&this.survivalReady===(client?.survivalReady===true)&&this.terracesReady===(client?.terracesReady===true)&&this.coinRushReady===(client?.coinRushReady===true)&&this.createLocked===(this.busy||!!client?.busy||!!client?.reconnecting))return;
     if(this.roomEvent&&this.roomEvent.until<Date.now())this.roomEvent=undefined;
     const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
@@ -235,7 +235,7 @@ export class PlayMenuPopup {
       this.refreshMapPicker();
     };
     const mode=courseMode(single?this.singleMap:room!.map);
-    this.pickerModes=new GameModeTabs(mode,renderChoices,single ? GAME_MODES : undefined);renderChoices(mode);
+    this.pickerModes=new GameModeTabs(mode,renderChoices,single || client?.coinRushReady ? GAME_MODES : undefined);renderChoices(mode);
     const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close,this.pickerModes.element,choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;backAction(overlay,()=>{if(!this.options.rooms?.busy)this.closeMapPicker();});
     panel.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.closeMapPicker();return;}
@@ -267,7 +267,7 @@ export class PlayMenuPopup {
     this.footer.classList.remove('room-menu-footer');
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
     if(this.closeButton){const back=this.page!=='mode';this.closeButton.hidden=this.page==='multi'||this.page==='single';this.closeButton.className='settings-close'+(back?' play-menu-back':'');this.closeButton.textContent=back?'←':'×';bindAria(this.closeButton,back?'back':'close');this.closeButton.disabled=this.closeButton.hidden||this.busy||!!this.options.rooms?.busy;this.closeButton.setAttribute('data-recovery-control',String(back));}
-    root.replaceChildren();const client=this.options.rooms,room=client?.room;this.privacyReady=client?.privateRoomsReady===true;this.survivalReady=client?.survivalReady===true;this.terracesReady=client?.terracesReady===true;this.createLocked=this.busy||!!client?.busy||!!client?.reconnecting;
+    root.replaceChildren();const client=this.options.rooms,room=client?.room;this.privacyReady=client?.privateRoomsReady===true;this.survivalReady=client?.survivalReady===true;this.terracesReady=client?.terracesReady===true;this.coinRushReady=client?.coinRushReady===true;this.createLocked=this.busy||!!client?.busy||!!client?.reconnecting;
     const chatRoom=this.page==='multi'&&room?.phase==='waiting'?room:undefined;
     if(this.chat?.roomId!==chatRoom?.id){this.chat?.destroy();this.chat=undefined;}
     if(chatRoom&&this.options.roomChat&&!this.chat){this.chat=new RoomChatPanel(chatRoom.id,this.options.roomChat(chatRoom));this.panel?.insertBefore(this.chat.element,this.footer);}
@@ -292,7 +292,7 @@ export class PlayMenuPopup {
       this.createModes=new GameModeTabs(courseMode(this.map),mode=>{
         const first=(Object.keys(COURSES) as CourseId[]).find(id=>COURSES[id].multiplayer&&courseMode(id)===mode);
         if(first){this.map=first;this.render();this.createModes?.focus(mode);}
-      });
+      }, client.coinRushReady ? GAME_MODES : undefined);
       input.addEventListener('input',()=>{this.name=input.value;});root.append(input,access,hint,this.createModes.element,this.maps(map=>{this.map=map;this.render();},this.map));
       this.footer.append(create);this.footer.hidden=false;
     }else if(room){

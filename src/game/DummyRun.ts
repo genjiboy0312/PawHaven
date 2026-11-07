@@ -126,8 +126,10 @@ export class DummyRun {
       const step = Math.min(remaining, 1 / 120);
       remaining -= step;
       if (this.won) { this.victoryTime += step; if (this.exitTime >= 0) this.exitTime += step; continue; }
-      this.elapsed += step;
       this.enemyTime=Number.isFinite(enemyTime)?Math.max(0,enemyTime!-remaining):enemyStart+seconds-remaining;
+      this.elapsed = this.collectionSeconds && Number.isFinite(enemyTime)
+        ? Math.max(this.elapsed, this.enemyTime)
+        : this.elapsed + step;
       if (this.step(step, input)) return;
     }
   }

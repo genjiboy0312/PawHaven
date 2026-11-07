@@ -2,6 +2,9 @@ import { Sprite } from 'pixi.js';
 import { AnimalAnimationController } from '../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import type { Room } from '../multiplayer/RoomClient';
+import type { GameMode } from '../game/CourseCatalog';
+import { COIN_RUSH_TOTAL } from '../game/CourseCoins';
+import { coinRushScore, compareCoinRushScores } from '../multiplayer/CoinRushRanking';
 import { t } from '../settings/i18n';
 import type { CommerceState } from '../shop/CommerceState';
 import { RunRewardPanel } from './RunRewardPanel';
@@ -17,20 +20,37 @@ export class RacePodium {
   private bounds={x:0,y:-150,width:200,height:150};
   private readonly wasInert:boolean;
   private rewardPanel?: RunRewardPanel;
-  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void,coins?:{collected:number;total:number},rewards?:CommerceState,survival=false){
+  constructor(racers:Room['racers'],members:Room['members'],owner:string,pets:AnimalConfig[],private readonly hud:HTMLElement,onReturn:()=>void,coins?:{collected:number;total:number},rewards?:CommerceState,mode:GameMode='race'){
+    const survival=mode==='survival',collection=mode==='collection';
     this.wasInert=hud.inert;hud.inert=true;
     this.element.className='race-podium-overlay';
     const panel=document.createElement('section');panel.className='settings-panel race-podium';
-    panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label',t('raceResults'));
-    const title=document.createElement('h2');title.textContent=t(survival?'survivalWinner':'racePodiumTitle');panel.append(title);
-    const sorted=[...racers].sort((a,b)=>survival?Number(!!b.winner)-Number(!!a.winner)||Number(a.left)-Number(b.left)||(b.time??b.eliminatedMs??0)-(a.time??a.eliminatedMs??0):(a.time??Infinity)-(b.time??Infinity));
-    const winner=sorted.find(r=>survival?r.winner:r.time!==null);
+    panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label',t(collection?'coinRushResults':'raceResults'));
+    const title=document.createElement('h2');title.textContent=t(collection?'coinRushResults':survival?'survivalWinner':'racePodiumTitle');panel.append(title);
+    const collectionScore=(racer:Room['racers'][number])=>({score:coinRushScore(racer.coinMask),time:racer.coinFinishMs??null});
+    const compareCollection=(a:Room['racers'][number],b:Room['racers'][number])=>
+      Number(a.left)-Number(b.left)||compareCoinRushScores(collectionScore(a),collectionScore(b));
+    const collectionText=(racer:Room['racers'][number])=>{
+      const {score,time}=collectionScore(racer);
+      return `${score} / ${COIN_RUSH_TOTAL}${time===null?'':' · '+(time/1000).toFixed(3)+'s'}`;
+    };
+    const sorted=[...racers].sort((a,b)=>{
+      if(collection)return compareCollection(a,b)||a.id.localeCompare(b.id);
+      if(survival)return Number(!!b.winner)-Number(!!a.winner)||Number(a.left)-Number(b.left)||(b.time??b.eliminatedMs??0)-(a.time??a.eliminatedMs??0);
+      return (a.time??Infinity)-(b.time??Infinity);
+    });
+    const winner=sorted.find(r=>collection?!r.left:survival?r.winner:r.time!==null);
+    const sharedFirst=winner&&(collection?sorted.filter(r=>compareCollection(winner,r)===0).length>1:survival&&racers.filter(r=>r.winner).length>1);
     if(winner){
       const hero=document.createElement('div');hero.className='race-winner';hero.setAttribute('data-self',String(winner.id===owner));
-      const place=document.createElement('strong');place.className='race-winner-place';place.textContent=survival&&racers.filter(r=>r.winner).length>1?t('survivalTied'):'1st';
+      const place=document.createElement('strong');place.className='race-winner-place';place.textContent=sharedFirst?t('survivalTied'):'1st';
       this.canvas.width=480;this.canvas.height=280;this.canvas.setAttribute('aria-hidden','true');
       const name=document.createElement('strong');name.className='race-winner-name';name.textContent=winner.name;
       hero.append(place,this.canvas,name);panel.append(hero);
+      if(collection){
+        const score=document.createElement('p');score.className='course-coin-summary coin-amount';
+        score.textContent=collectionText(winner);panel.append(score);
+      }
       const member=members.find(m=>m.id===winner.id),original=pets.find(p=>p.id===member?.look.petId);
       if(original){
         const config={...original,wardrobe:original.wardrobe&&member?{...original.wardrobe,outfit:{...member.look.outfit}}:undefined};
@@ -49,19 +69,25 @@ export class RacePodium {
     const list=document.createElement('div');list.className='race-podium-list';list.setAttribute('role','list');
     let place=0,last:number|null=null;
     sorted.forEach((racer,index)=>{
-      if(racer.time!==null){if(racer.time!==last)place=index+1;last=racer.time;}
+      if(collection){
+        const previous=sorted[index-1];
+        if(!previous||compareCollection(previous,racer)!==0)place=index+1;
+      }
+      if(!collection&&racer.time!==null){if(racer.time!==last)place=index+1;last=racer.time;}
       if(racer.id===winner?.id)return;
       const row=document.createElement('div');row.className='race-result-row';row.setAttribute('role','listitem');row.setAttribute('data-self',String(racer.id===owner));
-      const rank=document.createElement('span');rank.className='race-place';rank.textContent=survival?(racer.winner?'1':String(index+1)):racer.time===null?'DNF':String(place);
+      const rank=document.createElement('span');rank.className='race-place';rank.textContent=collection?(racer.left?'DNF':String(place)):survival?(racer.winner?'1':String(index+1)):racer.time===null?'DNF':String(place);
       const name=document.createElement('strong');name.className='race-result-name';name.textContent=racer.name;
-      row.append(rank,name);if(survival){const duration=document.createElement('span');duration.textContent=((racer.time??racer.eliminatedMs??0)/1000).toFixed(1)+'s';row.append(duration);}list.append(row);
+      row.append(rank,name);if(collection){
+        const score=document.createElement('span');score.textContent=collectionText(racer);row.append(score);
+      }else if(survival){const duration=document.createElement('span');duration.textContent=((racer.time??racer.eliminatedMs??0)/1000).toFixed(1)+'s';row.append(duration);}list.append(row);
     });
     this.back.type='button';this.back.className='commerce-primary';this.back.textContent=t('returnRoom');
     this.back.addEventListener('click',onReturn,{signal:this.abort.signal});
     panel.addEventListener('keydown',event=>{if(event.key==='Tab'){const controls=Array.from(panel.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}}},{signal:this.abort.signal});
     panel.append(list);
     if(rewards){this.rewardPanel=new RunRewardPanel(rewards,()=>coins??{collected:0,total:0},'race');panel.append(this.rewardPanel.element);}
-    else if(coins){const summary=document.createElement('p');summary.className='course-coin-summary coin-amount';summary.textContent=`${t('runCoins')}: ${coins.collected} / ${coins.total}`;panel.append(summary);}
+    else if(coins&&!collection){const summary=document.createElement('p');summary.className='course-coin-summary coin-amount';summary.textContent=`${t('runCoins')}: ${coins.collected} / ${coins.total}`;panel.append(summary);}
     panel.append(this.back);this.element.append(panel);document.querySelector('#app')?.append(this.element);this.back.focus({preventScroll:true});
   }
   update(seconds:number,reduced=false){

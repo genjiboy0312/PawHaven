@@ -342,9 +342,9 @@ export class Game {
             const racePet={...original,wardrobe:original.wardrobe&&look?{...original.wardrobe,outfit:{...look.outfit}}:original.wardrobe};
             this.scenes?.show(new PlayScene(racePet,()=>{
               lobby(true,'multi');if(client.room?.phase==='results')void client.command('return');
-            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,rewards:courseMode(room.map)==='survival'?undefined:raceCommerce,boxCoins:raceCommerce.boxCoinRewardsReady,
+            },{open:openSettings,preferences:()=>gameSettings.current,map:room.map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,rewards:courseMode(room.map)==='race'?raceCommerce:undefined,boxCoins:raceCommerce.boxCoinRewardsReady,
               sound:kind=>{this.audio?.play(kind);},
-              multiplayer:{client,pets:petConfigs,reward:(result,collected)=>{if(courseMode(room.map)!=='survival'&&raceCommerce instanceof ServerShopState&&result.round)void raceCommerce.completeRace(result.id,result.round,collected,result.racers.some(racer=>racer.id===client.owner&&racer.time!==null));},leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
+              multiplayer:{client,pets:petConfigs,reward:(result,collected)=>{if(courseMode(room.map)==='race'&&raceCommerce instanceof ServerShopState&&result.round)void raceCommerce.completeRace(result.id,result.round,collected,result.racers.some(racer=>racer.id===client.owner&&racer.time!==null));},leave:()=>{client.destroy();this.rooms=undefined;lobby(true);},
                 failed:()=>{client.destroy();this.rooms=undefined;lobby(true,'multi');}},
             }));
           },

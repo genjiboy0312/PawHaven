@@ -25,6 +25,7 @@ import { courseThemeArt, courseTerrain, courseMarker, type CourseArt, type Cours
 import type { CourseSolid } from '../TrainingCourse';
 import { COURSES, SINGLE_SURVIVAL_PATTERNS, courseMode, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
+import { coinRushScore } from '../../multiplayer/CoinRushRanking';
 import { raceResults } from '../../ui/RaceResults';
 import { RacePodium } from '../../ui/RacePodium';
 import { RaceProgress } from '../../ui/RaceProgress';
@@ -265,15 +266,22 @@ export class PlayScene extends Scene {
     this.hud.append(this.result, this.progress);
     if(settings?.multiplayer){
       this.hud.classList.add('race-hud');
-      if(!this.survival){this.courseProgress=new RaceProgress(settings.multiplayer.client.owner);this.hud.append(this.courseProgress.element);
-      this.standings=new RaceStandings(settings.multiplayer.client.owner);this.standings.element.hidden=true;this.hud.append(this.standings.element);}
+      if (mode === 'race') {
+        this.courseProgress = new RaceProgress(settings.multiplayer.client.owner);
+        this.hud.append(this.courseProgress.element);
+      }
+      if (mode !== 'survival') {
+        this.standings = new RaceStandings(settings.multiplayer.client.owner, mode === 'collection' ? this.run.coins.items.length : undefined);
+        this.standings.element.hidden = true;
+        this.hud.append(this.standings.element);
+      }
       this.syncStatus.className='race-sync-status';this.hud.append(this.syncStatus);
       settings.multiplayer.client.pose=()=>this.pose();
       this.retry.hidden=true;bindText(this.back,'returnRoom');
       this.countdown.className='play-victory race-countdown';this.ranking.className='race-ranking';this.raceNote.className='race-result-note';
       this.raceNote.setAttribute('role','status');this.result.replaceChildren(this.ranking,this.raceNote,this.back);
       if(this.run.coins.items.length){this.coinStats.className='course-coin-summary coin-amount';this.result.replaceChildren(this.ranking,this.raceNote,this.coinStats,this.back);}
-      bindAria(this.result,'raceResults');
+      bindAria(this.result, mode === 'collection' ? 'coinRushResults' : 'raceResults');
       const leave=this.button('leaveRoom',()=>settings.multiplayer?.leave());leave.className='play-circle race-leave';
       this.hud.append(this.countdown,leave);
     }
@@ -380,7 +388,15 @@ export class PlayScene extends Scene {
   private restoreRacePose(){
     const client=this.settings?.multiplayer?.client,room=client?.room,mine=room?.members.find(member=>member.id===client?.owner);
     if(!client||!room||!mine)return;
-    if(this.run.survival&&room.racers.find(racer=>racer.id===client.owner)?.eliminatedMs!=null){this.run.survival.eliminated=true;this.run.victoryTime=0;}
+    const racer = room.racers.find(racer => racer.id === client.owner);
+    if(this.run.survival&&racer?.eliminatedMs!=null){this.run.survival.eliminated=true;this.run.victoryTime=0;}
+    if (this.run.collectionSeconds) {
+      this.run.coins.restorePickups(racer?.coinMask ?? 0);
+      if (racer?.coinFinishMs != null) {
+        this.run.elapsed = racer.coinFinishMs / 1000;
+        this.run.victoryTime = 0;
+      }
+    }
     if(this.run.won)return;
     this.run.clearJumpInput();
     this.run.x=mine.pose.x;this.run.height=mine.pose.height;this.run.direction=mine.pose.direction;
@@ -389,7 +405,7 @@ export class PlayScene extends Scene {
     const checkpoint=COURSES[this.settings?.map??'garden'].checkpoint;
     if(this.run.x>=checkpoint)this.run.checkpoint=checkpoint;
     if(room.startsAt){this.run.elapsed=Math.max(0,(client.serverTime-room.startsAt)/1000);this.run.syncPlatforms(this.run.elapsed);}
-    if(room.racers.find(racer=>racer.id===client.owner)?.time!=null){this.run.victoryTime=0;this.completed=true;}
+    if(racer?.time!=null){this.run.victoryTime=0;this.completed=true;}
   }
   private network(seconds:number):boolean{
     const multi=this.settings?.multiplayer;if(!multi)return false;
@@ -453,13 +469,13 @@ export class PlayScene extends Scene {
       this.victory.textContent=t(!room?'multiOffline':room.phase==='waiting'?'raceCancelled':ended?'raceResults':'waitingOthers');
       this.back.disabled=!ended||client.reconnecting||!!client.error;
       const results=this.resultRoom,finished=room?.phase==='results';
-      if (finished && room.round && this.rewardRound !== room.round) { this.rewardRound = room.round; multi.reward?.(room,this.run.coins.collected); }
+      if (finished && !this.run.collectionSeconds && room.round && this.rewardRound !== room.round) { this.rewardRound = room.round; multi.reward?.(room,this.run.coins.collected); }
       const signature=JSON.stringify([results?.racers,[...this.raceMembers.values()].map(member=>[member.id,member.look.petId]),finished]);
       if(signature!==this.resultSignature){
         this.resultSignature=signature;
         this.podium?.destroy();this.podium=undefined;
-        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false),this.run.coins.items.length?{collected:this.run.coins.collected,total:this.run.coins.items.length}:undefined,this.settings?.rewards,this.survival);
-        else if(!this.survival)this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,false));
+        if(finished)this.podium=new RacePodium(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,this.hud,()=>this.leave(false),this.run.coins.items.length?{collected:this.run.coins.collected,total:this.run.coins.items.length}:undefined,this.settings?.rewards,courseMode(room.map));
+        else if(!this.survival&&!this.run.collectionSeconds)this.ranking.replaceChildren(raceResults(results?.racers??[],[...this.raceMembers.values()],client.owner,multi.pets,false));
         this.hud.setAttribute('data-podium',String(!!this.podium));
       }
       if(this.podium){this.podium.back.disabled=this.back.disabled;this.podium.update(seconds,this.settings?.preferences?.().effects===false);this.podium.element.style.opacity=String(1-this.run.fade);}
@@ -473,7 +489,7 @@ export class PlayScene extends Scene {
     if(this.network(seconds))return;
     const keyboard = Number(this.keys.has('ArrowRight') || this.keys.has('KeyD')) - Number(this.keys.has('ArrowLeft') || this.keys.has('KeyA'));
     const axis = this.axis || keyboard;
-    const respawns = this.run.respawns, jumpSequence = this.run.jumpSequence;
+    const respawns = this.run.respawns, jumpSequence = this.run.jumpSequence, collected = this.run.coins.collected;
     const raceClient=this.settings?.multiplayer?.client,start=raceClient?.room?.startsAt;
     const enemyTime=raceClient&&start!=null?Math.max(0,(raceClient.serverTime-start)/1000):undefined;
     if(this.raceStarted||this.run.won)this.run.update(seconds, axis,enemyTime);
@@ -481,17 +497,22 @@ export class PlayScene extends Scene {
     this.snakeFeedback.observe();
     if(this.settings?.multiplayer&&!this.startPoseSent&&this.raceStarted&&!this.run.won){this.startPoseSent=true;this.settings.multiplayer.client.publishStartPose();}
     const multi=this.settings?.multiplayer,room=multi?.client.room;
+    if (multi && this.run.collectionSeconds && this.run.coins.collected !== collected) {
+      multi.client.reportCollection(this.run.coins.pickupMask, Math.round(this.run.elapsed * 1000));
+    }
     if(this.survival&&multi&&room?.phase==='playing'&&this.run.survival?.eliminated&&!this.eliminationPending&&!multi.client.busy&&!multi.client.error&&!multi.client.reconnecting&&room.racers.find(racer=>racer.id===multi.client.owner)?.eliminatedMs==null){
       this.eliminationPending=true;
       void multi.client.command('eliminate',{round:this.raceRound,height:-200}).finally(()=>{this.eliminationPending=false;});
     }
-    if(this.courseProgress&&multi&&room){
-      this.courseProgress.element.hidden=room.phase==='results';
+    if((this.courseProgress||this.standings)&&multi&&room){
+      if(this.courseProgress)this.courseProgress.element.hidden=room.phase==='results';
       const entries=room.racers.filter(racer=>!racer.left||racer.time!==null).map(racer=>({
-        id:racer.id,name:racer.name,finished:racer.time!==null,time:racer.time,
+        id:racer.id,name:racer.name,finished:racer.time!==null,
+        time:this.run.collectionSeconds?racer.coinFinishMs??null:racer.time,
+        score:this.run.collectionSeconds?coinRushScore(racer.coinMask):undefined,
         x:racer.id===multi.client.owner?this.run.x:this.peers.get(racer.id)?.box.x??room.members.find(member=>member.id===racer.id)?.pose.x??this.run.start,
       }));
-      this.courseProgress.update(entries,this.run.start,this.run.finish);
+      this.courseProgress?.update(entries,this.run.start,this.run.finish);
       if(this.standings){
         this.standings.element.hidden=room.phase==='results'||!(this.startPoseSent||this.raceStarted||this.run.won);
         this.standings.update(entries,this.run.start,this.run.finish,seconds,!multi.client.reconnecting&&!multi.client.error);
@@ -503,7 +524,7 @@ export class PlayScene extends Scene {
     this.sceneRendered=true;
     if (this.run.won && !this.completed) {
       this.completed = true;
-      if(!this.survival&&this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
+      if(!this.survival&&!this.run.collectionSeconds&&this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
       else if(!this.settings?.multiplayer&&!this.run.collectionSeconds){
         const completion=this.settings?.record?.(this.run.survival?.elapsed??this.run.elapsed,this.run.respawns,this.run.survival?.succeeded);
         if(completion&&typeof completion==='object')this.completion=completion;
@@ -558,7 +579,7 @@ export class PlayScene extends Scene {
     this.snakeFeedback.render(preferences?.effects!==false);
     if (preferences?.effects === false) this.effect.ghosts.forEach(ghost => { ghost.visible = false; });
     this.victory.hidden = !run.won;
-    this.result.hidden = !run.won;
+    this.result.hidden = !run.won || Boolean(run.collectionSeconds && this.settings?.multiplayer);
     if(this.settings?.multiplayer)this.hud.setAttribute('data-results',String(run.won));
     const coinText=run.coins.items.length?`${t('runCoins')}: ${run.coins.collected} / ${run.coins.items.length}`:'';
     this.coinStats.textContent=coinText;
@@ -567,10 +588,16 @@ export class PlayScene extends Scene {
     this.progress.textContent = `${Math.floor((run.x - run.start) / (run.finish - run.start) * 100)}% · ${t('runTime')} ${run.elapsed.toFixed(1)}s${run.checkpoint > run.start ? ' · ' + t('checkpoint') + ' ✓' : ''}`;
     if(coinText)this.progress.textContent+=' · '+coinText;
     if (run.collectionSeconds) {
-      const remaining = Math.ceil(Math.max(0, run.collectionSeconds - run.elapsed));
+      const client = this.settings?.multiplayer?.client;
+      const endsAt = client?.room?.endsAt;
+      const secondsLeft = client && endsAt != null && client.room?.startsAt != null
+        ? (endsAt - client.serverTime) / 1000
+        : run.collectionSeconds - run.elapsed;
+      const remaining = Math.ceil(Math.max(0, Math.min(run.collectionSeconds, secondsLeft)));
       this.progress.textContent = `${t('coinRushRemaining').replace('{seconds}', String(remaining))} · ${coinText}`;
       if (!this.retryFailed) this.stats.textContent = coinText;
-      this.victory.textContent = t(run.coins.collected === run.coins.items.length ? 'coinRushAll' : 'coinRushOver');
+      if (!client) this.victory.textContent = t(run.coins.collected === run.coins.items.length ? 'coinRushAll' : 'coinRushOver');
+      else if (run.won && client.room?.phase === 'playing') this.victory.textContent = t('waitingOthers');
     }
     if(this.survival){
       const multi=this.settings?.multiplayer,room=multi?.client.room;

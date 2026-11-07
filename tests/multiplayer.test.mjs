@@ -1493,7 +1493,7 @@ test('survival map cards refresh best and clear in place without replacing focus
  }finally{menu?.destroy();env.restore();}
 });
 
-test('Coin Rush is selectable only in single mode and ends with a score and retry', async () => {
+test('single Coin Rush works on older servers and ends with a score and retry', async () => {
  const env = dom(), bundle = testCourseArt();
  const client = new RoomClient(users[0], async () => { throw Error('Unexpected room request'); });
  let menu, scene, launched, records = 0, rewards = 0;
@@ -1539,4 +1539,72 @@ test('Coin Rush is selectable only in single mode and ends with a score and retr
   destroyCourseArt(bundle);
   env.restore();
  }
+});
+
+test('the multiplayer picker unlocks Coin Rush when the server advertises it',async()=>{
+ const env=dom();let menu,ready=false;
+ const client=new RoomClient(users[0],async()=>({room:null,rooms:[],now:Date.now(),...(ready?{coinRushReady:true}:{})}));
+ try{
+  menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>false,race(){},login(){},dismiss(){}});
+  menu.open('multi');await idle(client);menu.page='create';menu.render();
+  assert.equal(env.host.querySelector('.game-mode-tabs').children.length,2);
+  assert.equal(client.canSelectMap('coinRush'),false);
+  ready=true;await client.command('list');
+  const tabs=env.host.querySelector('.game-mode-tabs');
+  assert.equal(tabs.children.length,3);
+  tabs.children[2].dispatchEvent(new Event('click'));
+  assert.equal(menu.map,'coinRush');
+  const cards=env.host.querySelector('.mode-cards').children;
+  assert.equal(cards.length,1);assert.equal(cards[0].getAttribute('data-map'),'coinRush');
+  assert.equal(cards[0].disabled,false);
+ }finally{menu?.destroy();client.destroy(false);env.restore();}
+});
+
+test('multiplayer Coin Rush uses the shared clock, local pickups, live scores, and a tied result',()=>{
+ const env=dom(),bundle=testCourseArt();let scene,time=11000,rewards=0;
+ const reports=[];
+ const pet={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+ const members=users.slice(0,2).map((id,i)=>({id,name:'Pet'+i,look:{petId:'corgi',outfit:{}},pose:{x:120,height:0,direction:1,action:'idle',progress:0,vx:0}}));
+ const room={map:'coinRush',phase:'playing',round:users[4],startsAt:1000,endsAt:31000,members,
+  racers:members.map(m=>({id:m.id,name:m.name,time:null,left:false,coinMask:0,coinFinishMs:null}))};
+ const client={owner:users[0],room,get serverTime(){return time;},recoverySerial:0,error:'',reconnecting:false,
+  peerPose:m=>({pose:m.pose,at:performance.now()}),publishStartPose(){},reportCollection(mask,elapsed){reports.push([mask,elapsed]);}};
+ try{
+  scene=new PlayScene(pet,()=>{},{open(){},map:'coinRush',art:bundle.art,multiplayer:{client,pets:[pet],leave(){},reward(){rewards++;}}});
+  room.racers[1].coinMask=1;
+  scene.update(.25);
+  assert.equal(scene.run.coins.collected,0);
+  assert.match(scene.progress.textContent,/20s left.*0 \/ 12/);
+  assert.equal(scene.standings.element.querySelector('.race-live-name').textContent,'Pet1');
+  scene.run.x=scene.run.coins.items[0].x;time=11100;scene.update(.02);
+  assert.equal(reports.length,1);assert.equal(reports[0][0],1);
+  assert.ok(reports[0][1]>=10080&&reports[0][1]<=10100);
+  room.racers[0].coinMask=1;
+  time=31000;scene.update(.02);
+  assert.equal(scene.run.won,true);assert.equal(scene.result.hidden,true);
+  assert.match(scene.progress.textContent,/0s left/);
+  assert.equal(scene.podium,undefined);
+  room.phase='results';scene.update(.02);
+  assert.equal(rewards,0);
+  assert.equal(scene.podium.element.querySelector('.race-winner-place').textContent,'Joint winner');
+  assert.equal(scene.podium.element.querySelector('.race-place').textContent,'1');
+  assert.match(scene.podium.element.querySelector('.course-coin-summary').textContent,/1 \/ 12/);
+ }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
+});
+
+test('Coin Rush podium breaks full scores by time and keeps partial ties',()=>{
+ const env=dom();let podium;
+ const racers=[
+  {id:'b',name:'Second',time:null,left:false,coinMask:4095,coinFinishMs:8001},
+  {id:'a',name:'First',time:null,left:false,coinMask:4095,coinFinishMs:8000},
+  {id:'c',name:'Third',time:null,left:false,coinMask:3,coinFinishMs:null},
+  {id:'d',name:'Also third',time:null,left:false,coinMask:12,coinFinishMs:null},
+ ];
+ try{
+  podium=new RacePodium(racers,[],'c',[],env.host,()=>{},undefined,undefined,'collection');
+  assert.equal(podium.element.querySelector('.race-winner-name').textContent,'First');
+  const rows=podium.element.querySelector('.race-podium-list').children;
+  assert.deepEqual(rows.map(row=>row.children[0].textContent),['2','3','3']);
+  assert.match(rows[0].children[2].textContent,/8.001s/);
+ }finally{podium?.destroy();env.restore();}
 });
