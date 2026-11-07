@@ -1368,7 +1368,9 @@ test('survival scene reuses controls and terrain but has no race markers, attack
   scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'survival',art:bundle.art,retry:async()=>true});
   assert.equal(scene.controls.has('attack'),false);assert.equal(scene.controls.has('jump'),true);assert.equal(scene.controls.has('dash'),true);
   scene.act('attack');assert.equal(scene.run.attack,0);assert.equal(scene.labels.length,0);
-  for(let i=0;i<481;i++)scene.update(1/60);
+  for(let i=0;i<360;i++)scene.update(1/60);
+  assert.deepEqual(scene.run.course.map(s=>s.warning),[true,true,false,false,false,false]);
+  for(let i=360;i<481;i++)scene.update(1/60);
   assert.equal(scene.run.survival.eliminated,true);assert.equal(scene.run.respawns,0);assert.equal(scene.result.hidden,false);assert.match(scene.victory.textContent,/Try again/);assert.match(scene.progress.textContent,/Survival/);
   assert.equal(scene.goalDetails.children.length,0);
  }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
@@ -1381,6 +1383,7 @@ test('eliminated multiplayer clients spectate shared moving phases, acknowledge 
  try{
   scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'survival',art:bundle.art,multiplayer:{client,pets:[{id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}}],leave(){}}});
   scene.run.height=-195;scene.update(.01);await new Promise(r=>setImmediate(r));
+  assert.deepEqual(scene.run.course.map(s=>s.disabled),[true,false,false,true,false,false]);
   assert.equal(eliminations,1);assert.equal(scene.result.hidden,true);assert.equal(scene.pet.visible,false);assert.equal(scene.victory.textContent,'Spectating');
   time=13000;scene.update(.01);assert.equal(eliminations,1);assert.equal(scene.run.course[2].disabled,true);assert.equal(scene.result.hidden,true);
   room.phase='results';room.racers.forEach((r,i)=>{r.time=i?13000:8000;r.winner=i>0;});scene.update(.01);

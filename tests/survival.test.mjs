@@ -167,3 +167,31 @@ test('single terraces can be cleared by reacting to the alternating height warni
   });
  }
 });
+
+test('the flat sweep warns and collapses adjacent pairs, and running alone can escape from the spawn and turn back at the end',()=>{
+ const route = [2, 3, 4, 5, 3];
+ for (const fps of [30, 60, 120]) {
+  const run = new DummyRun(SURVIVAL_COURSE, 1/.78, {survivalSeconds:30, survivalPattern:'sweep', finish:1080});
+  for (const [cycle, safeIndex] of route.entries()) {
+   const cycleStart = 3 + cycle * 5.2;
+   const collapseAt = cycleStart + 4;
+   // Start moving after the warning becomes visible.
+   while (run.enemyTime < cycleStart + 2.5 && !run.won) run.update(1/fps, 0);
+   const pair = [cycle, cycle + 1];
+   assert.deepEqual(run.course.flatMap((s,i)=>s.warning ? [i] : []), pair);
+   assert.ok(run.course.every(s=>!s.disabled));
+   const safe = run.course[safeIndex];
+   const center = safe.x + safe.width / 2;
+   while (run.enemyTime < collapseAt && !run.won) {
+    const delta = center - run.x;
+    run.update(1/fps, Math.abs(delta) < 6 ? 0 : Math.sign(delta));
+   }
+   assert.ok(Math.abs(run.x-center) < 7 && run.grounded, `fps=${fps}, cycle=${cycle}`);
+   run.update(.08, 0);
+   assert.deepEqual(run.course.flatMap((s,i)=>s.disabled ? [i] : []), pair);
+  }
+  for(let i=0;i<3*fps&&!run.won;i++)run.update(1/fps,0);
+  assert.equal(run.survival.succeeded, true);
+  assert.equal(run.jumpSequence, 0);
+ }
+});

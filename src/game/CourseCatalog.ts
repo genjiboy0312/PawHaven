@@ -1,4 +1,4 @@
-import { SURVIVAL_COURSE, SURVIVAL_STEPS_COURSE } from './SurvivalArena';
+import { SURVIVAL_COURSE, SURVIVAL_STEPS_COURSE, type SurvivalPattern } from './SurvivalArena';
 import { ADVENTURE_COURSE, ADVENTURE_FINISH, ADVENTURE_CHECKPOINT, ADVENTURE_TARGETS } from './AdventureCourse';
 import { TRAINING_COURSE } from './TrainingCourse';
 import { FOREST_COURSE, FOREST_FINISH, FOREST_CHECKPOINT, FOREST_TARGETS } from './ForestCourse';
@@ -14,6 +14,11 @@ export const COURSES = {
   terraces: { mode:'survival',title:'mapTerraces',description:'mapTerracesDescription',time:'morning',seconds:'30s / 60s',goalSeconds:30,multiplayer:true,playerCombat:false,solids:SURVIVAL_STEPS_COURSE,finish:1080,checkpoint:0,targets:[] },
 } as const;
 export type CourseId = keyof typeof COURSES;
+
+export const SINGLE_SURVIVAL_PATTERNS: Partial<Record<CourseId, SurvivalPattern>> = {
+  survival: 'sweep',
+  terraces: 'alternating-height',
+};
 
 export const GAME_MODES = ['race', 'survival'] as const;
 export type GameMode = typeof GAME_MODES[number];
