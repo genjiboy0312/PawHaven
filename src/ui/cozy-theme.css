@@ -905,6 +905,6 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .game-mode-goal { margin:.8cqh 0 0; font:400 clamp(10px,1.2cqw,16px)/1.25 var(--font-body); color:var(--ui-ink); -webkit-text-fill-color:var(--ui-ink); }
 .game-mode-badge { display:inline-flex; align-self:flex-start; margin:.5cqh .5cqw .3cqh 0; padding:.3cqh .7cqw; border:1px solid var(--ui-edge); border-radius:1cqh; background:transparent url('/assets/ui/surfaces/surface-77d9c54d1098.png') center/100% 100% no-repeat; color:var(--ui-ink); -webkit-text-fill-color:var(--ui-ink); font:400 clamp(10px,1.2cqw,16px) var(--font-body); }
 .game-mode-badge[data-game-mode="survival"] { background-image:url('/assets/ui/surfaces/surface-f416d5b046d4.png'); }
-.map-terraces::before { background-image:url('/assets/backgrounds/morning.png'); background-position:center; }
+.map-terraces::before, .map-coinRush::before { background-image:url('/assets/backgrounds/morning.png'); background-position:center; }
 .map-terraces { border-top:.5cqh solid #9eb784 !important; }
 .single-survival-best { margin:0; font:400 clamp(11px,1.5cqw,20px) var(--font-body); color:#728648; -webkit-text-fill-color:#728648; }

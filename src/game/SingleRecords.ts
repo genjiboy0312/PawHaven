@@ -16,6 +16,7 @@ export class SingleRecords {
       const data=JSON.parse(storage?.getItem(SINGLE_RECORDS_KEY)??'null');
       if(![1,2].includes(data?.version)||!data.times||typeof data.times!=='object')return;
       for(const id of Object.keys(COURSES) as CourseId[]){
+        if (courseMode(id) === 'collection') continue;
         const ms=data.times[id];if(!Number.isSafeInteger(ms)||ms<=0||ms>SINGLE_RECORD_MAX_MS)continue;
         const survival=courseMode(id)==='survival',limit=COURSES[id].goalSeconds*1000;
         if(survival&&ms>limit)continue;
@@ -65,7 +66,7 @@ export class SingleRecords {
   }
   private apply(map:CourseId,seconds:number,falls?:number):SingleCompletion{
     const ms=Math.round(seconds*1000);
-    if(!Object.hasOwn(COURSES,map)||courseMode(map)==='survival'||!Number.isFinite(seconds)||!Number.isSafeInteger(ms)||ms<=0||ms>SINGLE_RECORD_MAX_MS)return{newBest:false,goals:this.goals(map),newGoals:[]};
+    if(!Object.hasOwn(COURSES,map)||courseMode(map)!=='race'||!Number.isFinite(seconds)||!Number.isSafeInteger(ms)||ms<=0||ms>SINGLE_RECORD_MAX_MS)return{newBest:false,goals:this.goals(map),newGoals:[]};
     const previous=this.goals(map),newBest=ms<(this.times[map]??Infinity);
     const achieved=SINGLE_GOALS.filter(goal=>goal==='finish'||goal==='noFalls'&&falls===0||goal==='time'&&ms<=COURSES[map].goalSeconds*1000);
     const newGoals=achieved.filter(goal=>!previous.includes(goal));

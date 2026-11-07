@@ -12,6 +12,7 @@ export const COURSES = {
   cherry: { mode:'race', title:'mapCherry',description:'mapCherryDescription',time:'cherry',seconds:'20–30s',goalSeconds:30,multiplayer:false,playerCombat:false,solids:ADVENTURE_COURSE,finish:ADVENTURE_FINISH,checkpoint:ADVENTURE_CHECKPOINT,targets:ADVENTURE_TARGETS },
   survival: { mode:'survival', title:'mapSurvival',description:'mapSurvivalDescription',time:'noon',seconds:'30s / 60s',goalSeconds:30,multiplayer:true,playerCombat:false,solids:SURVIVAL_COURSE,finish:1080,checkpoint:0,targets:[] },
   terraces: { mode:'survival',title:'mapTerraces',description:'mapTerracesDescription',time:'morning',seconds:'30s / 60s',goalSeconds:30,multiplayer:true,playerCombat:false,solids:SURVIVAL_STEPS_COURSE,finish:1080,checkpoint:0,targets:[] },
+  coinRush: { mode:'collection', title:'mapCoinRush', description:'mapCoinRushDescription', time:'morning', seconds:'30s', goalSeconds:30, multiplayer:false, playerCombat:false, solids:SURVIVAL_STEPS_COURSE, finish:1080, checkpoint:0, targets:[] },
 } as const;
 export type CourseId = keyof typeof COURSES;
 
@@ -20,6 +21,6 @@ export const SINGLE_SURVIVAL_PATTERNS: Partial<Record<CourseId, SurvivalPattern>
   terraces: 'alternating-height',
 };
 
-export const GAME_MODES = ['race', 'survival'] as const;
+export const GAME_MODES = ['race', 'survival', 'collection'] as const;
 export type GameMode = typeof GAME_MODES[number];
 export function courseMode(map: CourseId): GameMode { return COURSES[map].mode; }

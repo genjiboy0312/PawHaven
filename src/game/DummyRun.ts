@@ -5,7 +5,7 @@ import { HitReaction, type PlayerHit } from './HitReaction';
 import {PatrolSnake,type SnakePatrol} from './PatrolSnake';
 import { MovingPlatform } from './MovingPlatform';
 import { CoinCollection, type CoinPlacement } from './CourseCoins';
-export interface RunOptions { survivalSeconds?: number; survivalPattern?: SurvivalPattern; finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[]; boxCoins?:boolean }
+export interface RunOptions { survivalSeconds?: number; survivalPattern?: SurvivalPattern; collectionSeconds?: number; finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[]; boxCoins?:boolean }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
@@ -61,6 +61,7 @@ export class DummyRun {
   get grounded(): boolean {
     return this.velocity <= 0 && this.course.some(solid => this.overlaps(solid) && Math.abs(this.height - solid.top) < 0.000001);
   }
+  get collectionSeconds(): number | undefined { return this.options.collectionSeconds; }
   get won(): boolean { return this.victoryTime >= 0; }
   get motionVelocity(): number { return this.horizontalVelocity + this.hitReaction.velocity * this.movementScale + this.platformVelocity; }
   receivePlayerHit(hit: PlayerHit): boolean {
@@ -130,7 +131,17 @@ export class DummyRun {
       if (this.step(step, input)) return;
     }
   }
+  private finishCollection(): true {
+    this.victoryTime = 0;
+    this.velocity = this.horizontalVelocity = 0;
+    this.clearJumpInput();
+    return true;
+  }
   private step(seconds: number, input: number): boolean {
+    if (this.collectionSeconds && this.elapsed >= this.collectionSeconds - 0.0000001) {
+      this.elapsed = this.collectionSeconds;
+      return this.finishCollection();
+    }
     this.survival?.sync(this.enemyTime);
     const wasDashing = this.dash > 0;
     if (wasDashing) this.clearJumpInput();
@@ -208,7 +219,10 @@ export class DummyRun {
         this.receiveHit({sequence:++this.snakeHitSequence,direction:this.x<snake.x?-1:1});
     }
     this.coins.collect(this.x,this.height,this.halfWidth,this.bodyHeight);
-    if (!this.survival && this.x >= this.finish - 0.000001 && this.grounded) {
+    if (this.collectionSeconds && this.coins.items.length > 0 && this.coins.collected === this.coins.items.length) {
+      return this.finishCollection();
+    }
+    if (!this.survival && !this.collectionSeconds && this.x >= this.finish - 0.000001 && this.grounded) {
       this.hitReaction.reset();
       this.platformVelocity=0;
       this.x = this.finish; this.victoryTime = 0; this.velocity = 0; this.horizontalVelocity = 0;

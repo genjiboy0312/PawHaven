@@ -288,10 +288,13 @@ export class Game {
       const runCommerce = commerce;
       let starting = false;
       const launch = async (origin: LobbyScene | PlayScene, map:CourseId='garden'): Promise<boolean> => {
-        if (starting || courseMode(map)!=='survival'&&!runCommerce.ready) return false;
+        const mode = courseMode(map);
+        const rewarded = mode === 'race';
+        const tracksRecords = mode !== 'collection';
+        if (starting || (rewarded && !runCommerce.ready)) return false;
         starting = true;
         try {
-          if ((courseMode(map)!=='survival'&&!await runCommerce.beginRun(map)) || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
+          if ((rewarded && !await runCommerce.beginRun(map)) || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
           let completion = Promise.resolve();
           const runRecords=records;
           const play = new PlayScene(activePet, () => lobby(true), {
@@ -300,8 +303,14 @@ export class Game {
               restart: () => launch(play, map), leave: () => lobby(true),
             }, leaving), preferences: () => gameSettings.current, map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
             sound: kind => { this.audio?.play(kind); if (kind !== 'coin' && gameSettings.current.vibration) navigator.vibrate?.(20); },
-            boxCoins:runCommerce.boxCoinRewardsReady, rewards: courseMode(map)==='survival'?undefined:runCommerce, complete: collected => { if(courseMode(map)!=='survival')completion = Promise.resolve(runCommerce.completeRun(collected)); },
-            record:(seconds,falls,cleared)=>courseMode(map)==='survival'?runRecords.survive(map,seconds,cleared===true):runRecords.complete(map,seconds,falls),best:()=>runRecords.best(map),goals:()=>runRecords.goals(map),
+            boxCoins: rewarded && runCommerce.boxCoinRewardsReady,
+            rewards: rewarded ? runCommerce : undefined,
+            complete: rewarded ? collected => { completion = Promise.resolve(runCommerce.completeRun(collected)); } : undefined,
+            record: tracksRecords ? (seconds, falls, cleared) => mode === 'survival'
+              ? runRecords.survive(map, seconds, cleared === true)
+              : runRecords.complete(map, seconds, falls) : undefined,
+            best: tracksRecords ? () => runRecords.best(map) : undefined,
+            goals: tracksRecords ? () => runRecords.goals(map) : undefined,
             retry: async () => { await completion; return launch(play,map); },
           });
           inGame=true;this.friendClient?.stop();this.scenes.show(play);void this.friendActivity?.refresh();return true;

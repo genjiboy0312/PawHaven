@@ -9,6 +9,7 @@ export function parseSingleRecordData(value: unknown): SingleRecordData {
   for (const [map, ms] of Object.entries(data.times)) {
     const goals = data.goals[map as CourseId];
     if (!Object.hasOwn(COURSES, map) || !Number.isSafeInteger(ms) || ms <= 0 || ms > SINGLE_RECORD_MAX_MS || !Array.isArray(goals) || goals.length > 3 || goals.some(goal => !SINGLE_GOALS.includes(goal))) throw Error('invalid_single_records');
+    if (courseMode(map as CourseId) === 'collection') throw Error('invalid_single_records');
     if(courseMode(map as CourseId)==='survival'&&(ms>COURSES[map as CourseId].goalSeconds*1000||goals.some(goal=>goal!=='finish')||goals.includes('finish')&&ms!==COURSES[map as CourseId].goalSeconds*1000))throw Error('invalid_single_records');
   }
   if (Object.keys(data.goals).some(map => !Object.hasOwn(data.times, map))) throw Error('invalid_single_records');

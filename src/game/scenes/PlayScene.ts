@@ -147,11 +147,13 @@ export class PlayScene extends Scene {
     super();
     const mapId = settings?.map ?? 'garden';
     const map = COURSES[mapId];
-    this.survival = courseMode(mapId) === 'survival';
+    const mode = courseMode(mapId);
+    this.survival = mode === 'survival';
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,survivalSeconds:this.survival?(settings?.multiplayer?SURVIVAL_MULTI_SECONDS:SURVIVAL_SINGLE_SECONDS):undefined,
       survivalPattern: settings?.multiplayer ? undefined : SINGLE_SURVIVAL_PATTERNS[mapId],
+      collectionSeconds: mode === 'collection' ? map.goalSeconds : undefined,
       playerCombat:map.playerCombat&&!!settings?.multiplayer,
-      snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:settings?.art?.coin?COURSE_COINS[settings.map??'garden']:[],boxCoins:!!settings?.art?.coin&&settings.boxCoins!==false});
+      snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:mode === 'collection' || settings?.art?.coin ? COURSE_COINS[mapId] : [],boxCoins:!!settings?.art?.coin&&settings.boxCoins!==false});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;
     this.recoverySeen=settings?.multiplayer?.client.recoverySerial??0;
@@ -192,7 +194,7 @@ export class PlayScene extends Scene {
     this.world.addChild(terrain);
     if(this.survival){this.survivalView=new SurvivalPlatformsView(this.run.course);this.world.addChild(this.survivalView);}
     if(settings?.art?.coin){this.coinView=new CourseCoinsView(this.run.coins,settings.art.coin,()=>this.settings?.sound?.('coin'));this.world.addChild(this.coinView);}
-    if(!this.survival)for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
+    if(mode === 'race')for (const [x, label] of [[120, 'start'], [map.checkpoint, 'checkpoint'], [map.finish, 'finish']] as const) {
       const flag = new Text({ text: t(label), style: { fontFamily: GAME_FONT, fontSize: 23, fontWeight: '400', fill: map.time==='night'?'#fff4db':'#455b3b', stroke:map.time==='night'?{color:'#233c50',width:2}:undefined } });
       this.labels.push({ text: flag, key: label });
       flag.position.set(x - 40, 240);
@@ -200,7 +202,7 @@ export class PlayScene extends Scene {
       else this.world.addChild(new Graphics().rect(x, 275, 5, 115).fill('#657653'), flag);
     }
     this.checkpointFlag.position.set(map.checkpoint + 5, 275);
-    this.checkpointFlag.visible=!settings?.art;this.world.addChild(this.checkpointFlag);
+    this.checkpointFlag.visible=mode === 'race' && !settings?.art;this.world.addChild(this.checkpointFlag);
     for (const target of this.run.targets) {
       const view = settings?.art?.box?new BoxTargetView(target,settings.art.box,config.effects?.attack):new Graphics().rect(-22, -48, 44, 48).fill('#b88958')
         .rect(-18, -44, 36, 6).fill('#dbc198').rect(-3, -38, 6, 33).fill('#e8d7b2')
@@ -228,7 +230,7 @@ export class PlayScene extends Scene {
     this.stick.append(this.knob);
     const actions = document.createElement('div');
     actions.className = 'play-actions';
-    if(!this.survival)actions.append(this.button('attack', () => this.act('attack')));
+    if(mode === 'race')actions.append(this.button('attack', () => this.act('attack')));
     actions.append(this.button('dash', () => this.act('dash')), this.button('jump', () => this.act('jump')));
     const settingsButton = document.createElement('button');
     settingsButton.type = 'button'; settingsButton.className = 'play-circle'; bindText(settingsButton, 'settings');
@@ -242,7 +244,7 @@ export class PlayScene extends Scene {
     this.fade.className = 'scene-fade';
     this.fade.style.opacity = '0';
     this.result.className = 'play-result'; this.result.hidden = true;
-    this.result.setAttribute('role', 'group'); bindAria(this.result, 'runResults');
+    this.result.setAttribute('role', 'group'); bindAria(this.result, mode === 'collection' ? 'coinRushResults' : 'runResults');
     this.retry.type = this.back.type = 'button';
     bindText(this.retry, 'playAgain'); bindText(this.back, 'returnLobby');
     this.retry.disabled = !this.settings?.retry;
@@ -253,7 +255,7 @@ export class PlayScene extends Scene {
     if(this.survival&&!settings?.multiplayer){this.survivalBest.className='single-survival-best';this.result.append(this.survivalBest);this.refreshBest();}
     this.goalDetails.className='single-result-goals';
     if(!settings?.multiplayer&&settings?.goals){this.refreshGoals();this.result.append(this.goalDetails);}
-    if (!settings?.multiplayer && settings?.rewards) {
+    if (mode === 'race' && !settings?.multiplayer && settings?.rewards) {
       this.rewardPanel = new RunRewardPanel(settings.rewards, () => ({ collected: this.run.coins.collected, total: this.run.coins.items.length }));
       this.result.append(this.rewardPanel.element);
     }
@@ -336,7 +338,7 @@ export class PlayScene extends Scene {
     }, () => { close(); this.setPaused(false); });
   }
   private act(kind: 'jump' | 'dash' | 'attack'): void {
-    if (this.paused || this.suspended || this.recoveryPopup || this.run.won || !this.raceStarted || this.survival&&kind==='attack') return;
+    if (this.paused || this.suspended || this.recoveryPopup || this.run.won || !this.raceStarted || (this.survival||this.run.collectionSeconds)&&kind==='attack') return;
     const before = kind === 'jump' ? this.run.jumpSequence : this.run[kind];
     if (kind === 'jump') this.run.jump();
     else if (kind === 'dash') this.run.startDash();
@@ -502,7 +504,7 @@ export class PlayScene extends Scene {
     if (this.run.won && !this.completed) {
       this.completed = true;
       if(!this.survival&&this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
-      else if(!this.settings?.multiplayer){
+      else if(!this.settings?.multiplayer&&!this.run.collectionSeconds){
         const completion=this.settings?.record?.(this.run.survival?.elapsed??this.run.elapsed,this.run.respawns,this.run.survival?.succeeded);
         if(completion&&typeof completion==='object')this.completion=completion;
         this.newBest=this.completion?.newBest??completion===true;this.bestNote.hidden=!this.newBest;
@@ -564,6 +566,12 @@ export class PlayScene extends Scene {
     if (!this.returned) this.stats.textContent = this.retryFailed ? t('runRetryFailed') : record;
     this.progress.textContent = `${Math.floor((run.x - run.start) / (run.finish - run.start) * 100)}% · ${t('runTime')} ${run.elapsed.toFixed(1)}s${run.checkpoint > run.start ? ' · ' + t('checkpoint') + ' ✓' : ''}`;
     if(coinText)this.progress.textContent+=' · '+coinText;
+    if (run.collectionSeconds) {
+      const remaining = Math.ceil(Math.max(0, run.collectionSeconds - run.elapsed));
+      this.progress.textContent = `${t('coinRushRemaining').replace('{seconds}', String(remaining))} · ${coinText}`;
+      if (!this.retryFailed) this.stats.textContent = coinText;
+      this.victory.textContent = t(run.coins.collected === run.coins.items.length ? 'coinRushAll' : 'coinRushOver');
+    }
     if(this.survival){
       const multi=this.settings?.multiplayer,room=multi?.client.room;
       const elapsed=this.survivalTime();

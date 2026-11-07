@@ -2,7 +2,7 @@ import { GameModeTabs, gameModeBadge } from './GameModeTabs';
 import { backAction } from './BackNavigation';
 import {accountLevelName} from '../account/AccountProgress';
 import { bindAria, onLanguageChange, t, type TextKey } from '../settings/i18n';
-import { COURSES, courseMode, type GameMode, type CourseId } from '../game/CourseCatalog';
+import { COURSES, GAME_MODES, courseMode, type GameMode, type CourseId } from '../game/CourseCatalog';
 import type { RoomClient, Room, RoomVisibility } from '../multiplayer/RoomClient';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { paintPetPortrait } from './PetPortrait';
@@ -164,14 +164,24 @@ export class PlayMenuPopup {
     if(select)card.setAttribute('aria-pressed',String(this.singleMap===id));
     const name=document.createElement('strong');name.textContent=t(map.title);
     const description=this.text(t(map.description));description.className='single-map-description';
-    const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
-    const best=this.options.best?.(id),record=this.text(singleBestLabel(id,best));record.className='single-map-best';
-    if(select)card.append(description,duration,record,singleGoals(id,this.options.goals?.(id)??[]));
+    const collection = map.mode === 'collection';
+    const duration = this.text(t(collection ? 'coinRushLimit' : 'singleExpected').replace('{time}', map.seconds));
+    const record = collection ? undefined : this.text(singleBestLabel(id, this.options.best?.(id)));
+    const goals = collection ? undefined : singleGoals(id, this.options.goals?.(id) ?? []);
+    if (record) record.className = 'single-map-best';
+    if (select) {
+      card.append(description, duration);
+      if (record && goals) card.append(record, goals);
+    }
     else{
       const info=document.createElement('div');info.className='single-map-info';
       const heading=document.createElement('div');heading.className='single-map-heading';heading.append(name);
-      const stats=document.createElement('div');stats.className='single-map-stats';stats.append(duration,record);
-      info.append(heading,description,stats,singleGoals(id,this.options.goals?.(id)??[]));card.append(info);
+      const stats=document.createElement('div');stats.className='single-map-stats';
+      stats.append(duration);
+      if (record) stats.append(record);
+      info.append(heading,description,stats);
+      if (goals) info.append(goals);
+      card.append(info);
     }return card;
   }
   refreshRecords():void {
@@ -184,7 +194,12 @@ export class PlayMenuPopup {
     }
     const note=this.overlay.querySelector<HTMLElement>('.single-record-note');if(note)note.textContent=this.recordStatus();
   }
-  private recordStatus():string {const status=t(this.options.recordNote?.()??'singleLocalRecords');return courseMode(this.singleMap)==='survival'?t('survivalPrototype')+' · '+status:status;}
+  private recordStatus(): string {
+    const mode = courseMode(this.singleMap);
+    if (mode === 'collection') return t('coinRushScoreOnly');
+    const status = t(this.options.recordNote?.() ?? 'singleLocalRecords');
+    return mode === 'survival' ? t('survivalPrototype') + ' · ' + status : status;
+  }
   private singleMaps(){
     const change=this.button('changeMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
     change.textContent=t('changeMap')+' ('+Object.keys(COURSES).length+') ▾';change.setAttribute('aria-haspopup','dialog');change.setAttribute('aria-expanded','false');
@@ -220,7 +235,7 @@ export class PlayMenuPopup {
       this.refreshMapPicker();
     };
     const mode=courseMode(single?this.singleMap:room!.map);
-    this.pickerModes=new GameModeTabs(mode,renderChoices);renderChoices(mode);
+    this.pickerModes=new GameModeTabs(mode,renderChoices,single ? GAME_MODES : undefined);renderChoices(mode);
     const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close,this.pickerModes.element,choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;backAction(overlay,()=>{if(!this.options.rooms?.busy)this.closeMapPicker();});
     panel.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.closeMapPicker();return;}

@@ -107,8 +107,8 @@ test('every playable map uses shared terrain art and brightens its checkpoint af
     for(const [id,map]of Object.entries(COURSES)){
       scene=new PlayScene(config,()=>{},{open(){},map:id,art:bundle.art});scene.update(.01);
       assert.equal(scene.world.children.find(c=>c.label==='course-terrain').children.length,map.solids.length*2);
-      if(map.mode!=='survival')for(const [key,x]of [['start',120],['checkpoint',map.checkpoint],['finish',map.finish]]){const marker=scene.world.children.find(c=>c.label==='course-'+key);assert.equal(marker.x,x);assert.equal(marker.y,390);}
-      if(map.mode!=='survival'){assert.equal(scene.checkpointMarker.alpha,.6);scene.run.x=map.checkpoint+10;scene.update(.02);assert.equal(scene.checkpointMarker.alpha,1);assert.equal(scene.checkpointMarker.tint,0xffffff);}else assert.equal(scene.checkpointMarker,undefined);
+      if(map.mode==='race')for(const [key,x]of [['start',120],['checkpoint',map.checkpoint],['finish',map.finish]]){const marker=scene.world.children.find(c=>c.label==='course-'+key);assert.equal(marker.x,x);assert.equal(marker.y,390);}
+      if(map.mode==='race'){assert.equal(scene.checkpointMarker.alpha,.6);scene.run.x=map.checkpoint+10;scene.update(.02);assert.equal(scene.checkpointMarker.alpha,1);assert.equal(scene.checkpointMarker.tint,0xffffff);}else assert.equal(scene.checkpointMarker,undefined);
       scene.destroy({children:true});scene=undefined;assert.equal(bundle.art.markers.checkpoint.texture.destroyed,false);
     }
   }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
@@ -607,7 +607,7 @@ test('single map choice launches without an account and restores the lobby input
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
-    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (7) ▾');
+    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (8) ▾');
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
     const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,5);
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
@@ -640,7 +640,7 @@ test('single personal records keep the faster valid completion and survive a loc
 test('single goals accumulate across runs, include exact time limits and award a slower clean run only once',()=>{
   const records=new SingleRecords();
   for(const [map,course]of Object.entries(COURSES)){
-    if(course.mode==='survival'){assert.deepEqual(records.complete(map,30,0).newGoals,[]);continue;}
+    if(course.mode!=='race'){assert.deepEqual(records.complete(map,30,0).newGoals,[]);continue;}
     assert.deepEqual(records.complete(map,course.goalSeconds+.001,1).newGoals,['finish']);
     assert.deepEqual(records.complete(map,course.goalSeconds,2).newGoals,['time']);
     const clean=records.complete(map,course.goalSeconds+5,0);
@@ -755,12 +755,12 @@ test('single and multiplayer use one top back action while preserving pagination
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'mode');
     assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Single').dispatchEvent(new Event('click'));
-    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (7) ▾');
+    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (8) ▾');
     assert.ok(env.host.querySelector('.single-map-heading').children.includes(change));
     change.dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.room-map-picker').getAttribute('aria-label'),'Choose map');
     env.host.querySelector('.room-map-picker').querySelector('.settings-close').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'single');
-    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (7) ▾');
+    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (8) ▾');
     assert.equal(env.host.querySelector('.play-menu-back').hidden,true);assert.equal(env.host.querySelector('.play-menu-back').disabled,true);
     const leave=env.host.querySelector('.play-menu-exit');assert.equal(leave.textContent,'나가기');assert.equal(env.host.querySelector('.play-menu-footer').contains(leave),true);
     leave.dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(menu.closeButton.hidden,false);
@@ -1491,4 +1491,52 @@ test('survival map cards refresh best and clear in place without replacing focus
   assert.match(card.querySelector('.single-map-best').textContent,/24.6 \/ 30s/);assert.equal(document.activeElement,play);assert.equal(card.querySelector('.single-goals').children[0].getAttribute('data-earned'),'false');
   records.survive('terraces',30,true);menu.refreshRecords();assert.match(card.querySelector('.single-map-best').textContent,/30.0 \/ 30s/);assert.equal(card.querySelector('.single-goals').children[0].getAttribute('data-earned'),'true');
  }finally{menu?.destroy();env.restore();}
+});
+
+test('Coin Rush is selectable only in single mode and ends with a score and retry', async () => {
+ const env = dom(), bundle = testCourseArt();
+ const client = new RoomClient(users[0], async () => { throw Error('Unexpected room request'); });
+ let menu, scene, launched, records = 0, rewards = 0;
+ try {
+  menu = new PlayMenuPopup(() => {}, {rooms:client,single:async map=>{launched=map;return false;},race(){},login(){},dismiss(){}});
+  menu.open('single');
+  env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
+  env.host.querySelector('.game-mode-tabs').children[2].dispatchEvent(new Event('click'));
+  const choices = env.host.querySelector('.single-map-choices');
+  assert.equal(choices.children.length, 1);
+  assert.equal(choices.children[0].getAttribute('data-map'), 'coinRush');
+  choices.children[0].dispatchEvent(new Event('click'));
+  assert.equal(env.host.querySelector('.single-goals'), undefined);
+  env.host.querySelector('.single-map-play').dispatchEvent(new Event('click'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(launched, 'coinRush');
+  assert.equal(client.canSelectMap('coinRush'), false);
+  menu.destroy();
+  menu = undefined;
+
+  bundle.art.coin = Texture.WHITE;
+  const pet = {id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  scene = new PlayScene(pet, () => {}, {open(){},map:'coinRush',art:bundle.art,retry:async()=>true,
+   record:()=>{records++;return true;},complete:()=>{rewards++;}});
+  scene.update(.02);
+  assert.match(scene.progress.textContent, /30s left.*0 \/ 12/);
+  assert.equal(scene.controls.has('attack'), false);
+  assert.equal(scene.labels.length, 0);
+  scene.run.x = scene.run.coins.items[0].x;
+  scene.update(.02);
+  assert.match(scene.progress.textContent, /1 \/ 12/);
+  scene.run.elapsed = 29.999;
+  scene.update(.02);
+  assert.equal(scene.result.hidden, false);
+  assert.equal(scene.victory.textContent, 'Time is up!');
+  assert.match(scene.stats.textContent, /1 \/ 12/);
+  assert.equal(scene.retry.disabled, false);
+  assert.equal(records + rewards, 0);
+ } finally {
+  menu?.destroy();
+  scene?.destroy({children:true});
+  client.destroy(false);
+  destroyCourseArt(bundle);
+  env.restore();
+ }
 });

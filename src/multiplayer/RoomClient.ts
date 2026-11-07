@@ -52,7 +52,7 @@ export class RoomClient {
   constructor(readonly owner:string,private readonly transport:Transport,private readonly stream?:RoomStream,private readonly lobby?:LobbyStream){}
   get room(){return this.snapshot.room;}
   get terracesReady(){return this.snapshot.terracesReady===true;}
-  canSelectMap(map:CourseId):boolean {return map==='terraces'?this.terracesReady:courseMode(map)!=='survival'||this.survivalReady;}
+  canSelectMap(map:CourseId):boolean {return COURSES[map].multiplayer && (map==='terraces'?this.terracesReady:courseMode(map)!=='survival'||this.survivalReady);}
   get survivalReady(){return this.snapshot.survivalReady===true;}
   get privateRoomsReady(){return this.snapshot.privateRoomsReady===true;}
   get reconnecting(){return this.needsSync;}
