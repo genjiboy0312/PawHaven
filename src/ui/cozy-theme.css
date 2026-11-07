@@ -907,3 +907,4 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .game-mode-badge[data-game-mode="survival"] { background-image:url('/assets/ui/surfaces/surface-f416d5b046d4.png'); }
 .map-terraces::before { background-image:url('/assets/backgrounds/morning.png'); background-position:center; }
 .map-terraces { border-top:.5cqh solid #9eb784 !important; }
+.single-survival-best { margin:0; font:400 clamp(11px,1.5cqw,20px) var(--font-body); color:#728648; -webkit-text-fill-color:#728648; }

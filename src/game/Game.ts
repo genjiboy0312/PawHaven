@@ -301,7 +301,7 @@ export class Game {
             }, leaving), preferences: () => gameSettings.current, map,art:this.courseArt,backgrounds:this.courseBackgrounds,snakeArt:this.snakeArt,
             sound: kind => { this.audio?.play(kind); if (kind !== 'coin' && gameSettings.current.vibration) navigator.vibrate?.(20); },
             boxCoins:runCommerce.boxCoinRewardsReady, rewards: courseMode(map)==='survival'?undefined:runCommerce, complete: collected => { if(courseMode(map)!=='survival')completion = Promise.resolve(runCommerce.completeRun(collected)); },
-            record:courseMode(map)==='survival'?undefined:(seconds,falls)=>runRecords.complete(map,seconds,falls),goals:courseMode(map)==='survival'?undefined:()=>runRecords.goals(map),
+            record:(seconds,falls,cleared)=>courseMode(map)==='survival'?runRecords.survive(map,seconds,cleared===true):runRecords.complete(map,seconds,falls),best:()=>runRecords.best(map),goals:()=>runRecords.goals(map),
             retry: async () => { await completion; return launch(play,map); },
           });
           inGame=true;this.friendClient?.stop();this.scenes.show(play);void this.friendActivity?.refresh();return true;

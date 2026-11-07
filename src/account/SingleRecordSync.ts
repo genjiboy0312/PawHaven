@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { COURSES, type CourseId } from '../game/CourseCatalog';
+import { COURSES, courseMode, type CourseId } from '../game/CourseCatalog';
 import { SingleRecords, SINGLE_GOALS, SINGLE_RECORD_MAX_MS, type SingleRecordData } from '../game/SingleRecords';
 export type RecordSyncStatus = 'loading' | 'syncing' | 'saved' | 'offline' | 'setup';
 type Transport = (records: SingleRecordData, signal: AbortSignal) => Promise<unknown>;
@@ -9,6 +9,7 @@ export function parseSingleRecordData(value: unknown): SingleRecordData {
   for (const [map, ms] of Object.entries(data.times)) {
     const goals = data.goals[map as CourseId];
     if (!Object.hasOwn(COURSES, map) || !Number.isSafeInteger(ms) || ms <= 0 || ms > SINGLE_RECORD_MAX_MS || !Array.isArray(goals) || goals.length > 3 || goals.some(goal => !SINGLE_GOALS.includes(goal))) throw Error('invalid_single_records');
+    if(courseMode(map as CourseId)==='survival'&&(ms>COURSES[map as CourseId].goalSeconds*1000||goals.some(goal=>goal!=='finish')||goals.includes('finish')&&ms!==COURSES[map as CourseId].goalSeconds*1000))throw Error('invalid_single_records');
   }
   if (Object.keys(data.goals).some(map => !Object.hasOwn(data.times, map))) throw Error('invalid_single_records');
   return new SingleRecords({ getItem: () => JSON.stringify(data), setItem() {} }).snapshot();
@@ -55,7 +56,7 @@ export class SingleRecordSync {
         } catch (error) {
           if (this.disposed || !this.active()) return;
           const code = (error as { code?: string })?.code;
-          this.status = ['PGRST202','PGRST205','42883','42P01','42501'].includes(code ?? '') ? 'setup' : 'offline'; this.emit(); return;
+          this.status = ['PGRST202','PGRST205','42883','42P01','42501','22023'].includes(code ?? '') ? 'setup' : 'offline'; this.emit(); return;
         }
       }
     }).finally(() => { this.work = undefined; this.emit(); });

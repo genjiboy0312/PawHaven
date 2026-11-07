@@ -16,11 +16,12 @@ export class SingleRecords {
       const data=JSON.parse(storage?.getItem(SINGLE_RECORDS_KEY)??'null');
       if(![1,2].includes(data?.version)||!data.times||typeof data.times!=='object')return;
       for(const id of Object.keys(COURSES) as CourseId[]){
-        if(courseMode(id)==='survival')continue;
         const ms=data.times[id];if(!Number.isSafeInteger(ms)||ms<=0||ms>SINGLE_RECORD_MAX_MS)continue;
+        const survival=courseMode(id)==='survival',limit=COURSES[id].goalSeconds*1000;
+        if(survival&&ms>limit)continue;
         this.times[id]=ms;
         const saved=data.version===2&&Array.isArray(data.goals?.[id])?data.goals[id]:[];
-        this.earned[id]=SINGLE_GOALS.filter(goal=>goal==='finish'||goal==='time'&&ms<=COURSES[id].goalSeconds*1000||goal==='noFalls'&&saved.includes(goal));
+        this.earned[id]=survival?(ms===limit&&saved.includes('finish')?['finish']:[]):SINGLE_GOALS.filter(goal=>goal==='finish'||goal==='time'&&ms<=COURSES[id].goalSeconds*1000||goal==='noFalls'&&saved.includes(goal));
       }
     }catch{/* Keep personal records usable for this session when storage is unavailable. */}
   }
@@ -33,7 +34,7 @@ export class SingleRecords {
     let changed = false;
     for (const map of Object.keys(COURSES) as CourseId[]) {
       const best = source.best(map); if (best === null) continue;
-      if (best < (this.times[map] ?? Infinity)) { this.times[map] = best; changed = true; }
+      if (courseMode(map)==='survival'?best>(this.times[map]??-Infinity):best<(this.times[map]??Infinity)) { this.times[map] = best; changed = true; }
       const goals = SINGLE_GOALS.filter(goal => this.goals(map).includes(goal) || source.goals(map).includes(goal));
       if (goals.length !== this.goals(map).length) { this.earned[map] = goals; changed = true; }
     }
@@ -50,6 +51,17 @@ export class SingleRecords {
   complete(map:CourseId,seconds:number,falls:number):SingleCompletion{
     if(!Number.isSafeInteger(falls)||falls<0)return{newBest:false,goals:this.goals(map),newGoals:[]};
     return this.apply(map,seconds,falls);
+  }
+  survive(map:CourseId,seconds:number,cleared:boolean):SingleCompletion {
+    const previous=this.goals(map),ms=Math.round(seconds*1000);
+    const invalid=()=>({newBest:false,goals:previous,newGoals:[]});
+    if(!Object.hasOwn(COURSES,map)||courseMode(map)!=='survival'||!Number.isFinite(seconds)||!Number.isSafeInteger(ms)||ms<=0||ms>COURSES[map].goalSeconds*1000||typeof cleared!=='boolean')return invalid();
+    if(cleared&&ms!==COURSES[map].goalSeconds*1000)return invalid();
+    const newBest=ms>(this.times[map]??-Infinity),newGoals:SingleGoal[]=cleared&&!previous.includes('finish')?['finish']:[];
+    if(newBest)this.times[map]=ms;
+    this.earned[map]=previous.includes('finish')||cleared?['finish']:[];
+    if(newBest||newGoals.length)this.persist();
+    return {newBest,goals:this.goals(map),newGoals};
   }
   private apply(map:CourseId,seconds:number,falls?:number):SingleCompletion{
     const ms=Math.round(seconds*1000);

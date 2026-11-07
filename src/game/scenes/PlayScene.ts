@@ -31,7 +31,7 @@ import { RaceProgress } from '../../ui/RaceProgress';
 import { RaceStandings } from '../../ui/RaceStandings';
 import { ActionButton, type ControlAction } from '../../ui/ActionButton';
 import { RunRecoveryPopup } from '../../ui/RunRecoveryPopup';
-import { singleGoals } from '../../ui/SingleGoals';
+import { singleGoals, singleBestLabel } from '../../ui/SingleGoals';
 import type { SingleCompletion, SingleGoal } from '../SingleRecords';
 import { RemoteMotion } from '../../multiplayer/RemoteMotion';
 import { raceCountdown } from '../../multiplayer/RaceCountdown';
@@ -81,6 +81,7 @@ export class PlayScene extends Scene {
   private readonly result = document.createElement('section');
   private readonly stats = document.createElement('p');
   private readonly bestNote=document.createElement('p');
+  private readonly survivalBest=document.createElement('p');
   private readonly goalDetails=document.createElement('div');
   private completion?:SingleCompletion;
   private newBest=false;
@@ -142,7 +143,7 @@ export class PlayScene extends Scene {
   };
   private readonly blur = (): void => { this.keys.clear(); this.releaseStick(); this.run.clearJumpInput(); };
 
-  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: (leaving?: boolean) => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
+  constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: (leaving?: boolean) => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number,cleared?:boolean)=>boolean|SingleCompletion; best?:()=>number|null; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.survival = courseMode(settings?.map??'garden')==='survival';
@@ -246,6 +247,7 @@ export class PlayScene extends Scene {
     this.back.addEventListener('click', () => this.leave(false), { signal: this.abort.signal });
     this.bestNote.className='single-new-best';bindText(this.bestNote,'singleNewBest');this.bestNote.hidden=true;
     this.result.append(this.stats, this.bestNote);
+    if(this.survival&&!settings?.multiplayer){this.survivalBest.className='single-survival-best';this.result.append(this.survivalBest);this.refreshBest();}
     this.goalDetails.className='single-result-goals';
     if(!settings?.multiplayer&&settings?.goals){this.refreshGoals();this.result.append(this.goalDetails);}
     if (!settings?.multiplayer && settings?.rewards) {
@@ -315,6 +317,7 @@ export class PlayScene extends Scene {
     this.retryFailed = false;
     this.retrying = retry; this.retry.disabled = this.back.disabled = true; this.run.leave();
   }
+  private refreshBest():void {if(this.survival&&!this.settings?.multiplayer){const label=singleBestLabel(this.settings?.map??'survival',this.settings?.best?.());if(this.survivalBest.textContent!==label)this.survivalBest.textContent=label;}}
   private refreshGoals():void{
     if(this.settings?.multiplayer||!this.settings?.goals)return;
     this.goalDetails.replaceChildren(singleGoals(this.settings.map??'garden',this.completion?.goals??this.settings.goals(),this.completion?.newGoals));
@@ -497,10 +500,10 @@ export class PlayScene extends Scene {
       this.completed = true;
       if(!this.survival&&this.settings?.multiplayer&&this.run.x>=this.run.finish&&this.settings.multiplayer.client.room?.phase!=='results')void this.settings.multiplayer.client.finish(this.pose());
       else if(!this.settings?.multiplayer){
-        const completion=this.settings?.record?.(this.run.elapsed,this.run.respawns);
+        const completion=this.settings?.record?.(this.run.survival?.elapsed??this.run.elapsed,this.run.respawns,this.run.survival?.succeeded);
         if(completion&&typeof completion==='object')this.completion=completion;
         this.newBest=this.completion?.newBest??completion===true;this.bestNote.hidden=!this.newBest;
-        this.refreshGoals();this.settings?.complete?.(this.run.coins.collected);
+        this.refreshGoals();this.refreshBest();this.settings?.complete?.(this.run.coins.collected);
       }
       this.back.focus?.();
     }
@@ -522,7 +525,7 @@ export class PlayScene extends Scene {
     return Math.max(0,(client.serverTime-room.startsAt)/1000);
   }
   private render(seconds: number, axis: number): void {
-    this.updateControls();
+    this.updateControls();this.refreshBest();
     const run = this.run;
     if(this.survival&&this.settings?.multiplayer)run.survival?.syncPlatforms(this.survivalTime());
     if(run.platforms.length||this.survival){this.terrainView?.update(this.settings?.preferences?.().effects!==false);this.movingTerrain.forEach(({solid,view})=>{view.x=solid.x;view.visible=!solid.disabled;view.tint=solid.warning?0xffc56b:0xffffff;view.alpha=solid.warning && this.settings?.preferences?.().effects!==false ? .5+.5*Math.abs(Math.sin(this.elapsed*11)) : 1;});}

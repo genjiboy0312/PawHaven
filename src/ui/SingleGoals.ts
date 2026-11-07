@@ -5,10 +5,10 @@ import { t } from '../settings/i18n';
 /** Shared compact goal badges for map cards and the single-run result. */
 export function singleGoals(map:CourseId,earned:readonly SingleGoal[],fresh:readonly SingleGoal[]=[]):HTMLElement {
   const row=document.createElement('div');row.className='single-goals';row.setAttribute('role','group');row.setAttribute('aria-label',t('singleGoals'));
-  if(courseMode(map)==='survival'){row.hidden=true;return row;}
-  for(const goal of SINGLE_GOALS){
+  const survival=courseMode(map)==='survival';
+  for(const goal of survival?(['finish'] as const):SINGLE_GOALS){
     const achieved=earned.includes(goal),isNew=fresh.includes(goal);
-    const label=goal==='finish'?t('singleGoalFinish'):goal==='noFalls'?t('singleGoalNoFalls'):t('singleGoalTime').replace('{seconds}',String(COURSES[map].goalSeconds));
+    const label=survival?t('survivalCleared'):goal==='finish'?t('singleGoalFinish'):goal==='noFalls'?t('singleGoalNoFalls'):t('singleGoalTime').replace('{seconds}',String(COURSES[map].goalSeconds));
     const badge=document.createElement('span');badge.className='single-goal';badge.setAttribute('data-goal',goal);badge.setAttribute('data-earned',String(achieved));badge.setAttribute('data-new',String(isNew));
     const description=`${label} · ${t(achieved?'singleGoalEarned':'singleGoalPending')}${isNew?' · '+t('singleGoalNew'):''}`;
     badge.setAttribute('aria-label',description);badge.title=description;
@@ -19,4 +19,10 @@ export function singleGoals(map:CourseId,earned:readonly SingleGoal[],fresh:read
     row.append(badge);
   }
   return row;
+}
+
+/** One formatter for map summaries, map cards and the survival result. Times are milliseconds. */
+export function singleBestLabel(map:CourseId,best:number|null|undefined):string {
+  if(courseMode(map)==='survival')return `${t('survivalBest')} ${best?(best/1000).toFixed(1):'—'} / ${COURSES[map].goalSeconds}s`;
+  return best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge');
 }

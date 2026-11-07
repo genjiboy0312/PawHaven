@@ -8,7 +8,7 @@ import type { AnimalConfig } from '../animals/AnimalConfig';
 import { paintPetPortrait } from './PetPortrait';
 import { raceResults } from './RaceResults';
 import { RoomInviteButton } from './RoomInviteButton';
-import { singleGoals } from './SingleGoals';
+import { singleGoals, singleBestLabel } from './SingleGoals';
 import { ConfirmPopup } from './ConfirmPopup';
 import {RoomChatPanel} from './RoomChatPanel';
 import type {RoomChatClient} from '../multiplayer/RoomChatClient';
@@ -165,7 +165,7 @@ export class PlayMenuPopup {
     const name=document.createElement('strong');name.textContent=t(map.title);
     const description=this.text(t(map.description));description.className='single-map-description';
     const duration=this.text(t('singleExpected').replace('{time}',map.seconds));
-    const best=this.options.best?.(id),record=this.text(best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge'));record.className='single-map-best';if(courseMode(id)==='survival')record.textContent=t('survivalGoal');
+    const best=this.options.best?.(id),record=this.text(singleBestLabel(id,best));record.className='single-map-best';
     if(select)card.append(description,duration,record,singleGoals(id,this.options.goals?.(id)??[]));
     else{
       const info=document.createElement('div');info.className='single-map-info';
@@ -179,11 +179,12 @@ export class PlayMenuPopup {
     for(const card of Array.from(this.overlay.querySelectorAll<HTMLElement>('.single-map-card'))){
       const map=card.getAttribute('data-map') as CourseId;if(!Object.hasOwn(COURSES,map))continue;
       const record=card.querySelector<HTMLElement>('.single-map-best'),best=this.options.best?.(map);
-      if(record)record.textContent=courseMode(map)==='survival'?t('survivalGoal'):best?`${t('singleBest')} ${(best/1000).toFixed(2)}s`:t('singleChallenge');
+      if(record)record.textContent=singleBestLabel(map,best);
       const goals=card.querySelector<HTMLElement>('.single-goals');if(goals)goals.replaceChildren(...Array.from(singleGoals(map,this.options.goals?.(map)??[]).children));
     }
-    const note=this.overlay.querySelector<HTMLElement>('.single-record-note');if(note)note.textContent=t(courseMode(this.singleMap)==='survival'?'survivalPrototype':this.options.recordNote?.()??'singleLocalRecords');
+    const note=this.overlay.querySelector<HTMLElement>('.single-record-note');if(note)note.textContent=this.recordStatus();
   }
+  private recordStatus():string {const status=t(this.options.recordNote?.()??'singleLocalRecords');return courseMode(this.singleMap)==='survival'?t('survivalPrototype')+' · '+status:status;}
   private singleMaps(){
     const change=this.button('changeMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
     change.textContent=t('changeMap')+' ('+Object.keys(COURSES).length+') ▾';change.setAttribute('aria-haspopup','dialog');change.setAttribute('aria-expanded','false');
@@ -191,7 +192,7 @@ export class PlayMenuPopup {
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
     const card=this.singleCard(this.singleMap);card.querySelector('.single-map-heading')?.append(change);
-    const note=this.text(t(courseMode(this.singleMap)==='survival'?'survivalPrototype':this.options.recordNote?.()??'singleLocalRecords'));note.className='single-record-note';actions.append(play,note);return[card,actions];
+    const note=this.text(this.recordStatus());note.className='single-record-note';actions.append(play,note);return[card,actions];
   }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;

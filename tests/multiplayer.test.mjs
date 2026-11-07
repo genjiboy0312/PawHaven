@@ -356,7 +356,7 @@ class Element extends EventTarget {
   setAttribute(k,v){this.attributes.set(k,v);}getAttribute(k){return this.attributes.get(k)??null;}
   all(){return this.children.flatMap(c=>[c,...c.all()]);}
   querySelector(s){return this.all().find(c=>c.className?.split(' ').includes(s.slice(1)));}
-  querySelectorAll(){return this.all().filter(c=>c.tag==='button'&&!c.disabled);}
+  querySelectorAll(selector){if(selector?.startsWith('.'))return this.all().filter(c=>(c.className??'').split(' ').includes(selector.slice(1)));return this.all().filter(c=>c.tag==='button'&&!c.disabled);}
   remove(){if(this.parent)this.parent.children=this.parent.children.filter(c=>c!==this);}
   focus(){document.activeElement=this;}get isConnected(){return this.tag==='main'||!!this.parent?.isConnected;}
   blur(){if(document.activeElement===this)document.activeElement=undefined;}
@@ -1456,4 +1456,27 @@ test('stepped scene uses shared survival controls, raised one-way terrain and no
  assert.equal(scene.survival,true);assert.equal(scene.run.course.filter(s=>s.top===64).length,3);assert.equal(scene.controls.has('attack'),false);assert.equal(scene.labels.length,0);assert.equal(scene.run.coins.items.length,0);
  scene.run.x=1080;scene.run.height=64;scene.update(.01);assert.equal(scene.run.won,false);assert.match(scene.progress.textContent,/Survival/);
  }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
+});
+
+test('single survival result records failure once, shows best and marks only explicit clears',()=>{
+ const env=dom(),records=new SingleRecords();let scene,calls=0;
+ try{
+  const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+  const options={open(){},map:'survival',best:()=>records.best('survival'),goals:()=>records.goals('survival'),record:(seconds,falls,clear)=>{calls++;return records.survive('survival',seconds,clear);}};
+  scene=new PlayScene(config,()=>{},options);scene.run.enemyTime=12;scene.run.height=-195;scene.update(.01);
+  assert.equal(calls,1);assert.ok(records.best('survival')>=12000&&records.best('survival')<=12010);assert.equal(scene.bestNote.hidden,false);assert.match(scene.survivalBest.textContent,/12.0 \/ 30s/);assert.equal(scene.goalDetails.children[0].children[0].getAttribute('data-earned'),'false');
+  scene.update(.1);assert.equal(calls,1);scene.destroy({children:true});
+  scene=new PlayScene(config,()=>{},options);scene.run.enemyTime=29.99;scene.run.x=scene.run.course[1].x+84;scene.run.height=0;scene.update(.02);
+  assert.equal(calls,2);assert.equal(records.best('survival'),30000);assert.deepEqual(records.goals('survival'),['finish']);assert.equal(scene.goalDetails.children[0].children[0].getAttribute('data-earned'),'true');assert.match(scene.survivalBest.textContent,/30.0 \/ 30s/);
+ }finally{scene?.destroy({children:true});env.restore();}
+});
+
+test('survival map cards refresh best and clear in place without replacing focused controls',()=>{
+ const env=dom(),records=new SingleRecords();let menu;
+ try{
+  menu=new PlayMenuPopup(()=>{},{single:async()=>false,race(){},login(){},dismiss(){},best:id=>records.best(id),goals:id=>records.goals(id)});menu.singleMap='terraces';menu.open('single');
+  const card=env.host.querySelector('.single-map-card'),play=env.host.querySelector('.single-map-play');play.focus();records.survive('terraces',24.6,false);menu.refreshRecords();
+  assert.match(card.querySelector('.single-map-best').textContent,/24.6 \/ 30s/);assert.equal(document.activeElement,play);assert.equal(card.querySelector('.single-goals').children[0].getAttribute('data-earned'),'false');
+  records.survive('terraces',30,true);menu.refreshRecords();assert.match(card.querySelector('.single-map-best').textContent,/30.0 \/ 30s/);assert.equal(card.querySelector('.single-goals').children[0].getAttribute('data-earned'),'true');
+ }finally{menu?.destroy();env.restore();}
 });
