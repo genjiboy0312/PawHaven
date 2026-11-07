@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {importTs} from './load-typescript.mjs';
 const {DummyRun}=await importTs('../src/game/DummyRun.ts',import.meta.url);
-const {SURVIVAL_COURSE,survivalPlatformPhase}=await importTs('../src/game/SurvivalArena.ts',import.meta.url);
+const {SURVIVAL_COURSE,SURVIVAL_STEPS_COURSE,survivalPlatformPhase}=await importTs('../src/game/SurvivalArena.ts',import.meta.url);
 const {SingleRecords}=await importTs('../src/game/SingleRecords.ts',import.meta.url);
 const db=new PGlite();after(()=>db.close());
 await db.exec("create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
@@ -88,4 +88,41 @@ test('survival results cannot be redeemed through existing racing or single rewa
   await assert.rejects(db.query("select public.economy_command('race_reward',gen_random_uuid(),$1::jsonb)",[JSON.stringify({room:id,round,collected:0})]),/invalid_run_coins/);
  }finally{await db.exec('reset role');}
  assert.equal((await db.query('select count(*) as count from public.economy_race_rewards where room_id=$1',[id])).rows[0].count,0);
+});
+
+
+test('stepped map is reachable with ordinary jumps at 30/60/120 FPS in both directions',()=>{
+ for(const fps of [30,60,120]){
+  const run=new DummyRun(SURVIVAL_STEPS_COURSE,1/.78,{survivalSeconds:30,finish:1080});
+  // Isolate traversal from the timed hazard pattern by exercising the first three safe seconds per leg.
+  for(let index=0;index<5;index++){
+   run.x=84+index*172+84;run.height=SURVIVAL_STEPS_COURSE[index].top;run.velocity=0;run.clearJumpInput();run.enemyTime=0;
+   const goal=84+(index+1)*172+84;if(index%2===0)run.jump();
+   for(let i=0;i<fps*1.5;i++){const delta=goal-run.x;run.update(1/fps,Math.abs(delta)<4?0:Math.sign(delta));if(Math.abs(goal-run.x)<4&&run.grounded)break;}
+   assert.ok(Math.abs(goal-run.x)<5,JSON.stringify({fps,index,x:run.x,height:run.height}));assert.equal(run.height,SURVIVAL_STEPS_COURSE[index+1].top);assert.equal(run.respawns,0);assert.equal(run.won,false);
+  }
+  for(let index=5;index>0;index--){
+   run.x=84+index*172+84;run.height=SURVIVAL_STEPS_COURSE[index].top;run.velocity=0;run.clearJumpInput();run.enemyTime=0;
+   const goal=84+(index-1)*172+84;if(index%2===0)run.jump();
+   for(let i=0;i<fps*1.5;i++){const delta=goal-run.x;run.update(1/fps,Math.abs(delta)<4?0:Math.sign(delta));if(Math.abs(goal-run.x)<4&&run.grounded)break;}
+   assert.ok(Math.abs(goal-run.x)<5,JSON.stringify({fps,index,x:run.x,height:run.height}));assert.equal(run.height,SURVIVAL_STEPS_COURSE[index-1].top);assert.equal(run.won,false);
+  }
+ }
+});
+test('Terraced Survival Map keeps old survival available, gates new capabilities, and reuses server results',async()=>{
+ await assert.rejects(cmd(0,'create',null,{map:'terraces'}),/mp_rooms_map_check/);
+ const migration=await readFile(new URL('../supabase/migrations/202611070039_terraced_survival.sql',import.meta.url),'utf8');await db.exec(migration);
+ const {id,round,state}=await start('terraces');assert.equal(state.terracesReady,true);assert.equal(state.room.map,'terraces');assert.equal(state.room.endsAt-state.room.startsAt,60000);
+ await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '10 seconds',ends_at=clock_timestamp()+interval '50 seconds' where id=$1",[id]);
+ await cmd(0,'eliminate',id,{round,height:-200});const results=await cmd(1,'eliminate',id,{round,height:-200});assert.equal(results.room.phase,'results');assert.deepEqual(results.room.racers.filter(r=>r.winner).map(r=>r.id),[users[2]]);
+ await db.exec(migration);assert.equal((await cmd(0,'sync',id)).room.map,'terraces');
+});
+
+test('new stepped map keeps both survival reward endpoints disabled and shares deadline winners',async()=>{
+ const {id,round}=await start('terraces',2);await db.query("update public.mp_rooms set starts_at=clock_timestamp()-interval '61 seconds',ends_at=clock_timestamp()-interval '1 second' where id=$1",[id]);
+ const result=await cmd(0,'sync',id);assert.equal(result.room.racers.filter(r=>r.winner).length,2);assert.equal(result.room.racers.every(r=>r.time===60000),true);
+ await db.exec('set role authenticated');try{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[users[0]]);
+ await assert.rejects(db.query("select public.economy_command('run_start',gen_random_uuid(),'{\"map\":\"terraces\"}'::jsonb)"),/invalid_run_map/);
+ await assert.rejects(db.query("select public.economy_command('race_reward',gen_random_uuid(),$1::jsonb)",[JSON.stringify({room:id,round,collected:0})]),/invalid_run_coins/);
+ }finally{await db.exec('reset role');}
 });

@@ -23,7 +23,7 @@ import { DummyRun } from '../DummyRun';
 import { COURSE_GROUND } from '../TrainingCourse';
 import { courseThemeArt, courseTerrain, courseMarker, type CourseArt, type CourseTerrain } from '../CourseArt';
 import type { CourseSolid } from '../TrainingCourse';
-import { COURSES, type CourseId } from '../CourseCatalog';
+import { COURSES, courseMode, type CourseId } from '../CourseCatalog';
 import type { RoomClient, Pose, Room } from '../../multiplayer/RoomClient';
 import { raceResults } from '../../ui/RaceResults';
 import { RacePodium } from '../../ui/RacePodium';
@@ -145,7 +145,7 @@ export class PlayScene extends Scene {
   constructor(config: AnimalConfig, private readonly onReturn: () => void, private readonly settings?: { open: (leaving?: boolean) => void; sound?: (kind: 'jump' | 'dash' | 'attack' | 'hit' | 'coin') => void; preferences?: () => GamePreferences; complete?: (collected: number) => void; rewards?: CommerceState; boxCoins?:boolean; record?:(seconds:number,falls:number)=>boolean|SingleCompletion; goals?:()=>readonly SingleGoal[]; retry?: () => Promise<boolean>; map?:CourseId; art?:CourseArt; backgrounds?:CourseBackgrounds; snakeArt?:SnakeArt; multiplayer?:{client:RoomClient;pets:AnimalConfig[];reward?:(room:Room,collected:number)=>void;leave:()=>void;failed?:()=>void} }) {
     super();
     const map=COURSES[settings?.map??'garden'];
-    this.survival = settings?.map==='survival';
+    this.survival = courseMode(settings?.map??'garden')==='survival';
     this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,survivalSeconds:this.survival?(settings?.multiplayer?SURVIVAL_MULTI_SECONDS:SURVIVAL_SINGLE_SECONDS):undefined,playerCombat:map.playerCombat&&!!settings?.multiplayer,
       snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:settings?.art?.coin?COURSE_COINS[settings.map??'garden']:[],boxCoins:!!settings?.art?.coin&&settings.boxCoins!==false});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));

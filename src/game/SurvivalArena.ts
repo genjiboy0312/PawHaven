@@ -2,6 +2,10 @@ import type { CourseSolid } from './TrainingCourse';
 export const SURVIVAL_SINGLE_SECONDS = 30;
 export const SURVIVAL_MULTI_SECONDS = 60;
 export const SURVIVAL_COURSE: readonly CourseSolid[] = Array.from({ length: 6 }, (_, index) => ({ x: 84 + index * 172, width: 168, top: 0, bottom: -38, oneWay: true }));
+/** Alternating low/high platforms remain within the existing jump's reach. */
+export const SURVIVAL_STEPS_COURSE: readonly CourseSolid[] = SURVIVAL_COURSE.map((solid, index) => {
+  const top = index % 2 === 0 ? 0 : 64; return { ...solid, top, bottom: top - 38 };
+});
 export type PlatformPhase = 'safe' | 'warning' | 'gone';
 /** Absolute round time gives every client the same warning/drop pattern. */
 export function survivalPlatformPhase(index: number, time: number): PlatformPhase {

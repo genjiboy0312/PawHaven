@@ -126,7 +126,7 @@ test('Lobby Background Shop enforces server price, ownership cap, account isolat
 test('Single Run Coin Rewards pays a bounded server-derived receipt once per map token',async()=>{
  const sql=await readFile(new URL('../supabase/migrations/202610280023_single_run_rewards.sql',import.meta.url),'utf8');await db.exec(sql);
  const age=run=>db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where id=$1",[run]);
- for(const [map,coins]of Object.entries(COURSE_COINS).filter(([map])=>map!=='cherry'&&map!=='survival')){
+ for(const [map,coins]of Object.entries(COURSE_COINS).filter(([map])=>map!=='cherry'&&COURSES[map].mode==='race')){
   const before=(await economy(1)).snapshot.coins,start=await economy(1,'run_start',{map});await age(start.run_id);const id=nonce(),payload={run_id:start.run_id,collected:coins.length,reward:999999};
   const done=await economy(1,'run_finish',payload,id);assert.equal(done.snapshot.coins,before+10+coins.length);assert.deepEqual(done.run_reward,{collected:coins.length,bonus:10,coins:10+coins.length});assert.equal(parseEconomyResult(done).run_reward.coins,10+coins.length);
   assert.equal((await economy(1,'run_finish',payload,id)).snapshot.coins,done.snapshot.coins);assert.equal((await economy(1,'run_finish',payload)).outcome,'run_rejected');
@@ -212,7 +212,7 @@ test('Daily Coin Collector Quest combines accepted single/multi runs once, pays 
 test('box coin reward limits match map collectibles plus targets for single/multi and keep prior receipts',async()=>{
  const sql=await readFile(new URL('../supabase/migrations/202610280026_box_coin_rewards.sql',import.meta.url),'utf8');await db.exec(sql);
  assert.equal((await economy(1)).snapshot.boxCoinRewardsReady,true);
- for(const map of Object.keys(COURSE_COINS).filter(map=>map!=='cherry'&&map!=='survival')){
+ for(const map of Object.keys(COURSE_COINS).filter(map=>map!=='cherry'&&COURSES[map].mode==='race')){
   const limit=courseCoinLimit(map);assert.equal(limit,COURSE_COINS[map].length+COURSES[map].targets.length);
   const before=(await economy(1)).snapshot.coins,start=await economy(1,'run_start',{map});await db.query("update public.economy_runs set started_at=clock_timestamp()-interval '6 seconds' where id=$1",[start.run_id]);
   await assert.rejects(economy(1,'run_finish',{run_id:start.run_id,collected:limit+1}),/invalid_run_coins/);
