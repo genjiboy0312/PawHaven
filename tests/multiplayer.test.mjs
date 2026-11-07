@@ -1455,6 +1455,15 @@ test('stepped scene uses shared survival controls, raised one-way terrain and no
  try{scene=new PlayScene({id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}},()=>{},{open(){},map:'terraces',art:bundle.art});
  assert.equal(scene.survival,true);assert.equal(scene.run.course.filter(s=>s.top===64).length,3);assert.equal(scene.controls.has('attack'),false);assert.equal(scene.labels.length,0);assert.equal(scene.run.coins.items.length,0);
  scene.run.x=1080;scene.run.height=64;scene.update(.01);assert.equal(scene.run.won,false);assert.match(scene.progress.textContent,/Survival/);
+ scene.run.survival.sync(7.5);
+ assert.deepEqual(scene.run.course.map(s=>s.disabled),[true,false,true,false,true,false]);
+
+ const client={owner:users[0],recoverySerial:0};
+ const config={id:'corgi',speed:90,scale:.62,animations:{idle:{frames:[Texture.WHITE],fps:3}}};
+ scene.destroy({children:true});
+ scene=new PlayScene(config,()=>{},{open(){},map:'terraces',multiplayer:{client,pets:[config],leave(){}}});
+ scene.run.survival.sync(7.5);
+ assert.deepEqual(scene.run.course.map(s=>s.disabled),[true,false,false,true,false,false]);
  }finally{scene?.destroy({children:true});destroyCourseArt(bundle);env.restore();}
 });
 

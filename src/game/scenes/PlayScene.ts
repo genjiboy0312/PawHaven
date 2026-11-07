@@ -147,7 +147,9 @@ export class PlayScene extends Scene {
     super();
     const map=COURSES[settings?.map??'garden'];
     this.survival = courseMode(settings?.map??'garden')==='survival';
-    this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,survivalSeconds:this.survival?(settings?.multiplayer?SURVIVAL_MULTI_SECONDS:SURVIVAL_SINGLE_SECONDS):undefined,playerCombat:map.playerCombat&&!!settings?.multiplayer,
+    this.run=new DummyRun(map.solids,1/PLAY_ZOOM,{finish:map.finish,checkpoint:map.checkpoint,targets:map.targets,manualReturn:true,survivalSeconds:this.survival?(settings?.multiplayer?SURVIVAL_MULTI_SECONDS:SURVIVAL_SINGLE_SECONDS):undefined,
+      survivalPattern: settings?.map === 'terraces' && !settings.multiplayer ? 'alternating-height' : undefined,
+      playerCombat:map.playerCombat&&!!settings?.multiplayer,
       snakes:settings?.snakeArt?COURSE_SNAKES[settings.map??'garden']:[],snakeHeight:settings?.multiplayer?60:snakeHeight(config),coins:settings?.art?.coin?COURSE_COINS[settings.map??'garden']:[],boxCoins:!!settings?.art?.coin&&settings.boxCoins!==false});
     this.courseEnd=Math.max(...map.solids.map(s=>s.x+s.width));
     this.raceRound=settings?.multiplayer?.client.room?.round;

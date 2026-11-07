@@ -1,11 +1,11 @@
-import { SurvivalRound } from './SurvivalArena';
+import { SurvivalRound, type SurvivalPattern } from './SurvivalArena';
 import type { AnimalAction } from '../animals/AnimalConfig';
 import { TRAINING_COURSE, type CourseSolid } from './TrainingCourse';
 import { HitReaction, type PlayerHit } from './HitReaction';
 import {PatrolSnake,type SnakePatrol} from './PatrolSnake';
 import { MovingPlatform } from './MovingPlatform';
 import { CoinCollection, type CoinPlacement } from './CourseCoins';
-export interface RunOptions { survivalSeconds?: number; finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[]; boxCoins?:boolean }
+export interface RunOptions { survivalSeconds?: number; survivalPattern?: SurvivalPattern; finish?: number; checkpoint?: number; targets?: readonly number[]; manualReturn?: boolean; playerCombat?: boolean; snakes?:readonly SnakePatrol[];snakeHeight?:number; coins?:readonly CoinPlacement[]; boxCoins?:boolean }
 /** Renderer-independent movement, collisions and course progress. */
 export class DummyRun {
   get speed(): number { return 240 * this.movementScale; }
@@ -49,7 +49,7 @@ export class DummyRun {
       if(!solid.motion)return options.survivalSeconds ? { ...solid } : solid;
       const platform=new MovingPlatform(solid);this.platforms.push(platform);return platform.solid;
     });
-    if (options.survivalSeconds) this.survival = new SurvivalRound(options.survivalSeconds, this.course);
+    if (options.survivalSeconds) this.survival = new SurvivalRound(options.survivalSeconds, this.course, options.survivalPattern);
     this.snakes=(options.snakes??[]).map(patrol=>new PatrolSnake(patrol,options.snakeHeight));
     this.hitReaction = new HitReaction(options.playerCombat === true||this.snakes.length>0);
     this.targets = (options.targets ?? []).map(x => ({ x, broken: false }));

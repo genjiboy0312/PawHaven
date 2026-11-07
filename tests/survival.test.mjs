@@ -126,3 +126,44 @@ test('new stepped map keeps both survival reward endpoints disabled and shares d
  await assert.rejects(db.query("select public.economy_command('race_reward',gen_random_uuid(),$1::jsonb)",[JSON.stringify({room:id,round,collected:0})]),/invalid_run_coins/);
  }finally{await db.exec('reset role');}
 });
+
+test('single terraces can be cleared by reacting to the alternating height warnings with ordinary jumps',()=>{
+ const pattern='alternating-height';
+ for(const fps of [30,60,120]){
+  const run=new DummyRun(SURVIVAL_STEPS_COURSE,1/.78,{survivalSeconds:30,survivalPattern:pattern,finish:1080});
+  let current=0;
+  for(let cycle=0;cycle<5;cycle++){
+   const next=cycle%2===0?1:0;
+   const collapse=7+cycle*5.2;
+   while(run.enemyTime<collapse-.55&&!run.won)run.update(1/fps,0);
+   assert.equal(run.course[current].warning,true);
+   assert.equal(run.course[next].warning,false);
+   assert.equal(run.grounded,true);
+   const safe=run.course[next],center=safe.x+safe.width/2;
+   run.jump();
+   while(run.enemyTime<collapse+1&&!run.won){
+    const delta=center-run.x;
+    run.update(1/fps,Math.abs(delta)<6?0:Math.sign(delta));
+   }
+   assert.equal(run.course[current].disabled,true);
+   assert.equal(run.height,safe.top);
+   assert.ok(run.grounded&&Math.abs(run.x-center)<7);
+   current=next;
+  }
+  while(!run.won)run.update(1/fps,0);
+  assert.equal(run.survival.succeeded,true);
+  assert.equal(run.jumpSequence,5);
+ }
+ // Both edge platforms, as well as interior platforms, have a safe adjacent option.
+ for(const cycle of [0,1,2,3,4]){
+  const opening=3+cycle*5.2;
+  const phases=SURVIVAL_STEPS_COURSE.map((_,i)=>survivalPlatformPhase(i,opening+4.5,pattern));
+  assert.equal(phases.filter(phase=>phase==='gone').length,3);
+  phases.forEach((phase,i)=>{
+   assert.equal(phase,i%2===cycle%2?'gone':'safe');
+   if(phase==='gone')assert.ok(phases[i-1]==='safe'||phases[i+1]==='safe');
+   assert.equal(survivalPlatformPhase(i,opening+5.1,pattern),phase);
+   assert.equal(survivalPlatformPhase(i,opening+5.3,pattern),'safe');
+  });
+ }
+});
