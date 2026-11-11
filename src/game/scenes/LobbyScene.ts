@@ -7,6 +7,7 @@ import { LobbyHud } from '../../ui/LobbyHud';
 import { Scene } from './Scene';
 import { SnackButton } from '../../ui/SnackButton';
 import type { CommerceState } from '../../shop/CommerceState';
+import { FirstHomeHint, type FirstHomeActions } from '../../ui/FirstHomeHint';
 
 export class LobbyScene extends Scene {
   private readonly garden: LobbyMap;
@@ -20,14 +21,16 @@ export class LobbyScene extends Scene {
   private seenRevision = -1;
   private welcomeStarted = false;
   private paused = false;
+  private readonly firstHome?: FirstHomeHint;
   private readonly snacks?:SnackButton;private feedReaction=false;
 
   override setPaused(paused: boolean): void { this.paused = paused; }
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void;snacks?:CommerceState; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }, nickname?: () => string | null | undefined, visit?:{name:string;leave:()=>void}) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void;snacks?:CommerceState; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }, nickname?: () => string | null | undefined, visit?:{name:string;leave:()=>void}, firstHome?: FirstHomeActions) {
     super(); this.garden = new LobbyMap(home?.textures);
-    const pet = (): void => { if (!this.paused && this.animal.pet()){commerce?.pet?.();this.snacks?.reveal();} };
+    const pet = (): void => { if (!this.paused && this.animal.pet()){commerce?.pet?.();firstHome?.guide.pet();this.snacks?.reveal();} };
     this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open, pet,visit,commerce?.snacks?{config,nickname,state:commerce.snacks}:undefined);
+    if (firstHome) { this.firstHome = new FirstHomeHint(firstHome, commerce?.click); this.hud.element.append(this.firstHome.element); }
     this.welcomeStarted = returning;
     this.animal = new Animal(config, Math.random, nickname);
     if(commerce?.snacks){this.snacks=new SnackButton(commerce.snacks,config.id,()=>{this.feedReaction=true;},commerce.quest);this.hud.element.append(this.snacks.element);}
@@ -53,6 +56,7 @@ export class LobbyScene extends Scene {
     this.shadow.clear().ellipse(0, 0, 54, 9).fill({ color: '#566840', alpha: 0.13 });
     this.update(0);
   }
+  greet(): void { this.animal.startWelcome(); }
   private syncHome(): void {
     const items = this.home?.state.items ?? [];
     this.garden.draw(this.viewWidth, this.viewHeight, this.home?.state.current ?? { Background: 0, Floor: 0 }, items);
@@ -79,6 +83,7 @@ export class LobbyScene extends Scene {
     this.snacks?.update(seconds,sx,this.animal.y+bubble.y+bubble.halfHeight-15,this.viewWidth,this.viewHeight);
   }
   override destroy(options?: DestroyOptions): void {
+    this.firstHome?.destroy();
     this.snacks?.destroy();
     this.hud.destroy();
     super.destroy(options);

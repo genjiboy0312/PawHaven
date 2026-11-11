@@ -424,3 +424,24 @@ test('network recovery reloads a failed account without losing local edits and n
   const count=client.calls.length;await service.recoverConnection(true);assert.equal(client.calls.length,count);
  }finally{service.destroy();}
 });
+
+test('first home progress persists by owner and skips players who already decorated',async()=>{
+ const {FirstHomeGuide}=await importTs('../src/game/FirstHomeGuide.ts',import.meta.url);
+ const values=new Map(),store={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+ const guest=new FirstHomeGuide(store,null,false,false);
+ const transitions=[];
+ const off=guest.subscribe(()=>transitions.push(guest.current));
+ guest.buyFurniture();guest.pet();guest.pet();
+ assert.equal(guest.finishRace(),true);
+ assert.equal(guest.finishRace(),false);
+ guest.buyFurniture();
+ assert.deepEqual(transitions,['race','shop','place']);
+ off();
+ assert.equal(new FirstHomeGuide(store,null,false,true).current,'place');
+ assert.equal(new FirstHomeGuide(store,'alice',false,false).current,'pet');
+ assert.equal(new FirstHomeGuide(store,'alice',false,true).current,'shop');
+ assert.equal(new FirstHomeGuide(store,'bob',true,false).current,'done');
+ assert.equal(new FirstHomeGuide(store,'bob',false,false).current,'done');
+ guest.dismiss();
+ assert.equal(new FirstHomeGuide(store,null,false,false).current,'done');
+});

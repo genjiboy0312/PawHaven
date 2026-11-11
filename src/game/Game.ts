@@ -14,6 +14,7 @@ import { RoomClient, roomTransport } from '../multiplayer/RoomClient';
 import { RoomInvitation } from '../multiplayer/RoomInvitation';
 import { roomStream, lobbyStream } from '../multiplayer/RoomStream';
 import { courseMode, type CourseId } from './CourseCatalog';
+import { FirstHomeGuide } from './FirstHomeGuide';
 import { SingleRecordSync, singleRecordTransport } from '../account/SingleRecordSync';
 import { loadCourseArt, type CourseArt } from './CourseArt';
 import { loadCourseBackgrounds, type CourseBackgrounds } from './CourseBackgrounds';
@@ -172,6 +173,9 @@ export class Game {
       this.recordOff = () => { off(); statusOff?.(); };
     };
     makeRecords();
+    const makeFirstHome = () => new FirstHomeGuide(storage, playerStorage.owner, home.snapshot().items.length > 0,
+      (Object.keys(records.snapshot().times) as CourseId[]).some(map => courseMode(map) === 'race'));
+    let firstHome = makeFirstHome();
 
     const savedCharacter = character.restore(commerce.entitlementsKnown?PET_IDS.filter(id=>commerce.ownsPet(id)):PET_IDS, (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));
     Object.assign(this.outfit, savedCharacter.outfit);
@@ -210,11 +214,24 @@ export class Game {
     let activePet = commerce.ownsPet(character.current.petId)?choosePet(character.current.petId):corgi;
     preload.setProgress(1);
     const pets = petConfigs.map(config=>({config,name:PET_CATALOG[config.id as typeof PET_IDS[number]].name,thumbnail:PET_CATALOG[config.id as typeof PET_IDS[number]].thumbnail}));
-    const openShop = (tab: 'Style' | 'Pass' = 'Style'): void => {
+    const openHome = (): void => {
+      if (this.disposed) return;
+      const guide = firstHome, state = home;
+      this.scenes?.show(new HomeScene(state, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback), this.account, {
+        initialTab: guide.current === 'place' ? 'Furniture' : undefined,
+        onPlaced: () => { if (guide === firstHome && state === home) guide.dismiss(); },
+      }));
+    };
+    const openShop = (tab: 'Style' | 'Furniture' | 'Pass' = 'Style'): void => {
+      const guide = firstHome;
       if (!this.disposed) this.scenes?.show(new ShopScene(activePet, commerce, () => lobby(true), () => { lobby(true); this.quests?.open('seasonPass'); }, tab,(category,index)=>{
         if(!commerce.entitlementsKnown||!commerce.owns(category,index))return;
         this.outfit[category]=index;character.save({petId:activePet.id,outfit:this.outfit});
-      },pets,{state:home,textures:this.homeTextures}));
+      },pets,{state:home,textures:this.homeTextures,firstHome:{
+        onPurchase: () => { if (guide === firstHome) guide.buyFurniture(); },
+        canPlace: () => guide === firstHome && guide.current === 'place',
+        place: openHome,
+      }}));
     };
     let inGame=false;let currentLobby:LobbyScene|undefined;
     const openCharacter=(returnTo:()=>void,beforeClose?:()=>Promise<void>)=>{
@@ -280,12 +297,12 @@ export class Game {
     makeActivity();
     this.friends = makeFriends();
     this.quests = new QuestPopup(commerce, paused => this.scenes?.setPaused(paused), () => openShop('Pass'));
-    const lobby = (returning = false, initialMenu?:'mode'|'multi'): void => {
+    const lobby = (returning = false, initialMenu?:'mode'|'multi', greet = false): void => {
       if (this.disposed) return;
       inGame=false;
       this.mailClient?.start();
       if(this.account?.nickname)this.friendClient?.start();
-      const runCommerce = commerce;
+      const runCommerce = commerce, guide = firstHome;
       let starting = false;
       const launch = async (origin: LobbyScene | PlayScene, map:CourseId='garden'): Promise<boolean> => {
         const mode = courseMode(map);
@@ -297,7 +314,8 @@ export class Game {
           if ((rewarded && !await runCommerce.beginRun(map)) || this.disposed || commerce !== runCommerce || !this.scenes?.isCurrent(origin)) return false;
           let completion = Promise.resolve();
           const runRecords=records;
-          const play = new PlayScene(activePet, () => lobby(true), {
+          let firstFinish = false;
+          const play = new PlayScene(activePet, () => lobby(true, undefined, firstFinish), {
             open: (leaving = false) => this.settings?.open(true, {
               active: () => !this.disposed && commerce === runCommerce && this.scenes?.isCurrent(play) === true && play.inProgress,
               restart: () => launch(play, map), leave: () => lobby(true),
@@ -305,7 +323,10 @@ export class Game {
             sound: kind => { this.audio?.play(kind); if (kind !== 'coin' && gameSettings.current.vibration) navigator.vibrate?.(20); },
             boxCoins: rewarded && runCommerce.boxCoinRewardsReady,
             rewards: rewarded ? runCommerce : undefined,
-            complete: rewarded ? collected => { completion = Promise.resolve(runCommerce.completeRun(collected)); } : undefined,
+            complete: rewarded ? collected => {
+              completion = Promise.resolve(runCommerce.completeRun(collected));
+              if (guide === firstHome) firstFinish = guide.finishRace();
+            } : undefined,
             record: tracksRecords ? (seconds, falls, cleared) => mode === 'survival'
               ? runRecords.survive(map, seconds, cleared === true)
               : runRecords.complete(map, seconds, falls) : undefined,
@@ -354,8 +375,12 @@ export class Game {
       };
       const scene = new LobbyScene(activePet, () => openMenu(), returning, () => {
         openCharacter(()=>lobby(true));
-      }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, snacks: commerce, friends: () => this.friends?.open(), mail:()=>this.mailbox?.open(), mailPending:()=>this.mailClient?.pending??0, mailArrival:()=>this.mailClient?.arrivalVersion??0, requests: () => this.friendClient?.snapshot.incoming.length ?? 0, rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: () => { if (!this.disposed) this.scenes?.show(new HomeScene(home, () => lobby(true), this.homeTextures, callback => commerce.subscribe(callback), this.account)); } }, () => this.account?.user ? this.account.nickname : null);
-      currentLobby=scene;this.scenes?.show(scene);void this.friendActivity?.refresh();
+      }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, snacks: commerce, friends: () => this.friends?.open(), mail:()=>this.mailbox?.open(), mailPending:()=>this.mailClient?.pending??0, mailArrival:()=>this.mailClient?.arrivalVersion??0, requests: () => this.friendClient?.snapshot.incoming.length ?? 0, rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: openHome }, () => this.account?.user ? this.account.nickname : null, undefined, {
+        guide, play: () => launch(scene, 'practice'), shop: () => openShop('Furniture'), home: openHome,
+      });
+      currentLobby=scene;this.scenes?.show(scene);
+      if (greet) scene.greet();
+      void this.friendActivity?.refresh();
       if(initialMenu)openMenu(initialMenu);
       this.networkRecovery?.resume();
     };
@@ -374,6 +399,7 @@ export class Game {
       presets = new CharacterPresets(playerStorage);
       home = new HomeState(playerStorage, (tab, index) => commerce.entitlementsKnown ? commerce.homeOwned(tab, index) : undefined);
       makeRecords();
+      firstHome = makeFirstHome();
       commerce.destroy(); commerce = makeCommerce();
       character = new CharacterSelection(playerStorage);
       const look = character.restore(commerce.entitlementsKnown?PET_IDS.filter(id=>commerce.ownsPet(id)):PET_IDS, (category, index) => !commerce.entitlementsKnown || commerce.owns(category, index));

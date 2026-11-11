@@ -31,8 +31,8 @@ export class HomeScene extends Scene {
   private tab: HomeTab = 'Background';
   private viewWidth = 960;
   private viewHeight = 540;
-  constructor(private readonly state: HomeState, onClose: () => void, textures?: HomeTextures, subscribe?: (callback: () => void) => () => void, account?: SaveAccount) {
-    super(); this.history = new HomeHistory(state); this.map = new LobbyMap(textures); this.addChild(this.map);
+  constructor(private readonly state: HomeState, onClose: () => void, textures?: HomeTextures, subscribe?: (callback: () => void) => () => void, account?: SaveAccount, private readonly firstPlacement?: { onPlaced: () => void; initialTab?: HomeTab }) {
+    super(); this.tab = firstPlacement?.initialTab ?? this.tab; this.history = new HomeHistory(state); this.map = new LobbyMap(textures); this.addChild(this.map);
     this.panel.className = 'home-screen'; bindAria(this.panel, 'home');
     const title = document.createElement('h2'); title.className = 'shop-title'; bindText(title, 'home');
     const close = document.createElement('button'); close.type = 'button'; close.className = 'character-close'; close.textContent = '×'; bindAria(close, 'close');
@@ -44,7 +44,7 @@ export class HomeScene extends Scene {
       button.addEventListener('click', () => { this.cancelDrag(false); this.tab = tab; this.render(); }, { signal: this.abort.signal }); this.tabs.append(button);
     }
     this.inventory.className = 'outfit-inventory home-inventory'; bindAria(this.inventory, 'items');
-    const hint = document.createElement('p'); hint.className = 'home-hint'; bindText(hint, 'homeHint');
+    const hint = document.createElement('p'); hint.className = 'home-hint'; bindText(hint, firstPlacement?.initialTab ? 'firstHomePlacementHint' : 'homeHint');
     this.placements.className = 'home-placements';
     this.remove.type = 'button'; this.remove.className = 'home-remove commerce-primary'; bindText(this.remove, 'remove');
     this.remove.addEventListener('click', () => this.removeSelected(), { signal: this.abort.signal });
@@ -94,7 +94,7 @@ export class HomeScene extends Scene {
       button.addEventListener('click', () => {
         this.cancelDrag(false);
         if (this.tab === 'Furniture' || this.tab === 'Etc') {
-          this.edit(() => { const id = this.state.place(this.tab as PlaceableTab, index); if (id !== undefined) this.selected = id; });
+          this.edit(() => { const id = this.state.place(this.tab as PlaceableTab, index); if (id !== undefined) { this.selected = id; this.firstPlacement?.onPlaced(); } });
         } else this.edit(() => { this.state.select(this.tab as 'Background' | 'Floor', index); });
         this.render();
       }); this.inventory.append(button);

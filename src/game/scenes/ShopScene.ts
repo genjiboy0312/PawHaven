@@ -57,8 +57,9 @@ export class ShopScene extends Scene {
   private homeCategory: HomeTab = 'Background';
   private homeSelected = 0;
   private tab: 'Pets' | 'Style' | 'Furniture' | 'Pass';
-  constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Pets' | 'Style' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void, pets?:readonly PetChoice[], private readonly homeSource?: { state: HomeState; textures?: HomeTextures }) {
+  constructor(private readonly config: AnimalConfig, private readonly state: CommerceState, onClose: () => void, private readonly onQuest: () => void, initial: 'Pets' | 'Style' | 'Furniture' | 'Pass' = 'Style', private readonly onEquip?: (category:OutfitTab,index:number)=>void, pets?:readonly PetChoice[], private readonly homeSource?: { state: HomeState; textures?: HomeTextures; firstHome?: { onPurchase: () => void; canPlace: () => boolean; place: () => void } }) {
     super(); this.tab = initial;
+    if (initial === 'Furniture') this.homeCategory = 'Furniture';
     this.pets=pets?.length?pets:[{config,name:config.id,thumbnail:petThumbnail(config.id)}];
     this.petChoice=this.pets.find(pet=>pet.config.id===config.id)??this.pets[0];
     this.purchase = new PurchasePopup(state, this.panel);
@@ -221,6 +222,15 @@ export class ShopScene extends Scene {
     this.homePreview.replaceChildren();
     const heading = document.createElement('p'); heading.textContent = homeItemName(category, selected); this.homePreview.append(heading);
     const hint = document.createElement('p'); hint.className = 'shop-home-preview-note'; bindText(hint, 'shopHomePreview'); this.homePreview.append(hint);
+    const firstHome = this.homeSource?.firstHome;
+    if (firstHome?.canPlace()) {
+      const place = document.createElement('button');
+      place.type = 'button';
+      place.className = 'commerce-primary first-home-place';
+      bindText(place, 'firstHomeOpen');
+      place.addEventListener('click', firstHome.place);
+      this.homePreview.append(place);
+    }
     const categories = document.createElement('nav'); categories.className = 'outfit-tabs shop-categories'; bindAria(categories, 'categories');
     for (const tab of HOME_TABS) {
       const button = document.createElement('button'); button.type = 'button'; bindText(button, tab); button.setAttribute('aria-pressed', String(category === tab));
@@ -268,7 +278,12 @@ export class ShopScene extends Scene {
       this.purchase.open({ name: () => homeItemName(category, selected), icon: () => homeIcon(category, selected), price,
         available: () => this.state.homeShopReady && (category !== 'Background' || this.state.homeBackgroundShopReady && (selected!==4||this.state.cherrySkyReady)) && (category!=='Floor'||this.state.homeFloorShopReady) && (category!=='Furniture'||selected!==6||this.state.petHouseShopReady) && this.state.homeOwned(category, selected) < limit,
         fulfilled: () => this.state.homeOwned(category, selected) > owned,
-        buy: () => this.state.buyHome(category, selected), purchased: () => { if (!this.destroyed) { this.reaction = 1.5; this.render(); } } });
+        buy: () => this.state.buyHome(category, selected), purchased: () => {
+          if (this.destroyed) return;
+          if (category === 'Furniture') firstHome?.onPurchase();
+          this.reaction = 1.5;
+          this.render();
+        } });
     });
     footer.append(detail, buy); this.content.append(categories, this.productFilter(), grid, footer); grid.scrollTop = scroll;
     if (known && !ready) { const hint = document.createElement('p'); bindText(hint, 'homeShopSetup'); this.homePreview.append(hint); }
