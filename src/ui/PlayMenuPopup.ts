@@ -27,6 +27,8 @@ export class PlayMenuPopup {
   private visibility:RoomVisibility='public';
   private privacyReady=false;private survivalReady=false;private terracesReady=false;private coinRushReady=false;private createLocked=false;
   private singleMap:CourseId='garden';
+  private readonly singleSelections: Partial<Record<GameMode, CourseId>> = {};
+  private singleModes?: GameModeTabs;
   private signature='';
   private notice?:TextKey;
   private inviteButton?:RoomInviteButton;
@@ -201,18 +203,43 @@ export class PlayMenuPopup {
     return mode === 'survival' ? t('survivalPrototype') + ' · ' + status : status;
   }
   private singleMaps(){
-    const change=this.button('changeMap',()=>this.openMapPicker());change.classList.add('single-map-change');change.disabled=this.busy;
-    change.textContent=t('changeMap')+' ('+Object.keys(COURSES).length+') ▾';change.setAttribute('aria-haspopup','dialog');change.setAttribute('aria-expanded','false');
+    const mode = courseMode(this.singleMap);
+    this.singleModes = new GameModeTabs(mode, next => {
+      if (this.busy) return;
+      const map = this.singleSelections[next] ?? this.singleCourses(next)[0];
+      if (!map) return;
+      this.singleSelections[mode] = this.singleMap;
+      this.singleMap = map;
+      this.notice = undefined;
+      this.render();
+      this.singleModes?.focus(next);
+    }, GAME_MODES);
+    this.singleModes.setDisabled(this.busy);
+    const maps = this.singleCourses(mode);
     const actions=document.createElement('div');actions.className='single-map-actions';
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
-    const card=this.singleCard(this.singleMap);card.querySelector('.single-map-heading')?.append(change);
-    const note=this.text(this.recordStatus());note.className='single-record-note';actions.append(play,note);return[card,actions];
+    const card=this.singleCard(this.singleMap);
+    if (maps.length > 1) {
+      const change = this.button('changeMap', () => this.openMapPicker());
+      change.classList.add('single-map-change');
+      change.disabled = this.busy;
+      change.textContent = t('changeMap') + ' (' + maps.length + ') ▾';
+      change.setAttribute('aria-haspopup', 'dialog');
+      change.setAttribute('aria-expanded', 'false');
+      card.querySelector('.single-map-heading')?.append(change);
+    }
+    const note=this.text(this.recordStatus());note.className='single-record-note';actions.append(play,note);
+    return [this.singleModes.element, card, actions];
+  }
+  private singleCourses(mode: GameMode): CourseId[] {
+    return (Object.keys(COURSES) as CourseId[]).filter(id => courseMode(id) === mode);
   }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;
     const single=this.page==='single';
     if(!this.overlay||this.mapPicker||this.busy||(!single&&(!room||room.host!==client?.owner||room.phase!=='waiting'||client.reconnecting||client.error)))return;
+    if (single && this.singleCourses(courseMode(this.singleMap)).length < 2) return;
     this.pickerSingle=single;this.content?.querySelector('.single-map-change')?.setAttribute('aria-expanded','true');
     this.pickerFocus=this.content?.querySelector<HTMLElement>(single?'.single-map-change':'.room-change-map')??(document.activeElement instanceof HTMLElement?document.activeElement:undefined);
     const parent=this.overlay.querySelector<HTMLElement>('.play-menu-panel');
@@ -225,7 +252,7 @@ export class PlayMenuPopup {
     const renderChoices=(mode:GameMode)=>{
       choices.setAttribute('data-game-mode',mode);choices.replaceChildren();choices.scrollTop=0;
       if(single){
-        for(const id of Object.keys(COURSES) as CourseId[])if(courseMode(id)===mode)choices.append(this.singleCard(id,()=>{
+        for(const id of this.singleCourses(mode))choices.append(this.singleCard(id,()=>{
           this.singleMap=id;this.notice=undefined;this.closeMapPicker();this.render();this.content?.querySelector<HTMLElement>('.single-map-change')?.focus();
         }));
       }else{
@@ -235,8 +262,9 @@ export class PlayMenuPopup {
       this.refreshMapPicker();
     };
     const mode=courseMode(single?this.singleMap:room!.map);
-    this.pickerModes=new GameModeTabs(mode,renderChoices,single || client?.coinRushReady ? GAME_MODES : undefined);renderChoices(mode);
-    const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close,this.pickerModes.element,choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;backAction(overlay,()=>{if(!this.options.rooms?.busy)this.closeMapPicker();});
+    if (!single) this.pickerModes = new GameModeTabs(mode, renderChoices, client?.coinRushReady ? GAME_MODES : undefined);
+    renderChoices(mode);
+    const status=this.text('');status.className='room-map-status';status.setAttribute('role','status');panel.append(heading,close);if(this.pickerModes)panel.append(this.pickerModes.element);panel.append(choices,status);overlay.append(panel);this.overlay.append(overlay);this.mapPicker=overlay;backAction(overlay,()=>{if(!this.options.rooms?.busy)this.closeMapPicker();});
     panel.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.closeMapPicker();return;}
       if(event.key!=='Tab')return;
@@ -260,6 +288,7 @@ export class PlayMenuPopup {
   }
   private render(){
     if(!this.content||!this.title)return;
+    this.singleModes?.destroy();this.singleModes=undefined;
     this.createModes?.destroy();this.createModes=undefined;
     this.signature=this.renderSignature();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;
     const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
@@ -276,7 +305,7 @@ export class PlayMenuPopup {
     this.title.textContent=t(this.page==='mode'?'chooseMode':this.page==='single'?'singleplayer':this.page==='create'?'createRoom':room?'waitingRoom':'multiplayer');
     if(this.page==='mode'){
       const cards=document.createElement('div');cards.className='mode-cards';
-      cards.append(this.button('singleplayer',()=>{this.page='single';this.render();this.closeButton?.focus();}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
+      cards.append(this.button('singleplayer',()=>{this.page='single';this.render();this.singleModes?.focus(courseMode(this.singleMap));}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
       if(this.options.park){cards.classList.add('with-park');cards.append(this.button('park',()=>{this.close(false);this.options.park?.();}));}
     }else if(this.page==='single')root.append(...this.singleMaps());
     else if(this.page==='multi'&&this.options.invitation&&!room)root.append(this.invitationCard());
@@ -377,7 +406,7 @@ export class PlayMenuPopup {
   private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!this.options.rooms.error&&!this.options.rooms.reconnecting&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
     this.chat?.destroy();this.chat=undefined;
-    if(!this.overlay)return;this.createModes?.destroy();this.createModes=undefined;this.closeLeavePrompt();this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
+    if(!this.overlay)return;this.singleModes?.destroy();this.singleModes=undefined;this.createModes?.destroy();this.createModes=undefined;this.closeLeavePrompt();this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
     if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
   }

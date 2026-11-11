@@ -607,7 +607,7 @@ test('single map choice launches without an account and restores the lobby input
     menu=new PlayMenuPopup(v=>pauses.push(v),{best:map=>map==='practice'?12345:null,single:async map=>{chosen=map;return true;},race(){},login(){},dismiss(){closed++;}});
     menu.open();env.host.all().find(e=>e.textContent==='Single').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'),'garden');
-    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (8) ▾');
+    assert.equal(env.host.querySelector('.single-map-change').textContent,'Change map (5) ▾');
     env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
     const choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,5);
     assert.equal(choices.children.find(c=>c.getAttribute('data-map')==='garden').getAttribute('aria-pressed'),'true');
@@ -755,12 +755,12 @@ test('single and multiplayer use one top back action while preserving pagination
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'mode');
     assert.equal(env.host.querySelector('.settings-close').textContent,'×');
     env.host.all().find(e=>e.tag==='button'&&e.textContent==='Single').dispatchEvent(new Event('click'));
-    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (8) ▾');
+    const change=env.host.querySelector('.single-map-change');assert.equal(change.textContent,'Change map (5) ▾');
     assert.ok(env.host.querySelector('.single-map-heading').children.includes(change));
     change.dispatchEvent(new Event('click'));assert.equal(env.host.querySelector('.room-map-picker').getAttribute('aria-label'),'Choose map');
     env.host.querySelector('.room-map-picker').querySelector('.settings-close').dispatchEvent(new Event('click'));
     assert.equal(env.host.querySelector('.play-menu-panel').getAttribute('data-page'),'single');
-    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (8) ▾');
+    setLanguage('ko');assert.equal(env.host.querySelector('.single-map-change').textContent,'맵 변경 (5) ▾');
     assert.equal(env.host.querySelector('.play-menu-back').hidden,true);assert.equal(env.host.querySelector('.play-menu-back').disabled,true);
     const leave=env.host.querySelector('.play-menu-exit');assert.equal(leave.textContent,'나가기');assert.equal(env.host.querySelector('.play-menu-footer').contains(leave),true);
     leave.dispatchEvent(new Event('click'));assert.equal(menu.panel.getAttribute('data-page'),'mode');assert.equal(menu.closeButton.hidden,false);
@@ -1407,16 +1407,25 @@ test('shared game-mode buttons localize goals, ignore repeated selection and rel
   setLanguage('ko');component=new GameModeTabs('survival',()=>{});assert.equal(component.element.children[0].children[1].textContent,'서바이벌');assert.equal(component.element.children[1].textContent,'끝까지 살아남기');
  }finally{component?.destroy();setLanguage('en');env.restore();}
 });
-test('single picker filters modes without changing the selected map until a card is chosen',()=>{
+test('single tabs choose a mode immediately and remember its selected map',()=>{
  const env=dom();let menu;
  try{
   menu=new PlayMenuPopup(()=>{},{single:async()=>false,race(){},login(){},dismiss(){}});menu.open('single');
+  const tabs=()=>env.host.querySelector('.game-mode-tabs').children;
+  assert.deepEqual(tabs().map(tab=>tab.getAttribute('data-game-mode')),['race','survival','collection']);
+  tabs()[1].dispatchEvent(new Event('click'));
+  assert.equal(menu.singleMap,'survival');
+  assert.equal(document.activeElement,tabs()[1]);
+  assert.match(env.host.querySelector('.single-map-change').textContent,/\(2\)/);
   env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
-  const filter=env.host.querySelector('.game-mode-tabs'),choices=env.host.querySelector('.single-map-choices');assert.equal(choices.children.length,5);
-  filter.children[1].dispatchEvent(new Event('click'));assert.deepEqual(choices.children.map(c=>c.getAttribute('data-map')),['survival','terraces']);assert.equal(menu.singleMap,'garden');
-  menu.closeMapPicker();menu.openMapPicker();assert.equal(env.host.querySelector('.game-mode-tabs').children[0].getAttribute('aria-pressed'),'true');
-  env.host.querySelector('.game-mode-tabs').children[1].dispatchEvent(new Event('click'));env.host.querySelector('.single-map-choices').children[0].dispatchEvent(new Event('click'));
-  assert.equal(menu.singleMap,'survival');menu.openMapPicker();assert.equal(env.host.querySelector('.game-mode-tabs').children[1].getAttribute('aria-pressed'),'true');
+  const choices=env.host.querySelector('.single-map-choices');
+  assert.deepEqual(choices.children.map(c=>c.getAttribute('data-map')),['survival','terraces']);
+  assert.equal(tabs().length,3);
+  choices.children[1].dispatchEvent(new Event('click'));
+  tabs()[0].dispatchEvent(new Event('click'));
+  assert.equal(menu.singleMap,'garden');
+  tabs()[1].dispatchEvent(new Event('click'));
+  assert.equal(menu.singleMap,'terraces');
  }finally{menu?.destroy();env.restore();}
 });
 test('room creation keeps its title while changing mode and blocks unsupported survival creation',async()=>{
@@ -1500,12 +1509,9 @@ test('single Coin Rush works on older servers and ends with a score and retry', 
  try {
   menu = new PlayMenuPopup(() => {}, {rooms:client,single:async map=>{launched=map;return false;},race(){},login(){},dismiss(){}});
   menu.open('single');
-  env.host.querySelector('.single-map-change').dispatchEvent(new Event('click'));
   env.host.querySelector('.game-mode-tabs').children[2].dispatchEvent(new Event('click'));
-  const choices = env.host.querySelector('.single-map-choices');
-  assert.equal(choices.children.length, 1);
-  assert.equal(choices.children[0].getAttribute('data-map'), 'coinRush');
-  choices.children[0].dispatchEvent(new Event('click'));
+  assert.equal(env.host.querySelector('.single-map-summary').getAttribute('data-map'), 'coinRush');
+  assert.equal(env.host.querySelector('.single-map-change'), undefined);
   assert.equal(env.host.querySelector('.single-goals'), undefined);
   env.host.querySelector('.single-map-play').dispatchEvent(new Event('click'));
   await new Promise(resolve => setImmediate(resolve));

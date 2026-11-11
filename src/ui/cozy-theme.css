@@ -598,11 +598,11 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .single-map-actions .single-map-play { min-width: 24cqw; padding: 1.8cqh 3cqw; font: 400 2.2cqw var(--font-round); }
 .single-map-heading .single-map-change { flex: 0 0 auto; max-width:55%; min-height:32px; margin:0 0 0 auto; padding:.8cqh 1cqw; font:400 clamp(10px,1.35cqw,18px)/1.2 var(--font-round); }
 .single-map-summary { display: grid; grid-template-columns: 36% minmax(0,1fr); align-items: stretch; gap: 2cqw; margin: 0; border: 1px solid #d6bc88; background:transparent url("/assets/ui/surfaces/surface-4587a2ef0860.png") center/100% 100% no-repeat; }
-.single-map-summary::before { margin: 0; height: 100%; min-height: 22cqh; }
+.single-map-summary::before { margin: 0; height: 100%; min-height: 17cqh; }
 .single-map-summary .single-map-description { min-height: 0; }
-.single-menu-content { display: flex; flex-direction: column; gap: 2.4cqh; margin-top: 3cqh; }
+.single-menu-content { display: flex; flex-direction: column; gap: 1.4cqh; margin-top: 2cqh; }
 .single-menu-content > .single-map-summary { flex: 1 0 auto; padding: 2cqh 1.8cqw; }
-.single-map-info { min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 1.6cqh; }
+.single-map-info { min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 1.1cqh; }
 .single-map-heading { display: flex; align-items: center; justify-content: space-between; gap: 1cqw; flex-wrap: nowrap; }
 .single-map-heading strong { min-width: 0; font-weight: 400; overflow-wrap: anywhere; }
 .single-map-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8cqh 2cqw; }

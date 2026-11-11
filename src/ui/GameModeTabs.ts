@@ -35,6 +35,7 @@ export class GameModeTabs {
     this.buttons.forEach((button, mode) => button.setAttribute('aria-pressed', String(mode === this.mode)));
     bindText(this.goal, MODE_TEXT[this.mode].goal);
   }
+  setDisabled(disabled: boolean): void { this.buttons.forEach(button => { button.disabled = disabled; }); }
   focus(mode: GameMode): void { this.buttons.get(mode)?.focus(); }
   destroy(): void { this.abort.abort(); this.element.remove(); }
 }
