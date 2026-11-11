@@ -6,37 +6,42 @@ const MODE_TEXT = {
   collection: { label: 'gameCollection', goal: 'gameCollectionGoal' },
 } satisfies Record<GameMode, { label: TextKey; goal: TextKey }>;
 export const gameModeLabel = (mode: GameMode): TextKey => MODE_TEXT[mode].label;
-/** Shared mode filter for single selection, room creation and the host's map picker. */
+/** Shared mode filter for single selection, room lists, room creation and the host's map picker. */
 export class GameModeTabs {
   readonly element = document.createElement('div');
   private readonly goal = document.createElement('p');
-  private readonly buttons = new Map<GameMode, HTMLButtonElement>();
+  private readonly buttons = new Map<GameMode | null, HTMLButtonElement>();
   private readonly abort = new AbortController();
   constructor(
-    private mode: GameMode,
+    private mode: GameMode | null,
     private readonly changed: (mode: GameMode) => void,
     modes: readonly GameMode[] = ['race', 'survival'],
+    private readonly selectAll?: () => void,
   ) {
     this.element.className = 'game-mode-filter';
     const nav = document.createElement('nav'); nav.className = 'game-mode-tabs'; nav.setAttribute('role', 'group'); bindAria(nav, 'gameTypes');
-    for (const value of modes) {
+    for (const value of selectAll ? [null, ...modes] : modes) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'commerce-primary';
-      button.setAttribute('data-game-mode', value); bindText(button, gameModeLabel(value));
+      button.setAttribute('data-game-mode', value ?? 'all'); bindText(button, value === null ? 'allGameModes' : gameModeLabel(value));
       button.addEventListener('click', () => {
         if (button.disabled || this.mode === value) return;
-        this.mode = value; this.render(); this.changed(value);
+        this.mode = value; this.render();
+        if (value === null) this.selectAll?.();
+        else this.changed(value);
       }, { signal: this.abort.signal });
       this.buttons.set(value, button); nav.append(button);
     }
     this.goal.className = 'game-mode-goal'; this.goal.setAttribute('aria-live', 'polite');
-    this.element.append(nav, this.goal); this.render();
+    this.element.append(nav);
+    if (!selectAll) this.element.append(this.goal);
+    this.render();
   }
   private render(): void {
     this.buttons.forEach((button, mode) => button.setAttribute('aria-pressed', String(mode === this.mode)));
-    bindText(this.goal, MODE_TEXT[this.mode].goal);
+    if (!this.selectAll && this.mode !== null) bindText(this.goal, MODE_TEXT[this.mode].goal);
   }
   setDisabled(disabled: boolean): void { this.buttons.forEach(button => { button.disabled = disabled; }); }
-  focus(mode: GameMode): void { this.buttons.get(mode)?.focus(); }
+  focus(mode: GameMode | null): void { this.buttons.get(mode)?.focus(); }
   destroy(): void { this.abort.abort(); this.element.remove(); }
 }
 export function gameModeBadge(map: CourseId): HTMLElement {

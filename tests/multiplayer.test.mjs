@@ -1614,3 +1614,36 @@ test('Coin Rush podium breaks full scores by time and keeps partial ties',()=>{
   assert.match(rows[0].children[2].textContent,/8.001s/);
  }finally{podium?.destroy();env.restore();}
 });
+
+test('multiplayer room filters reset pagination, preserve refresh, and seed room creation', async () => {
+ const env=dom();
+ const rooms=['garden','practice','survival','coinRush','coinRush','garden'].map((map,index)=>({
+  id:String(index),name:'Room '+index,map,phase:'waiting',count:1,
+ }));
+ let menu;
+ const client=new RoomClient(users[0],async()=>({room:null,rooms:[...rooms],now:Date.now(),survivalReady:true,coinRushReady:true}));
+ try{
+  menu=new PlayMenuPopup(()=>{},{rooms:client,single:async()=>false,race(){},login(){},dismiss(){}});
+  menu.open('multi');await idle(client);
+  const tabs=()=>env.host.querySelector('.game-mode-tabs').children;
+  const pager=()=>env.host.querySelector('.room-pages');
+  const nav=()=>env.host.querySelector('.room-navigation').children;
+  assert.deepEqual(tabs().map(tab=>tab.textContent),['All','Race','Survival','Coin Rush']);
+  assert.equal(tabs()[0].getAttribute('aria-pressed'),'true');
+  nav()[2].dispatchEvent(new Event('click'));
+  assert.equal(pager().scrollLeft,500);
+  tabs()[3].dispatchEvent(new Event('click'));
+  assert.equal(pager().scrollLeft,0);
+  assert.equal(nav()[1].textContent,'1 / 1');
+  assert.deepEqual(pager().children[0].children.map(card=>card.textContent),['Room 3','Room 4']);
+  assert.equal(document.activeElement,tabs()[3]);
+  rooms.splice(3,2);
+  await client.command('list');
+  assert.equal(tabs()[3].getAttribute('aria-pressed'),'true');
+  assert.equal(pager().children.length,0);
+  assert.ok(env.host.all().some(element=>element.textContent==='No rooms in this mode yet.'));
+  env.host.querySelector('.room-create').dispatchEvent(new Event('click'));
+  assert.equal(menu.map,'coinRush');
+  assert.equal(tabs()[2].getAttribute('aria-pressed'),'true');
+ }finally{menu?.destroy();client.destroy(false);env.restore();}
+});

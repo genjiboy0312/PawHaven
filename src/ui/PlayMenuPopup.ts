@@ -40,6 +40,8 @@ export class PlayMenuPopup {
   private pickerSingle=false;
   private pickerModes?:GameModeTabs;
   private createModes?:GameModeTabs;
+  private roomListModes?: GameModeTabs;
+  private roomListMode: GameMode | null = null;
   private leavePrompt?:ConfirmPopup;private leaveRoomId?:string;
   private pickerBlocked?:{element:HTMLElement;inert:boolean};private pickerFocus?:HTMLElement;
   private chat?:RoomChatPanel;
@@ -119,7 +121,7 @@ export class PlayMenuPopup {
     const signature=this.renderSignature();
     if(signature!==this.signature)this.render();
   }
-  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.privateRoomsReady,client?.survivalReady,client?.terracesReady,client?.listed,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent,this.options.invitation?.id]);}
+  private renderSignature(){const client=this.options.rooms;return JSON.stringify([this.page,this.busy,client?.snapshot.room,client?.snapshot.rooms,client?.privateRoomsReady,client?.survivalReady,client?.terracesReady,client?.coinRushReady,client?.listed,client?.busy,client?.error,client?.rejection,client?.reconnecting,client?.notice,this.roomEvent,this.options.invitation?.id]);}
   private clearInvitation(){this.options.invitation?.dismiss();this.options.invitation=undefined;}
   private cancelInvitation(){const button=this.button('roomInviteDismiss',()=>{this.clearInvitation();this.render();});button.setAttribute('data-recovery-control','true');return button;}
   private invitationCard(){
@@ -206,7 +208,7 @@ export class PlayMenuPopup {
     const mode = courseMode(this.singleMap);
     this.singleModes = new GameModeTabs(mode, next => {
       if (this.busy) return;
-      const map = this.singleSelections[next] ?? this.singleCourses(next)[0];
+      const map = this.singleSelections[next] ?? this.mapsForMode(next)[0];
       if (!map) return;
       this.singleSelections[mode] = this.singleMap;
       this.singleMap = map;
@@ -215,7 +217,7 @@ export class PlayMenuPopup {
       this.singleModes?.focus(next);
     }, GAME_MODES);
     this.singleModes.setDisabled(this.busy);
-    const maps = this.singleCourses(mode);
+    const maps = this.mapsForMode(mode);
     const actions=document.createElement('div');actions.className='single-map-actions';
     const play=this.button('play',()=>{const map=this.singleMap;void this.action(async()=>{if(await this.options.single(map))this.close(false);else this.notice='runRetryFailed';});});
     play.classList.add('single-map-play');play.disabled=this.busy;
@@ -232,14 +234,14 @@ export class PlayMenuPopup {
     const note=this.text(this.recordStatus());note.className='single-record-note';actions.append(play,note);
     return [this.singleModes.element, card, actions];
   }
-  private singleCourses(mode: GameMode): CourseId[] {
+  private mapsForMode(mode: GameMode): CourseId[] {
     return (Object.keys(COURSES) as CourseId[]).filter(id => courseMode(id) === mode);
   }
   private openMapPicker(){
     const client=this.options.rooms,room=client?.room;
     const single=this.page==='single';
     if(!this.overlay||this.mapPicker||this.busy||(!single&&(!room||room.host!==client?.owner||room.phase!=='waiting'||client.reconnecting||client.error)))return;
-    if (single && this.singleCourses(courseMode(this.singleMap)).length < 2) return;
+    if (single && this.mapsForMode(courseMode(this.singleMap)).length < 2) return;
     this.pickerSingle=single;this.content?.querySelector('.single-map-change')?.setAttribute('aria-expanded','true');
     this.pickerFocus=this.content?.querySelector<HTMLElement>(single?'.single-map-change':'.room-change-map')??(document.activeElement instanceof HTMLElement?document.activeElement:undefined);
     const parent=this.overlay.querySelector<HTMLElement>('.play-menu-panel');
@@ -252,7 +254,7 @@ export class PlayMenuPopup {
     const renderChoices=(mode:GameMode)=>{
       choices.setAttribute('data-game-mode',mode);choices.replaceChildren();choices.scrollTop=0;
       if(single){
-        for(const id of this.singleCourses(mode))choices.append(this.singleCard(id,()=>{
+        for(const id of this.mapsForMode(mode))choices.append(this.singleCard(id,()=>{
           this.singleMap=id;this.notice=undefined;this.closeMapPicker();this.render();this.content?.querySelector<HTMLElement>('.single-map-change')?.focus();
         }));
       }else{
@@ -286,12 +288,14 @@ export class PlayMenuPopup {
     if(this.pickerBlocked){this.pickerBlocked.element.inert=this.pickerBlocked.inert;this.pickerBlocked=undefined;}
     if(this.pickerFocus?.isConnected)this.pickerFocus.focus();else this.content?.querySelector<HTMLElement>(this.page==='single'?'.single-map-change':'.room-change-map')?.focus();
   }
-  private render(){
+  private render(resetRoomPage = false){
     if(!this.content||!this.title)return;
+    const restoreFilterFocus = this.roomListModes?.element.contains(document.activeElement);
+    this.roomListModes?.destroy(); this.roomListModes = undefined;
     this.singleModes?.destroy();this.singleModes=undefined;
     this.createModes?.destroy();this.createModes=undefined;
     this.signature=this.renderSignature();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;
-    const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=oldPage?.scrollLeft??0;
+    const root=this.content;const oldPage=root.querySelector<HTMLElement>('.room-pages');const oldScroll=resetRoomPage ? 0 : oldPage?.scrollLeft??0;
     this.footer.replaceChildren();this.footer.hidden=true;
     this.footer.classList.remove('room-menu-footer');
     this.panel?.setAttribute('data-page',this.page);root.classList.toggle('single-menu-content',this.page==='single');
@@ -372,10 +376,29 @@ export class PlayMenuPopup {
     }else{
       const toolbar=document.createElement('div');toolbar.className='room-list-toolbar';
       const refresh=this.button('friendsRefresh',()=>{void this.action(()=>client.command('list'));});refresh.classList.add('room-refresh');refresh.setAttribute('data-recovery-control','true');
-      const create=this.button('createRoom',()=>{this.page='create';this.render();});create.classList.add('room-create');
-      toolbar.append(refresh,create);root.append(toolbar);
+      const create = this.button('createRoom', () => {
+        if (this.roomListMode !== null) {
+          const maps = this.mapsForMode(this.roomListMode).filter(id => COURSES[id].multiplayer);
+          this.map = maps.find(id => client.canSelectMap(id)) ?? maps[0] ?? this.map;
+        }
+        this.page = 'create';
+        this.render();
+      });
+      create.classList.add('room-create');
       const pager=document.createElement('div');pager.className='room-pages';
-      const rooms=client.snapshot.rooms;
+      if (this.roomListMode === 'collection' && !client.coinRushReady) this.roomListMode = null;
+      const selectMode = (mode: GameMode | null) => {
+        this.roomListMode = mode;
+        this.render(true);
+      };
+      const filters = new GameModeTabs(this.roomListMode, selectMode, client.coinRushReady ? GAME_MODES : undefined, () => selectMode(null));
+      this.roomListModes = filters;
+      filters.element.classList.add('room-list-modes');
+      toolbar.append(filters.element, refresh, create);
+      root.append(toolbar);
+      if (restoreFilterFocus || resetRoomPage) filters.focus(this.roomListMode);
+      const rooms = client.snapshot.rooms.filter(room =>
+        Object.hasOwn(COURSES, room.map) && (this.roomListMode === null || courseMode(room.map) === this.roomListMode));
       for(let offset=0;offset<rooms.length;offset+=4){
         const page=document.createElement('div');page.className='room-page';
         for(const item of rooms.slice(offset,offset+4)){
@@ -384,7 +407,12 @@ export class PlayMenuPopup {
           card.disabled=item.phase!=='waiting'||item.count>=4||client.busy||this.busy;page.append(card);
         }pager.append(page);
       }
-      if(!rooms.length)root.append(this.text(t('noRooms')));root.append(pager);pager.scrollLeft=oldScroll;
+      if (!rooms.length) {
+        const empty = this.text(t(this.roomListMode === null ? 'noRooms' : 'noRoomsForMode'));
+        empty.setAttribute('role', 'status');
+        root.append(empty);
+      }
+      root.append(pager);pager.scrollLeft=oldScroll;
       const pages=Math.max(1,Math.ceil(rooms.length/4)),navigation=document.createElement('div');navigation.className='room-navigation';
       const status=this.text('');const update=()=>{status.textContent=`${Math.min(pages,1+Math.round(pager.scrollLeft/Math.max(1,pager.clientWidth)))} / ${pages}`;};
       navigation.append(this.button('previous',()=>pager.scrollBy({left:-pager.clientWidth,behavior:'smooth'})),status,this.button('next',()=>pager.scrollBy({left:pager.clientWidth,behavior:'smooth'})));
@@ -406,7 +434,7 @@ export class PlayMenuPopup {
   private async exit(){if(this.busy||this.options.rooms?.busy)return;if(this.options.rooms?.room&&!this.options.rooms.error&&!this.options.rooms.reconnecting&&!await this.options.rooms.command('leave'))return;this.close(false);}
   close(keep=false){
     this.chat?.destroy();this.chat=undefined;
-    if(!this.overlay)return;this.singleModes?.destroy();this.singleModes=undefined;this.createModes?.destroy();this.createModes=undefined;this.closeLeavePrompt();this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
+    if(!this.overlay)return;this.roomListModes?.destroy();this.roomListModes=undefined;this.singleModes?.destroy();this.singleModes=undefined;this.createModes?.destroy();this.createModes=undefined;this.closeLeavePrompt();this.closeMapPicker();this.stopPortraits();this.inviteButton?.destroy();this.inviteButton=undefined;this.unsubscribe?.();this.localeOff?.();this.abort?.abort();this.overlay.remove();this.overlay=undefined;this.content=undefined;
     this.blocked.forEach(b=>{b.element.inert=b.inert;});this.blocked=[];this.pause(false);
     if(this.previousFocus?.isConnected)this.previousFocus.focus();this.options.dismiss(keep);
   }
