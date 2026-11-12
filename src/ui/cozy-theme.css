@@ -924,3 +924,20 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 .first-home-hint button { flex:none; min-height:28px; font:inherit; }
 .first-home-dismiss { color:inherit; background:transparent; border:0; padding:0 .5cqw; cursor:pointer; }
 .first-home-place { margin-top:.7cqh; min-height:28px; font-family:var(--font-body); pointer-events:auto; }
+
+.play-menu-content .mode-postcard { background:transparent url('/assets/ui/surfaces/surface-8a2465ba0234.png') center/100% 100% no-repeat; }
+.postcard-hud { color:var(--ui-ink); -webkit-text-fill-color:var(--ui-ink); }
+.postcard-hud header { position:absolute; top:4cqh; left:3cqw; right:3cqw; display:flex; align-items:center; justify-content:space-between; }
+.postcard-hud header strong { padding:1.1cqh 1.5cqw; border-radius:1cqw; background:var(--ui-cream); font:400 clamp(13px,2.1cqw,27px) var(--font-round); }
+.postcard-hint { position:absolute; left:50%; bottom:4cqh; transform:translateX(-50%); margin:0; max-width:42%; padding:1.1cqh 1.4cqw; border-radius:1cqw; text-align:center; background:var(--ui-cream); font:400 clamp(10px,1.45cqw,18px) var(--font-body); }
+.postcard-spot { position:absolute; left:71.875%; top:47%; transform:translateX(-50%); padding:.7cqh 1cqw; border:1px solid var(--ui-edge); border-radius:1cqw; background:var(--ui-cream); font:400 clamp(10px,1.3cqw,16px) var(--font-body); }
+.postcard-movement { position:absolute; left:3cqw; bottom:4cqh; display:flex; gap:1cqw; }
+.postcard-capture { position:absolute; right:3cqw; bottom:4cqh; }
+.postcard-hud button,.postcard-preview-actions :is(a,button) { min-height:30px; font:400 clamp(11px,1.55cqw,20px) var(--font-round); pointer-events:auto; }
+.postcard-hud .postcard-movement button { width:clamp(36px,7cqw,88px); min-height:clamp(36px,10cqh,80px); font-size:clamp(22px,3cqw,42px); touch-action:none; user-select:none; }
+.postcard-hud .postcard-capture:disabled { opacity:.55; }
+.postcard-overlay[hidden] { display:none; }
+.postcard-preview { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2cqh; width:65%; height:91%; box-sizing:border-box; }
+.postcard-preview img { display:block; max-width:100%; max-height:73%; width:auto; height:auto; object-fit:contain; }
+.postcard-preview-actions { display:flex; flex:none; gap:1.3cqw; }
+.postcard-preview-actions a { display:inline-flex; align-items:center; text-decoration:none; }

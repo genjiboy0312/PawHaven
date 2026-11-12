@@ -48,6 +48,7 @@ import { AudioSystem } from '../systems/AudioSystem';
 import { createOutfit } from '../animals/OutfitState';
 import { CharacterScene } from './scenes/CharacterScene';
 import { PlayScene } from './scenes/PlayScene';
+import { PostcardScene } from './scenes/PostcardScene';
 import { TitleScene } from './scenes/TitleScene';
 import type { AnimalConfig } from '../animals/AnimalConfig';
 import { loadMyeongrang } from '../animals/loadMyeongrang';
@@ -347,6 +348,15 @@ export class Game {
           rooms,pets,nickname:()=>this.account?.nickname,best:map=>records.best(map),goals:map=>records.goals(map),recordNote:()=>!this.recordSync?'singleLocalRecords':this.recordSync.status==='saved'?'singleCloudRecords':this.recordSync.status==='setup'?'singleRecordSetup':this.recordSync.status==='offline'?'singleRecordOffline':'singleRecordsPending',single:map=>launch(scene,map),login:()=>this.settings?.openAccount(),
           roomChat:owner&&accountClient?room=>roomChatConnection(accountClient,owner,room.id):undefined,
           inviteFriends:()=>this.friends?.open(),
+          postcard: () => {
+            if (this.disposed || !this.scenes?.isCurrent(scene)) return;
+            inGame = true;
+            this.friendClient?.stop();
+            this.scenes.show(new PostcardScene(activePet, this.homeTextures,
+              (target, frame) => this.app.renderer.extract.canvas({ target, frame, resolution: 1, antialias: false }) as HTMLCanvasElement,
+              () => lobby(true), () => this.audio?.play('click')));
+            void this.friendActivity?.refresh();
+          },
           park:()=>{
             if(!owner||!accountClient||!this.account?.nickname){this.settings?.openAccount();return;}
             const enter=async()=>{

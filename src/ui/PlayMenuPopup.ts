@@ -53,6 +53,7 @@ export class PlayMenuPopup {
     best?:(map:CourseId)=>number|null;
     goals?:(map:CourseId)=>readonly SingleGoal[];
     recordNote?:()=>TextKey;
+    postcard?:()=>void;
     invitation?:{id:string;dismiss:()=>void};
     inviteHref?:string;
     inviteFriends?:()=>void;
@@ -311,6 +312,11 @@ export class PlayMenuPopup {
       const cards=document.createElement('div');cards.className='mode-cards';
       cards.append(this.button('singleplayer',()=>{this.page='single';this.render();this.singleModes?.focus(courseMode(this.singleMap));}),this.button('multiplayer',()=>{this.page='multi';client?.start();this.changed();}));root.append(cards);
       if(this.options.park){cards.classList.add('with-park');cards.append(this.button('park',()=>{this.close(false);this.options.park?.();}));}
+      if (this.options.postcard) {
+        const postcard = this.button('postcardWalk', () => { this.close(false); this.options.postcard?.(); });
+        postcard.classList.add('mode-postcard');
+        cards.append(postcard);
+      }
     }else if(this.page==='single')root.append(...this.singleMaps());
     else if(this.page==='multi'&&this.options.invitation&&!room)root.append(this.invitationCard());
     else if(!client){root.append(this.text(t('multiLogin')),this.button('login',()=>{this.close(false);this.options.login();}));}
