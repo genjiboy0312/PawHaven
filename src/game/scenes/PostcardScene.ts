@@ -14,6 +14,7 @@ const WALK_SPEED = 128;
 const SPOT_RADIUS = 45;
 const LEFT_KEYS = ['ArrowLeft', 'KeyA'];
 const RIGHT_KEYS = ['ArrowRight', 'KeyD'];
+const POSTCARD_FILENAME = 'pawhaven-walk.png';
 
 export class PostcardScene extends Scene {
   private readonly scenery = new Container();
@@ -25,6 +26,8 @@ export class PostcardScene extends Scene {
   private readonly preview = document.createElement('div');
   private readonly image = document.createElement('img');
   private readonly download = document.createElement('a');
+  private readonly share = document.createElement('button');
+  private readonly shareStatus = document.createElement('p');
   private readonly back = document.createElement('button');
   private readonly abort = new AbortController();
   private readonly keys = new Set<string>();
@@ -34,6 +37,8 @@ export class PostcardScene extends Scene {
   private paused = false;
   private capturing = false;
   private previewUrl?: string;
+  private shareFile?: File;
+  private sharing = false;
 
   constructor(
     config: AnimalConfig,
@@ -90,7 +95,7 @@ export class PostcardScene extends Scene {
     bindAria(panel, 'postcardWalk');
     this.image.alt = t('postcardImage');
     this.download.className = 'commerce-primary';
-    this.download.download = 'pawhaven-walk.png';
+    this.download.download = POSTCARD_FILENAME;
     bindText(this.download, 'postcardSave');
     this.back.type = 'button';
     this.back.className = 'commerce-primary';
@@ -98,8 +103,17 @@ export class PostcardScene extends Scene {
     this.back.addEventListener('click', () => this.closePreview(), { signal: this.abort.signal });
     const actions = document.createElement('div');
     actions.className = 'postcard-preview-actions';
-    actions.append(this.back, this.download);
-    panel.append(this.image, actions);
+    this.share.type = 'button';
+    this.share.className = 'commerce-primary postcard-share';
+    this.share.hidden = true;
+    bindText(this.share, 'postcardShare');
+    this.share.addEventListener('click', () => void this.sharePostcard(), { signal: this.abort.signal });
+    this.shareStatus.className = 'postcard-share-status';
+    this.shareStatus.setAttribute('role', 'status');
+    this.shareStatus.hidden = true;
+    bindText(this.shareStatus, 'postcardShareFailed');
+    actions.append(this.back, this.download, this.share);
+    panel.append(this.image, actions, this.shareStatus);
     this.preview.append(panel);
     document.querySelector('#app')?.append(this.hud, this.preview);
     backAction(this.hud, onReturn);
@@ -147,7 +161,12 @@ export class PostcardScene extends Scene {
       if (event.key === 'Escape') { event.preventDefault(); this.closePreview(); }
       if (event.key === 'Tab') {
         event.preventDefault();
-        (document.activeElement === this.download ? this.back : this.download).focus();
+        const controls = this.share.hidden || this.share.disabled
+          ? [this.back, this.download] : [this.back, this.download, this.share];
+        const index = controls.findIndex(control => control === document.activeElement);
+        const next = index < 0 ? (event.shiftKey ? controls.length - 1 : 0)
+          : (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+        controls[next]?.focus();
       }
       return;
     }
@@ -181,15 +200,43 @@ export class PostcardScene extends Scene {
       if (this.destroyed) return;
       this.previewUrl = URL.createObjectURL(blob);
       this.image.src = this.download.href = this.previewUrl;
+      this.prepareShare(blob);
       this.hud.inert = true;
       this.preview.hidden = false;
-      this.download.focus();
+      (this.share.hidden || this.share.disabled ? this.download : this.share).focus();
       this.shutter?.();
     } catch {
       if (!this.destroyed) bindText(this.hint, 'postcardFailed');
     } finally {
       this.capturing = false;
       if (!this.destroyed) this.capture.disabled = !this.atSpot || !this.active;
+    }
+  }
+
+  private prepareShare(blob: Blob): void {
+    if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return;
+    try {
+      const file = new File([blob], POSTCARD_FILENAME, { type: 'image/png' });
+      if (!navigator.canShare({ files: [file] })) return;
+      this.shareFile = file;
+      this.share.hidden = false;
+      this.share.disabled = this.sharing;
+    } catch { /* PNG download remains available. */ }
+  }
+
+  private async sharePostcard(): Promise<void> {
+    const file = this.shareFile;
+    if (!file || this.sharing || this.preview.hidden) return;
+    this.sharing = this.share.disabled = true;
+    this.shareStatus.hidden = true;
+    try {
+      await navigator.share({ files: [file] });
+    } catch (error) {
+      const cancelled = error instanceof DOMException && error.name === 'AbortError';
+      if (!cancelled && !this.destroyed && this.shareFile === file) this.shareStatus.hidden = false;
+    } finally {
+      this.sharing = false;
+      if (!this.destroyed) this.share.disabled = false;
     }
   }
 
@@ -204,6 +251,8 @@ export class PostcardScene extends Scene {
   private releaseImage(): void {
     this.image.removeAttribute('src');
     this.download.removeAttribute('href');
+    this.shareFile = undefined;
+    this.share.hidden = this.shareStatus.hidden = true;
     if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
     this.previewUrl = undefined;
   }
