@@ -1,6 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const PNG_LIMIT = 768 * 1024;
+const PNG_BASE64 = /^iVBORw0KGgo[A-Za-z0-9+/=]+$/;
+const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+const NICKNAME = /^[A-Za-z0-9가-힣_]{2,16}$/;
+
+export interface PostcardFrame {
+  url: string;
+  revision?: string;
+  stamped: boolean;
+  visitors: string[];
+}
 
 export class HomePostcards {
   constructor(private readonly client: SupabaseClient, private readonly owner: string) {}
@@ -9,9 +19,34 @@ export class HomePostcards {
     return await this.read(target, false, signal) === '';
   }
 
-  async image(target: string | undefined, signal: AbortSignal): Promise<string | null> {
-    const png = await this.read(target, true, signal);
-    return png ? 'data:image/png;base64,' + png : null;
+  async frame(target: string | undefined, signal: AbortSignal): Promise<PostcardFrame | null> {
+    let value: unknown;
+    try {
+      value = await this.call('read_home_postcard_frame', { p_target: target ?? this.owner }, signal);
+    } catch (error) {
+      // Keep existing postcards viewable while the server migration is being applied.
+      if (!['PGRST202', '42883'].includes((error as { code?: string })?.code ?? '')) throw error;
+      const png = await this.read(target, true, signal);
+      return png ? { url: 'data:image/png;base64,' + png, stamped: false, visitors: [] } : null;
+    }
+    if (value === null) return null;
+    const frame = value as { revision?: unknown; image?: unknown; stamped?: unknown; visitors?: unknown };
+    if (typeof frame.image !== 'string' || !PNG_BASE64.test(frame.image) ||
+        typeof frame.revision !== 'string' || !UUID.test(frame.revision) || typeof frame.stamped !== 'boolean' ||
+        !Array.isArray(frame.visitors) || frame.visitors.length > 3 ||
+        !frame.visitors.every(name => typeof name === 'string' && NICKNAME.test(name))) throw Error('invalid_postcard');
+    return {
+      url: 'data:image/png;base64,' + frame.image,
+      revision: frame.revision,
+      stamped: frame.stamped,
+      visitors: target === undefined ? frame.visitors : [],
+    };
+  }
+
+  async stamp(target: string, revision: string, signal: AbortSignal): Promise<boolean> {
+    const saved = await this.call('stamp_home_postcard', { p_target: target, p_revision: revision }, signal);
+    if (typeof saved !== 'boolean') throw Error('invalid_postcard_stamp');
+    return saved;
   }
 
   async set(image: Blob | null, signal: AbortSignal): Promise<void> {
@@ -28,7 +63,7 @@ export class HomePostcards {
 
   private async read(target: string | undefined, includeImage: boolean, signal: AbortSignal): Promise<string | null> {
     const value = await this.call('read_home_postcard', { p_target: target ?? this.owner, p_include_image: includeImage }, signal);
-    if (value === null || value === '' || (typeof value === 'string' && /^iVBORw0KGgo[A-Za-z0-9+/=]+$/.test(value))) return value;
+    if (value === null || value === '' || (typeof value === 'string' && PNG_BASE64.test(value))) return value;
     throw Error('invalid_postcard');
   }
 

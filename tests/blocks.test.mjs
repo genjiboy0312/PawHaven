@@ -1,10 +1,11 @@
 import{test,after,beforeEach}from'node:test';import assert from'node:assert/strict';import{readFile}from'node:fs/promises';import{PGlite}from'@electric-sql/pglite';import{importTs}from'./load-typescript.mjs';
 const{FriendsClient}=await importTs('../src/friends/FriendsClient.ts',import.meta.url);
 const{parseFriendHome,readFriendHome}=await importTs('../src/friends/FriendHome.ts',import.meta.url);
-const db=new PGlite();after(()=>db.close());const users=Array.from({length:4},(_,n)=>String(n+1).repeat(8)+'-1111-4111-8111-111111111111'),lease='aaaaaaaa-1111-4111-8111-111111111111';
+const db=new PGlite();after(()=>db.close());const users=Array.from({length:5},(_,n)=>String(n+1).repeat(8)+'-1111-4111-8111-111111111111'),lease='aaaaaaaa-1111-4111-8111-111111111111';
 await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create schema realtime;create table realtime.messages(extension text);alter table realtime.messages enable row level security;create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;");
 const postcardMigration = '202611120042_home_postcards.sql';
-for(const file of['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610200007_race_countdown.sql','202610210008_home_shop.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610240012_park_channels.sql','202610250015_player_blocks.sql','202610250017_friend_home_visits.sql',postcardMigration])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
+const stampMigration = '202611120043_home_postcard_stamps.sql';
+for(const file of['202610170001_player_accounts.sql','202610170002_server_economy.sql','202610190003_multiplayer.sql','202610200007_race_countdown.sql','202610210008_home_shop.sql','202610230009_friends.sql','202610230010_friend_invites.sql','202610240012_park_channels.sql','202610250015_player_blocks.sql','202610250017_friend_home_visits.sql',postcardMigration,stampMigration])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
 for(const id of users)await db.query('insert into auth.users values($1)',[id]);
 beforeEach(async()=>{await db.exec('truncate public.mp_rooms cascade;delete from public.player_home_postcards;delete from public.player_blocks;delete from public.player_friendships;delete from public.park_chat;delete from public.park_members;delete from public.player_presence;delete from public.player_profiles');for(const[i,id]of users.entries())await db.query('insert into public.player_profiles(user_id,nickname)values($1,$2)',[id,'Player'+i]);});
 async function as(n,sql,args=[],role='authenticated'){await db.exec('set role '+role);try{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[n===null?'':users[n]]);return(await db.query(sql,args)).rows[0]?.data;}finally{await db.exec('reset role');}}
@@ -78,16 +79,17 @@ test('home transport checks account identity, discards cancelled responses and n
  await assert.rejects(readFriendHome(client,users[2],users[1],new AbortController().signal),/account_changed/);assert.equal(calls,1);
 });
 
+// Minimal binary fixture for the persistence contract. Chrome verifies a real generated PNG separately.
+const image = n => Buffer.concat([
+ Buffer.from('89504e470d0a1a0a0000000d4948445200000254000001b6', 'hex'),
+ Buffer.alloc(16, n),
+ Buffer.from('0000000049454e44ae426082', 'hex'),
+]).toString('base64');
+
 test('one postcard per owner, with private bytes checked again when a friend opens the frame', async () => {
  const read = (viewer, target, image = false, role) =>
   as(viewer, 'select public.read_home_postcard($1,$2) as data', [users[target], image], role);
  const save = (viewer, png, role) => as(viewer, 'select public.set_home_postcard($1)', [png], role);
- // Minimal binary fixture for the persistence contract. Chrome verifies a real generated PNG separately.
- const image = n => Buffer.concat([
-  Buffer.from('89504e470d0a1a0a0000000d4948445200000254000001b6', 'hex'),
-  Buffer.alloc(16, n),
-  Buffer.from('0000000049454e44ae426082', 'hex'),
- ]).toString('base64');
  assert.equal(await read(0, 0), null);
  await save(0, image(1));
  assert.equal(await read(0, 0), '');
@@ -116,4 +118,57 @@ test('one postcard per owner, with private bytes checked again when a friend ope
  await save(0, null);
  await save(0, null);
  assert.equal(await read(0, 0), null);
+});
+
+
+test('paw stamps are scoped to the open postcard, deduplicated and private to its owner', async () => {
+ const frame = (viewer, target=0, role) =>
+  as(viewer, 'select public.read_home_postcard_frame($1) as data', [users[target]], role);
+ const stamp = (viewer, revision, role) =>
+  as(viewer, 'select public.stamp_home_postcard($1,$2) as data', [users[0],revision], role);
+ const exhibit = png => as(0, 'select public.set_home_postcard($1)', [png]);
+ await exhibit(image(1));
+ const original = await frame(0);
+ assert.deepEqual(original.visitors, []);
+ assert.equal(original.image, image(1));
+ assert.equal(await stamp(0, original.revision), false);
+ await assert.rejects(frame(null, 0, 'anon'), /permission denied/);
+ await assert.rejects(stamp(null, original.revision, 'anon'), /permission denied/);
+ await assert.rejects(as(0, 'select * from public.home_postcard_stamps'), /permission denied/);
+ assert.equal(await stamp(1, original.revision), false);
+ assert.equal(await frame(1), null);
+ await friends(0,'send',1);
+ assert.equal(await stamp(1, original.revision), false);
+ await friends(1,'accept',0);
+ for (const n of [2,3,4]) {
+  await friends(0,'send',n);
+  await friends(n,'accept',0);
+ }
+ for (const n of [1,2,3,4]) assert.equal(await stamp(n, original.revision), true);
+ const list = async () => (await frame(0)).visitors;
+ assert.deepEqual(await list(), ['Player4','Player3','Player2']);
+ assert.equal(await stamp(1, original.revision), true);
+ assert.deepEqual(await list(), ['Player4','Player3','Player2']);
+ assert.deepEqual(await frame(1), {...original, stamped: true});
+ await friends(4,'block',0);
+ assert.equal(await stamp(4,original.revision),false);
+ assert.equal(await frame(4),null);
+ assert.deepEqual(await list(), ['Player3','Player2','Player1']);
+ await exhibit(image(1));
+ assert.equal((await frame(0)).revision, original.revision);
+ assert.equal((await frame(1)).stamped,true);
+ await db.exec(await readFile(new URL('../supabase/migrations/' + stampMigration, import.meta.url), 'utf8'));
+ assert.equal((await frame(1)).stamped,true);
+ await exhibit(image(2));
+ const replacement = await frame(1);
+ assert.notEqual(replacement.revision, original.revision);
+ assert.equal(replacement.image, image(2));
+ assert.equal(replacement.stamped,false);
+ assert.equal(await stamp(1,original.revision),false);
+ assert.deepEqual(await list(),[]);
+ assert.equal(await stamp(1,replacement.revision),true);
+ await exhibit(null);
+ assert.equal(await frame(1),null);
+ assert.equal(await stamp(1,replacement.revision),false);
+ assert.equal((await db.query('select count(*)::int as total from public.home_postcard_stamps')).rows[0].total,0);
 });

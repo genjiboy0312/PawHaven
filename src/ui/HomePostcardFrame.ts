@@ -9,6 +9,10 @@ export class HomePostcardFrame {
   private readonly status = document.createElement('p');
   private readonly close = document.createElement('button');
   private readonly remove = document.createElement('button');
+  private readonly stamp = document.createElement('button');
+  private readonly stampLabel = document.createElement('span');
+  private readonly visitors = document.createElement('ul');
+  private revision?: string;
   private readonly abort = new AbortController();
   private reading?: AbortController;
 
@@ -23,29 +27,39 @@ export class HomePostcardFrame {
     this.overlay.className = 'settings-overlay postcard-overlay';
     this.overlay.hidden = true;
     const panel = document.createElement('section');
-    panel.className = 'settings-panel postcard-preview';
+    panel.className = 'settings-panel postcard-preview home-postcard-preview';
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
     bindAria(panel, 'postcardFrame');
     this.image.alt = t('postcardImage');
     this.status.className = 'postcard-share-status';
     this.status.setAttribute('role', 'status');
-    this.close.type = this.remove.type = 'button';
+    this.close.type = this.remove.type = this.stamp.type = 'button';
     this.close.className = this.remove.className = 'commerce-primary';
+    this.stamp.className = 'commerce-primary home-postcard-stamp';
+    const paw = document.createElement('span');
+    paw.className = 'race-course-paw';
+    paw.setAttribute('aria-hidden', 'true');
+    for (let toe = 0; toe < 4; toe++) paw.append(document.createElement('i'));
+    this.stamp.append(paw, this.stampLabel);
+    this.stamp.addEventListener('click', () => void this.leaveStamp(), { signal });
+    this.visitors.className = 'home-postcard-visitors';
+    bindAria(this.visitors, 'postcardRecentStamps');
     bindText(this.close, 'close');
     bindText(this.remove, 'postcardRemove');
     this.close.addEventListener('click', () => this.hide(), { signal });
     this.remove.addEventListener('click', () => void this.clear(), { signal });
     const actions = document.createElement('div');
     actions.className = 'postcard-preview-actions';
-    actions.append(this.close, this.remove);
-    panel.append(this.image, actions, this.status);
+    actions.append(this.close, this.remove, this.stamp);
+    panel.append(this.image, actions, this.visitors, this.status);
     this.overlay.append(panel);
     this.overlay.addEventListener('keydown', event => {
       if (event.key === 'Escape') { event.preventDefault(); this.hide(); }
       if (event.key !== 'Tab') return;
       event.preventDefault();
-      (document.activeElement === this.close && !this.remove.hidden && !this.remove.disabled ? this.remove : this.close).focus();
+      const action = this.target === undefined ? this.remove : this.stamp;
+      (document.activeElement === this.close && !action.hidden && !action.disabled ? action : this.close).focus();
     }, { signal });
     backAction(this.overlay, () => this.hide());
     this.hud.append(this.button);
@@ -61,25 +75,64 @@ export class HomePostcardFrame {
     const { signal } = this.reading;
     this.hud.inert = true;
     this.overlay.hidden = false;
-    this.image.hidden = this.remove.hidden = true;
+    this.revision = undefined;
+    this.image.hidden = this.remove.hidden = this.stamp.hidden = this.visitors.hidden = true;
+    this.stamp.disabled = false;
+    this.visitors.replaceChildren();
     this.status.hidden = false;
+    this.status.classList.remove('postcard-stamp-announcement');
     bindText(this.status, 'postcardLoading');
     this.close.focus();
     try {
-      const url = await this.postcards.image(this.target, signal);
+      const frame = await this.postcards.frame(this.target, signal);
       if (signal.aborted) return;
-      if (!url) {
+      if (!frame) {
         this.button.hidden = true;
         this.hide();
         return;
       }
-      this.image.src = url;
+      this.image.src = frame.url;
       this.image.hidden = false;
       this.status.hidden = true;
       this.remove.hidden = this.target !== undefined;
+      this.revision = frame.revision;
+      this.stamp.hidden = this.target === undefined || !frame.revision;
+      this.stamp.disabled = frame.stamped;
+      bindText(this.stampLabel, frame.stamped ? 'postcardStamped' : 'postcardStamp');
+      for (const visitor of frame.visitors) {
+        const item = document.createElement('li');
+        item.textContent = t('postcardStampFrom').replace('{name}', visitor);
+        this.visitors.append(item);
+      }
+      this.visitors.hidden = !frame.visitors.length;
     } catch {
       if (!signal.aborted) bindText(this.status, 'postcardDisplayFailed');
     }
+  }
+
+  private async leaveStamp(): Promise<void> {
+    const signal = this.reading?.signal;
+    if (!this.target || !this.revision || !signal || signal.aborted || this.stamp.disabled || this.stamp.hidden) return;
+    this.stamp.disabled = true;
+    this.close.focus();
+    this.status.hidden = true;
+    try {
+      const saved = await this.postcards.stamp(this.target, this.revision, signal);
+      if (signal.aborted) return;
+      if (saved) {
+        bindText(this.stampLabel, 'postcardStamped');
+        bindText(this.status, 'postcardStamped');
+        this.status.classList.add('postcard-stamp-announcement');
+      } else {
+        this.stamp.hidden = true;
+        bindText(this.status, 'postcardStampChanged');
+      }
+    } catch {
+      if (signal.aborted) return;
+      this.stamp.disabled = false;
+      bindText(this.status, 'postcardStampFailed');
+    }
+    this.status.hidden = false;
   }
 
   private async clear(): Promise<void> {

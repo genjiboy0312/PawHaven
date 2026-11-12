@@ -949,4 +949,12 @@ button { transition: background-color 120ms ease, box-shadow 120ms ease, transfo
 }
 .home-postcard-frame::before { content:'▧'; margin-right:.6cqw; }
 .postcard-share-status { margin:0; text-align:center; font:400 clamp(10px,1.25cqw,16px) var(--font-body); }
+.home-postcard-preview { gap:1.25cqh; }
+.home-postcard-stamp { display:inline-flex; align-items:center; gap:.6cqw; }
+.home-postcard-stamp .race-course-paw { flex:none; width:1em; height:1em; }
+.home-postcard-visitors {
+  flex:none; max-width:100%; margin:0; padding:0; list-style:none; text-align:center;
+  color:var(--ui-ink); font:400 clamp(10px,1.3cqw,16px)/1.25 var(--font-round); overflow-wrap:anywhere;
+}
+.postcard-stamp-announcement:not([hidden]) { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 .postcard-preview-actions a { display:inline-flex; align-items:center; text-decoration:none; }
