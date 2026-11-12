@@ -33,6 +33,7 @@ import { ShopScene } from './scenes/ShopScene';
 import { QuestPopup } from '../ui/QuestPopup';
 import { FriendsPopup } from '../ui/FriendsPopup';
 import { FriendsClient, friendsTransport } from '../friends/FriendsClient';
+import { HomePostcards } from '../home/HomePostcards';
 import {readFriendHome} from '../friends/FriendHome';
 import {loadSnakeArt,type SnakeArt} from './SnakeView';
 import { FriendActivity, activityTransport } from '../friends/FriendActivity';
@@ -244,10 +245,15 @@ export class Game {
       this.scenes?.show(screen);
     };
     const saveRoomLook=async()=>{if(this.account?.pendingSave)await this.account.save();};
+    const homePostcards = () => {
+      const owner = this.account?.user?.id;
+      return owner && accountClient ? new HomePostcards(accountClient, owner) : undefined;
+    };
     const showFriendHome=(saved:Awaited<ReturnType<typeof readFriendHome>>,leave:()=>void)=>{
       const source=choosePet(saved.character.petId);
       const config={...source,wardrobe:source.wardrobe?{...source.wardrobe,outfit:{...saved.character.outfit}}:undefined};
-      this.scenes?.show(new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:saved.home,textures:this.homeTextures,open:()=>{}},undefined,{name:saved.nickname,leave}));
+      const store = homePostcards();
+      this.scenes?.show(new LobbyScene(config,undefined,true,undefined,undefined,undefined,{state:saved.home,textures:this.homeTextures,open:()=>{}},undefined,{name:saved.nickname,leave},undefined,store ? {store,target:saved.id} : undefined));
     };
     const showPark=(channel?:number)=>{
       const owner=this.account?.user?.id;if(this.disposed||!owner||!accountClient)return;
@@ -354,7 +360,7 @@ export class Game {
             this.friendClient?.stop();
             this.scenes.show(new PostcardScene(activePet, this.homeTextures,
               (target, frame) => this.app.renderer.extract.canvas({ target, frame, resolution: 1, antialias: false }) as HTMLCanvasElement,
-              () => lobby(true), () => this.audio?.play('click')));
+              () => lobby(true), () => this.audio?.play('click'), homePostcards()));
             void this.friendActivity?.refresh();
           },
           park:()=>{
@@ -383,11 +389,12 @@ export class Game {
         });
         this.playMenu=menu;menu.open(page);
       };
+      const store = homePostcards();
       const scene = new LobbyScene(activePet, () => openMenu(), returning, () => {
         openCharacter(()=>lobby(true));
       }, () => this.settings?.open(false), { click: () => this.audio?.play('click'), notice: () => commerce.message, retry: () => commerce.retry(), busy: () => commerce.busy, shop: () => openShop(), quest: () => this.quests?.open(), pet: () => { void commerce.recordPet(); }, snacks: commerce, friends: () => this.friends?.open(), mail:()=>this.mailbox?.open(), mailPending:()=>this.mailClient?.pending??0, mailArrival:()=>this.mailClient?.arrivalVersion??0, requests: () => this.friendClient?.snapshot.incoming.length ?? 0, rewards: () => commerce.hasQuestRewards }, { state: home, textures: this.homeTextures, open: openHome }, () => this.account?.user ? this.account.nickname : null, undefined, {
         guide, play: () => launch(scene, 'practice'), shop: () => openShop('Furniture'), home: openHome,
-      });
+      }, store ? {store} : undefined);
       currentLobby=scene;this.scenes?.show(scene);
       if (greet) scene.greet();
       void this.friendActivity?.refresh();

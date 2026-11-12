@@ -1,6 +1,7 @@
 import { Container, Graphics, Rectangle, type DestroyOptions } from 'pixi.js';
 import { AnimalAnimationController } from '../../animals/AnimalAnimationController';
 import type { AnimalConfig } from '../../animals/AnimalConfig';
+import type { HomePostcards } from '../../home/HomePostcards';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
 import { bindAria, bindText, t, type TextKey } from '../../settings/i18n';
 import { backAction } from '../../ui/BackNavigation';
@@ -27,6 +28,8 @@ export class PostcardScene extends Scene {
   private readonly image = document.createElement('img');
   private readonly download = document.createElement('a');
   private readonly share = document.createElement('button');
+  private readonly exhibit = document.createElement('button');
+  private readonly exhibitStatus = document.createElement('p');
   private readonly shareStatus = document.createElement('p');
   private readonly back = document.createElement('button');
   private readonly abort = new AbortController();
@@ -37,7 +40,9 @@ export class PostcardScene extends Scene {
   private paused = false;
   private capturing = false;
   private previewUrl?: string;
+  private imageBlob?: Blob;
   private shareFile?: File;
+  private publishing = false;
   private sharing = false;
 
   constructor(
@@ -46,6 +51,7 @@ export class PostcardScene extends Scene {
     private readonly extract: (target: Container, frame: Rectangle) => HTMLCanvasElement,
     private readonly onReturn: () => void,
     private readonly shutter?: () => void,
+    private readonly postcards?: HomePostcards,
   ) {
     super();
     const map = new LobbyMap(textures);
@@ -112,8 +118,16 @@ export class PostcardScene extends Scene {
     this.shareStatus.setAttribute('role', 'status');
     this.shareStatus.hidden = true;
     bindText(this.shareStatus, 'postcardShareFailed');
-    actions.append(this.back, this.download, this.share);
-    panel.append(this.image, actions, this.shareStatus);
+    this.exhibit.type = 'button';
+    this.exhibit.className = 'commerce-primary postcard-exhibit';
+    this.exhibit.hidden = !postcards;
+    bindText(this.exhibit, 'postcardExhibit');
+    this.exhibit.addEventListener('click', () => void this.exhibitPostcard(), { signal: this.abort.signal });
+    this.exhibitStatus.className = 'postcard-share-status';
+    this.exhibitStatus.setAttribute('role', 'status');
+    this.exhibitStatus.hidden = true;
+    actions.append(this.back, this.download, this.share, this.exhibit);
+    panel.append(this.image, actions, this.shareStatus, this.exhibitStatus);
     this.preview.append(panel);
     document.querySelector('#app')?.append(this.hud, this.preview);
     backAction(this.hud, onReturn);
@@ -161,8 +175,8 @@ export class PostcardScene extends Scene {
       if (event.key === 'Escape') { event.preventDefault(); this.closePreview(); }
       if (event.key === 'Tab') {
         event.preventDefault();
-        const controls = this.share.hidden || this.share.disabled
-          ? [this.back, this.download] : [this.back, this.download, this.share];
+        const controls = [this.back, this.download, this.share, this.exhibit]
+          .filter(control => !control.hidden && !control.matches(':disabled'));
         const index = controls.findIndex(control => control === document.activeElement);
         const next = index < 0 ? (event.shiftKey ? controls.length - 1 : 0)
           : (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
@@ -200,6 +214,8 @@ export class PostcardScene extends Scene {
       if (this.destroyed) return;
       this.previewUrl = URL.createObjectURL(blob);
       this.image.src = this.download.href = this.previewUrl;
+      this.imageBlob = blob;
+      this.exhibit.disabled = this.publishing;
       this.prepareShare(blob);
       this.hud.inert = true;
       this.preview.hidden = false;
@@ -240,6 +256,26 @@ export class PostcardScene extends Scene {
     }
   }
 
+  private async exhibitPostcard(): Promise<void> {
+    const blob = this.imageBlob;
+    if (!this.postcards || !blob || this.publishing || this.exhibit.disabled || this.preview.hidden) return;
+    this.publishing = this.exhibit.disabled = true;
+    this.exhibitStatus.hidden = false;
+    bindText(this.exhibitStatus, 'postcardExhibiting');
+    try {
+      await this.postcards.set(blob, this.abort.signal);
+      if (!this.destroyed && this.imageBlob === blob) bindText(this.exhibitStatus, 'postcardExhibited');
+    } catch {
+      if (!this.destroyed && this.imageBlob === blob) {
+        bindText(this.exhibitStatus, 'postcardExhibitFailed');
+        this.exhibit.disabled = false;
+      }
+    } finally {
+      this.publishing = false;
+      if (!this.destroyed && this.imageBlob !== blob) this.exhibit.disabled = false;
+    }
+  }
+
   private closePreview(): void {
     this.preview.hidden = true;
     this.hud.inert = false;
@@ -251,7 +287,8 @@ export class PostcardScene extends Scene {
   private releaseImage(): void {
     this.image.removeAttribute('src');
     this.download.removeAttribute('href');
-    this.shareFile = undefined;
+    this.imageBlob = this.shareFile = undefined;
+    this.exhibitStatus.hidden = true;
     this.share.hidden = this.shareStatus.hidden = true;
     if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
     this.previewUrl = undefined;

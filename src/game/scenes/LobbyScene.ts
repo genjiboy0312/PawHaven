@@ -1,3 +1,5 @@
+import type { HomePostcards } from '../../home/HomePostcards';
+import { HomePostcardFrame } from '../../ui/HomePostcardFrame';
 import { HomeState } from '../../home/HomeState';
 import { LobbyMap, type HomeTextures } from '../../home/LobbyMap';
 import { Graphics, RenderLayer, type DestroyOptions } from 'pixi.js';
@@ -22,15 +24,17 @@ export class LobbyScene extends Scene {
   private welcomeStarted = false;
   private paused = false;
   private readonly firstHome?: FirstHomeHint;
+  private readonly postcard?: HomePostcardFrame;
   private readonly snacks?:SnackButton;private feedReaction=false;
 
   override setPaused(paused: boolean): void { this.paused = paused; }
 
-  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void;snacks?:CommerceState; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }, nickname?: () => string | null | undefined, visit?:{name:string;leave:()=>void}, firstHome?: FirstHomeActions) {
+  constructor(config: AnimalConfig, onPlay?: () => void, returning = false, onCharacter?: () => void, onSettings?: () => void, commerce?: { shop: () => void; quest: () => void; pet?: () => void;snacks?:CommerceState; friends?: () => void; mail?:()=>void; mailPending?:()=>number; mailArrival?:()=>number; requests?:()=>number; rewards?: () => boolean; click?: () => void; notice?: () => string; retry?: () => void; busy?: () => boolean }, private readonly home?: { state: HomeState; textures?: HomeTextures; open: () => void }, nickname?: () => string | null | undefined, visit?:{name:string;leave:()=>void}, firstHome?: FirstHomeActions, postcard?: { store: HomePostcards; target?: string }) {
     super(); this.garden = new LobbyMap(home?.textures);
     const pet = (): void => { if (!this.paused && this.animal.pet()){commerce?.pet?.();firstHome?.guide.pet();this.snacks?.reveal();} };
     this.hud = new LobbyHud(onPlay, returning, onCharacter, onSettings, commerce, home?.open, pet,visit,commerce?.snacks?{config,nickname,state:commerce.snacks}:undefined);
     if (firstHome) { this.firstHome = new FirstHomeHint(firstHome, commerce?.click); this.hud.element.append(this.firstHome.element); }
+    if (postcard) this.postcard = new HomePostcardFrame(this.hud.element, postcard.store, postcard.target);
     this.welcomeStarted = returning;
     this.animal = new Animal(config, Math.random, nickname);
     if(commerce?.snacks){this.snacks=new SnackButton(commerce.snacks,config.id,()=>{this.feedReaction=true;},commerce.quest);this.hud.element.append(this.snacks.element);}
@@ -85,6 +89,7 @@ export class LobbyScene extends Scene {
   override destroy(options?: DestroyOptions): void {
     this.firstHome?.destroy();
     this.snacks?.destroy();
+    this.postcard?.destroy();
     this.hud.destroy();
     super.destroy(options);
   }
